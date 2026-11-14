@@ -291,10 +291,11 @@ describe('the named areas panel', () => {
     it('says why at the top of its box, so a tall picture’s box shows the words unscrolled', async () => {
       const { host } = await render([area('a')], {
         answer: view({ take: null, pictureGone: true }),
+        size: { width: 1024, height: 1536 },
       })
       const empty = host.querySelector<HTMLElement>('.named-area-empty')!
-      // The box keeps the picture's shape, so a tall one (1024 × 1536) at full width outgrows the window.
-      expect(empty.style.aspectRatio).toBe('320 / 200')
+      // The box keeps the tall picture's shape, so at full width it outgrows an 862 px window.
+      expect(empty.style.aspectRatio).toBe('1024 / 1536')
       expect(valuesInEveryWindow(empty, 'align-content').at(-1)).toBe(
         '.named-area-empty-text: start',
       )
