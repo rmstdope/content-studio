@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'bun:test'
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { join } from 'node:path'
 import { projectJson, tempRepo } from '../../test/helpers'
 import type { EditModelId } from '../core/imageModels'
@@ -176,6 +184,33 @@ describe('a fine-tune the model made but the studio cannot save', () => {
 })
 
 describe('making fine-tunes', () => {
+  it.skipIf(process.getuid?.() === 0)(
+    'names the board file, and starts nothing, when the board cannot be written for new fine-tunes',
+    async () => {
+      const { root, file, tunes, requests, settled } = setup()
+      await tunes.make(file, 'inn', { count: 1, words: 'Add a cat', area: null })
+      await settled()
+      const board = readFileSync(join(root, FOLDER, 'board.json'), 'utf8')
+      chmodSync(join(root, FOLDER), 0o555)
+      const quiet = console.error
+      console.error = () => {}
+      try {
+        expect(await tunes.make(file, 'inn', { count: 2, words: 'Add a dog', area: null })).toEqual(
+          {
+            ok: false,
+            message: `No fine-tunes were made: ${FOLDER}/board.json could not be written.`,
+          },
+        )
+      } finally {
+        console.error = quiet
+        chmodSync(join(root, FOLDER), 0o755)
+      }
+      expect(readFileSync(join(root, FOLDER, 'board.json'), 'utf8')).toBe(board)
+      expect((await settled()).making).toEqual([])
+      expect(requests).toHaveLength(1)
+    },
+  )
+
   it('edits the whole picture of the chosen take when nothing is marked, and keeps it whole', async () => {
     const { root, file, tunes, requests, settled } = setup()
     expect(await tunes.make(file, 'inn', { count: 2, words: 'Add a cat', area: null })).toEqual({

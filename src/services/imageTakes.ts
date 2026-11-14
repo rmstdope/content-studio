@@ -42,7 +42,7 @@ import {
 } from '../core/images'
 import { resolveInRoot } from '../core/paths'
 import { IMAGES_LOCK_FILE, type Problem } from '../core/project'
-import { readResource, writeOrRefuse } from './files'
+import { readResource, refusalAnswer, writeOrRefuse } from './files'
 import { freeGpu, gpuQueue } from './gpu'
 import { IMAGE_BOARD_DIR, IMAGE_TAKES_DIR, readImages, readStyleLook } from './imageLists'
 import { adoptImageAreas } from './imageEdits'
@@ -858,13 +858,21 @@ export function createImageTakes({
           request.model ?? defaultTakeModel(found.config.model ?? DEFAULT_IMAGE_MODEL, states)
         if (!installed[model]) return notHere(model)
         // The numbers are reserved at once, so none is used twice, even by a take that fails or is stopped.
-        const reserved = await engine.reserve(
-          projectFile,
-          id,
-          accessOf(found),
-          request.count,
-          (n) => ({ n, state: 'waiting', startedAt: 0, message: '', hash: '', model }),
-        )
+        const reserved = await engine
+          .reserve(projectFile, id, accessOf(found), request.count, (n) => ({
+            n,
+            state: 'waiting',
+            startedAt: 0,
+            message: '',
+            hash: '',
+            model,
+          }))
+          .catch(
+            refusalAnswer(
+              'reserving the take numbers failed',
+              (reason) => `No takes were made: ${reason}.`,
+            ),
+          )
         if (!Array.isArray(reserved)) return reserved
         queued.push(...reserved)
       }
