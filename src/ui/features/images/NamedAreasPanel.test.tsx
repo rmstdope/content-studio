@@ -288,6 +288,19 @@ describe('the named areas panel', () => {
       expect(isOff(mainOf(host, 0))).toBe(true)
     })
 
+    it('says why at the top of its box, so a tall picture’s box shows the words unscrolled', async () => {
+      const { host } = await render([area('a')], {
+        answer: view({ take: null, pictureGone: true }),
+        size: { width: 1024, height: 1536 },
+      })
+      const empty = host.querySelector<HTMLElement>('.named-area-empty')!
+      // The box keeps the tall picture's shape, so at full width it outgrows an 862 px window.
+      expect(empty.style.aspectRatio).toBe('1024 / 1536')
+      expect(valuesInEveryWindow(empty, 'align-content').at(-1)).toBe(
+        '.named-area-empty-text: start',
+      )
+    })
+
     it('says so too when the picture cannot be read once asked for', async () => {
       const { host } = await render([area('a')])
       await act(async () => {

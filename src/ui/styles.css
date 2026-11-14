@@ -5260,7 +5260,9 @@ textarea[aria-disabled='true'][data-why] {
   text-align: center;
   background: var(--inset);
 }
+/* The words sit at the top, so a box as tall as a tall picture still shows why without scrolling. */
 .named-area-empty-text {
+  align-content: start;
   border: 1px dashed var(--line-strong);
   color: var(--faint);
   font-size: 13px;
