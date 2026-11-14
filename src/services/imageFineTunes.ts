@@ -20,7 +20,7 @@ import { takeSize } from '../core/imageTakes'
 import { resolveInRoot } from '../core/paths'
 import { CACHE_DIR, type Problem } from '../core/project'
 import { figuresOf, timeKeyOfEdit } from '../core/takeTimes'
-import { readResource, writeOrRefuse } from './files'
+import { readResource, refusalAnswer, writeOrRefuse } from './files'
 import { freeGpu, gpuQueue } from './gpu'
 import { IMAGE_TAKES_DIR, readImages } from './imageLists'
 import { carryImageAreas } from './imageEdits'
@@ -325,12 +325,8 @@ export function createImageFineTunes({
       const again = engine.retry(image.projectFile, image.id, failed.n, '')
       if (again) queued.push(again)
     } else if ('count' in request) {
-      const reserved = await engine.reserve(
-        image.projectFile,
-        image.id,
-        accessOf(image),
-        request.count,
-        (n) => ({
+      const reserved = await engine
+        .reserve(image.projectFile, image.id, accessOf(image), request.count, (n) => ({
           n,
           state: 'waiting',
           startedAt: 0,
@@ -340,8 +336,13 @@ export function createImageFineTunes({
           model,
           words: request.words,
           area: request.area,
-        }),
-      )
+        }))
+        .catch(
+          refusalAnswer(
+            'reserving the fine-tune numbers failed',
+            (reason) => `No fine-tunes were made: ${reason}.`,
+          ),
+        )
       if (!Array.isArray(reserved)) return reserved
       queued.push(...reserved)
     }

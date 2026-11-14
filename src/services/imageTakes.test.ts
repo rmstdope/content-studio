@@ -193,6 +193,34 @@ describe.skipIf(process.getuid?.() === 0)(
 )
 
 describe('making takes', () => {
+  it.skipIf(process.getuid?.() === 0)(
+    'names the board file, and starts nothing, when the board cannot be written for new takes',
+    async () => {
+      const { takes, file, root, requests, settled, read } = setup()
+      await takes.make(file, 'inn', { count: 1 })
+      await settled('inn')
+      const board = read('content-studio/cache/images/inn.json')
+      const folder = join(root, 'content-studio/cache/images')
+      chmodSync(folder, 0o555)
+      const quiet = console.error
+      console.error = () => {}
+      try {
+        expect(await takes.make(file, 'inn', { count: 2 })).toEqual({
+          ok: false,
+          message: 'No takes were made: content-studio/cache/images/inn.json could not be written.',
+        })
+      } finally {
+        console.error = quiet
+        chmodSync(folder, 0o755)
+      }
+      expect(read('content-studio/cache/images/inn.json')).toBe(board)
+      const view = await settled('inn')
+      if (!view || !('making' in view)) throw new Error('no view')
+      expect(view.making).toEqual([])
+      expect(requests).toHaveLength(1)
+    },
+  )
+
   it('makes takes one after another from the whole prompt, at the take size, and lists them', async () => {
     const { takes, file, requests, settled, read, row } = setup()
     expect(await takes.make(file, 'inn', { count: 2 })).toEqual({ ok: true })
