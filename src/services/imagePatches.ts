@@ -28,7 +28,7 @@ import {
 import type { PatchRow } from '../core/images'
 import { resolveInRoot } from '../core/paths'
 import { IMAGES_LOCK_FILE } from '../core/project'
-import { readResource, writeOrRefuse } from './files'
+import { readResource, refusalAnswer, writeOrRefuse } from './files'
 import { freeGpu, gpuQueue } from './gpu'
 import { IMAGE_TAKES_DIR, readImages, readStyleLook } from './imageLists'
 import {
@@ -444,12 +444,8 @@ export function createImagePatches({
       queued = [again]
     } else {
       // The entries are added before the first wait, so a second request at once is refused above.
-      const reserved = await engine.reserve(
-        found.projectFile,
-        found.engineId,
-        accessOf(found),
-        request.count,
-        (n) => ({
+      const reserved = await engine
+        .reserve(found.projectFile, found.engineId, accessOf(found), request.count, (n) => ({
           n,
           state: 'waiting',
           startedAt: 0,
@@ -459,8 +455,13 @@ export function createImagePatches({
           model,
           area: request.area,
           words: found.patch.words,
-        }),
-      )
+        }))
+        .catch(
+          refusalAnswer(
+            'reserving the patch take numbers failed',
+            (reason) => `No takes were made: ${reason}.`,
+          ),
+        )
       if (!Array.isArray(reserved)) return reserved
       queued = reserved
     }

@@ -519,6 +519,32 @@ describe('takes of a declared patch', () => {
     expect(requests).toHaveLength(1)
   })
 
+  it.skipIf(process.getuid?.() === 0)(
+    'names the board file, and queues nothing, when the board cannot be written for new takes',
+    async () => {
+      const { root, file, patches, requests, work } = setup()
+      await patches.make(file, 'inn', 'door', { count: 1, area })
+      await work()
+      const board = readFileSync(join(root, BOARD), 'utf8')
+      const folder = dirname(join(root, BOARD))
+      chmodSync(folder, 0o555)
+      const quiet = console.error
+      console.error = () => {}
+      try {
+        expect(await patches.make(file, 'inn', 'door', { count: 2, area })).toEqual({
+          ok: false,
+          message: `No takes were made: ${BOARD} could not be written.`,
+        })
+      } finally {
+        console.error = quiet
+        chmodSync(folder, 0o755)
+      }
+      expect(readFileSync(join(root, BOARD), 'utf8')).toBe(board)
+      expect((await work()).making).toEqual([])
+      expect(requests).toHaveLength(1)
+    },
+  )
+
   it('takes only one of two requests that arrive together', async () => {
     let release = () => {}
     const queue = createSerial()
