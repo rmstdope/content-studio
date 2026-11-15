@@ -262,7 +262,7 @@ describe('the Remake patches line', () => {
     expect(button(host, 'Remake patches on this take')).toBeTruthy()
   })
 
-  it('says the takes could not be started when the studio cannot be reached', async () => {
+  it('says the takes could not be started when the request fails', async () => {
     const { host } = await render({ post: { status: 500, body: {} } })
     await act(async () => button(host, 'Remake patches on this take').click())
     expect(text(host.querySelector('[role="alert"]'))).toBe(

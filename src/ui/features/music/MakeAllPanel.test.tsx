@@ -233,7 +233,7 @@ describe('Make takes for every track with no chosen take', () => {
     expect(document.activeElement).toBe(page.button('Make 4 takes each'))
   })
 
-  it('says it could not start them when the studio cannot be reached', async () => {
+  it('says it could not start them when the request fails', async () => {
     const page = render(four, { answer: { status: 500, body: {} } })
     await page.press('Make 4 takes each')
     await page.press('Make 8 takes')

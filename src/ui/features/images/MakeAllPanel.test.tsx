@@ -217,7 +217,7 @@ describe('Make takes for every image with no chosen take', () => {
     expect(page.text()).not.toContain('Make 12 takes for 3 images?')
   })
 
-  it('says the takes could not be started when the studio cannot be reached', async () => {
+  it('says the takes could not be started when the request fails', async () => {
     const page = render(three, { answer: { status: 500, body: {} } })
     await page.press('Make 4 takes each')
     await page.press('Make 12 takes')

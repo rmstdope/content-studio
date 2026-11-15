@@ -985,6 +985,24 @@ describe('Make all, on the Sound effects list', () => {
     expect(button('Make 4 takes each')).toBeDefined()
   })
 
+  for (const [what, answer] of [
+    ['the request fails', () => Response.json({}, { status: 500 })],
+    ['nothing was started', () => Response.json({ ok: true, started: [] })],
+  ] as const) {
+    it(`says the takes could not be started when ${what}`, async () => {
+      const { text, button, settle } = render(
+        list,
+        effects({ rows: four }),
+        (call) => (call.method === 'POST' ? answer() : Response.json(null)),
+        seeds(),
+      )
+      act(() => button('Make 4 takes each').click())
+      act(() => button('Make 16 takes').click())
+      await settle()
+      expect(text()).toContain('The takes could not be started. Nothing was made; try again.')
+      expect(button('Make 4 takes each')).toBeDefined()
+    })
+  }
   it('uses the other model, and says so, when Setup’s is not on this computer', () => {
     const { text, button } = render(
       list,
