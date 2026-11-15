@@ -246,7 +246,7 @@ export function useImagesBatch(
 /**
  * Asks for four takes of every image of an act with no chosen take. The studio remembers the
  * press; the page reads what is being made and the press afterwards. A refusal is an error:
- * nothing was made.
+ * nothing was made, and `notStartedLine` says why.
  */
 export function useImagesMakeAll(actId: string) {
   return useMakeAllRequest<void, { ok: boolean }>(
@@ -397,7 +397,7 @@ export function useRemakePatches(imageId: string) {
       if (!response.ok && response.status !== 409) {
         throw new Error(`remaking the patches answered ${response.status}`)
       }
-      return (await response.json()) as { ok: boolean }
+      return (await response.json()) as { ok: true } | { ok: false; message?: string }
     },
     onSettled: () => client.invalidateQueries({ queryKey: ['image-patches', imageId] }),
   })

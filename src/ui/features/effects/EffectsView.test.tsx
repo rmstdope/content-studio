@@ -957,20 +957,30 @@ describe('Make all, on the Sound effects list', () => {
     expect(JSON.parse(post.body!)).toEqual({ ids: ['door-creak', 'coins', 'thunder', 'wind'] })
   })
 
-  it('says the takes could not be started, closes the question, and keeps the button', async () => {
+  it('says why the takes could not be started, closes the question, and keeps the button', async () => {
     const { text, button, settle } = render(
       list,
       effects({ rows: four }),
       (call) =>
         call.method === 'POST'
-          ? Response.json({ ok: false, message: 'x' }, { status: 409 })
+          ? Response.json(
+              {
+                ok: false,
+                message:
+                  'No takes were made: content-studio/cache/effect-boards/coins.json could not be written.',
+              },
+              { status: 409 },
+            )
           : Response.json(null),
       seeds(),
     )
     act(() => button('Make 4 takes each').click())
     act(() => button('Make 16 takes').click())
     await settle()
-    expect(text()).toContain('The takes could not be started. Nothing was made; try again.')
+    expect(text()).toContain(
+      'No takes were made: content-studio/cache/effect-boards/coins.json could not be written.',
+    )
+    expect(text()).not.toContain('The takes could not be started. Nothing was made; try again.')
     expect(text()).not.toContain('Make 16 takes for 4 effects?')
     expect(button('Make 4 takes each')).toBeDefined()
   })

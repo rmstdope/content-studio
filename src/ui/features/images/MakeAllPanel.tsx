@@ -9,6 +9,7 @@ import {
   useImagesBatch,
   useImagesMakeAll,
   useImagesStopAll,
+  notStartedLine,
 } from '../../api'
 import {
   busyLine,
@@ -268,7 +269,7 @@ export function MakeAllPanel({ act, children }: { act: ImagesAct; children: Reac
       )}
       {make.isError && (
         <p className="make-all-error" role="alert">
-          The takes could not be started. Nothing was made; try again.
+          {notStartedLine(make.error)}
         </p>
       )}
     </div>

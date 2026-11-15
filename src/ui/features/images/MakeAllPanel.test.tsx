@@ -54,7 +54,7 @@ interface Options {
   states?: Record<ImageModelId, ImageModelState>
   ready?: boolean
   batch?: ImagesBatch
-  answer?: { status: number }
+  answer?: { status: number; body?: unknown }
   started?: Record<string, ImageMakingSummary>
   /** Whether Stop all is refused. */
   stopFails?: boolean
@@ -76,7 +76,9 @@ function render(subject: ImagesAct, options: Options = {}) {
     const body = String(url).endsWith('/make-all')
       ? { ok: true, images: ['lighthouse', 'cave', 'inn'], takes: 12 }
       : { ok: true }
-    return new Response(JSON.stringify(body), { status: options.answer?.status ?? 200 })
+    return new Response(JSON.stringify(options.answer?.body ?? body), {
+      status: options.answer?.status ?? 200,
+    })
   }) as unknown as typeof fetch
   client.setQueryData(['image-making'], options.making ?? {})
   client.setQueryData(['image-model-state'], {
@@ -192,14 +194,36 @@ describe('Make takes for every image with no chosen take', () => {
     expect(document.activeElement).toBe(page.button('Stop all'))
   })
 
-  it('shows a red line and keeps the button when the takes could not be started', async () => {
-    const page = render(three, { answer: { status: 409 } })
+  it('shows the studio’s reason in a red line, and keeps the button, when the press is refused', async () => {
+    const page = render(three, {
+      answer: {
+        status: 409,
+        body: {
+          ok: false,
+          message: 'No takes were made: content-studio/cache/images/inn.json could not be written.',
+        },
+      },
+    })
     await page.press('Make 4 takes each')
     await page.press('Make 12 takes')
-    expect(page.text()).toContain('The takes could not be started. Nothing was made; try again.')
+    expect(page.text()).toContain(
+      'No takes were made: content-studio/cache/images/inn.json could not be written.',
+    )
+    expect(page.text()).not.toContain(
+      'The takes could not be started. Nothing was made; try again.',
+    )
     expect(page.container.querySelector('[role="alert"]')).not.toBeNull()
     expect(page.button('Make 4 takes each')).toBeDefined()
     expect(page.text()).not.toContain('Make 12 takes for 3 images?')
+  })
+
+  it('says the takes could not be started when the studio cannot be reached', async () => {
+    const page = render(three, { answer: { status: 500, body: {} } })
+    await page.press('Make 4 takes each')
+    await page.press('Make 12 takes')
+    expect(page.container.querySelector('[role="alert"]')?.textContent).toBe(
+      'The takes could not be started. Nothing was made; try again.',
+    )
   })
 
   it('shows what is running in the act, from what is being made, after a reload', () => {

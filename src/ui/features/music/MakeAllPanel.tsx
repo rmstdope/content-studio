@@ -8,6 +8,7 @@ import {
   useMusicMaking,
   useMusicModelState,
   useStopAll,
+  notStartedLine,
 } from '../../api'
 import {
   allChosenLine,
@@ -277,7 +278,7 @@ export function MakeAllPanel({
       )}
       {make.isError && (
         <p className="make-all-error" role="alert">
-          The takes could not be started. Nothing was made; try again.
+          {notStartedLine(make.error)}
         </p>
       )}
     </div>

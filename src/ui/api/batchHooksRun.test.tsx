@@ -7,7 +7,8 @@ GlobalRegistrator.register()
 const { act, createElement } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
-const { useBatch, useMakeAllRequest, useStopAllRequest } = await import('./batchHooks')
+const { MakeAllRefused, useBatch, useMakeAllRequest, useStopAllRequest } =
+  await import('./batchHooks')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 const realFetch = globalThis.fetch
@@ -93,6 +94,22 @@ describe('the Make all hooks', () => {
         'stopping the takes answered 409',
       )
     })
+  })
+
+  it('throw a refusal that gives its reason as a MakeAllRefused carrying it', async () => {
+    const refused = await run({
+      status: 409,
+      body: { ok: false, message: 'No takes were made: b.json could not be written.' },
+    })
+    let thrown: unknown
+    await act(async () => {
+      thrown = await refused
+        .hooks()
+        .make.mutateAsync()
+        .catch((error: unknown) => error)
+    })
+    expect(thrown).toBeInstanceOf(MakeAllRefused)
+    expect((thrown as Error).message).toBe('No takes were made: b.json could not be written.')
   })
 
   it('close clears the batch through the medium’s own address', async () => {

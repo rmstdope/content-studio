@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { planRemake, remakeCovered, tieOf, type ImagePatchesView } from '../../../core/imagePatches'
 import type { ImageRow, PatchRow } from '../../../core/images'
 import type { PatchArea } from '../../../core/imagePatches'
-import { useCloseRemake, useRemakePatches, useStopRemake } from '../../api'
+import { notStartedLine, useCloseRemake, useRemakePatches, useStopRemake } from '../../api'
 import { off } from '../../off'
 import { modelMissingWhy, WAIT_FOR_CHANGE } from '../../imagesText'
 import { useStopFocus } from '../../components/useStopFocus'
@@ -43,7 +43,8 @@ export function RemakeLine({
   onOpen: (id: string) => void
 }) {
   const [count, setCount] = useState(2)
-  const [failed, setFailed] = useState(false)
+  // The red line when the press started nothing, null when none shows.
+  const [failed, setFailed] = useState<string | null>(null)
   const [land, setLand] = useState<'stop' | 'close' | null>(null)
   const make = useRemakePatches(row.id)
   const stop = useStopRemake(row.id)
@@ -157,12 +158,13 @@ export function RemakeLine({
     return <p className="remake-leftout muted">{left}</p>
   }
   const remake = () => {
-    setFailed(false)
+    setFailed(null)
     make.mutate(
       { count, marks, model },
       {
-        onSuccess: (answer) => (answer.ok ? setLand('stop') : setFailed(true)),
-        onError: () => setFailed(true),
+        onSuccess: (answer) =>
+          answer.ok ? setLand('stop') : setFailed(notStartedLine(answer.message)),
+        onError: (error) => setFailed(notStartedLine(error)),
       },
     )
   }
@@ -207,7 +209,7 @@ export function RemakeLine({
       {plan.leftOut.length > 0 && <span className="faint small">{left}</span>}
       {failed && (
         <span className="adopt-error" role="alert">
-          The takes could not be started. Nothing was made; try again.
+          {failed}
         </span>
       )}
     </div>

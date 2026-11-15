@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import type { EffectRow } from './effects'
 import {
-  EFFECTS_MAKE_ALL_FAILED,
   batchSummary,
   makeAllButton,
   makeAllHeading,
@@ -147,8 +146,5 @@ describe('the words', () => {
     expect(both.before).toBe('Made 4 of 16 takes. 2 could not be made — ')
     expect(both.failed).toEqual(['thunder', 'rain'])
     expect(both.after).toBe(' say why. 10 were stopped.')
-    expect(EFFECTS_MAKE_ALL_FAILED).toBe(
-      'The takes could not be started. Nothing was made; try again.',
-    )
   })
 })
