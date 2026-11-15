@@ -209,14 +209,35 @@ describe('Make takes for every track with no chosen take', () => {
     expect(document.activeElement).toBe(page.button('Stop all'))
   })
 
-  it('says it could not start them, leaving the button', async () => {
-    const page = render(four, { answer: { status: 409, body: { ok: false, message: 'no' } } })
+  it('says why it could not start them, in the studio’s words, leaving the button', async () => {
+    const page = render(four, {
+      answer: {
+        status: 409,
+        body: {
+          ok: false,
+          message:
+            'No takes were made: content-studio/music/takes/harbour.json could not be written.',
+        },
+      },
+    })
     await page.press('Make 4 takes each')
     await page.press('Make 8 takes')
-    expect(page.text()).toContain('The takes could not be started. Nothing was made; try again.')
+    expect(page.text()).toContain(
+      'No takes were made: content-studio/music/takes/harbour.json could not be written.',
+    )
+    expect(page.text()).not.toContain(
+      'The takes could not be started. Nothing was made; try again.',
+    )
     expect(page.text()).not.toContain('Make 8 takes for')
     expect(page.button('Make 4 takes each')).toBeDefined()
     expect(document.activeElement).toBe(page.button('Make 4 takes each'))
+  })
+
+  it('says it could not start them when the request fails', async () => {
+    const page = render(four, { answer: { status: 500, body: {} } })
+    await page.press('Make 4 takes each')
+    await page.press('Make 8 takes')
+    expect(page.text()).toContain('The takes could not be started. Nothing was made; try again.')
   })
 
   it('shows a running line instead of the button, counting everything made in the act', () => {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { makeAllActions } from './batchHooks'
+import { MakeAllRefused, makeAllActions, notStartedLine } from './batchHooks'
 import { sendTake } from './takeHooks'
 
 describe('makeAllActions', () => {
@@ -14,10 +14,11 @@ describe('makeAllActions', () => {
     expect(makeAllActions('stop', []).stop.request().path).toBe('/stop')
   })
 
-  it('tolerates a refusal only where the medium does', () => {
+  it('takes Make all’s refusal as an answer always, and Stop all’s only where the medium does', () => {
     expect(makeAllActions('stop', [409]).make.tolerated).toEqual([409])
     expect(makeAllActions('stop', [409]).stop.tolerated).toEqual([409])
-    expect(makeAllActions('stop', []).make.tolerated).toEqual([])
+    expect(makeAllActions('stop', []).make.tolerated).toEqual([409])
+    expect(makeAllActions('stop', []).stop.tolerated).toEqual([])
   })
 
   describe('sent', () => {
@@ -31,14 +32,30 @@ describe('makeAllActions', () => {
     it('sends Make all without a body when it has none, and throws what it was doing on a failure', async () => {
       globalThis.fetch = (async (url: string, init: RequestInit) => {
         seen.push({ url, init })
-        return Response.json({ ok: false }, { status: 409 })
+        return Response.json({}, { status: 500 })
       }) as unknown as typeof fetch
       const actions = makeAllActions('stop', [])
       await expect(sendTake('/api/music/lists/a', actions.make, undefined)).rejects.toThrow(
-        'asking for takes answered 409',
+        'asking for takes answered 500',
       )
       expect(seen[0]?.url).toBe('/api/music/lists/a/make-all')
       expect(seen[0]?.init.body).toBeUndefined()
     })
+  })
+})
+
+describe('notStartedLine', () => {
+  it('says the studio’s reason for a refusal, and that the takes could not be started otherwise', () => {
+    expect(
+      notStartedLine(new MakeAllRefused('No takes were made: b.json could not be written.')),
+    ).toBe('No takes were made: b.json could not be written.')
+    expect(notStartedLine('Takes of this patch are being made.')).toBe(
+      'Takes of this patch are being made.',
+    )
+    for (const other of [new Error('asking for takes answered 500'), null, undefined]) {
+      expect(notStartedLine(other)).toBe(
+        'The takes could not be started. Nothing was made; try again.',
+      )
+    }
   })
 })

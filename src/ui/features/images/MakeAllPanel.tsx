@@ -3,6 +3,7 @@ import { imageModel } from '../../../core/imageModels'
 import type { ImagesAct } from '../../../core/images'
 import { planImagesMakeAll, TAKES_EACH } from '../../../core/imagesMakeAll'
 import {
+  notStartedLine,
   useFigures,
   useImageMaking,
   useImageModelState,
@@ -268,7 +269,7 @@ export function MakeAllPanel({ act, children }: { act: ImagesAct; children: Reac
       )}
       {make.isError && (
         <p className="make-all-error" role="alert">
-          The takes could not be started. Nothing was made; try again.
+          {notStartedLine(make.error)}
         </p>
       )}
     </div>

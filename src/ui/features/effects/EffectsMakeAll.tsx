@@ -8,7 +8,6 @@ import {
   type EffectModelState,
 } from '../../../core/effectModels'
 import {
-  EFFECTS_MAKE_ALL_FAILED,
   EFFECTS_STOP_FAILED,
   MAKE_ALL_TAKES,
   batchSummary,
@@ -21,6 +20,7 @@ import {
   runningLine,
 } from '../../../core/effectsMakeAll'
 import {
+  notStartedLine,
   useEffectModels,
   useEffectsBatch,
   useEffectsMaking,
@@ -42,7 +42,8 @@ export function EffectsMakeAll({ effects }: { effects: EffectsSummary }) {
   const { batch, close: closeBatch } = useEffectsBatch(running)
   const make = useMakeAllEffects()
   const stopAll = useStopAllEffects()
-  const [failed, setFailed] = useState(false)
+  // The red line when the press started nothing, null when none shows.
+  const [failed, setFailed] = useState<string | null>(null)
   const finished = Boolean(batch && !batch.running && !running)
   const ui = useMakeAllPanel({
     busy: running || Boolean(batch?.running),
@@ -128,7 +129,7 @@ export function EffectsMakeAll({ effects }: { effects: EffectsSummary }) {
           className="btn btn-primary"
           type="button"
           onClick={() => {
-            setFailed(false)
+            setFailed(null)
             setAsking(true)
           }}
         >
@@ -144,7 +145,7 @@ export function EffectsMakeAll({ effects }: { effects: EffectsSummary }) {
         {summaryLine ? null : ready}
         {failed && !asking && (
           <span className="adopt-error" role="alert">
-            {EFFECTS_MAKE_ALL_FAILED}
+            {failed}
           </span>
         )}
       </div>
@@ -164,11 +165,11 @@ export function EffectsMakeAll({ effects }: { effects: EffectsSummary }) {
                 onSuccess: (result) => {
                   setAsking(false)
                   if (result.ok && result.started.length > 0) ui.goTo('stop')
-                  else setFailed(true)
+                  else setFailed(notStartedLine(null))
                 },
-                onError: () => {
+                onError: (error) => {
                   setAsking(false)
-                  setFailed(true)
+                  setFailed(notStartedLine(error))
                 },
               },
             )

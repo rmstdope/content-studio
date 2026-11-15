@@ -3,6 +3,7 @@ import type { MusicListSummary } from '../../../core/music'
 import { planMakeAll, TAKES_EACH } from '../../../core/musicMakeAll'
 import { musicModel } from '../../../core/musicModels'
 import {
+  notStartedLine,
   useMakeAll,
   useMakeAllBatch,
   useMusicMaking,
@@ -277,7 +278,7 @@ export function MakeAllPanel({
       )}
       {make.isError && (
         <p className="make-all-error" role="alert">
-          The takes could not be started. Nothing was made; try again.
+          {notStartedLine(make.error)}
         </p>
       )}
     </div>

@@ -12,7 +12,10 @@ export type MakeAllMedium = {
   makingKey: readonly unknown[]
   /** The last part of Stop all's address, as `makeAllRoutes` declares it. */
   stop: 'stop' | 'stop-all'
-  /** Statuses of Make all and Stop all that still carry an answer (the effects' refusal); others throw. */
+  /**
+   * Statuses of Stop all that still carry an answer (the effects' refusal); others throw. Make all
+   * also takes a 409, the studio's refusal with its reason.
+   */
   tolerated: readonly number[]
   /** Queries besides the making and the batch that a press or a stop changes. */
   alsoStale?: readonly (readonly unknown[])[]
@@ -20,7 +23,7 @@ export type MakeAllMedium = {
   runningMs?: number
 }
 
-/** The requests of Make all and Stop all (which share `tolerated`), written once; they match `makeAllRoutes` on the server. */
+/** The requests of Make all and Stop all, written once; they match `makeAllRoutes` on the server. */
 export function makeAllActions(stop: MakeAllMedium['stop'], tolerated: readonly number[]) {
   return {
     make: {
@@ -30,7 +33,7 @@ export function makeAllActions(stop: MakeAllMedium['stop'], tolerated: readonly 
         path: '/make-all',
         ...(body !== undefined && { body }),
       }),
-      tolerated,
+      tolerated: [...new Set([...tolerated, 409])],
     },
     stop: {
       what: 'stopping the takes',
@@ -60,8 +63,30 @@ export function useBatch<T extends { running: boolean }>(medium: MakeAllMedium, 
   }
 }
 
+/** A press the studio refused, carrying the reason it gave as its message. */
+export class MakeAllRefused extends Error {}
+
 /**
- * Make all, then what it changes is read again. `check` may throw on an answer that made nothing;
+ * The red line when a press of Make takes started nothing: the studio's reason when it refused
+ * (a `MakeAllRefused`, or the reason itself), else that the takes could not be started.
+ */
+export function notStartedLine(reason: unknown): string {
+  if (reason instanceof MakeAllRefused) return reason.message
+  if (typeof reason === 'string') return reason
+  return 'The takes could not be started. Nothing was made; try again.'
+}
+
+/** Throws a refusal (`ok: false`) that gives its reason as a `MakeAllRefused`. */
+function throwRefusal(answer: unknown) {
+  if (typeof answer !== 'object' || answer === null || !('ok' in answer) || answer.ok !== false)
+    return
+  if ('message' in answer && typeof answer.message === 'string')
+    throw new MakeAllRefused(answer.message)
+}
+
+/**
+ * Make all, then what it changes is read again. A refusal with a reason throws (`notStartedLine` reads
+ * it); `check` may throw on another answer that made nothing;
  * what is being made is read before the mutation settles so the page never shows a gap.
  */
 export function useMakeAllRequest<V, R>(
@@ -74,6 +99,7 @@ export function useMakeAllRequest<V, R>(
   return useMutation({
     mutationFn: async (value: V) => {
       const answer = await sendTake<unknown, R>(medium.base, make, bodyOf(value))
+      throwRefusal(answer)
       check(answer)
       await client.refetchQueries({ queryKey: medium.makingKey })
       return answer

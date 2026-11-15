@@ -244,13 +244,30 @@ describe('the Remake patches line', () => {
     )
   })
 
-  it('says the takes could not be started when the press is refused', async () => {
-    const { host } = await render({ post: { status: 409, body: { ok: false, message: 'no' } } })
+  it('says why, in the studio’s words, when the press is refused', async () => {
+    const { host } = await render({
+      post: {
+        status: 409,
+        body: {
+          ok: false,
+          message:
+            'No takes were made: content-studio/cache/images/inn.sky.json could not be written.',
+        },
+      },
+    })
+    await act(async () => button(host, 'Remake patches on this take').click())
+    expect(text(host.querySelector('[role="alert"]'))).toBe(
+      'No takes were made: content-studio/cache/images/inn.sky.json could not be written.',
+    )
+    expect(button(host, 'Remake patches on this take')).toBeTruthy()
+  })
+
+  it('says the takes could not be started when the request fails', async () => {
+    const { host } = await render({ post: { status: 500, body: {} } })
     await act(async () => button(host, 'Remake patches on this take').click())
     expect(text(host.querySelector('[role="alert"]'))).toBe(
       'The takes could not be started. Nothing was made; try again.',
     )
-    expect(button(host, 'Remake patches on this take')).toBeTruthy()
   })
 })
 
