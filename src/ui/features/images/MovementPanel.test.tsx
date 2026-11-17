@@ -2153,7 +2153,7 @@ describe('the light mark of a spot', () => {
     expect(lineOf(host)).toBe('Spot: your own, 1 shape · drawing now')
   })
 
-  it('says its words in the bar, beside Delete this shape', async () => {
+  it('says its words in the bar, and shows Delete this shape only with a shape picked', async () => {
     sizeOverlay()
     const { host } = await render(withDust([POND]))
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
@@ -2752,7 +2752,6 @@ describe('the game’s shape of an effect', () => {
     sizeOverlay()
     const { host, puts } = await render(everyEffect())
     await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
-    await tap(host, 0.5, 0.8)
     await pointer(host, 'pointerdown', 0.9, 0.7)
     await pointer(host, 'pointermove', 0.8, 0.6)
     await pointer(host, 'pointerup', 0.8, 0.6)
