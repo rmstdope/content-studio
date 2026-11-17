@@ -235,11 +235,6 @@ export function SpotOverlay(props: SpotOverlayProps) {
             }
           />
         ))}
-        {drawing &&
-          picked !== null &&
-          spot[picked]?.map((corner, i) => (
-            <circle key={i} className="spot-corner" cx={corner[0] * w} cy={corner[1] * h} r={DOT} />
-          ))}
         {!drawing && props.mark && (
           <circle className="spot-peek-mark" cx={props.mark[0] * w} cy={props.mark[1] * h} r={4} />
         )}
@@ -278,6 +273,15 @@ export function SpotOverlay(props: SpotOverlayProps) {
           </>
         )}
       </svg>
+      {/* The picked shape's corners, in a layer above the stage's own buttons (Pause, Full screen),
+          so a corner under one of them can still be grabbed. */}
+      {drawing && picked !== null && spot[picked] && (
+        <svg className="spot-handles" width={w} height={h} aria-hidden="true">
+          {spot[picked].map((corner, i) => (
+            <circle key={i} className="spot-corner" cx={corner[0] * w} cy={corner[1] * h} r={DOT} />
+          ))}
+        </svg>
+      )}
     </div>
   )
 }

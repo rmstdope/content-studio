@@ -6558,7 +6558,15 @@ textarea[aria-disabled='true'][data-why] {
   stroke: var(--accent-ink);
   stroke-width: 1px;
 }
+/* Above the stage's buttons, which come later and have no z-index; only the dots take presses. */
+.spot-handles {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
 .spot-corner {
+  pointer-events: auto;
   fill: #fff;
   stroke: var(--accent-ink);
   stroke-width: 3px;
