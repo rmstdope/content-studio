@@ -27,7 +27,7 @@ const EffectTypeSchema = z.object({
   type: z.string().min(1),
   /** What the studio calls it. */
   title: z.string().min(1),
-  /** Whether it lives on a spot drawn on the picture rather than floating over the whole of it. */
+  /** Whether it lives on a spot drawn on the picture; no longer read (see `placement`). */
   spot: z.boolean(),
   /**
    * Where the game places the effect by default: its shapes, `"whole"` (the whole picture),

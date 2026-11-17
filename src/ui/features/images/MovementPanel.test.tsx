@@ -2811,6 +2811,56 @@ describe('the game’s shape of an effect', () => {
     expect(spotLineOf(host, 'Dust')).toStartWith("Spot: the game's")
   })
 
+  it('does not retry a revert when a later save fails: Try again retries that save', async () => {
+    sizeOverlay()
+    let ok = false
+    const { host, puts } = await render({
+      answer: placed,
+      effects: { dust: named('dust', 'Dust', [POND]) },
+      saved: () =>
+        ok
+          ? Response.json({ ok: true })
+          : Response.json({ ok: false, problems: [] }, { status: 409 }),
+    })
+    await click(linkIn(rowOf(host, 'Dust'), "Back to the game's"))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await tap(host, 0.25, 0.6)
+    await pointer(host, 'pointerdown', 0.4, 0.5)
+    await pointer(host, 'pointermove', 0.5, 0.4)
+    await pointer(host, 'pointerup', 0.5, 0.4)
+    ok = true
+    await click(button(host, 'Try again'))
+    expect(puts.at(-1)!.effects.dust!.spot).toBeDefined()
+  })
+
+  it('stops offering Undo when the tab is left', async () => {
+    const { host, setOpen } = await render({
+      answer: placed,
+      effects: { dust: named('dust', 'Dust', [POND]) },
+    })
+    await click(linkIn(rowOf(host, 'Dust'), "Back to the game's"))
+    await setOpen(false)
+    await setOpen(true)
+    expect(linkIn(rowOf(host, 'Dust'), 'Undo')).toBeUndefined()
+  })
+
+  it('shows a kept shape of an effect the game cannot move while it is off', async () => {
+    const { host } = await render({
+      answer: placed,
+      effects: { fire: { ...named('fire', 'Fire', [POND]), on: false } },
+    })
+    expect(spotLineOf(host, 'Fire')).toBe(
+      "Spot: the game's — this effect can't be moved in the studio (kept while off) A shape drawn earlier is kept but not used.",
+    )
+  })
+
+  it('draws no light mark on the game’s copy until it is changed', async () => {
+    sizeOverlay()
+    const { host } = await render(everyEffect())
+    await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
+    expect(host.querySelector('.spot-mark')).toBeNull()
+  })
+
   it('shows the line without links in full screen, and keeps the shape while the effect is off', async () => {
     const { host } = await render({
       answer: placed,

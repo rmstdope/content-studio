@@ -143,8 +143,11 @@ function SpotLine({
 }) {
   const spot = props.spot
   if (!on) {
-    return view.who === 'own' ? (
-      <p className="movement-spot muted">{spotLine(view, 'off')}</p>
+    return view.who === 'own' || (view.who === 'fixed' && view.kept) ? (
+      <p className="movement-spot muted">
+        {spotLine(view, 'off')}
+        {view.who === 'fixed' && <span> {SPOT_WORDS.keptNotUsed}</span>}
+      </p>
     ) : null
   }
   const drawing = spot?.drawing === type.type

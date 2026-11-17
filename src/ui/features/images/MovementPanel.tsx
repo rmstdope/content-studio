@@ -280,6 +280,8 @@ export function MovementPanel({
   const persist = useCallback(
     (spot = false, onFail?: () => void) => {
       const mine = ++saves.current
+      // Try again retries the latest save: only a revert's own save is retried as a revert.
+      if (!onFail) failedBack.current = null
       timers.current.forEach(clearTimeout)
       timers.current = [
         setTimeout(() => {
@@ -483,7 +485,10 @@ export function MovementPanel({
   )
   // Leaving the tab finishes drawing.
   useEffect(() => {
-    if (!open) finish(false)
+    if (!open) {
+      finish(false)
+      clearRemoved()
+    }
   }, [open, finish])
   // Esc stops the shape being placed, or otherwise leaves drawing.
   useEffect(() => {
@@ -730,8 +735,7 @@ export function MovementPanel({
         {(() => {
           const words = drawing.confirm
             ? deleteAsk(spotOf(drawing.type)[drawing.picked ?? 0]?.length ?? 0)
-            : drawing.placing &&
-                !(drawing.placing.length === 0 && spotOf(drawing.type).length === 0)
+            : drawing.placing && (drawing.placing.length > 0 || spotOf(drawing.type).length > 0)
               ? newShapeBar(drawName)
               : drawingBar(
                   drawName,
@@ -811,7 +815,7 @@ export function MovementPanel({
   const peekedMark = peekedOwn.length > 0 ? (effects[peek!]?.mark ?? null) : null
   const drawnSpot = drawing ? spotOf(drawing.type) : []
   const drawnMark =
-    !drawing || drawnSpot.length === 0
+    !drawing || drawnSpot.length === 0 || drawing.draft
       ? null
       : (latest.current[drawing.type]?.mark ?? middleOf(drawnSpot))
   const overlay =
