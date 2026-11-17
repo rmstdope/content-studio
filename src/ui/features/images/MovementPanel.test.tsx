@@ -1100,6 +1100,14 @@ describe('an effect tied to a patch', () => {
     expect(dustRow(host).querySelector('.movement-tag')).toBeNull()
   })
 
+  it('styles the Shows menu as the studio’s other drop-downs, the take count on Make', async () => {
+    const { host } = await render({
+      patches: PATCHES,
+      effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) },
+    })
+    expect(menu(host)!.classList.contains('takes-count')).toBe(true)
+  })
+
   it('has no menu while the effect is off, and none on an image with no patches', async () => {
     const off = await render({ patches: PATCHES })
     expect(menu(off.host)).toBeNull()

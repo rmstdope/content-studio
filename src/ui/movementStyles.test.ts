@@ -51,6 +51,12 @@ describe('the Movement tab’s layout', () => {
       expect(selectors).toContain(`${stage} .btn`)
   })
 
+  it('only sizes the Shows menu to its column, leaving its look to the shared drop-down class', () => {
+    const shows = rule('.movement-shows select')
+    expect(shows).toMatch(/width:\s*100%/)
+    expect(shows).not.toMatch(/background|border|color|padding|font/)
+  })
+
   it('holds the zoom still while paused', () => {
     expect(css).toMatch(
       /\.movement-zoom\[data-paused='true'\]\s*\{[^}]*animation-play-state:\s*paused/,
