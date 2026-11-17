@@ -176,7 +176,9 @@ export function checkAreaBox(box: AreaBox, size: { width: number; height: number
 }
 
 /** One effect of an image as the studio keeps it: whether it is in the game, and every setting's value, kept while off. */
-const EffectEditSchema = z.object({
+export const EffectEditSchema = z.object({
+  /** What the renderer called it when it was saved, to name it when the renderer is not there. */
+  title: z.string().optional(),
   on: z.boolean(),
   settings: z.record(z.string(), z.number().finite()),
 })
@@ -327,13 +329,13 @@ function keyedEffects(effects: SavedEffects): SavedEffects {
     Object.keys(effects)
       .sort()
       .map((type) => {
-        const { on, settings } = effects[type]!
+        const { title, on, settings } = effects[type]!
         const sortedSettings = Object.fromEntries(
           Object.keys(settings)
             .sort()
             .map((id) => [id, settings[id]!]),
         )
-        return [type, { on, settings: sortedSettings }]
+        return [type, { ...(title !== undefined && { title }), on, settings: sortedSettings }]
       }),
   )
 }

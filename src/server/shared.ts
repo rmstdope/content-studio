@@ -1,3 +1,4 @@
+import { EffectEditSchema } from '../core/images'
 import { z } from 'zod'
 import { type FineTuneAnswer } from '../services/imageFineTunes'
 import { type ImagePatchAnswer, type RemakeAnswer } from '../services/imagePatches'
@@ -68,10 +69,7 @@ export const AreaBoxBody = z.object({
 
 /** The effects of an image as the page saves them: the whole set, by effect type; an empty one takes them all away. */
 export const EffectsBody = z.object({
-  effects: z.record(
-    z.string(),
-    z.object({ on: z.boolean(), settings: z.record(z.string(), z.number().finite()) }),
-  ),
+  effects: z.record(z.string(), EffectEditSchema),
 })
 
 /** The answer to a change of the studio's image words: 404 for an unknown image, 409 with the reason. */

@@ -118,9 +118,14 @@ export function MovementPanel({
   }
   const onEffect = (type: EffectType, on: boolean) => {
     const was = latest.current[type.type]
+    // Every setting goes to the game: those the renderer has added since take their starting value.
     set({
       ...latest.current,
-      [type.type]: { on, settings: was?.settings ?? startSettings(type) },
+      [type.type]: {
+        title: type.title,
+        on,
+        settings: { ...startSettings(type), ...was?.settings },
+      },
     })
     persist()
   }
@@ -129,6 +134,7 @@ export function MovementPanel({
     set({
       ...latest.current,
       [type.type]: {
+        title: type.title,
         on: was?.on ?? true,
         settings: { ...effectValues(type, was?.settings), [setting.id]: value },
       },
@@ -137,7 +143,11 @@ export function MovementPanel({
   const onReset = (type: EffectType) => {
     set({
       ...latest.current,
-      [type.type]: { on: latest.current[type.type]?.on ?? true, settings: startSettings(type) },
+      [type.type]: {
+        title: type.title,
+        on: latest.current[type.type]?.on ?? true,
+        settings: startSettings(type),
+      },
     })
     persist()
   }
@@ -181,7 +191,8 @@ export function MovementPanel({
       if (event.metaKey || event.ctrlKey || event.altKey || typingIn(event.target)) return
       // On a button or a switch Space is its own: it presses or toggles that control.
       const own =
-        event.target instanceof HTMLButtonElement || event.target instanceof HTMLInputElement
+        event.target instanceof HTMLButtonElement ||
+        (event.target instanceof HTMLInputElement && event.target.type !== 'range')
       if (event.key === ' ' && !own) {
         event.preventDefault()
         setPaused((was) => !was)
@@ -198,9 +209,13 @@ export function MovementPanel({
     motion.status === 'ready'
       ? motion.module.types
           .filter((t) => effects[t.type]?.on)
+          // In the order the game is given them (by kind), so the layers stack the same.
+          .sort((a, b) => (a.type < b.type ? -1 : 1))
           .map((t) => ({ kind: t.type, settings: effectValues(t, effects[t.type]!.settings) }))
       : []
-  const playingCount = motion.status === 'ready' ? playing.length : null
+  // With no renderer named there are no effects to count; while it loads or failed, the saved count stands.
+  const playingCount =
+    motion.status === 'ready' ? playing.length : motion.status === 'none' ? 0 : null
   useEffect(() => {
     onEffectsOn?.(playingCount)
   }, [onEffectsOn, playingCount])

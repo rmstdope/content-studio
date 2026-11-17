@@ -115,6 +115,10 @@ function SettingSlider({
           down.current = false
           onCommit()
         }}
+        onPointerCancel={() => {
+          down.current = false
+          onCommit()
+        }}
         onChange={(event) => {
           onChange(clampSetting(setting, Number(event.target.value)))
           if (!down.current) onCommit()
@@ -229,7 +233,10 @@ function EffectsGroup(props: MotionControlsProps) {
   const onCount = types.filter((t) => effects[t.type]?.on).length
   const saveWords =
     status === 'saving' ? EFFECT_WORDS.saving : status === 'saved' ? EFFECT_WORDS.saved : null
-  const switchedOn = Object.keys(effects).filter((type) => effects[type]!.on)
+  const nameOf = (type: string) => effects[type]?.title ?? type
+  const switchedOn = Object.keys(effects)
+    .filter((type) => effects[type]!.on)
+    .map(nameOf)
   return (
     <section className="movement-group" aria-label={MOVEMENT_WORDS.effects}>
       <div className="movement-group-head">
@@ -267,7 +274,7 @@ function EffectsGroup(props: MotionControlsProps) {
           {gone.map((type) => (
             <li key={type} className="movement-effect movement-effect-gone">
               <div className="movement-effect-head">
-                <strong>{type}</strong>
+                <strong>{nameOf(type)}</strong>
                 <button type="button" className="btn" onClick={() => props.onRemove(type)}>
                   {EFFECT_WORDS.remove}
                 </button>

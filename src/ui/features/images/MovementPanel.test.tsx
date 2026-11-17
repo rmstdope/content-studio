@@ -659,6 +659,12 @@ async function release(slider: HTMLInputElement) {
   await settle()
 }
 const dust = (settings: Record<string, number>, on = true) => ({ on, settings })
+/** What the page saves for Dust: with the title the renderer gave it. */
+const saved = (settings: Record<string, number>, on = true) => ({
+  title: 'Dust',
+  on,
+  settings,
+})
 
 describe('the effects of an image', () => {
   it('shows a slider for each setting of an effect that is on, at the renderer’s starting values, and saves the set', async () => {
@@ -672,7 +678,7 @@ describe('the effects of an image', () => {
     expect(text(host)).toContain(
       "Switch an effect on to put it in the game. 1 of the renderer's 4 are on.",
     )
-    expect(puts).toEqual([{ effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) } }])
+    expect(puts).toEqual([{ effects: { dust: saved({ amount: 1, size: 1, speed: 1 }) } }])
     expect(text(host)).toContain('Saved')
     expect(button(host, 'Reset')).toBeUndefined()
   })
@@ -690,7 +696,7 @@ describe('the effects of an image', () => {
     expect(puts).toEqual([])
     await move(amount, 1.5, true)
     await release(amount)
-    expect(puts).toEqual([{ effects: { dust: dust({ amount: 1.5, size: 1, speed: 1 }) } }])
+    expect(puts).toEqual([{ effects: { dust: saved({ amount: 1.5, size: 1, speed: 1 }) } }])
   })
 
   it('saves every step of a slider moved with the keyboard', async () => {
@@ -712,7 +718,7 @@ describe('the effects of an image', () => {
     expect(valueOf(host, 'Amount')).toBe('1.00')
     expect(valueOf(host, 'Speed')).toBe('1.00')
     expect(button(host, 'Reset')).toBeUndefined()
-    expect(puts).toEqual([{ effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) } }])
+    expect(puts).toEqual([{ effects: { dust: saved({ amount: 1, size: 1, speed: 1 }) } }])
   })
 
   it('keeps an effect’s settings while it is switched off, and brings them back on', async () => {
@@ -723,7 +729,7 @@ describe('the effects of an image', () => {
     expect(sliderFor(host, 'Amount')).toBeUndefined()
     expect(host.querySelector('.movement-settings')!.textContent).toContain('Amount 0–3 (1)')
     expect(puts.at(-1)).toEqual({
-      effects: { dust: dust({ amount: 2, size: 1, speed: 1 }, false) },
+      effects: { dust: { ...dust({ amount: 2, size: 1, speed: 1 }, false), title: 'Dust' } },
     })
     expect(calls().setEffects.at(-1)).toEqual([])
     await click(switchFor(host, 'Dust'))
@@ -813,14 +819,64 @@ describe('the effects of an image', () => {
     const failed = { named: true as const, ok: false as const, file: 'r.js', message: 'boom' }
     const a = await render({
       answer: failed,
-      effects: { fireflies: dust({}), mist: dust({}, false), ripples: dust({}) },
+      effects: {
+        fireflies: { ...dust({}), title: 'Fireflies' },
+        mist: dust({}, false),
+        ripples: { ...dust({}), title: 'Pond ripples' },
+      },
     })
     expect(text(a.host)).toContain(
-      'Saved for the game: fireflies, ripples. They can be changed once the renderer loads.',
+      'Saved for the game: Fireflies, Pond ripples. They can be changed once the renderer loads.',
     )
     expect(text(a.host)).not.toContain('None: the renderer did not load.')
     const b = await render({ answer: failed })
     expect(text(b.host)).toContain('None: the renderer did not load.')
+  })
+
+  it('hands the stage the effects in the order the game gets them, by kind', async () => {
+    const { host } = await render()
+    await click(switchFor(host, 'Mist'))
+    await click(switchFor(host, 'Fire'))
+    expect(
+      calls()
+        .setEffects.at(-1)!
+        .map((e) => e.kind),
+    ).toEqual(['fire', 'mist'])
+  })
+
+  it('saves a drag that ends without a release, and stops waiting for one', async () => {
+    const { host, puts } = await render({
+      effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) },
+    })
+    const amount = sliderFor(host, 'Amount')!
+    await move(amount, 1.5, true)
+    await act(async () => amount.dispatchEvent(new Event('pointercancel', { bubbles: true })))
+    await settle()
+    expect(puts).toHaveLength(1)
+    await move(amount, 1.6)
+    expect(puts).toHaveLength(2)
+  })
+
+  it('leaves Space to pause and F to full screen while a slider has focus', async () => {
+    const { host } = await render({ effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) } })
+    await press(' ', sliderFor(host, 'Amount')!)
+    expect(button(host, '▶ Play')).toBeDefined()
+  })
+
+  it('fills in a setting the renderer has added since, when the effect is switched on again', async () => {
+    const { host, puts } = await render({ effects: { dust: dust({ amount: 2 }, false) } })
+    await click(switchFor(host, 'Dust'))
+    expect(puts[0]!.effects.dust!.settings).toEqual({ amount: 2, size: 1, speed: 1 })
+  })
+
+  it('counts no effects for the page when the project names no renderer', async () => {
+    const counts: (number | null)[] = []
+    await render({
+      answer: { named: false },
+      effects: { dust: dust({}) },
+      onEffectsOn: (n) => counts.push(n),
+    })
+    expect(counts.at(-1)).toBe(0)
   })
 
   it('can be set with no take chosen', async () => {
