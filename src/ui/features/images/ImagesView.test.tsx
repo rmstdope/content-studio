@@ -1486,7 +1486,7 @@ describe('the jobs of an image’s page', () => {
     expect(shown(page)).toEqual(['Movement'])
   })
 
-  it('switches with 1 to 4, but not while typing, in a menu, or with Command, Control or Option', () => {
+  it('switches with 1 to 5, but not while typing, in a menu, or with Command, Control or Option', () => {
     const page = render(image, summary({ areas: [fountain], patches: [lamp] }))
     press('2')
     expect(shown(page)).toEqual(['Fine-tune the picture'])

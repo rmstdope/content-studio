@@ -50,6 +50,8 @@ export function MovementPanel({ row, onGoToMake }: { row: ImageRow; onGoToMake: 
         ? `/api/images/${encodeURIComponent(row.id)}/current`
         : null
   const picture = src !== null && missing !== src ? src : null
+  // Playing: the renderer is loaded and there is a picture to move; only then do the keys act.
+  const running = motion.status === 'ready' && picture !== null
 
   const patches: MovementPatch[] | null =
     patchView && 'patches' in patchView
@@ -94,10 +96,13 @@ export function MovementPanel({ row, onGoToMake }: { row: ImageRow; onGoToMake: 
 
   // Space pauses and plays, F opens full screen, while this tab is open and nobody is typing.
   useEffect(() => {
-    if (!open) return
+    if (!open || !running) return
     const listen = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey || typingIn(event.target)) return
-      if (event.key === ' ' && !(event.target instanceof HTMLButtonElement)) {
+      // On a button or a switch Space is its own: it presses or toggles that control.
+      const own =
+        event.target instanceof HTMLButtonElement || event.target instanceof HTMLInputElement
+      if (event.key === ' ' && !own) {
         event.preventDefault()
         setPaused((was) => !was)
       } else if (event.key === 'f' || event.key === 'F') {
@@ -106,7 +111,7 @@ export function MovementPanel({ row, onGoToMake }: { row: ImageRow; onGoToMake: 
     }
     document.addEventListener('keydown', listen)
     return () => document.removeEventListener('keydown', listen)
-  }, [open, openFull])
+  }, [open, running, openFull])
 
   if (motion.status === 'none') {
     return (
@@ -120,7 +125,6 @@ export function MovementPanel({ row, onGoToMake }: { row: ImageRow; onGoToMake: 
   }
 
   const ready = motion.status === 'ready'
-  const running = ready && picture !== null
   const chosenPatches = (patches ?? []).filter(
     (p): p is MovementPatch & { src: string } => p.src !== null && patchesOn.has(p.id),
   )
@@ -180,6 +184,7 @@ export function MovementPanel({ row, onGoToMake }: { row: ImageRow; onGoToMake: 
                   module={ready ? motion.module : null}
                   effects={types}
                   paused={paused}
+                  running={open}
                   onMissing={() => setMissing(src)}
                 />
               </div>
@@ -189,8 +194,11 @@ export function MovementPanel({ row, onGoToMake }: { row: ImageRow; onGoToMake: 
                 {MOVEMENT_WORDS.loading}
               </div>
             )}
-            {picture !== null && motion.status === 'failed' && (
-              <div className="movement-over" role="alert">
+            {motion.status === 'failed' && (
+              <div
+                className={picture === null ? 'movement-over movement-over-solid' : 'movement-over'}
+                role="alert"
+              >
                 <strong>{MOVEMENT_WORDS.failed}</strong>
                 <code className="mono">{motion.message}</code>
                 <button type="button" className="btn" onClick={retry}>

@@ -216,7 +216,7 @@ browser on an image's Movement tab, so an image moves as the game shows it. The 
 (each `type` once, each `default` between `min` and `max`), and `createMotionScene()`, which returns
 a scene: `resize(width, height, { width, height })` (the canvas, and the picture's own size),
 `setEffects(specs, instant)` with `specs` of `{ kind, settings? }`, `step(ms)`, `draw(ctx)` and
-`isEmpty()`. The studio draws the slow zoom itself. Without `motion` the Movement tab says the
+`isEmpty()`, and optionally `setSource({ image, width, height })`, called once the picture has loaded, for effects that redraw the picture. The studio draws the slow zoom itself. A module that resolves, through a symlink, to a file outside the project (a linked package store) is refused. Without `motion` the Movement tab says the
 project names no renderer.
 
 The manifest lists each chosen image as `"cottage": { "file": "cottage.png", "width": 640, "height": 400 }`.

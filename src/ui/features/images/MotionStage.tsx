@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { startSettings, type EffectType } from '../../../core/motion'
-import type { MotionModule } from '../../motionModule'
+import type { MotionModule, MotionScene } from '../../motionModule'
 
 /** What a picture is shown with: where it is, and the patches laid over it. */
 export interface StageLayers {
@@ -20,6 +20,7 @@ export function MotionStage({
   module,
   effects,
   paused,
+  running,
   onMissing,
 }: {
   layers: StageLayers
@@ -28,64 +29,108 @@ export function MotionStage({
   /** The effect types switched on. */
   effects: EffectType[]
   paused: boolean
+  /** Whether the stage is on show (its tab is open); a hidden stage runs no frames. */
+  running: boolean
   /** The picture could not be read. */
   onMissing: () => void
 }) {
   const canvas = useRef<HTMLCanvasElement>(null)
-  const frozen = useRef(paused)
-  frozen.current = paused
+  const picture = useRef<HTMLImageElement>(null)
+  const scene = useRef<MotionScene | null>(null)
   const wanted = useRef(effects)
   wanted.current = effects
-  const apply = useRef<(instant: boolean) => void>(() => {})
 
-  // One scene per loaded renderer and picture; its loop runs until the stage goes.
+  /** Gives the canvas one pixel per screen pixel (twice at most) and tells the scene its size in screen pixels. */
+  const fit = useRef(() => {})
+  /** Hands the scene the picture it may redraw, once the picture has loaded. */
+  const feed = useRef(() => {})
+
+  // One scene per loaded renderer and picture size.
   useEffect(() => {
     const element = canvas.current
     if (!module || !element) return
-    const scene = module.createScene()
-    const context = element.getContext('2d')
-    const fit = () => scene.resize(element.clientWidth, element.clientHeight, layers.size)
-    fit()
-    apply.current = (instant) =>
-      scene.setEffects(
-        wanted.current.map((type) => ({ kind: type.type, settings: startSettings(type) })),
-        instant,
-      )
-    apply.current(true)
-    const watcher = typeof ResizeObserver === 'function' ? new ResizeObserver(fit) : null
-    watcher?.observe(element)
-    let last = 0
-    let frame = 0
-    const tick = (now: number) => {
-      const elapsed = last === 0 ? 0 : Math.min(now - last, 100)
-      last = now
-      if (!frozen.current) {
-        scene.step(elapsed)
-        if (context) scene.draw(context)
-      }
-      frame = requestAnimationFrame(tick)
+    const made = module.createScene()
+    scene.current = made
+    fit.current = () => {
+      if (element.clientWidth === 0 || element.clientHeight === 0) return
+      const ratio = Math.min(2, globalThis.devicePixelRatio || 1)
+      const width = Math.round(element.clientWidth * ratio)
+      const height = Math.round(element.clientHeight * ratio)
+      // Setting the size clears the canvas, so only when it changed.
+      if (element.width !== width) element.width = width
+      if (element.height !== height) element.height = height
+      made.resize(element.clientWidth, element.clientHeight, layers.size)
     }
-    frame = requestAnimationFrame(tick)
+    feed.current = () => {
+      const image = picture.current
+      if (image?.complete && image.naturalWidth > 0) {
+        made.setSource?.({ image, width: image.naturalWidth, height: image.naturalHeight })
+      }
+    }
+    fit.current()
+    feed.current()
+    made.setEffects(
+      wanted.current.map((type) => ({ kind: type.type, settings: startSettings(type) })),
+      true,
+    )
+    const watcher =
+      typeof ResizeObserver === 'function' ? new ResizeObserver(() => fit.current()) : null
+    watcher?.observe(element)
     return () => {
-      cancelAnimationFrame(frame)
       watcher?.disconnect()
-      apply.current = () => {}
+      scene.current = null
     }
   }, [module, layers.size.width, layers.size.height])
 
   // What is switched on changes while the scene runs: it fades layers in and out.
   const key = effects.map((type) => type.type).join(',')
+  const first = useRef(true)
   useEffect(() => {
-    apply.current(false)
+    if (first.current) {
+      first.current = false
+      return
+    }
+    scene.current?.setEffects(
+      wanted.current.map((type) => ({ kind: type.type, settings: startSettings(type) })),
+      false,
+    )
   }, [key])
+
+  // The frame loop runs only while the stage is on show and not paused.
+  const going = running && !paused
+  useEffect(() => {
+    const element = canvas.current
+    if (!module || !element || !going) return
+    const context = element.getContext('2d')
+    let last = 0
+    let frame = 0
+    const tick = (now: number) => {
+      const elapsed = last === 0 ? 0 : Math.min(now - last, 100)
+      last = now
+      const made = scene.current
+      if (made) {
+        made.step(elapsed)
+        if (context) {
+          const ratio = element.clientWidth > 0 ? element.width / element.clientWidth : 1
+          context.setTransform(ratio, 0, 0, ratio, 0, 0)
+          made.draw(context)
+        }
+      }
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [module, going])
 
   return (
     <div className="movement-zoom" data-paused={paused ? 'true' : undefined}>
       <img
+        ref={picture}
         className="movement-pic"
         src={layers.src}
         alt="The image"
         draggable={false}
+        onLoad={() => feed.current()}
         onError={onMissing}
       />
       {layers.patches.map((patch) => (

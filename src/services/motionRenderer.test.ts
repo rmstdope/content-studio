@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { projectJson, tempRepo } from '../../test/helpers'
 import { readMotionRenderer } from './motionRenderer'
@@ -86,5 +87,16 @@ describe('readMotionRenderer', () => {
     await Bun.write(join(file, '..', 'm/render.ts'), 'export const v = 2\n')
     const second = await readMotionRenderer(file)
     expect(first).not.toEqual(second)
+  })
+})
+
+describe('a module linked in from outside the project', () => {
+  it('is refused, as an import by its real path would be', async () => {
+    const outside = tempRepo({ 'lib/shared.ts': 'export const s = 1\n' })
+    const file = repo('m/render.ts', { 'm/render.ts': `export { s } from './linked/shared'\n` })
+    symlinkSync(join(outside, 'lib'), join(file, '..', 'm', 'linked'))
+    const answer = await readMotionRenderer(file)
+    if (!('message' in answer)) throw new Error('expected a failure')
+    expect(answer.message).toContain('outside the project')
   })
 })

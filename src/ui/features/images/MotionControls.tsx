@@ -29,16 +29,19 @@ function Switch({
   label,
   checked,
   why,
+  dim,
   onChange,
 }: {
   label: string
   checked: boolean
+  /** Shown faint: the switch is there but cannot be used. */
+  dim?: boolean
   /** Why the switch cannot be changed, or false when it can. */
   why: string | false
   onChange: (on: boolean) => void
 }) {
   return (
-    <label className="movement-switch">
+    <label className={dim ? 'movement-switch movement-switch-off' : 'movement-switch'}>
       <input
         type="checkbox"
         checked={checked}
@@ -75,7 +78,6 @@ function EffectRow({
 /** The Patches and Effects groups of the Movement tab: the side column and the full-screen panel. */
 export function MotionControls(props: MotionControlsProps) {
   const { patches, motion } = props
-  const waiting = !props.hasPicture && 'Choose a take on Make first: there is no picture to move'
   return (
     <div className="movement-groups">
       {patches !== null && patches.length > 0 && (
@@ -88,13 +90,17 @@ export function MotionControls(props: MotionControlsProps) {
                   <Switch
                     label={patch.title}
                     checked={props.patchesOn.has(patch.id)}
-                    why={waiting}
+                    why={false}
                     onChange={(on) => props.onPatch(patch.id, on)}
                   />
                 ) : (
-                  <span className="movement-switch movement-switch-off">
-                    {patchNoTake(patch.title)}
-                  </span>
+                  <Switch
+                    label={patchNoTake(patch.title)}
+                    checked={false}
+                    why="No take chosen yet"
+                    dim
+                    onChange={() => {}}
+                  />
                 )}
               </li>
             ))}
@@ -117,7 +123,7 @@ export function MotionControls(props: MotionControlsProps) {
                   key={type.type}
                   type={type}
                   on={props.effectsOn.has(type.type)}
-                  why={waiting}
+                  why={false}
                   onChange={(on) => props.onEffect(type.type, on)}
                 />
               ))}

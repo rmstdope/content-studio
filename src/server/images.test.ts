@@ -751,6 +751,20 @@ describe('the motion renderer route', () => {
   })
   afterAll(() => studio.stop(true))
 
+  it('says the project names none when it does not', async () => {
+    const plain = tempRepo({ 'content-studio.json': projectJson() })
+    const bare = startServer({
+      projectFile: join(plain, 'content-studio.json'),
+      port: 0,
+      fish,
+      encode,
+      transcriber: null,
+    })
+    const answer = await (await fetch(new URL('/api/images/motion', bare.url))).json()
+    bare.stop(true)
+    expect(answer).toEqual({ named: false })
+  })
+
   it('answers with the bundled renderer', async () => {
     const answer = await (await fetch(new URL('/api/images/motion', studio.url))).json()
     expect(answer.named).toBe(true)

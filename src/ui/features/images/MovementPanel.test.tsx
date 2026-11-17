@@ -23,6 +23,7 @@ afterAll(() => GlobalRegistrator.unregister())
 /** What the fake renderer's scene was asked, by the studio. */
 interface Calls {
   made: number
+  sources: unknown[]
   setEffects: { kind: string; settings?: Record<string, number> }[][]
   steps: number
   draws: number
@@ -37,6 +38,7 @@ export const EFFECT_TYPES = ${effects}
 export const createMotionScene = () => {
   note().made++
   return {
+    setSource: (source) => note().sources.push(source),
     resize: (width, height, picture) => note().resizes.push(picture),
     setEffects: (specs) => note().setEffects.push(specs),
     step: () => note().steps++,
@@ -67,12 +69,22 @@ interface Options {
 async function render(options: Options = {}) {
   ;(globalThis as unknown as { __motion: Calls }).__motion = {
     made: 0,
+    sources: [],
     setEffects: [],
     steps: 0,
     draws: 0,
     resizes: [],
   }
   const asked: string[] = []
+  // The canvas is 640 x 400 on screen; happy-dom has no layout.
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+    get: () => 640,
+    configurable: true,
+  })
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+    get: () => 400,
+    configurable: true,
+  })
   const answer = options.answer ?? { named: true as const, ok: true as const, code: RENDERER(FOUR) }
   globalThis.fetch = (async (url: string) => {
     asked.push(url)
@@ -298,8 +310,13 @@ describe('the Movement panel', () => {
       'Lamp lit',
       'Door open · no take chosen',
     ])
-    expect(group.querySelectorAll('input').length).toBe(1)
-    expect(group.querySelector<HTMLInputElement>('input')!.checked).toBe(false)
+    const boxes = group.querySelectorAll('input')
+    expect(boxes.length).toBe(2)
+    expect(boxes[0]!.checked).toBe(false)
+    expect(boxes[1]!.getAttribute('aria-disabled')).toBe('true')
+    expect(group.querySelectorAll('.movement-switch-off').length).toBe(1)
+    await click(boxes[1])
+    expect(host.querySelectorAll('.movement-pic').length).toBe(1)
     expect(host.querySelectorAll('.movement-pic').length).toBe(1)
     await click(switchFor(host, 'Lamp lit'))
     const laid = [...host.querySelectorAll<HTMLImageElement>('.movement-pic')].map((i) =>
@@ -378,6 +395,79 @@ describe('the Movement panel', () => {
   it('does not mention reduced motion otherwise', async () => {
     const { host } = await render()
     expect(host.querySelector('.movement-reduced')).toBeNull()
+  })
+})
+
+describe('what the stage does for the renderer', () => {
+  it('gives the canvas a pixel buffer as big as it is on the screen, and tells the scene its size', async () => {
+    const { host } = await render()
+    const canvas = host.querySelector<HTMLCanvasElement>('canvas')!
+    expect(canvas.width).toBe(640 * Math.min(2, globalThis.devicePixelRatio || 1))
+    expect(canvas.height).toBe(400 * Math.min(2, globalThis.devicePixelRatio || 1))
+  })
+
+  it('hands the scene the loaded picture to redraw, when it asks for one', async () => {
+    const { host } = await render()
+    const image = host.querySelector<HTMLImageElement>('.movement-pic')!
+    Object.defineProperty(image, 'complete', { value: true })
+    Object.defineProperty(image, 'naturalWidth', { value: 320 })
+    Object.defineProperty(image, 'naturalHeight', { value: 200 })
+    await act(async () => image.dispatchEvent(new Event('load')))
+    expect(calls().sources.at(-1)).toMatchObject({ width: 320, height: 200 })
+  })
+
+  it('runs no frames while its tab is hidden, and none while paused', async () => {
+    const { host, setOpen } = await render()
+    await setOpen(false)
+    const held = calls().steps
+    await settle()
+    expect(calls().steps).toBe(held)
+    await setOpen(true)
+    await settle()
+    expect(calls().steps).toBeGreaterThan(held)
+    await click(button(host, '❚❚ Pause'))
+    const paused = calls().steps
+    await settle()
+    expect(calls().steps).toBe(paused)
+  })
+})
+
+describe('the keys', () => {
+  it('leave Space to a focused switch, which toggles it and does not pause', async () => {
+    const { host } = await render()
+    const dust = switchFor(host, 'Dust')!
+    await press(' ', dust)
+    expect(button(host, '❚❚ Pause')).toBeDefined()
+  })
+
+  it('do nothing while the renderer loads, so the picture arrives playing', async () => {
+    let release: (answer: MotionRendererAnswer) => void = () => {}
+    const { host } = await render({
+      answer: () => new Promise<MotionRendererAnswer>((resolve) => (release = resolve)),
+    })
+    await press(' ')
+    await press('f')
+    expect(host.querySelector('.movement-float')).toBeNull()
+    release({ named: true, ok: true, code: RENDERER(FOUR) })
+    await settle()
+    expect(button(host, '❚❚ Pause')).toBeDefined()
+  })
+
+  it('do nothing when there is no picture', async () => {
+    const { host } = await render({ chosenTake: null })
+    await press('f')
+    expect(host.querySelector('.movement-float')).toBeNull()
+  })
+})
+
+describe('a renderer that fails with no picture to show', () => {
+  it('still says so and offers Try again', async () => {
+    const { host } = await render({
+      chosenTake: null,
+      answer: { named: true, ok: false, file: 'web/r.js', message: 'web/r.js: boom' },
+    })
+    expect(text(host)).toContain('The motion renderer could not be loaded.')
+    expect(button(host, 'Try again')).toBeDefined()
   })
 })
 
