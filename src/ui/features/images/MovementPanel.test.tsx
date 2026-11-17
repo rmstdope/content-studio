@@ -2133,6 +2133,47 @@ describe('the light mark of a spot', () => {
     expect(puts.at(-1)!.effects.dust!.mark).toEqual([0.26, 0.71])
   })
 
+  it('picks the shape under it when pressed and let go without moving', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await tap(host, 0.25, 0.7)
+    expect(button(host, 'Delete this shape')).toBeDefined()
+  })
+
+  it('is not grabbed while a new shape is being placed: the press places a corner', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(withDust([POND], [0.8, 0.1]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await click(button(host, '＋ Add a shape'))
+    await drag(host, [0.8, 0.1], [0.5, 0.5])
+    await tap(host, 0.8, 0.1)
+    expect(puts).toHaveLength(0)
+    expect(markAt(host)).toBe('0.8,0.1')
+  })
+
+  it('is not nudged by Alt and the arrows typed in a text field', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    const field = document.createElement('input')
+    document.body.append(field)
+    cleanups.push(() => field.remove())
+    await act(async () => {
+      field.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true, bubbles: true }),
+      )
+    })
+    expect(puts).toHaveLength(0)
+  })
+
+  it('reads a mark with no shapes as the whole picture', async () => {
+    const { host } = await render({
+      effects: { dust: { ...saved({ amount: 1 }), mark: [0.8, 0.1] as [number, number] } },
+    })
+    expect(lineOf(host)).toBe('Spot: the whole pictureDraw a spot')
+  })
+
   it('goes back to the middle with Light from the middle, saved at once', async () => {
     sizeOverlay()
     const { host, puts } = await render(withDust([POND], [0.8, 0.1]))

@@ -381,7 +381,7 @@ function EffectRow({
       <SpotLine
         type={type}
         count={saved?.spot?.length ?? 0}
-        marked={saved?.mark !== undefined}
+        marked={(saved?.spot?.length ?? 0) > 0 && saved?.mark !== undefined}
         on={on}
         props={props}
       />

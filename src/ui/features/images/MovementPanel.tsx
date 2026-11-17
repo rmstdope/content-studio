@@ -365,7 +365,7 @@ export function MovementPanel({
   useEffect(() => {
     if (!drawing) return
     const listen = (event: KeyboardEvent) => {
-      if (!event.altKey || event.metaKey || event.ctrlKey) return
+      if (!event.altKey || event.metaKey || event.ctrlKey || typingIn(event.target)) return
       const now = drawingRef.current
       const saved = now && latest.current[now.type]
       if (!now || now.placing || now.confirm || !saved?.spot?.length) return
