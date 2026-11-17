@@ -41,6 +41,14 @@ import { SpotOverlay } from './SpotOverlay'
 import { useJobOpen } from './ImageJobTabs'
 import { typingIn } from './useWorkbenchKeys'
 
+/** Puts focus on an effect's spot link once its row has been drawn again. */
+function focusSpotLink(type: string) {
+  setTimeout(
+    () => document.querySelector<HTMLElement>(`.movement-side [data-spot-link="${type}"]`)?.focus(),
+    0,
+  )
+}
+
 /** Whether this computer asks for reduced motion. */
 function asksForReducedMotion(): boolean {
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -260,6 +268,7 @@ export function MovementPanel({
     const { spot: _gone, ...rest } = was
     set({ ...latest.current, [type.type]: rest })
     persist(true)
+    focusSpotLink(type.type)
   }
   /** An effect is tied to a patch, or to none (null): saved, and the patch laid so the effect stays in sight. */
   const onTie = (type: EffectType, patchId: string | null) => {
@@ -300,15 +309,7 @@ export function MovementPanel({
     if (now.placing && now.placing.length > 0) setLeftOut(now.type)
     drawingRef.current = null
     setDrawing(null)
-    if (refocus) {
-      setTimeout(
-        () =>
-          document
-            .querySelector<HTMLElement>(`.movement-side [data-spot-link="${now.type}"]`)
-            ?.focus(),
-        0,
-      )
-    }
+    if (refocus) focusSpotLink(now.type)
   }, [])
   /** Sets an effect's spot (none: the whole picture) in the effects; saving is the caller's. */
   const setSpot = (type: string, spot: SpotShape[] | undefined) => {
