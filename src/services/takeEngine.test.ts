@@ -216,6 +216,39 @@ describe('the take engine', () => {
     expect(await engine.reserve('p', 'x', access, 1, () => ({}) as TakeEntry)).toBe(failure)
   })
 
+  it('answers a refused board write with the board named, and lets any other error go on', async () => {
+    const { engine } = setup()
+    const refusing: BoardAccess<TakeBoard> = {
+      read: async () => ({ next: 1, takes: [] }),
+      write: async () => {
+        throw new WriteRefused('content-studio/b.json', 'permission denied', null)
+      },
+    }
+    const reason = new WriteRefused('content-studio/b.json', 'permission denied', null).message
+    const quiet = console.error
+    console.error = () => {}
+    try {
+      expect(await engine.reserve('p', 'x', refusing, 1, () => ({}) as TakeEntry)).toEqual({
+        ok: false,
+        message: `No takes were made: ${reason}.`,
+      })
+      expect(
+        await engine.reserve('p', 'y', refusing, 1, () => ({}) as TakeEntry, 'fine-tunes'),
+      ).toEqual({ ok: false, message: `No fine-tunes were made: ${reason}.` })
+    } finally {
+      console.error = quiet
+    }
+    const broken: BoardAccess<TakeBoard> = {
+      read: async () => ({ next: 1, takes: [] }),
+      write: async () => {
+        throw new Error('disk on fire')
+      },
+    }
+    await expect(engine.reserve('p', 'z', broken, 1, () => ({}) as TakeEntry)).rejects.toThrow(
+      'disk on fire',
+    )
+  })
+
   it('is making from its first line unless the job is queued, and a queued one waits until it says it began', async () => {
     let clock = 0
     const engine = createTakeEngine<TakeEntry, TakeBoard>({

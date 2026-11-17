@@ -1,6 +1,6 @@
 import { rm } from 'node:fs/promises'
 import { resolveInRoot } from '../core/paths'
-import { WriteRefused, writeOrRefuse } from './files'
+import { refusalAnswer, WriteRefused, writeOrRefuse } from './files'
 import type { Serial } from './serial'
 import type { ProjectFailure } from './workspace'
 
@@ -140,7 +140,8 @@ export function createTakeEngine<E extends TakeEntry, B extends TakeBoard>({
     /**
      * Reserves `count` numbers on the board at once, so none is used twice, even by a take that
      * fails or is stopped, and registers a waiting entry for each, made by `make` and returned in
-     * number order. Rejects with the board's own refusal when it cannot be saved.
+     * number order. When the board cannot be saved nothing is reserved and the answer is a failure
+     * naming the board ("No <noun> were made: <file> could not be written."), so no caller words it.
      */
     async reserve(
       projectFile: string,
@@ -148,7 +149,9 @@ export function createTakeEngine<E extends TakeEntry, B extends TakeBoard>({
       access: BoardAccess<B>,
       count: number,
       make: (n: number) => E,
-    ): Promise<E[] | ProjectFailure> {
+      /** What the press makes, as the refusal says it ("takes", "fine-tunes"). */
+      noun = 'takes',
+    ): Promise<E[] | ProjectFailure | { ok: false; message: string }> {
       const key = keyOf(projectFile, id)
       // Registered before the board is awaited, so two presses at once share one map.
       const entries = active.get(key) ?? new Map<number, E>()
@@ -157,7 +160,12 @@ export function createTakeEngine<E extends TakeEntry, B extends TakeBoard>({
         const first = Math.max(board.next, ...[...entries.values()].map((entry) => entry.n + 1))
         board.next = first + count
         return first
-      })
+      }).catch(
+        refusalAnswer(
+          'reserving the take numbers failed',
+          (reason) => `No ${noun} were made: ${reason}.`,
+        ),
+      )
       if (typeof first !== 'number') return first
       const made: E[] = []
       for (let i = 0; i < count; i++) {
