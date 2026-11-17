@@ -611,8 +611,10 @@ export function MovementPanel({
                       {failure}
                     </div>
                   )}
-                  <strong>{MOVEMENT_WORDS.lockHeading}</strong>
-                  <span role="status">{IMAGE_TAKE_UNKNOWN}</span>
+                  <strong className="movement-unknown-heading">{MOVEMENT_WORDS.lockHeading}</strong>
+                  <span role="status" className="muted">
+                    {IMAGE_TAKE_UNKNOWN}
+                  </span>
                 </div>
               ) : picture === null ? (
                 <div className="movement-empty">

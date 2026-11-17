@@ -1037,6 +1037,11 @@ describe('the effects in full screen', () => {
         'The motion renderer could not be loaded.',
       )
       expect(frame.textContent).toContain(LOCK)
+      // Only the lock heading is amber; the renderer failure keeps its own colour.
+      expect(frame.querySelectorAll('.movement-unknown-heading')).toHaveLength(1)
+      expect(frame.querySelector('.movement-failure strong')?.className ?? '').not.toContain(
+        'movement-unknown-heading',
+      )
       expect(button(host, 'Try again')).toBeDefined()
       expect(text(host)).toContain('They can be changed once the images lock can be read.')
       expect(text(host)).not.toContain('once the renderer loads')

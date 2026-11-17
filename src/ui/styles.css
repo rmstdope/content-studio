@@ -6263,10 +6263,12 @@ textarea[aria-disabled='true'][data-why] {
   min-height: 200px;
 }
 .movement-unknown {
+  /* Fills the stage like the picture (the later .movement-empty rule made it relative). */
+  position: absolute;
   border: 1px dashed var(--warn);
   background: var(--warn-bg);
 }
-.movement-unknown strong {
+.movement-unknown-heading {
   color: var(--warn);
 }
 .movement-failure {
