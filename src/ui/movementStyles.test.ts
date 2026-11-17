@@ -18,15 +18,15 @@ describe('the Movement tab’s layout', () => {
     )
   })
 
-  it('fits the stage to the window: a dark frame centres a stage as wide as the room allows at its shape, as the measured room allows', () => {
+  it('fits the stage to the window: a dark frame centres a stage as wide as the measured room allows at its shape, and as wide as the column with no shape', () => {
     const frame = rule('.movement-frame')
     expect(frame).toMatch(/background:\s*var\(--inset\)/)
     expect(frame).toMatch(/justify-content:\s*center/)
     expect(rule('.movement-wrap')).toMatch(
-      /width:\s*min\(100%, calc\(var\(--movement-room\) \* var\(--ar\)\)\)/,
+      /width:\s*min\(100%, calc\(var\(--movement-room\) \* var\(--ar, 1000\)\)\)/,
     )
     // The room itself is measured in MovementPanel (movementRoom); the CSS holds only a fallback.
-    expect(rule('.movement-picture')).toMatch(/--movement-room:\s*60dvh/)
+    expect(rule('.movement-picture')).toMatch(/--movement-room:\s*max\(240px, 60dvh\)/)
     expect(rule('.movement-wrap-full')).toMatch(/width:\s*100%/)
   })
 

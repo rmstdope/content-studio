@@ -75,32 +75,32 @@ export function MovementPanel({
   const wrap = useRef<HTMLDivElement>(null)
   const fullButton = useRef<HTMLButtonElement>(null)
   const column = useRef<HTMLDivElement>(null)
-  useLayoutEffect(() => {
+  // The stage's room: what the window leaves below where the frame starts on the page, less the
+  // caption and its gap and the panel's bottom padding. Read from the nodes as they are now, so it
+  // is right after the panel's parts come and go; worked out after every render and every resize.
+  const fit = useRef(() => {})
+  fit.current = () => {
     const el = column.current
     const frame = el?.querySelector<HTMLElement>('.movement-frame')
     if (!el || !frame) return
-    // The stage's room: what the window leaves below where the frame starts on the page, less the
-    // caption and its gap and the panel's bottom padding. Worked out afresh at every resize.
-    const fit = () => {
-      let top = frame.getBoundingClientRect().top
-      for (let up = el.parentElement; up; up = up.parentElement) top += up.scrollTop
-      const caption = el.querySelector<HTMLElement>('.movement-caption')
-      const gap = parseFloat(getComputedStyle(el).rowGap) || 0
-      const pad = parseFloat(getComputedStyle(el.closest('.panel') ?? el).paddingBottom) || 0
-      const below = (caption ? caption.offsetHeight + gap : 0) + pad
-      el.style.setProperty(
-        '--movement-room',
-        `${movementRoom({ windowHeight: window.innerHeight, top, below })}px`,
-      )
-    }
-    fit()
-    window.addEventListener('resize', fit)
-    const watch = typeof ResizeObserver === 'function' ? new ResizeObserver(fit) : null
-    watch?.observe(el)
-    return () => {
-      window.removeEventListener('resize', fit)
-      watch?.disconnect()
-    }
+    // The page may scroll inside a container, so the frame's place on the page is its place on
+    // the screen plus how far each ancestor has scrolled.
+    let top = frame.getBoundingClientRect().top
+    for (let up = el.parentElement; up; up = up.parentElement) top += up.scrollTop
+    const caption = el.querySelector<HTMLElement>('.movement-caption')
+    const gap = parseFloat(getComputedStyle(el).rowGap) || 0
+    const pad = parseFloat(getComputedStyle(el.closest('.panel') ?? el).paddingBottom) || 0
+    const below = (caption ? caption.offsetHeight + gap : 0) + pad
+    el.style.setProperty(
+      '--movement-room',
+      `${movementRoom({ windowHeight: window.innerHeight, top, below })}px`,
+    )
+  }
+  useLayoutEffect(() => fit.current())
+  useEffect(() => {
+    const onResize = () => fit.current()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
   }, [])
   const reduced = asksForReducedMotion()
 
@@ -380,7 +380,8 @@ export function MovementPanel({
                   ? undefined
                   : ({
                       aspectRatio: `${row.width} / ${row.height}`,
-                      '--ar': row.width / row.height,
+                      // Only a picture is fitted to the window; the empty and "not known" stages stay as wide as the column.
+                      ...(picture !== null && !lockUnread && { '--ar': row.width / row.height }),
                     } as CSSProperties)
               }
             >

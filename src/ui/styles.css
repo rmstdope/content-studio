@@ -6177,7 +6177,7 @@ textarea[aria-disabled='true'][data-why] {
 }
 .movement-picture {
   /* The room the window leaves for the stage; MovementPanel measures it and sets it afresh on every resize. */
-  --movement-room: 60dvh;
+  --movement-room: max(240px, 60dvh);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -6195,7 +6195,7 @@ textarea[aria-disabled='true'][data-why] {
 /* As wide as the column, or narrower when the room's height would be exceeded at its shape. */
 .movement-wrap {
   position: relative;
-  width: min(100%, calc(var(--movement-room) * var(--ar)));
+  width: min(100%, calc(var(--movement-room) * var(--ar, 1000)));
   overflow: hidden;
 }
 .movement-wrap:fullscreen,
