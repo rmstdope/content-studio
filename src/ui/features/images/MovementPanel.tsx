@@ -106,7 +106,7 @@ export function MovementPanel({
         })
       : null
 
-  /** The patches an effect can be tied to: the game's, with whether each has a take to lay (true while that is not yet known). */
+  /** The patches an effect can be tied to: the game's, with whether each has a take to lay (true while that is not yet known, and if it could not be loaded). */
   const ties: TiePatch[] = row.patches.map((patch) => ({
     id: patch.id,
     title: patch.title,

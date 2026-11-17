@@ -1171,6 +1171,36 @@ describe('an effect tied to a patch', () => {
     expect(puts.at(-1)!.effects.dust!.patch).toBe('star')
   })
 
+  it('can still be undone when the game now lists no patches at all', async () => {
+    const { host, puts } = await render({ effects: tied('old', 'Old sign') })
+    expect(menu(host)!.value).toBe('old')
+    expect(dustRow(host).textContent).toContain('The game no longer lists the patch Old sign')
+    await choose(menu(host)!, '')
+    expect(puts.at(-1)!.effects.dust!.patch).toBeUndefined()
+  })
+
+  it('keeps the choice on the picture when it could not be saved', async () => {
+    const { host } = await render({
+      patches: PATCHES,
+      effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) },
+      saved: () => Response.json({ ok: false, problems: [] }, { status: 409 }),
+    })
+    await choose(menu(host)!, 'star')
+    expect(text(host)).toContain("Couldn't save the effects")
+    expect(menu(host)!.value).toBe('star')
+    expect(playing()).toEqual(['dust'])
+  })
+
+  it('takes the tie away with an effect the renderer no longer has', async () => {
+    const { host, puts } = await render({
+      patches: PATCHES,
+      effects: { ghost: { on: true, settings: {}, patch: 'star', patchTitle: 'The star' } },
+    })
+    expect(host.querySelector('.movement-effect-gone select')).toBeNull()
+    await click(button(host, 'Remove'))
+    expect(puts.at(-1)!.effects).toEqual({})
+  })
+
   it('shows the same menu, tag and line in full screen, in step with the tab', async () => {
     let current: Element | null = null
     Object.defineProperty(document, 'fullscreenElement', { get: () => current, configurable: true })

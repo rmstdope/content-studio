@@ -210,7 +210,7 @@ function EffectRow({
             )
           )
         })}
-      {on && props.ties.length > 0 && (
+      {on && (props.ties.length > 0 || tie.kind === 'gone') && (
         <>
           <div className="movement-shows">
             <label htmlFor={menuId}>{TIE_WORDS.shows}</label>
