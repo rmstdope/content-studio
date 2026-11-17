@@ -12,9 +12,12 @@ import {
 import {
   EFFECT_WORDS,
   MOVEMENT_WORDS,
+  SPOT_WORDS,
   effectsLine,
+  finishFirst,
   patchNoTake,
   savedForGame,
+  spotLine,
 } from '../../motionText'
 import type { MotionState } from '../../api/images'
 import { off } from '../../off'
@@ -49,6 +52,62 @@ export interface MotionControlsProps {
   status: SaveStatus
   /** Try again presses after a save failed. */
   onRetry: () => void
+  /** Drawing spots, on the tab only: absent (full screen), the spot line has no links. */
+  spot?: SpotControls
+}
+
+/** What an effect's spot line can do on the tab: draw, clear, show the shapes, and why it cannot. */
+export interface SpotControls {
+  /** The type being drawn now, or null. */
+  drawing: string | null
+  /** Why no spot can be drawn (there is no picture), or false. */
+  why: string | false
+  /** Draw a spot / Change presses. */
+  onDraw: (type: EffectType) => void
+  /** Clear presses. */
+  onClear: (type: EffectType) => void
+  /** Pointer or focus came to or left an effect's row; null when it left. */
+  onPeek: (type: string | null) => void
+  /** The type whose unclosed shape was just left out. */
+  leftOut: string | null
+}
+
+/** What an effect's row says of its spot, and the links for it where there are any. */
+function SpotLine({
+  type,
+  count,
+  on,
+  props,
+}: {
+  type: EffectType
+  count: number
+  on: boolean
+  props: MotionControlsProps
+}) {
+  const spot = props.spot
+  if (!on) {
+    return count > 0 ? <p className="movement-spot muted">{spotLine(count, 'off')}</p> : null
+  }
+  const drawing = spot?.drawing === type.type
+  const other = spot?.drawing != null && !drawing
+  const why = spot ? (other ? finishFirst(spot.drawing!) : spot.why) : false
+  const link = (label: string, press: () => void) => (
+    <button type="button" className="link-button" {...off(why)} onClick={() => !why && press()}>
+      {label}
+    </button>
+  )
+  return (
+    <div className="movement-spot-block">
+      <p className="movement-spot muted">
+        {spotLine(count, drawing ? 'drawing' : 'plain')}
+        {spot && !drawing && count === 0 && link(SPOT_WORDS.draw, () => spot.onDraw(type))}
+        {spot && !drawing && count > 0 && link(SPOT_WORDS.change, () => spot.onDraw(type))}
+        {spot && !drawing && count > 0 && link(SPOT_WORDS.clear, () => spot.onClear(type))}
+      </p>
+      {spot && !drawing && why && <p className="movement-spot-why muted">{why}</p>}
+      {spot?.leftOut === type.type && <p className="movement-spot-why">{SPOT_WORDS.leftOut}</p>}
+    </div>
+  )
 }
 
 /** What saving the effects is doing: nothing to say, taking a moment, done, or failed. */
@@ -145,7 +204,21 @@ function EffectRow({
 }) {
   const values = effectValues(type, saved?.settings)
   return (
-    <li className="movement-effect">
+    <li
+      className={
+        props.spot?.drawing === type.type
+          ? 'movement-effect movement-effect-drawing'
+          : 'movement-effect'
+      }
+      onPointerEnter={() => props.spot?.onPeek(type.type)}
+      onPointerLeave={() => props.spot?.onPeek(null)}
+      onFocus={() => props.spot?.onPeek(type.type)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          props.spot?.onPeek(null)
+        }
+      }}
+    >
       <div className="movement-effect-head">
         <Switch
           label={type.title}
@@ -183,6 +256,7 @@ function EffectRow({
             )
           )
         })}
+      <SpotLine type={type} count={saved?.spot?.length ?? 0} on={on} props={props} />
     </li>
   )
 }

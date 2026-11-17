@@ -953,3 +953,90 @@ describe('an effect with a spot, played', () => {
     expect(host.querySelectorAll('.movement-canvas')).toHaveLength(1)
   })
 })
+
+/** The effect row of the side column with this name. */
+const rowOf = (host: HTMLElement, name: string) =>
+  [...host.querySelectorAll('.movement-side .movement-effect')].find(
+    (r) => r.querySelector('.movement-switch')?.textContent === name,
+  ) as HTMLElement
+const spotLineOf = (host: HTMLElement, name: string) =>
+  rowOf(host, name).querySelector('.movement-spot')?.textContent ?? null
+const linkIn = (row: Element, label: string) =>
+  [...row.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent === label)
+const SQUARE: [number, number][] = [
+  [0.6, 0.6],
+  [0.9, 0.6],
+  [0.9, 0.9],
+  [0.6, 0.9],
+]
+
+describe('the spot line of an effect', () => {
+  it('says the whole picture with Draw a spot while the effect is on and has no spot', async () => {
+    const { host } = await render({ effects: { dust: saved({ amount: 1 }) } })
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: the whole picture' + 'Draw a spot')
+    expect(spotLineOf(host, 'Mist')).toBeNull()
+  })
+
+  it('counts the shapes, with Change and Clear, and Clear saves at once with no question', async () => {
+    const { host, puts } = await render({
+      effects: { dust: { ...saved({ amount: 1 }), spot: [POND] } },
+    })
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: 1 shapeChangeClear')
+    await click(linkIn(rowOf(host, 'Dust'), 'Clear'))
+    expect(puts.at(-1)!.effects.dust).toEqual(saved({ amount: 1 }))
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: the whole pictureDraw a spot')
+  })
+
+  it('says “2 shapes” for two', async () => {
+    const { host } = await render({
+      effects: { dust: { ...saved({ amount: 1 }), spot: [POND, SQUARE] } },
+    })
+    expect(spotLineOf(host, 'Dust')).toStartWith('Spot: 2 shapes')
+  })
+
+  it('keeps the spot while the effect is off, said so, with no links', async () => {
+    const { host } = await render({
+      effects: { dust: { ...saved({ amount: 1 }, false), spot: [POND, SQUARE] } },
+    })
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: 2 shapes (kept while off)')
+    await click(switchFor(host, 'Dust'))
+    expect(spotLineOf(host, 'Dust')).toStartWith('Spot: 2 shapesChange')
+  })
+
+  it('keeps the spot when a slider moves or Reset is pressed', async () => {
+    const { host, puts } = await render({
+      effects: { dust: { ...saved({ amount: 2, size: 1, speed: 1 }), spot: [POND] } },
+    })
+    await click(linkIn(rowOf(host, 'Dust'), 'Reset'))
+    expect(puts.at(-1)!.effects.dust!.spot).toEqual([POND])
+  })
+
+  it('greys Draw a spot with the reason when there is no picture at all', async () => {
+    const { host } = await render({ chosenTake: null, effects: { dust: saved({ amount: 1 }) } })
+    const link = linkIn(rowOf(host, 'Dust'), 'Draw a spot')!
+    expect(link.getAttribute('aria-disabled')).toBe('true')
+    expect(text(rowOf(host, 'Dust'))).toContain('Choose a take on Make to draw a spot.')
+  })
+
+  it('is just the line, with no links, in the full-screen panel', async () => {
+    let current: Element | null = null
+    Object.defineProperty(document, 'fullscreenElement', { get: () => current, configurable: true })
+    ;(
+      HTMLElement.prototype as unknown as { requestFullscreen: () => Promise<void> }
+    ).requestFullscreen = async function (this: Element) {
+      current = this
+      document.dispatchEvent(new Event('fullscreenchange'))
+    }
+    cleanups.push(() => {
+      current = null
+      delete (HTMLElement.prototype as unknown as { requestFullscreen?: unknown }).requestFullscreen
+    })
+    const { host } = await render({
+      effects: { dust: { ...saved({ amount: 1 }), spot: [POND] }, mist: saved({ amount: 1 }) },
+    })
+    await click(button(host, '⛶ Full screen'))
+    const panel = host.querySelector('.movement-float')!
+    const lines = [...panel.querySelectorAll('.movement-spot')].map((l) => l.textContent)
+    expect(lines).toEqual(['Spot: 1 shape', 'Spot: the whole picture'])
+  })
+})

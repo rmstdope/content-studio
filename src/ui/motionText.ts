@@ -68,3 +68,52 @@ export const EFFECT_WORDS = {
   remove: 'Remove',
   gone: "The project's renderer no longer has this effect, so the game won't show it. Its settings are kept until you remove it.",
 } as const
+
+/** The words of an effect's spot: its line on the row, the drawing bars and what goes wrong. */
+export const SPOT_WORDS = {
+  draw: 'Draw a spot',
+  change: 'Change',
+  clear: 'Clear',
+  addShape: '＋ Add a shape',
+  deleteShape: 'Delete this shape',
+  finish: 'Finish',
+  keep: 'Keep it',
+  delete: 'Delete',
+  leftOut: "The shape you hadn't closed was left out.",
+  noPicture: 'Choose a take on Make to draw a spot.',
+  saveFailed:
+    "Couldn't save the spot: the image edits file can't be written. Your shape is still on the picture.",
+} as const
+
+/** The spot line of an effect's row: the whole picture, or how many shapes, and whether it is being drawn or kept off. */
+export function spotLine(shapes: number, state: 'plain' | 'drawing' | 'off' = 'plain'): string {
+  const what = shapes === 0 ? 'the whole picture' : `${shapes} ${shapes === 1 ? 'shape' : 'shapes'}`
+  const tail = state === 'drawing' ? ' · drawing now' : state === 'off' ? ' (kept while off)' : ''
+  return `Spot: ${what}${tail}`
+}
+
+/** What the bar above the picture says while a spot is being drawn: its bold lead and the rest. */
+export function drawingBar(name: string): { lead: string; rest: string } {
+  return {
+    lead: `Drawing the spot for ${name}.`,
+    rest: ' Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it.',
+  }
+}
+
+/** What the bar says while the corners of a new shape are being placed. */
+export function newShapeBar(name: string): { lead: string; rest: string } {
+  return {
+    lead: `New shape for ${name}.`,
+    rest: ' Click to place each corner; click the first corner to close the shape. Esc stops this shape.',
+  }
+}
+
+/** What the bar asks before a shape is deleted. */
+export function deleteAsk(corners: number): { lead: string; rest: string } {
+  return { lead: 'Delete this shape?', rest: ` It has ${corners} corners.` }
+}
+
+/** The line under the other effects' spot links while one effect is being drawn. */
+export function finishFirst(name: string): string {
+  return `Finish the ${name} spot first.`
+}

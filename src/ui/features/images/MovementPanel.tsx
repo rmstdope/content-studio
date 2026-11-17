@@ -7,8 +7,19 @@ import {
   type EffectType,
 } from '../../../core/motion'
 import { useImagePatches, useMotionRenderer, useSetImageEffects } from '../../api'
-import { MOVEMENT_WORDS, SAVED_FOR_MS, SAVING_AFTER_MS, takeCaption } from '../../motionText'
-import { MotionControls, type MovementPatch, type SaveStatus } from './MotionControls'
+import {
+  MOVEMENT_WORDS,
+  SAVED_FOR_MS,
+  SPOT_WORDS,
+  SAVING_AFTER_MS,
+  takeCaption,
+} from '../../motionText'
+import {
+  MotionControls,
+  type MovementPatch,
+  type SaveStatus,
+  type SpotControls,
+} from './MotionControls'
 import { MotionStage, type StageEffect } from './MotionStage'
 import { useJobOpen } from './ImageJobTabs'
 import { typingIn } from './useWorkbenchKeys'
@@ -122,6 +133,7 @@ export function MovementPanel({
     set({
       ...latest.current,
       [type.type]: {
+        ...was,
         title: type.title,
         on,
         settings: { ...startSettings(type), ...was?.settings },
@@ -134,6 +146,7 @@ export function MovementPanel({
     set({
       ...latest.current,
       [type.type]: {
+        ...was,
         title: type.title,
         on: was?.on ?? true,
         settings: { ...effectValues(type, was?.settings), [setting.id]: value },
@@ -144,11 +157,19 @@ export function MovementPanel({
     set({
       ...latest.current,
       [type.type]: {
+        ...latest.current[type.type],
         title: type.title,
         on: latest.current[type.type]?.on ?? true,
         settings: startSettings(type),
       },
     })
+    persist()
+  }
+  const onClear = (type: EffectType) => {
+    const was = latest.current[type.type]
+    if (!was) return
+    const { spot: _gone, ...rest } = was
+    set({ ...latest.current, [type.type]: rest })
     persist()
   }
   const onRemove = (type: string) => {
@@ -237,7 +258,16 @@ export function MovementPanel({
   const chosenPatches = (patches ?? []).filter(
     (p): p is MovementPatch & { src: string } => p.src !== null && patchesOn.has(p.id),
   )
-  const controls = (
+  const spotControls: SpotControls = {
+    drawing: null,
+    why: picture === null && SPOT_WORDS.noPicture,
+    onDraw: () => {},
+    onClear,
+    onPeek: () => {},
+    leftOut: null,
+  }
+  /** The groups, with spot links (the tab) or without (full screen, which only shows the lines). */
+  const controls = (spot: SpotControls | undefined) => (
     <MotionControls
       patches={patches}
       patchesOn={patchesOn}
@@ -251,6 +281,7 @@ export function MovementPanel({
       onRemove={onRemove}
       status={status}
       onRetry={persist}
+      spot={spot}
     />
   )
   const failure =
@@ -365,13 +396,13 @@ export function MovementPanel({
                     {MOVEMENT_WORDS.close}
                   </button>
                 </div>
-                {!folded && controls}
+                {!folded && controls(undefined)}
               </aside>
             )}
           </div>
           {caption !== null && <p className="muted movement-caption">{caption}</p>}
         </div>
-        <div className="movement-side">{controls}</div>
+        <div className="movement-side">{controls(spotControls)}</div>
       </div>
     </section>
   )
