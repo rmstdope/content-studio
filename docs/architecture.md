@@ -195,7 +195,7 @@ waiting, being made and failed (in memory, on `globalThis`, so a `--dev` reload 
 reserved on a board, the one-at-a-time changes to a board, Stop, the summary of what is being made and the
 split a view makes of the entries against the board. A medium gives it a board's reader and writer and the
 job that makes one take, and keeps what differs: its generator, its hash, its presses (per project for
-effects, per list for music, per act for images) and what choosing, trimming and fading do to the game's files. A fix to how takes
+effects, per list for music, per act for images) and what choosing, trimming and fading do to the game's files. A board that cannot be saved when numbers are reserved comes back from `reserve` as the failed answer naming it (as-w2cq), so a medium never words it. A fix to how takes
 are queued, made or shown is made there once. A fine-tune keeps its own batches (a press makes the
 fine-tunes of the picture in the game, one press at a time) and waits on the GPU queue as waiting, so its job
 tells the engine when the model starts (`queued`, `began`). Image patches (as-b45w) use it with the id `<image>\0<patch>` and keep their remake presses and the failed-model warnings. Images' own takes (as-tur0) use it with the image's id and keep their presses (per act).

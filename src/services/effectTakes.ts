@@ -538,21 +538,20 @@ export function createEffectTakes({
         }
         queued = [failed]
       } else {
-        const reserved = await engine
-          .reserve(projectFile, id, accessOf(found), request.count, (n) => ({
+        const reserved = await engine.reserve(
+          projectFile,
+          id,
+          accessOf(found),
+          request.count,
+          (n) => ({
             n,
             state: 'waiting',
             startedAt: 0,
             message: '',
             hash,
             model,
-          }))
-          .catch(
-            refusalAnswer(
-              'reserving the take numbers failed',
-              (reason) => `No takes were made: ${reason}.`,
-            ),
-          )
+          }),
+        )
         if (!Array.isArray(reserved)) return reserved
         queued = reserved
       }
