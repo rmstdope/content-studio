@@ -6542,6 +6542,13 @@ textarea[aria-disabled='true'][data-why] {
 .spot-edge-picked {
   stroke-width: 4px;
 }
+.spot-grab {
+  fill: transparent;
+  pointer-events: auto;
+}
+.spot-mark {
+  pointer-events: auto;
+}
 .spot-mark circle {
   fill: var(--warn);
   stroke: var(--accent-ink);
@@ -6558,7 +6565,7 @@ textarea[aria-disabled='true'][data-why] {
   stroke: var(--accent-ink);
   stroke-width: 1px;
 }
-/* Above the stage's buttons, which come later and have no z-index; only the dots take presses. */
+/* Above the stage's buttons, which come later and have no z-index; only the corners and the mark take presses. */
 .spot-handles {
   position: absolute;
   inset: 0;

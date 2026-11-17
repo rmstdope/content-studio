@@ -1925,15 +1925,25 @@ describe('drawing a spot', () => {
     await tap(host, 0.4, 0.8)
     expect(host.querySelector('.movement-buttons')).not.toBeNull()
     const dot = host.querySelectorAll<SVGElement>('.spot-corner')[0]!
-    // The buttons are a later sibling of the overlay with no z-index: a layer of the overlay is
-    // painted above them only with a z-index of its own, and a dot takes a press only if it lets
-    // pointer events in (the buttons' row lets them through, the buttons take them).
+    // happy-dom does no hit testing, so the bug is pinned by the stylesheet: the buttons are a later
+    // sibling of the overlay with no z-index, so a layer of the overlay is painted above them only
+    // with a z-index of its own, and a dot takes a press only if it lets pointer events in.
     expect(valuesInEveryWindow(host.querySelector('.movement-buttons')!, 'z-index')).toEqual([])
     const layer = dot.closest('.spot-handles')
     expect(layer).not.toBeNull()
     expect(valuesInEveryWindow(layer!, 'z-index').at(-1)).toMatch(/: [1-9]\d*$/)
     expect(valuesInEveryWindow(dot, 'pointer-events').at(-1)).toMatch(/: auto$/)
-    // A press on the dot itself reaches the overlay and drags that corner.
+    // Above the buttons a corner is taken as far out as anywhere else (10 px), not only on its dot.
+    const grabs = [...layer!.querySelectorAll('.spot-grab')]
+    expect(grabs).toHaveLength(3)
+    expect(grabs.map((g) => g.getAttribute('r'))).toEqual(['10', '10', '10'])
+    expect(valuesInEveryWindow(grabs[0]!, 'pointer-events').at(-1)).toMatch(/: auto$/)
+    // The light's mark is in the raised layer too, drawn over the corners (it takes a press first).
+    const mark = layer!.querySelector('.spot-mark')
+    expect(mark).not.toBeNull()
+    expect(mark!.compareDocumentPosition(dot) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+    expect(valuesInEveryWindow(mark!, 'pointer-events').at(-1)).toMatch(/: auto$/)
+    // The press itself reaching the overlay is the save path, not the bug: it bubbled before too.
     await act(async () => {
       dot.dispatchEvent(
         new MouseEvent('pointerdown', {

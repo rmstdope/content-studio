@@ -238,17 +238,6 @@ export function SpotOverlay(props: SpotOverlayProps) {
         {!drawing && props.mark && (
           <circle className="spot-peek-mark" cx={props.mark[0] * w} cy={props.mark[1] * h} r={4} />
         )}
-        {drawing && props.mark && (
-          <g data-at={`${props.mark[0]},${props.mark[1]}`} className="spot-mark">
-            <circle
-              className="spot-mark-ring"
-              cx={props.mark[0] * w}
-              cy={props.mark[1] * h}
-              r={MARK_RING}
-            />
-            <circle cx={props.mark[0] * w} cy={props.mark[1] * h} r={MARK_DOT} />
-          </g>
-        )}
         {drawing && placing && placing.length > 0 && (
           <>
             <polyline className="spot-placing" points={points(placing)} />
@@ -273,13 +262,29 @@ export function SpotOverlay(props: SpotOverlayProps) {
           </>
         )}
       </svg>
-      {/* The picked shape's corners, in a layer above the stage's own buttons (Pause, Full screen),
-          so a corner under one of them can still be grabbed. */}
-      {drawing && picked !== null && spot[picked] && (
+      {/* The picked shape's corners and the light's mark, in a layer above the stage's own buttons
+          (Pause, Full screen), so one under them can still be grabbed: each corner as far out as
+          the grab reaches, and the mark over the corners, as a press takes it first. */}
+      {drawing && ((picked !== null && spot[picked]) || props.mark) && (
         <svg className="spot-handles" width={w} height={h} aria-hidden="true">
-          {spot[picked].map((corner, i) => (
-            <circle key={i} className="spot-corner" cx={corner[0] * w} cy={corner[1] * h} r={DOT} />
-          ))}
+          {picked !== null &&
+            spot[picked]?.map((corner, i) => (
+              <g key={i}>
+                <circle className="spot-grab" cx={corner[0] * w} cy={corner[1] * h} r={GRAB} />
+                <circle className="spot-corner" cx={corner[0] * w} cy={corner[1] * h} r={DOT} />
+              </g>
+            ))}
+          {props.mark && (
+            <g data-at={`${props.mark[0]},${props.mark[1]}`} className="spot-mark">
+              <circle
+                className="spot-mark-ring"
+                cx={props.mark[0] * w}
+                cy={props.mark[1] * h}
+                r={MARK_RING}
+              />
+              <circle cx={props.mark[0] * w} cy={props.mark[1] * h} r={MARK_DOT} />
+            </g>
+          )}
         </svg>
       )}
     </div>
