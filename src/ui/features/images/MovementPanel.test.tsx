@@ -305,6 +305,42 @@ describe('the Movement panel', () => {
     )
   })
 
+  it('sits the stage in a dark frame, sized to the picture’s shape (320 / 200 here)', async () => {
+    const { host } = await render()
+    const wrap = host.querySelector<HTMLElement>('.movement-frame > .movement-wrap')!
+    expect(wrap).not.toBeNull()
+    expect(wrap.style.aspectRatio).toBe('320 / 200')
+    expect(wrap.style.getPropertyValue('--ar')).toBe('1.6')
+    expect(wrap.querySelector('.movement-pause')).not.toBeNull()
+  })
+
+  it('gives the stage no shape to fit when there is no picture or the lock cannot be read: both stay as wide as the column', async () => {
+    for (const options of [{ chosenTake: null }, { lockUnread: true, chosenTake: null }]) {
+      const { host } = await render(options)
+      const wrap = host.querySelector<HTMLElement>('.movement-frame > .movement-wrap')!
+      expect(wrap.style.getPropertyValue('--ar')).toBe('')
+    }
+  })
+
+  it('measures the room the window leaves, at least 240 px, and again when the window is resized', async () => {
+    const was = window.innerHeight
+    try {
+      window.innerHeight = 800
+      const { host } = await render()
+      const column = host.querySelector<HTMLElement>('.movement-picture')!
+      const room = () => column.style.getPropertyValue('--movement-room')
+      expect(parseInt(room())).toBeGreaterThan(240)
+      expect(parseInt(room())).toBeLessThanOrEqual(800)
+      window.innerHeight = 100
+      await act(async () => {
+        window.dispatchEvent(new Event('resize'))
+      })
+      expect(room()).toBe('240px')
+    } finally {
+      window.innerHeight = was
+    }
+  })
+
   it('has an empty stage with Go to Make when there is no picture at all, still listing the effects', async () => {
     const { host, goneToMake } = await render({ chosenTake: null })
     expect(text(host)).toContain('No take chosen yet')
