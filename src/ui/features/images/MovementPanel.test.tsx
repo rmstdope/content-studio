@@ -1528,6 +1528,18 @@ describe('drawing a spot', () => {
     expect(button(host, 'Delete this shape')).toBeDefined()
   })
 
+  it('still counts an effect whose spot is being drawn with no shape yet', async () => {
+    sizeOverlay()
+    const counts: (number | null)[] = []
+    const { host } = await render({
+      effects: { dust: saved({ amount: 1 }), mist: saved({}) },
+      onEffectsOn: (n) => counts.push(n),
+    })
+    expect(counts.at(-1)).toBe(2)
+    await click(linkIn(rowOf(host, 'Dust'), 'Draw a spot'))
+    expect(counts.at(-1)).toBe(2)
+  })
+
   it('does not close a shape with fewer than three corners', async () => {
     sizeOverlay()
     const { host, puts } = await render(withDust())
