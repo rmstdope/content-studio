@@ -69,6 +69,8 @@ interface Options {
   /** What saving the effects answers (default: ok); a function can wait or fail. */
   saved?: () => Response | Promise<Response>
   onEffectsOn?: (count: number | null) => void
+  /** The images lock cannot be read (the page's one answer). */
+  lockUnread?: boolean
 }
 
 /** Renders the Movement panel of an image as the page gives it; gives what it asked of the server. */
@@ -140,6 +142,7 @@ async function render(options: Options = {}) {
             { value: open },
             createElement(MovementPanel, {
               row,
+              lockUnread: options.lockUnread ?? false,
               onGoToMake: () => goneToMake.push(1),
               onEffectsOn: options.onEffectsOn,
             }),
@@ -916,6 +919,319 @@ describe('the effects in full screen', () => {
     expect(valueOf(host, 'Speed')).toBe('0.50')
     expect(puts.at(-1)!.effects.dust!.settings.speed).toBe(0.5)
     expect(host.querySelector(`${panel}`)!.textContent).toContain("1 of the renderer's 4 are on.")
+  })
+
+  describe('while the images lock cannot be read', () => {
+    const LOCK =
+      'Which take the game shows is not known until the images lock can be read; fix it, then reload.'
+    const patches = [
+      { id: 'fire', title: 'Fire', take: 2 },
+      { id: 'door', title: 'Door', take: null },
+    ]
+
+    it('shows an amber frame with the lock words and plays nothing, whatever the row says', async () => {
+      const { host, goneToMake } = await render({ lockUnread: true, chosenTake: null, patches })
+      const frame = host.querySelector('.movement-unknown')!
+      expect(frame.textContent).toContain('The images lock could not be read')
+      expect(frame.textContent).toContain(LOCK)
+      expect(host.querySelector('.movement-pic')).toBeNull()
+      expect(host.querySelector('.movement-caption')).toBeNull()
+      expect(text(host)).not.toContain('No take chosen')
+      expect(button(host, 'Go to Make')).toBeUndefined()
+      expect(button(host, '❚❚ Pause')).toBeUndefined()
+      expect(button(host, '⛶ Full screen')).toBeUndefined()
+      await press('f')
+      await press(' ')
+      expect(document.fullscreenElement ?? null).toBeNull()
+      expect(goneToMake).toEqual([])
+    })
+
+    it('lists every patch as not known, off and greyed, with the reason', async () => {
+      const { host } = await render({ lockUnread: true, patches })
+      const rows = [...host.querySelectorAll('.movement-side .movement-switch')]
+      expect(rows.map((r) => r.textContent)).toEqual(['Fire · not known', 'Door · not known'])
+      for (const row of rows) {
+        const input = row.querySelector('input')!
+        expect(input.checked).toBe(false)
+        expect(input.getAttribute('data-why')).toBe(
+          'Which patch take is chosen is not known until the images lock can be read.',
+        )
+        await click(input)
+        expect(input.checked).toBe(false)
+      }
+    })
+
+    it('lists the saved effects read-only, writes nothing, and keeps the title count', async () => {
+      const counts: (number | null)[] = []
+      const { host, puts } = await render({
+        lockUnread: true,
+        effects: {
+          fireflies: { title: 'Fireflies', on: true, settings: {} },
+          ripples: { title: 'Pond ripples', on: true, settings: {} },
+          dust: { title: 'Dust', on: true, settings: {} },
+        },
+        onEffectsOn: (c) => counts.push(c),
+      })
+      expect(host.querySelector('.movement-side h3')!.textContent).toBe('Effects')
+      expect(text(host)).toContain(
+        'Saved for the game: Fireflies, Pond ripples, Dust. They can be changed once the images lock can be read.',
+      )
+      expect(host.querySelector('.movement-effect')).toBeNull()
+      expect(button(host, 'Reset')).toBeUndefined()
+      expect(puts).toEqual([])
+      expect(counts.at(-1)).toBe(1)
+    })
+
+    it('says so when no effects are saved, keeping the Effects heading', async () => {
+      const { host } = await render({ lockUnread: true })
+      expect(host.querySelector('.movement-side h3')!.textContent).toBe('Effects')
+      expect(text(host)).toContain(
+        'None are saved for the game. Effects can be put in once the images lock can be read.',
+      )
+    })
+
+    it('says both when the renderer failed too: its failure on top of the frame, Try again stays', async () => {
+      const { host } = await render({
+        lockUnread: true,
+        answer: { named: true, ok: false, file: 'web/r.js', message: 'web/r.js: boom' },
+        effects: { fireflies: { title: 'Fireflies', on: true, settings: {} } },
+      })
+      const frame = host.querySelector('.movement-unknown')!
+      expect(frame.firstElementChild!.textContent).toContain(
+        'The motion renderer could not be loaded.',
+      )
+      expect(frame.textContent).toContain(LOCK)
+      expect(button(host, 'Try again')).toBeDefined()
+      expect(text(host)).toContain('They can be changed once the images lock can be read.')
+      expect(text(host)).not.toContain('once the renderer loads')
+    })
+
+    it('is as before when the lock can be read and no take is chosen', async () => {
+      const { host } = await render({ chosenTake: null, patches })
+      expect(host.querySelector('.movement-unknown')).toBeNull()
+      expect(text(host)).toContain('No take chosen yet')
+      expect(text(host)).toContain('Door · no take chosen')
+    })
+  })
+})
+
+describe('an effect tied to a patch', () => {
+  const PATCHES = [
+    { id: 'star', title: 'The star on the door', take: 2 },
+    { id: 'lantern', title: 'Broken lantern', take: null },
+  ]
+  const tied = (patch: string, title: string, on = true) => ({
+    dust: {
+      ...dust({ amount: 1, size: 1, speed: 1 }, on),
+      title: 'Dust',
+      patch,
+      patchTitle: title,
+    },
+  })
+  const menu = (host: HTMLElement, within = '.movement-side') =>
+    host.querySelector<HTMLSelectElement>(`${within} .movement-effect select`)
+  async function choose(select: HTMLSelectElement, value: string) {
+    await act(async () => {
+      select.value = value
+      select.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await settle()
+  }
+  const dustRow = (host: HTMLElement) => host.querySelector('.movement-side .movement-effect')!
+  const playing = () =>
+    calls()
+      .setEffects.at(-1)!
+      .map((e) => e.kind)
+
+  it('has a Shows menu on an effect that is on, Always first then each patch in the game’s order', async () => {
+    const { host } = await render({
+      patches: PATCHES,
+      effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) },
+    })
+    const select = menu(host)!
+    expect(dustRow(host).querySelector('.movement-shows label')!.textContent).toBe('Shows')
+    expect([...select.options].map((o) => o.textContent)).toEqual([
+      'Always',
+      'While The star on the door is laid',
+      'While Broken lantern is laid',
+    ])
+    expect(select.value).toBe('')
+    expect(dustRow(host).querySelector('.movement-tag')).toBeNull()
+  })
+
+  it('has no menu while the effect is off, and none on an image with no patches', async () => {
+    const off = await render({ patches: PATCHES })
+    expect(menu(off.host)).toBeNull()
+    const none = await render({ effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) } })
+    expect(menu(none.host)).toBeNull()
+  })
+
+  it('saves a choice at once, lays the patch in the preview and tags the effect', async () => {
+    const { host, puts } = await render({
+      patches: PATCHES,
+      effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) },
+    })
+    await choose(menu(host)!, 'star')
+    expect(puts.at(-1)!.effects.dust).toEqual({
+      ...saved({ amount: 1, size: 1, speed: 1 }),
+      patch: 'star',
+      patchTitle: 'The star on the door',
+    })
+    expect(text(host)).toContain('Saved')
+    expect(switchFor(host, 'The star on the door')!.checked).toBe(true)
+    expect(dustRow(host).querySelector('.movement-tag')!.textContent).toBe(
+      'with The star on the door',
+    )
+    expect(playing()).toEqual(['dust'])
+    await choose(menu(host)!, '')
+    expect(puts.at(-1)!.effects.dust).toEqual(saved({ amount: 1, size: 1, speed: 1 }))
+    expect(dustRow(host).querySelector('.movement-tag')).toBeNull()
+  })
+
+  it('runs only while the patch is laid, dims the sliders and offers Lay it, which keeps focus on the menu', async () => {
+    const { host, puts } = await render({
+      patches: PATCHES,
+      effects: tied('star', 'The star on the door'),
+    })
+    expect(playing()).toEqual([])
+    expect(dustRow(host).className).toContain('movement-effect-dim')
+    expect(dustRow(host).textContent).toContain("Not showing: The star on the door isn't laid.")
+    const before = puts.length
+    await click(button(host, 'Lay it'))
+    expect(switchFor(host, 'The star on the door')!.checked).toBe(true)
+    expect(playing()).toEqual(['dust'])
+    expect(button(host, 'Lay it')).toBeUndefined()
+    expect(dustRow(host).className).not.toContain('movement-effect-dim')
+    expect(document.activeElement).toBe(menu(host))
+    expect(puts.length).toBe(before)
+    await click(switchFor(host, 'The star on the door'))
+    expect(playing()).toEqual([])
+  })
+
+  it('can be tied to a patch with no take, which lays nothing and has no button', async () => {
+    const { host } = await render({
+      patches: PATCHES,
+      effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) },
+    })
+    await choose(menu(host)!, 'lantern')
+    expect(dustRow(host).textContent).toContain(
+      'Not showing: Broken lantern has no take chosen yet.',
+    )
+    expect(button(host, 'Lay it')).toBeUndefined()
+    expect(dustRow(host).className).toContain('movement-effect-dim')
+    expect(playing()).toEqual([])
+  })
+
+  it('keeps the tie, with its tag and no menu, while the effect is switched off, and counts it when on', async () => {
+    const { host, puts } = await render({
+      patches: PATCHES,
+      effects: tied('star', 'The star on the door'),
+    })
+    expect(text(host)).toContain("1 of the renderer's 4 are on.")
+    await click(switchFor(host, 'Dust'))
+    expect(menu(host)).toBeNull()
+    expect(dustRow(host).querySelector('.movement-tag')!.textContent).toBe(
+      'with The star on the door',
+    )
+    expect(puts.at(-1)!.effects.dust!.patch).toBe('star')
+    await click(switchFor(host, 'Dust'))
+    expect(menu(host)!.value).toBe('star')
+  })
+
+  it('keeps a tie to a patch the game no longer lists, flagged, until another choice is made', async () => {
+    const { host, puts } = await render({
+      patches: PATCHES,
+      effects: tied('old', 'Old sign'),
+    })
+    expect(dustRow(host).className).toContain('movement-effect-lost')
+    expect(dustRow(host).querySelector('.movement-tag')!.textContent).toBe('with Old sign')
+    expect([...menu(host)!.options].map((o) => o.textContent)).toEqual([
+      'Always',
+      'While The star on the door is laid',
+      'While Broken lantern is laid',
+      'While Old sign is laid · gone',
+    ])
+    expect(menu(host)!.value).toBe('old')
+    expect(dustRow(host).textContent).toContain(
+      "The game no longer lists the patch Old sign, so it won't show this effect. Choose Always or another patch.",
+    )
+    expect(playing()).toEqual([])
+    await choose(menu(host)!, '')
+    expect(dustRow(host).className).not.toContain('movement-effect-lost')
+    expect(puts.at(-1)!.effects.dust!.patch).toBeUndefined()
+    expect([...menu(host)!.options].length).toBe(3)
+  })
+
+  it('keeps the tie through slider moves and Reset', async () => {
+    const { host, puts } = await render({
+      patches: PATCHES,
+      effects: tied('star', 'The star on the door'),
+    })
+    await move(sliderFor(host, 'Amount')!, 2)
+    expect(puts.at(-1)!.effects.dust!.patch).toBe('star')
+    await click(button(host, 'Reset'))
+    expect(puts.at(-1)!.effects.dust!.patch).toBe('star')
+  })
+
+  it('can still be undone when the game now lists no patches at all', async () => {
+    const { host, puts } = await render({ effects: tied('old', 'Old sign') })
+    expect(menu(host)!.value).toBe('old')
+    expect(dustRow(host).textContent).toContain('The game no longer lists the patch Old sign')
+    await choose(menu(host)!, '')
+    expect(puts.at(-1)!.effects.dust!.patch).toBeUndefined()
+  })
+
+  it('keeps the choice on the picture when it could not be saved', async () => {
+    const { host } = await render({
+      patches: PATCHES,
+      effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) },
+      saved: () => Response.json({ ok: false, problems: [] }, { status: 409 }),
+    })
+    await choose(menu(host)!, 'star')
+    expect(text(host)).toContain("Couldn't save the effects")
+    expect(menu(host)!.value).toBe('star')
+    expect(playing()).toEqual(['dust'])
+  })
+
+  it('takes the tie away with an effect the renderer no longer has', async () => {
+    const { host, puts } = await render({
+      patches: PATCHES,
+      effects: { ghost: { on: true, settings: {}, patch: 'star', patchTitle: 'The star' } },
+    })
+    expect(host.querySelector('.movement-effect-gone select')).toBeNull()
+    await click(button(host, 'Remove'))
+    expect(puts.at(-1)!.effects).toEqual({})
+  })
+
+  it('shows the same menu, tag and line in full screen, in step with the tab', async () => {
+    let current: Element | null = null
+    Object.defineProperty(document, 'fullscreenElement', { get: () => current, configurable: true })
+    ;(
+      HTMLElement.prototype as unknown as { requestFullscreen: () => Promise<void> }
+    ).requestFullscreen = async function (this: Element) {
+      current = this
+      document.dispatchEvent(new Event('fullscreenchange'))
+    }
+    cleanups.push(() => {
+      current = null
+      delete (HTMLElement.prototype as unknown as { requestFullscreen?: unknown }).requestFullscreen
+    })
+    const { host } = await render({
+      patches: PATCHES,
+      effects: tied('star', 'The star on the door'),
+    })
+    await click(button(host, '⛶ Full screen'))
+    expect(host.querySelector('.movement-float')!.textContent).toContain(
+      "Not showing: The star on the door isn't laid.",
+    )
+    await click(
+      [...host.querySelectorAll<HTMLButtonElement>('.movement-float button')].find(
+        (b) => b.textContent === 'Lay it',
+      ),
+    )
+    expect(switchFor(host, 'The star on the door')!.checked).toBe(true)
+    expect(host.querySelector('.movement-side')!.textContent).not.toContain('Not showing')
+    expect(menu(host, '.movement-float')!.value).toBe('star')
   })
 })
 

@@ -7,6 +7,8 @@ import {
   effectValues,
   rangeNote,
   settingsLine,
+  tieState,
+  type TiePatch,
   valueText,
 } from '../../../core/motion'
 import {
@@ -15,9 +17,18 @@ import {
   SPOT_WORDS,
   effectsLine,
   finishFirst,
+  PATCH_NOT_KNOWN_WHY,
+  noTakeLine,
+  notLaidLine,
+  patchGoneLine,
   patchNoTake,
+  patchNotKnown,
   savedForGame,
   spotLine,
+  savedForGameLockUnread,
+  tieChoice,
+  tieTag,
+  TIE_WORDS,
 } from '../../motionText'
 import type { MotionState } from '../../api/images'
 import { off } from '../../off'
@@ -31,6 +42,8 @@ export interface MovementPatch {
 
 /** What the Patches and Effects groups show and change, the same in the side column and in full screen. */
 export interface MotionControlsProps {
+  /** The images lock cannot be read: nothing is said of which takes are chosen, and nothing can be changed. */
+  lockUnread: boolean
   /** The patches in the game's order; null while the patches are not known, which leaves the group out. */
   patches: MovementPatch[] | null
   patchesOn: ReadonlySet<string>
@@ -48,6 +61,12 @@ export interface MotionControlsProps {
   onReset: (type: EffectType) => void
   /** Remove presses on an effect the renderer no longer has. */
   onRemove: (type: string) => void
+  /** The game's patches an effect can be tied to, in its order; none when the image has none. */
+  ties: readonly TiePatch[]
+  /** An effect is tied to a patch (its id) or to none (null). */
+  onTie: (type: EffectType, patchId: string | null) => void
+  /** Lay it presses: switch that patch on in the preview. */
+  onLay: (id: string) => void
   /** What saving the effects is doing. */
   status: SaveStatus
   /** Try again presses after a save failed. */
@@ -215,12 +234,19 @@ function EffectRow({
   props: MotionControlsProps
 }) {
   const values = effectValues(type, saved?.settings)
+  const menu = useRef<HTMLSelectElement>(null)
+  const menuId = useId()
+  const tie = tieState(saved ?? {}, props.ties, props.patchesOn)
+  const tiedAway = tie.kind !== 'always' && tie.kind !== 'laid'
+  const classes = ['movement-effect']
+  if (on && tiedAway) classes.push('movement-effect-dim')
+  if (tie.kind === 'gone') classes.push('movement-effect-lost')
   return (
     <li
       className={
         props.spot?.drawing === type.type
-          ? 'movement-effect movement-effect-drawing'
-          : 'movement-effect'
+          ? `${classes.join(' ')} movement-effect-drawing`
+          : classes.join(' ')
       }
       onPointerEnter={() => props.spot?.onPeek(type.type)}
       onPointerLeave={() => props.spot?.onPeek(null)}
@@ -238,6 +264,7 @@ function EffectRow({
           why={why}
           onChange={(next) => props.onEffect(type, next)}
         />
+        {tie.kind !== 'always' && <span className="movement-tag">{tieTag(tie.title)}</span>}
         {on && effectDiffers(type, saved?.settings) && (
           <button type="button" className="btn movement-reset" onClick={() => props.onReset(type)}>
             {EFFECT_WORDS.reset}
@@ -268,6 +295,49 @@ function EffectRow({
             )
           )
         })}
+      {on && (props.ties.length > 0 || tie.kind === 'gone') && (
+        <>
+          <div className="movement-shows">
+            <label htmlFor={menuId}>{TIE_WORDS.shows}</label>
+            <select
+              id={menuId}
+              ref={menu}
+              value={tie.kind === 'always' ? '' : tie.patchId}
+              onChange={(event) => props.onTie(type, event.target.value || null)}
+            >
+              <option value="">{TIE_WORDS.always}</option>
+              {props.ties.map((patch) => (
+                <option key={patch.id} value={patch.id}>
+                  {tieChoice(patch.title)}
+                </option>
+              ))}
+              {tie.kind === 'gone' && (
+                <option value={tie.patchId}>{tieChoice(tie.title, true)}</option>
+              )}
+            </select>
+          </div>
+          {(tie.kind === 'notLaid' || tie.kind === 'noTake') && (
+            <p className="movement-tie-line muted">
+              {tie.kind === 'notLaid' ? notLaidLine(tie.title) : noTakeLine(tie.title)}{' '}
+              {tie.kind === 'notLaid' && (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    props.onLay(tie.patchId)
+                    menu.current?.focus()
+                  }}
+                >
+                  {TIE_WORDS.lay}
+                </button>
+              )}
+            </p>
+          )}
+          {tie.kind === 'gone' && (
+            <p className="movement-tie-line notice-warn">{patchGoneLine(tie.title)}</p>
+          )}
+        </>
+      )}
       <SpotLine type={type} count={saved?.spot?.length ?? 0} on={on} props={props} />
     </li>
   )
@@ -284,7 +354,15 @@ export function MotionControls(props: MotionControlsProps) {
           <ul className="movement-list">
             {patches.map((patch) => (
               <li key={patch.id}>
-                {patch.src ? (
+                {props.lockUnread ? (
+                  <Switch
+                    label={patchNotKnown(patch.title)}
+                    checked={false}
+                    why={PATCH_NOT_KNOWN_WHY}
+                    dim
+                    onChange={() => {}}
+                  />
+                ) : patch.src ? (
                   <Switch
                     label={patch.title}
                     checked={props.patchesOn.has(patch.id)}
@@ -323,6 +401,21 @@ function EffectsGroup(props: MotionControlsProps) {
   const switchedOn = Object.keys(effects)
     .filter((type) => effects[type]!.on)
     .map(nameOf)
+  // The lock cannot be read: the heading and what is saved, read-only; nothing can be changed or saved.
+  if (props.lockUnread) {
+    return (
+      <section className="movement-group" aria-label={MOVEMENT_WORDS.effects}>
+        <div className="movement-group-head">
+          <h3>{MOVEMENT_WORDS.effects}</h3>
+        </div>
+        <p className="muted">
+          {switchedOn.length > 0
+            ? savedForGameLockUnread(switchedOn)
+            : MOVEMENT_WORDS.effectsLockNone}
+        </p>
+      </section>
+    )
+  }
   return (
     <section className="movement-group" aria-label={MOVEMENT_WORDS.effects}>
       <div className="movement-group-head">

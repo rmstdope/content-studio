@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ImageRow, SavedEffects, SpotShape } from '../../../core/images'
 import {
+  effectPlays,
   effectValues,
   startSettings,
+  tieState,
+  type TiePatch,
   type EffectSetting,
   type EffectType,
 } from '../../../core/motion'
 import { addShape, dropShape } from '../../../core/spot'
 import { useImagePatches, useMotionRenderer, useSetImageEffects } from '../../api'
+import { IMAGE_TAKE_UNKNOWN } from '../../imagesText'
 import {
   MOVEMENT_WORDS,
   SAVED_FOR_MS,
@@ -42,6 +46,14 @@ interface Drawing {
   confirm: boolean
 }
 
+/** The tie an effect has to a patch, to carry over into its next saved form. */
+function tieOf(saved: SavedEffects[string] | undefined) {
+  return {
+    ...(saved?.patch !== undefined && { patch: saved.patch }),
+    ...(saved?.patchTitle !== undefined && { patchTitle: saved.patchTitle }),
+  }
+}
+
 /**
  * An image's Movement tab: the chosen take drawn moving by the project's own motion renderer, with
  * the patches to switch on for looking and the renderer's effects to put in the game and tune,
@@ -51,10 +63,13 @@ interface Drawing {
  */
 export function MovementPanel({
   row,
+  lockUnread,
   onGoToMake,
   onEffectsOn,
 }: {
   row: ImageRow
+  /** The page's one answer (`imageLockUnread`): which take the game shows is not known. */
+  lockUnread: boolean
   onGoToMake: () => void
   onEffectsOn?: (count: number | null) => void
 }) {
@@ -94,8 +109,10 @@ export function MovementPanel({
     }
   }, [open])
 
-  const src =
-    row.chosenTake !== null
+  // While the lock cannot be read no take is known to be chosen: no picture, none of its patches.
+  const src = lockUnread
+    ? null
+    : row.chosenTake !== null
       ? `/api/images/${encodeURIComponent(row.id)}/takes/${row.chosenTake}`
       : row.gameFile?.exists
         ? `/api/images/${encodeURIComponent(row.id)}/current`
@@ -104,8 +121,9 @@ export function MovementPanel({
   // Playing: the renderer is loaded and there is a picture to move; only then do the keys act.
   const running = motion.status === 'ready' && picture !== null
 
-  const patches: MovementPatch[] | null =
-    patchView && 'patches' in patchView
+  const patches: MovementPatch[] | null = lockUnread
+    ? row.patches.map((patch) => ({ id: patch.id, title: patch.title, src: null }))
+    : patchView && 'patches' in patchView
       ? row.patches.map((patch) => {
           const take = patchView.patches.find((p) => p.id === patch.id)?.takes.find((t) => t.chosen)
           return {
@@ -117,6 +135,13 @@ export function MovementPanel({
           }
         })
       : null
+
+  /** The patches an effect can be tied to: the game's, with whether each has a take to lay (true while that is not yet known, and if it could not be loaded). */
+  const ties: TiePatch[] = row.patches.map((patch) => ({
+    id: patch.id,
+    title: patch.title,
+    hasTake: patches === null ? true : patches.find((p) => p.id === patch.id)?.src != null,
+  }))
 
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
 
@@ -160,6 +185,7 @@ export function MovementPanel({
         ...was,
         title: type.title,
         on,
+        ...tieOf(was),
         settings: { ...startSettings(type), ...was?.settings },
       },
     })
@@ -173,6 +199,7 @@ export function MovementPanel({
         ...was,
         title: type.title,
         on: was?.on ?? true,
+        ...tieOf(was),
         settings: { ...effectValues(type, was?.settings), [setting.id]: value },
       },
     })
@@ -184,6 +211,7 @@ export function MovementPanel({
         ...latest.current[type.type],
         title: type.title,
         on: latest.current[type.type]?.on ?? true,
+        ...tieOf(latest.current[type.type]),
         settings: startSettings(type),
       },
     })
@@ -197,6 +225,27 @@ export function MovementPanel({
     set({ ...latest.current, [type.type]: rest })
     persist(true)
   }
+  /** An effect is tied to a patch, or to none (null): saved, and the patch laid so the effect stays in sight. */
+  const onTie = (type: EffectType, patchId: string | null) => {
+    const was = latest.current[type.type]
+    const {
+      patch: _p,
+      patchTitle: _t,
+      ...rest
+    } = was ?? { on: true, settings: startSettings(type) }
+    const patch = ties.find((p) => p.id === patchId)
+    set({
+      ...latest.current,
+      [type.type]: {
+        ...rest,
+        title: type.title,
+        ...(patch && { patch: patch.id, patchTitle: patch.title }),
+      },
+    })
+    if (patch?.hasTake) setPatchesOn((now) => toggle(now, patch.id, true))
+    persist()
+  }
+  const onLay = (id: string) => setPatchesOn((now) => toggle(now, id, true))
   const onRemove = (type: string) => {
     const { [type]: _gone, ...rest } = latest.current
     set(rest)
@@ -321,7 +370,9 @@ export function MovementPanel({
   const playing: StageEffect[] =
     motion.status === 'ready'
       ? motion.module.types
-          .filter((t) => effects[t.type]?.on)
+          .filter(
+            (t) => effects[t.type]?.on && effectPlays(tieState(effects[t.type]!, ties, patchesOn)),
+          )
           // A spot being drawn that has no shape yet shows nothing until one is closed.
           .filter((t) => drawing?.type !== t.type || (effects[t.type]?.spot?.length ?? 0) > 0)
           // In the order the game is given them (by kind), so the layers stack the same.
@@ -363,6 +414,7 @@ export function MovementPanel({
   /** The groups, with spot links (the tab) or without (full screen, which only shows the lines). */
   const controls = (spot: SpotControls | undefined) => (
     <MotionControls
+      lockUnread={lockUnread}
       patches={patches}
       patchesOn={patchesOn}
       onPatch={(id, on) => setPatchesOn((now) => toggle(now, id, on))}
@@ -373,6 +425,9 @@ export function MovementPanel({
       onCommit={() => persist()}
       onReset={onReset}
       onRemove={onRemove}
+      ties={ties}
+      onTie={onTie}
+      onLay={onLay}
       status={status}
       onRetry={() => persist(failedSpot)}
       failedSpot={failedSpot}
@@ -504,7 +559,17 @@ export function MovementPanel({
             className={full ? 'movement-wrap movement-wrap-full' : 'movement-wrap'}
             style={full ? undefined : { aspectRatio: `${row.width} / ${row.height}` }}
           >
-            {picture === null ? (
+            {lockUnread ? (
+              <div className="movement-empty movement-unknown" data-unknown="true">
+                {motion.status === 'failed' && (
+                  <div role="alert" className="movement-failure">
+                    {failure}
+                  </div>
+                )}
+                <strong>{MOVEMENT_WORDS.lockHeading}</strong>
+                <span role="status">{IMAGE_TAKE_UNKNOWN}</span>
+              </div>
+            ) : picture === null ? (
               <div className="movement-empty">
                 {motion.status === 'failed' && (
                   <div role="alert" className="movement-failure">

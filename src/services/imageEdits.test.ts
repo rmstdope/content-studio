@@ -518,6 +518,17 @@ describe('the effects of an image', () => {
     })
   })
 
+  it('keep a tie to a patch, even off, and give the game only the patch id of those on', async () => {
+    const { file, read } = repo({ [MANIFEST]: { inn: entry } })
+    const tied = { ...dust, patch: 'star', patchTitle: 'The star on the door' }
+    const off = { ...embers, patch: 'star', patchTitle: 'The star on the door' }
+    expect(await setImageEffects(file, 'inn', { dust: tied, embers: off })).toEqual({ ok: true })
+    expect(JSON.parse(read(EDITS)).images.inn.effects).toEqual({ dust: tied, embers: off })
+    expect(JSON.parse(read(MANIFEST)).inn.effects).toEqual([
+      { kind: 'dust', settings: { amount: 1.25, speed: 1 }, patch: 'star' },
+    ])
+  })
+
   it('leave the game with the last one taken away', async () => {
     const { file, read } = repo({ [MANIFEST]: { inn: entry } })
     await setImageEffects(file, 'inn', { dust })

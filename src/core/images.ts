@@ -192,6 +192,10 @@ export const EffectEditSchema = z.object({
   /** What the renderer called it when it was saved, to name it when the renderer is not there. */
   title: z.string().optional(),
   on: z.boolean(),
+  /** The id of the patch it is tied to: the game shows it only while that patch is laid. */
+  patch: z.string().optional(),
+  /** The tied patch's title when it was tied, to name it once the game stops listing it. */
+  patchTitle: z.string().optional(),
   settings: z.record(z.string(), z.number().finite()),
   spot: z.array(SpotShapeSchema).min(1).optional(),
 })
@@ -342,7 +346,7 @@ function keyedEffects(effects: SavedEffects): SavedEffects {
     Object.keys(effects)
       .sort()
       .map((type) => {
-        const { title, on, settings, spot } = effects[type]!
+        const { title, on, patch, patchTitle, settings, spot } = effects[type]!
         const sortedSettings = Object.fromEntries(
           Object.keys(settings)
             .sort()
@@ -353,6 +357,8 @@ function keyedEffects(effects: SavedEffects): SavedEffects {
           {
             ...(title !== undefined && { title }),
             on,
+            ...(patch !== undefined && { patch }),
+            ...(patchTitle !== undefined && { patchTitle }),
             settings: sortedSettings,
             ...(spot && { spot }),
           },
@@ -630,6 +636,8 @@ export function applyEffects(edits: ImageEdits, id: string, effects: SavedEffect
 export interface GameEffect {
   kind: string
   settings: Record<string, number>
+  /** The patch it shows with: only while that patch is laid; absent shows always. */
+  patch?: string
   /** The shapes it plays inside, as fractions of the picture; absent: the whole picture. */
   spot?: SpotShape[]
 }
@@ -640,8 +648,13 @@ export function effectsForGame(effects: SavedEffects): GameEffect[] {
     .sort()
     .filter((type) => effects[type]!.on)
     .map((type) => {
-      const { settings, spot } = effects[type]!
-      return { kind: type, settings, ...(spot && { spot }) }
+      const { settings, patch, spot } = effects[type]!
+      return {
+        kind: type,
+        settings,
+        ...(patch !== undefined && { patch }),
+        ...(spot && { spot }),
+      }
     })
 }
 

@@ -1475,6 +1475,31 @@ describe('the jobs of an image’s page', () => {
     expect(text(tabsOf(page)[0]!.querySelector('.chip'))).toBe('No take chosen')
   })
 
+  it('gives the Movement tab the combined lock answer: not known when only the patches view finds the lock unread', () => {
+    const lamp = { id: 'lamp-lit', title: 'Lamp lit', description: 'Light the lamp' }
+    const made = summary().images!.acts[0]!.rows[0]!.madeFrom
+    const shown = summary({ chosen: { inn: made }, gameTake: 1, patches: [lamp] })
+    const page = render(image, shown, {}, null, false, { lockUnread: false }, (client) =>
+      client.setQueryData(['image-patches', 'inn'], {
+        ok: true,
+        take: null,
+        game: { width: 320, height: 200 },
+        lookError: null,
+        lookKey: null,
+        lockUnread: true,
+        pictureGone: false,
+        maker: { ok: true },
+        models: { 'qwen-edit': 'whole', klein: 'whole' },
+        patches: [],
+        remake: { earlier: {}, press: null, failedModels: [] },
+      }),
+    )
+    expect(page.querySelector('.movement-unknown')).not.toBeNull()
+    expect(page.querySelector('.movement-side .movement-switch')!.textContent).toBe(
+      'Lamp lit · not known',
+    )
+  })
+
   it('has no tab for a job the game does not ask for, and the keys follow the tabs shown', () => {
     const page = render(image, summary({ areas: [fountain] }))
     expect(names(page)).toEqual(['Make', 'Fine-tune', 'Named areas', 'Movement'])
