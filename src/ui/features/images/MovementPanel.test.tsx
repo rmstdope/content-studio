@@ -68,6 +68,8 @@ interface Options {
   /** What saving the effects answers (default: ok); a function can wait or fail. */
   saved?: () => Response | Promise<Response>
   onEffectsOn?: (count: number | null) => void
+  /** The images lock cannot be read (the page's one answer). */
+  lockUnread?: boolean
 }
 
 /** Renders the Movement panel of an image as the page gives it; gives what it asked of the server. */
@@ -138,6 +140,7 @@ async function render(options: Options = {}) {
             { value: open },
             createElement(MovementPanel, {
               row,
+              lockUnread: options.lockUnread ?? false,
               onGoToMake: () => goneToMake.push(1),
               onEffectsOn: options.onEffectsOn,
             }),
@@ -914,5 +917,98 @@ describe('the effects in full screen', () => {
     expect(valueOf(host, 'Speed')).toBe('0.50')
     expect(puts.at(-1)!.effects.dust!.settings.speed).toBe(0.5)
     expect(host.querySelector(`${panel}`)!.textContent).toContain("1 of the renderer's 4 are on.")
+  })
+
+  describe('while the images lock cannot be read', () => {
+    const LOCK =
+      'Which take the game shows is not known until the images lock can be read; fix it, then reload.'
+    const patches = [
+      { id: 'fire', title: 'Fire', take: 2 },
+      { id: 'door', title: 'Door', take: null },
+    ]
+
+    it('shows an amber frame with the lock words and plays nothing, whatever the row says', async () => {
+      const { host, goneToMake } = await render({ lockUnread: true, chosenTake: null, patches })
+      const frame = host.querySelector('.movement-unknown')!
+      expect(frame.textContent).toContain('The images lock could not be read')
+      expect(frame.textContent).toContain(LOCK)
+      expect(host.querySelector('.movement-pic')).toBeNull()
+      expect(host.querySelector('.movement-caption')).toBeNull()
+      expect(text(host)).not.toContain('No take chosen')
+      expect(button(host, 'Go to Make')).toBeUndefined()
+      expect(button(host, '❚❚ Pause')).toBeUndefined()
+      expect(button(host, '⛶ Full screen')).toBeUndefined()
+      await press('f')
+      await press(' ')
+      expect(document.fullscreenElement ?? null).toBeNull()
+      expect(goneToMake).toEqual([])
+    })
+
+    it('lists every patch as not known, off and greyed, with the reason', async () => {
+      const { host } = await render({ lockUnread: true, patches })
+      const rows = [...host.querySelectorAll('.movement-side .movement-switch')]
+      expect(rows.map((r) => r.textContent)).toEqual(['Fire · not known', 'Door · not known'])
+      for (const row of rows) {
+        const input = row.querySelector('input')!
+        expect(input.checked).toBe(false)
+        expect(input.getAttribute('data-why')).toBe(
+          'Which patch take is chosen is not known until the images lock can be read.',
+        )
+        await click(input)
+        expect(input.checked).toBe(false)
+      }
+    })
+
+    it('lists the saved effects read-only, writes nothing, and keeps the title count', async () => {
+      const counts: (number | null)[] = []
+      const { host, puts } = await render({
+        lockUnread: true,
+        effects: {
+          fireflies: { title: 'Fireflies', on: true, settings: {} },
+          ripples: { title: 'Pond ripples', on: true, settings: {} },
+          dust: { title: 'Dust', on: true, settings: {} },
+        },
+        onEffectsOn: (c) => counts.push(c),
+      })
+      expect(host.querySelector('.movement-side h3')!.textContent).toBe('Effects')
+      expect(text(host)).toContain(
+        'Saved for the game: Fireflies, Pond ripples, Dust. They can be changed once the images lock can be read.',
+      )
+      expect(host.querySelector('.movement-effect')).toBeNull()
+      expect(button(host, 'Reset')).toBeUndefined()
+      expect(puts).toEqual([])
+      expect(counts.at(-1)).toBe(1)
+    })
+
+    it('says so when no effects are saved, keeping the Effects heading', async () => {
+      const { host } = await render({ lockUnread: true })
+      expect(host.querySelector('.movement-side h3')!.textContent).toBe('Effects')
+      expect(text(host)).toContain(
+        'None are saved for the game. Effects can be put in once the images lock can be read.',
+      )
+    })
+
+    it('says both when the renderer failed too: its failure on top of the frame, Try again stays', async () => {
+      const { host } = await render({
+        lockUnread: true,
+        answer: { named: true, ok: false, file: 'web/r.js', message: 'web/r.js: boom' },
+        effects: { fireflies: { title: 'Fireflies', on: true, settings: {} } },
+      })
+      const frame = host.querySelector('.movement-unknown')!
+      expect(frame.firstElementChild!.textContent).toContain(
+        'The motion renderer could not be loaded.',
+      )
+      expect(frame.textContent).toContain(LOCK)
+      expect(button(host, 'Try again')).toBeDefined()
+      expect(text(host)).toContain('They can be changed once the images lock can be read.')
+      expect(text(host)).not.toContain('once the renderer loads')
+    })
+
+    it('is as before when the lock can be read and no take is chosen', async () => {
+      const { host } = await render({ chosenTake: null, patches })
+      expect(host.querySelector('.movement-unknown')).toBeNull()
+      expect(text(host)).toContain('No take chosen yet')
+      expect(text(host)).toContain('Door · no take chosen')
+    })
   })
 })

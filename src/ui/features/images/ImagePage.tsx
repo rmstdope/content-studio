@@ -65,6 +65,7 @@ export function ImagePage({
   const takesView = useImageTakes(row.id).data
   const tunesView = useFineTunes(row.id).data
   const patchesView = useImagePatches(row.id).data
+  const lockUnread = imageLockUnread(row, takesView, patchesView)
   const tabs = imageJobTabs({
     row,
     makingTakes: !!takesView && 'making' in takesView && takesView.making.length > 0,
@@ -75,7 +76,7 @@ export function ImagePage({
       !!patchesView &&
       'patches' in patchesView &&
       (patchesView.patches.some((p) => p.making.length > 0) || !!patchesView.remake.press?.running),
-    lockUnread: imageLockUnread(row, takesView, patchesView),
+    lockUnread,
     ...(effectsOn !== null && { effectsOn }),
   })
   const save = useSetImageWords(row.id)
@@ -282,6 +283,7 @@ export function ImagePage({
         <MovementPanel
           key={`movement-${row.id}`}
           row={row}
+          lockUnread={lockUnread}
           onGoToMake={() => setJob('make')}
           onEffectsOn={setEffectsOn}
         />

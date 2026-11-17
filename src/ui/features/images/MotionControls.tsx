@@ -13,8 +13,11 @@ import {
   EFFECT_WORDS,
   MOVEMENT_WORDS,
   effectsLine,
+  PATCH_NOT_KNOWN_WHY,
   patchNoTake,
+  patchNotKnown,
   savedForGame,
+  savedForGameLockUnread,
 } from '../../motionText'
 import type { MotionState } from '../../api/images'
 import { off } from '../../off'
@@ -28,6 +31,8 @@ export interface MovementPatch {
 
 /** What the Patches and Effects groups show and change, the same in the side column and in full screen. */
 export interface MotionControlsProps {
+  /** The images lock cannot be read: nothing is said of which takes are chosen, and nothing can be changed. */
+  lockUnread: boolean
   /** The patches in the game's order; null while the patches are not known, which leaves the group out. */
   patches: MovementPatch[] | null
   patchesOn: ReadonlySet<string>
@@ -198,7 +203,15 @@ export function MotionControls(props: MotionControlsProps) {
           <ul className="movement-list">
             {patches.map((patch) => (
               <li key={patch.id}>
-                {patch.src ? (
+                {props.lockUnread ? (
+                  <Switch
+                    label={patchNotKnown(patch.title)}
+                    checked={false}
+                    why={PATCH_NOT_KNOWN_WHY}
+                    dim
+                    onChange={() => {}}
+                  />
+                ) : patch.src ? (
                   <Switch
                     label={patch.title}
                     checked={props.patchesOn.has(patch.id)}
@@ -237,6 +250,21 @@ function EffectsGroup(props: MotionControlsProps) {
   const switchedOn = Object.keys(effects)
     .filter((type) => effects[type]!.on)
     .map(nameOf)
+  // The lock cannot be read: the heading and what is saved, read-only; nothing can be changed or saved.
+  if (props.lockUnread) {
+    return (
+      <section className="movement-group" aria-label={MOVEMENT_WORDS.effects}>
+        <div className="movement-group-head">
+          <h3>{MOVEMENT_WORDS.effects}</h3>
+        </div>
+        <p className="muted">
+          {switchedOn.length > 0
+            ? savedForGameLockUnread(switchedOn)
+            : MOVEMENT_WORDS.effectsLockNone}
+        </p>
+      </section>
+    )
+  }
   return (
     <section className="movement-group" aria-label={MOVEMENT_WORDS.effects}>
       <div className="movement-group-head">

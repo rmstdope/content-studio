@@ -6248,6 +6248,13 @@ textarea[aria-disabled='true'][data-why] {
   position: relative;
   min-height: 200px;
 }
+.movement-unknown {
+  border: 1px dashed var(--warn);
+  background: var(--warn-bg);
+}
+.movement-unknown strong {
+  color: var(--warn);
+}
 .movement-failure {
   display: flex;
   flex-direction: column;

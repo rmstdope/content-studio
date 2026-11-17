@@ -7,6 +7,7 @@ import {
   type EffectType,
 } from '../../../core/motion'
 import { useImagePatches, useMotionRenderer, useSetImageEffects } from '../../api'
+import { IMAGE_TAKE_UNKNOWN } from '../../imagesText'
 import { MOVEMENT_WORDS, SAVED_FOR_MS, SAVING_AFTER_MS, takeCaption } from '../../motionText'
 import { MotionControls, type MovementPatch, type SaveStatus } from './MotionControls'
 import { MotionStage, type StageEffect } from './MotionStage'
@@ -27,10 +28,13 @@ function asksForReducedMotion(): boolean {
  */
 export function MovementPanel({
   row,
+  lockUnread,
   onGoToMake,
   onEffectsOn,
 }: {
   row: ImageRow
+  /** The page's one answer (`imageLockUnread`): which take the game shows is not known. */
+  lockUnread: boolean
   onGoToMake: () => void
   onEffectsOn?: (count: number | null) => void
 }) {
@@ -64,8 +68,10 @@ export function MovementPanel({
     }
   }, [open])
 
-  const src =
-    row.chosenTake !== null
+  // While the lock cannot be read no take is known to be chosen: no picture, none of its patches.
+  const src = lockUnread
+    ? null
+    : row.chosenTake !== null
       ? `/api/images/${encodeURIComponent(row.id)}/takes/${row.chosenTake}`
       : row.gameFile?.exists
         ? `/api/images/${encodeURIComponent(row.id)}/current`
@@ -74,8 +80,9 @@ export function MovementPanel({
   // Playing: the renderer is loaded and there is a picture to move; only then do the keys act.
   const running = motion.status === 'ready' && picture !== null
 
-  const patches: MovementPatch[] | null =
-    patchView && 'patches' in patchView
+  const patches: MovementPatch[] | null = lockUnread
+    ? row.patches.map((patch) => ({ id: patch.id, title: patch.title, src: null }))
+    : patchView && 'patches' in patchView
       ? row.patches.map((patch) => {
           const take = patchView.patches.find((p) => p.id === patch.id)?.takes.find((t) => t.chosen)
           return {
@@ -236,6 +243,7 @@ export function MovementPanel({
   )
   const controls = (
     <MotionControls
+      lockUnread={lockUnread}
       patches={patches}
       patchesOn={patchesOn}
       onPatch={(id, on) => setPatchesOn((now) => toggle(now, id, on))}
@@ -285,7 +293,17 @@ export function MovementPanel({
             className={full ? 'movement-wrap movement-wrap-full' : 'movement-wrap'}
             style={full ? undefined : { aspectRatio: `${row.width} / ${row.height}` }}
           >
-            {picture === null ? (
+            {lockUnread ? (
+              <div className="movement-empty movement-unknown" data-unknown="true">
+                {motion.status === 'failed' && (
+                  <div role="alert" className="movement-failure">
+                    {failure}
+                  </div>
+                )}
+                <strong>{MOVEMENT_WORDS.lockHeading}</strong>
+                <span role="status">{IMAGE_TAKE_UNKNOWN}</span>
+              </div>
+            ) : picture === null ? (
               <div className="movement-empty">
                 {motion.status === 'failed' && (
                   <div role="alert" className="movement-failure">
