@@ -2,6 +2,7 @@ import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { ImageRow } from '../../../core/images'
 import type { MotionRendererAnswer } from '../../../core/motion'
+import { valuesInEveryWindow } from '../../../../test/stylesheet'
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register({ url: 'http://localhost/' })
 const { act, createElement } = await import('react')
@@ -1279,6 +1280,22 @@ describe('an effect tied to a patch', () => {
     expect(dustRow(host).className).not.toContain('movement-effect-lost')
     expect(puts.at(-1)!.effects.dust!.patch).toBeUndefined()
     expect([...menu(host)!.options].length).toBe(5)
+  })
+
+  it("keeps the effect's name on one line beside a long patch title, the tag wrapping below it", async () => {
+    const long = 'The very long brass plaque nailed above the old tavern door'
+    const { host } = await render({
+      patches: [{ id: 'plaque', title: long, take: 2 }],
+      effects: tied('plaque', long),
+    })
+    const head = dustRow(host).querySelector('.movement-effect-head')!
+    expect(head.querySelector('.movement-tag')!.textContent).toBe(`with ${long}`)
+    // Both shrink in one flex row; with the tag's `overflow-wrap: anywhere` the name was squeezed
+    // to a letter per line. The name must not shrink, and the row must let the tag wrap below it.
+    expect(
+      valuesInEveryWindow(head.querySelector('.movement-switch')!, 'flex-shrink').at(-1),
+    ).toEndWith(': 0')
+    expect(valuesInEveryWindow(head, 'flex-wrap').at(-1)).toEndWith(': wrap')
   })
 
   it('keeps the tie through slider moves and Reset', async () => {
