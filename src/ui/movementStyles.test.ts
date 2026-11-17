@@ -18,6 +18,18 @@ describe('the Movement tab’s layout', () => {
     )
   })
 
+  it('fits the stage to the window: a dark frame centres a stage as wide as the room allows at its shape, as the measured room allows', () => {
+    const frame = rule('.movement-frame')
+    expect(frame).toMatch(/background:\s*var\(--inset\)/)
+    expect(frame).toMatch(/justify-content:\s*center/)
+    expect(rule('.movement-wrap')).toMatch(
+      /width:\s*min\(100%, calc\(var\(--movement-room\) \* var\(--ar\)\)\)/,
+    )
+    // The room itself is measured in MovementPanel (movementRoom); the CSS holds only a fallback.
+    expect(rule('.movement-picture')).toMatch(/--movement-room:\s*60dvh/)
+    expect(rule('.movement-wrap-full')).toMatch(/width:\s*100%/)
+  })
+
   it('lets long names and settings wrap', () => {
     expect(rule('.movement-switch')).toMatch(/overflow-wrap:\s*anywhere/)
     expect(rule('.movement-settings')).toMatch(/overflow-wrap:\s*anywhere/)

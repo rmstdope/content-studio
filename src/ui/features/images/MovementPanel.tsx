@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
 import type { ImageRow, SavedEffects } from '../../../core/images'
 import {
   effectPlays,
@@ -14,6 +21,7 @@ import { IMAGE_TAKE_UNKNOWN } from '../../imagesText'
 import { MOVEMENT_WORDS, SAVED_FOR_MS, SAVING_AFTER_MS, takeCaption } from '../../motionText'
 import { MotionControls, type MovementPatch, type SaveStatus } from './MotionControls'
 import { MotionStage, type StageEffect } from './MotionStage'
+import { movementRoom } from './movementRoom'
 import { useJobOpen } from './ImageJobTabs'
 import { typingIn } from './useWorkbenchKeys'
 
@@ -66,6 +74,34 @@ export function MovementPanel({
   const [missing, setMissing] = useState<string | null>(null)
   const wrap = useRef<HTMLDivElement>(null)
   const fullButton = useRef<HTMLButtonElement>(null)
+  const column = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const el = column.current
+    const frame = el?.querySelector<HTMLElement>('.movement-frame')
+    if (!el || !frame) return
+    // The stage's room: what the window leaves below where the frame starts on the page, less the
+    // caption and its gap and the panel's bottom padding. Worked out afresh at every resize.
+    const fit = () => {
+      let top = frame.getBoundingClientRect().top
+      for (let up = el.parentElement; up; up = up.parentElement) top += up.scrollTop
+      const caption = el.querySelector<HTMLElement>('.movement-caption')
+      const gap = parseFloat(getComputedStyle(el).rowGap) || 0
+      const pad = parseFloat(getComputedStyle(el.closest('.panel') ?? el).paddingBottom) || 0
+      const below = (caption ? caption.offsetHeight + gap : 0) + pad
+      el.style.setProperty(
+        '--movement-room',
+        `${movementRoom({ windowHeight: window.innerHeight, top, below })}px`,
+      )
+    }
+    fit()
+    window.addEventListener('resize', fit)
+    const watch = typeof ResizeObserver === 'function' ? new ResizeObserver(fit) : null
+    watch?.observe(el)
+    return () => {
+      window.removeEventListener('resize', fit)
+      watch?.disconnect()
+    }
+  }, [])
   const reduced = asksForReducedMotion()
 
   // Leaving the tab puts everything back: all switches off, playing.
@@ -334,102 +370,111 @@ export function MovementPanel({
         <p className="movement-reduced notice-warn">{MOVEMENT_WORDS.reduced}</p>
       )}
       <div className="movement-body">
-        <div className="movement-picture">
-          <div
-            ref={wrap}
-            className={full ? 'movement-wrap movement-wrap-full' : 'movement-wrap'}
-            style={full ? undefined : { aspectRatio: `${row.width} / ${row.height}` }}
-          >
-            {lockUnread ? (
-              <div className="movement-empty movement-unknown" data-unknown="true">
-                {motion.status === 'failed' && (
-                  <div role="alert" className="movement-failure">
-                    {failure}
-                  </div>
-                )}
-                <strong>{MOVEMENT_WORDS.lockHeading}</strong>
-                <span role="status">{IMAGE_TAKE_UNKNOWN}</span>
-              </div>
-            ) : picture === null ? (
-              <div className="movement-empty">
-                {motion.status === 'failed' && (
-                  <div role="alert" className="movement-failure">
-                    {failure}
-                  </div>
-                )}
-                <strong>{MOVEMENT_WORDS.noTake}</strong>
-                <span className="muted">{MOVEMENT_WORDS.chooseOnMake}</span>
-                <button type="button" className="btn" onClick={onGoToMake}>
-                  {MOVEMENT_WORDS.goToMake}
-                </button>
-              </div>
-            ) : (
-              <div className={ready ? 'movement-stage' : 'movement-stage movement-dim'}>
-                <MotionStage
-                  layers={{
-                    src: picture,
-                    size: { width: row.width, height: row.height },
-                    patches: chosenPatches,
-                  }}
-                  module={ready ? motion.module : null}
-                  effects={playing}
-                  paused={paused}
-                  running={open}
-                  onMissing={() => setMissing(src)}
-                />
-              </div>
-            )}
-            {picture !== null && motion.status === 'loading' && (
-              <div className="movement-over" role="status">
-                {MOVEMENT_WORDS.loading}
-              </div>
-            )}
-            {motion.status === 'failed' && picture !== null && (
-              <div className="movement-over" role="alert">
-                {failure}
-              </div>
-            )}
-            {running && !full && (
-              <>
-                <button
-                  type="button"
-                  className="btn movement-pause"
-                  onClick={() => setPaused((was) => !was)}
-                >
-                  {playLabel}
-                </button>
-                <button
-                  ref={fullButton}
-                  type="button"
-                  className="btn movement-full"
-                  onClick={openFull}
-                >
-                  {MOVEMENT_WORDS.fullScreen}
-                </button>
-              </>
-            )}
-            {running && full && (
-              <aside className="movement-float" aria-label={row.title}>
-                <div className="movement-float-head">
-                  <strong>{row.title}</strong>
-                  <button
-                    type="button"
-                    className="btn"
-                    aria-label={paused ? 'Play' : 'Pause'}
-                    onClick={() => setPaused((was) => !was)}
-                  >
-                    {paused ? '▶' : '❚❚'}
-                  </button>
-                  <button type="button" className="btn" onClick={() => setFolded((was) => !was)}>
-                    {folded ? MOVEMENT_WORDS.show : MOVEMENT_WORDS.hide}
-                  </button>
-                  <button type="button" className="btn" onClick={closeFull}>
-                    {MOVEMENT_WORDS.close}
+        <div ref={column} className="movement-picture">
+          <div className="movement-frame">
+            <div
+              ref={wrap}
+              className={full ? 'movement-wrap movement-wrap-full' : 'movement-wrap'}
+              style={
+                full
+                  ? undefined
+                  : ({
+                      aspectRatio: `${row.width} / ${row.height}`,
+                      '--ar': row.width / row.height,
+                    } as CSSProperties)
+              }
+            >
+              {lockUnread ? (
+                <div className="movement-empty movement-unknown" data-unknown="true">
+                  {motion.status === 'failed' && (
+                    <div role="alert" className="movement-failure">
+                      {failure}
+                    </div>
+                  )}
+                  <strong>{MOVEMENT_WORDS.lockHeading}</strong>
+                  <span role="status">{IMAGE_TAKE_UNKNOWN}</span>
+                </div>
+              ) : picture === null ? (
+                <div className="movement-empty">
+                  {motion.status === 'failed' && (
+                    <div role="alert" className="movement-failure">
+                      {failure}
+                    </div>
+                  )}
+                  <strong>{MOVEMENT_WORDS.noTake}</strong>
+                  <span className="muted">{MOVEMENT_WORDS.chooseOnMake}</span>
+                  <button type="button" className="btn" onClick={onGoToMake}>
+                    {MOVEMENT_WORDS.goToMake}
                   </button>
                 </div>
-                {!folded && controls}
-              </aside>
-            )}
+              ) : (
+                <div className={ready ? 'movement-stage' : 'movement-stage movement-dim'}>
+                  <MotionStage
+                    layers={{
+                      src: picture,
+                      size: { width: row.width, height: row.height },
+                      patches: chosenPatches,
+                    }}
+                    module={ready ? motion.module : null}
+                    effects={playing}
+                    paused={paused}
+                    running={open}
+                    onMissing={() => setMissing(src)}
+                  />
+                </div>
+              )}
+              {picture !== null && motion.status === 'loading' && (
+                <div className="movement-over" role="status">
+                  {MOVEMENT_WORDS.loading}
+                </div>
+              )}
+              {motion.status === 'failed' && picture !== null && (
+                <div className="movement-over" role="alert">
+                  {failure}
+                </div>
+              )}
+              {running && !full && (
+                <>
+                  <button
+                    type="button"
+                    className="btn movement-pause"
+                    onClick={() => setPaused((was) => !was)}
+                  >
+                    {playLabel}
+                  </button>
+                  <button
+                    ref={fullButton}
+                    type="button"
+                    className="btn movement-full"
+                    onClick={openFull}
+                  >
+                    {MOVEMENT_WORDS.fullScreen}
+                  </button>
+                </>
+              )}
+              {running && full && (
+                <aside className="movement-float" aria-label={row.title}>
+                  <div className="movement-float-head">
+                    <strong>{row.title}</strong>
+                    <button
+                      type="button"
+                      className="btn"
+                      aria-label={paused ? 'Play' : 'Pause'}
+                      onClick={() => setPaused((was) => !was)}
+                    >
+                      {paused ? '▶' : '❚❚'}
+                    </button>
+                    <button type="button" className="btn" onClick={() => setFolded((was) => !was)}>
+                      {folded ? MOVEMENT_WORDS.show : MOVEMENT_WORDS.hide}
+                    </button>
+                    <button type="button" className="btn" onClick={closeFull}>
+                      {MOVEMENT_WORDS.close}
+                    </button>
+                  </div>
+                  {!folded && controls}
+                </aside>
+              )}
+            </div>
           </div>
           {caption !== null && <p className="muted movement-caption">{caption}</p>}
         </div>

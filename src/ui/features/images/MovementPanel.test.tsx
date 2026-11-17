@@ -303,6 +303,15 @@ describe('the Movement panel', () => {
     )
   })
 
+  it('sits the stage in a dark frame, sized to the picture’s shape (320 / 200 here)', async () => {
+    const { host } = await render()
+    const wrap = host.querySelector<HTMLElement>('.movement-frame > .movement-wrap')!
+    expect(wrap).not.toBeNull()
+    expect(wrap.style.aspectRatio).toBe('320 / 200')
+    expect(wrap.style.getPropertyValue('--ar')).toBe('1.6')
+    expect(wrap.querySelector('.movement-pause')).not.toBeNull()
+  })
+
   it('has an empty stage with Go to Make when there is no picture at all, still listing the effects', async () => {
     const { host, goneToMake } = await render({ chosenTake: null })
     expect(text(host)).toContain('No take chosen yet')
