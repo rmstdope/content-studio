@@ -243,6 +243,7 @@ function EffectRow({
   const menuId = useId()
   const tie = tieState(saved ?? {}, props.ties, props.patchesOn)
   const without = tie.kind !== 'always' && tie.without === true
+  const current = tie.kind === 'always' ? '' : `${without ? 'without' : 'with'}:${tie.patchId}`
   const tiedAway = !effectPlays(tie)
   const classes = ['movement-effect']
   if (on && tiedAway) classes.push('movement-effect-dim')
@@ -311,7 +312,7 @@ function EffectRow({
               id={menuId}
               className="takes-count"
               ref={menu}
-              value={tie.kind === 'always' ? '' : `${without ? 'without' : 'with'}:${tie.patchId}`}
+              value={current}
               onChange={(event) => {
                 const [how, ...id] = event.target.value.split(':')
                 props.onTie(
@@ -330,9 +331,7 @@ function EffectRow({
                 </option>,
               ])}
               {tie.kind === 'gone' && (
-                <option value={`${without ? 'without' : 'with'}:${tie.patchId}`}>
-                  {tieChoice(tie.title, true, without)}
-                </option>
+                <option value={current}>{tieChoice(tie.title, true, without)}</option>
               )}
             </select>
           </div>

@@ -1389,15 +1389,18 @@ describe('an effect tied to a patch', () => {
     })
 
     it('stops while the patch is laid, dims the sliders, and Take it off switches it off and keeps focus on the menu', async () => {
+      const counts: (number | null)[] = []
       const { host, puts } = await render({
         patches: FIRE,
         effects: untied('water', 'The water on the fire'),
+        onEffectsOn: (c) => counts.push(c),
       })
       expect(playing()).toEqual(['dust'])
       expect(dustRow(host).textContent).not.toContain('Not showing')
       await click(switchFor(host, 'The water on the fire'))
       expect(playing()).toEqual([])
       expect(dustRow(host).className).toContain('movement-effect-dim')
+      expect(counts.at(-1)).toBe(1)
       expect(dustRow(host).textContent).toContain('Not showing: The water on the fire is laid.')
       const before = puts.length
       await click(button(host, 'Take it off'))
