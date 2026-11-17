@@ -1587,6 +1587,22 @@ describe('an effect with a spot, played', () => {
     expect(host.querySelector('clipPath')).toBeNull()
   })
 
+  it('leaves nothing of a taken-out effect on a paused canvas, by running its fade out at once', async () => {
+    sizeOverlay()
+    const { host } = await render({
+      effects: { dust: saved({ amount: 1 }), mist: { on: true, settings: {} } },
+    })
+    await click(button(host, '❚❚ Pause'))
+    const steps = calls().stepMs.length
+    await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
+    expect(calls().setEffects.at(-1)!).toEqual([])
+    expect(
+      calls()
+        .stepMs.slice(steps)
+        .some((ms) => ms >= 1000),
+    ).toBe(true)
+  })
+
   it('plays an effect over the whole picture again once its spot is gone', async () => {
     sizeOverlay()
     const { host } = await render({
