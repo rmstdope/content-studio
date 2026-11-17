@@ -618,14 +618,9 @@ export function effectsForGame(effects: SavedEffects): GameEffect[] {
 }
 
 /** A manifest entry with its `effects` set, or taken away when there are none; its other fields stay in place. */
-export function withEffects<T extends object>(
-  entry: T,
-  effects: readonly GameEffect[],
-): Omit<T, 'effects'> & { effects?: GameEffect[] } {
+export function withEffects<T extends object>(entry: T, effects: readonly GameEffect[]): T {
   const { effects: _old, ...rest } = entry as T & { effects?: unknown }
-  return (effects.length ? { ...rest, effects: [...effects] } : rest) as Omit<T, 'effects'> & {
-    effects?: GameEffect[]
-  }
+  return (effects.length ? { ...rest, effects: [...effects] } : rest) as T
 }
 
 /** The edits with an image's use of its part's style addition changed: off is `partStyle: null`, ticked again removes it. */

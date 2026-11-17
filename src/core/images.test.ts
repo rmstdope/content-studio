@@ -1573,7 +1573,9 @@ describe('an image’s saved effects', () => {
     const edits = applyEffects({ images: { inn: own } }, 'inn', { dust })
     expect(edits.images.inn).toEqual({ ...own, effects: { dust } })
     expect(applyEffects(edits, 'inn', {}).images).toEqual({ inn: own })
-    expect(applyEffects(applyEffects({ images: {} }, 'inn', { dust }), 'inn', {}).images).toEqual({})
+    expect(applyEffects(applyEffects({ images: {} }, 'inn', { dust }), 'inn', {}).images).toEqual(
+      {},
+    )
   })
 
   it('drop only that image when a setting is not a number', () => {
@@ -1593,9 +1595,15 @@ describe('an image’s saved effects', () => {
   })
 
   it('set or take away the manifest entry’s effects, keeping its other fields', () => {
-    const entry = { file: 'inn.png', width: 320, height: 200, areas: { a: { x: 0 } } }
+    const entry: Record<string, unknown> = {
+      file: 'inn.png',
+      width: 320,
+      height: 200,
+      areas: { a: { x: 0 } },
+    }
     const list = effectsForGame({ dust })
     expect(withEffects(entry, list)).toEqual({ ...entry, effects: list })
-    expect(withEffects({ ...entry, effects: list }, [])).toEqual(entry)
+    const had: Record<string, unknown> = { ...entry, effects: list }
+    expect(withEffects(had, [])).toEqual(entry)
   })
 })

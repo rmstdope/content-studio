@@ -5,7 +5,11 @@ import {
   effectValues,
   rangeNote,
   valueText,
-  numberText, parseEffectTypes, settingLine, settingsLine, startSettings,
+  numberText,
+  parseEffectTypes,
+  settingLine,
+  settingsLine,
+  startSettings,
 } from './motion'
 
 const setting = (over: Record<string, unknown> = {}) => ({

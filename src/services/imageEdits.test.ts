@@ -11,6 +11,7 @@ import {
   setImageActStyle,
   setImageActStylePick,
   setImageAreaBox,
+  setImageEffects,
   setImagePatchWords,
   setImageWords,
   carryImageAreas,
@@ -497,6 +498,44 @@ describe('carrying the boxes of a take to a new one', () => {
     const { file, read } = repo()
     const before = read(EDITS)
     expect(await carryImageAreas(file, 'inn', 2, 5)).toEqual({ ok: true, areas: 0 })
+    expect(read(EDITS)).toBe(before)
+  })
+})
+
+describe('the effects of an image', () => {
+  const MANIFEST = 'web/public/images/generated/manifest.json'
+  const entry = { file: 'inn.png', width: 320, height: 200 }
+  const dust = { on: true, settings: { amount: 1.25, speed: 1 } }
+  const embers = { on: false, settings: { amount: 2 } }
+
+  it('are kept in the image’s edit, and the ones that are on reach the game in the same save', async () => {
+    const { file, read } = repo({ [MANIFEST]: { inn: entry } })
+    expect(await setImageEffects(file, 'inn', { dust, embers })).toEqual({ ok: true })
+    expect(JSON.parse(read(EDITS)).images.inn.effects).toEqual({ dust, embers })
+    expect(JSON.parse(read(MANIFEST)).inn).toEqual({
+      ...entry,
+      effects: [{ kind: 'dust', settings: { amount: 1.25, speed: 1 } }],
+    })
+  })
+
+  it('leave the game with the last one taken away', async () => {
+    const { file, read } = repo({ [MANIFEST]: { inn: entry } })
+    await setImageEffects(file, 'inn', { dust })
+    expect(await setImageEffects(file, 'inn', {})).toEqual({ ok: true })
+    expect(JSON.parse(read(EDITS)).images).toEqual({})
+    expect(JSON.parse(read(MANIFEST))).toEqual({ inn: entry })
+  })
+
+  it('are saved for an image with no manifest entry yet, without failing', async () => {
+    const { file, read } = repo()
+    expect(await setImageEffects(file, 'inn', { dust })).toEqual({ ok: true })
+    expect(JSON.parse(read(EDITS)).images.inn.effects).toEqual({ dust })
+  })
+
+  it('answer null for an image the game does not list', async () => {
+    const { file, read } = repo()
+    const before = read(EDITS)
+    expect(await setImageEffects(file, 'ghost', { dust })).toBeNull()
     expect(read(EDITS)).toBe(before)
   })
 })
