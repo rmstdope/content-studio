@@ -605,12 +605,13 @@ export function MovementPanel({
           .filter(
             (t) => effects[t.type]?.on && effectPlays(tieState(effects[t.type]!, ties, patchesOn)),
           )
-          // A spot being drawn that has no shape yet (and no copy of the game's) shows nothing until one is closed.
+          // While a spot is drawn only its effect plays, and it shows nothing until a shape is closed
+          // (or it starts from a copy of the game's).
           .filter(
             (t) =>
-              drawing?.type !== t.type ||
-              (effects[t.type]?.spot?.length ?? 0) > 0 ||
-              drawing.draft !== null,
+              drawing === null ||
+              (drawing.type === t.type &&
+                ((effects[t.type]?.spot?.length ?? 0) > 0 || drawing.draft !== null)),
           )
           // In the order the game is given them (by kind), so the layers stack the same.
           .sort((a, b) => (a.type < b.type ? -1 : 1))
@@ -906,7 +907,6 @@ export function MovementPanel({
                     effects={playing}
                     paused={paused}
                     running={open}
-                    only={drawing?.type ?? null}
                     zoom={drawing === null ? zoomLook(zoom ?? zoomValues(undefined)) : null}
                     inside={drawing ? null : overlay}
                     onMissing={() => setMissing(src)}
