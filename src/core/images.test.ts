@@ -1594,6 +1594,23 @@ describe('an image’s saved effects', () => {
     expect(effectsForGame({ embers })).toEqual([])
   })
 
+  it('keep a tie to a patch, in order, and send only its id to the game', () => {
+    const tied = { ...dust, patch: 'star', patchTitle: 'The star on the door' }
+    const text = formatImageEdits(applyEffects({ images: {} }, 'inn', { dust: tied }))
+    expect(Object.keys(JSON.parse(text).images.inn.effects.dust)).toEqual([
+      'on',
+      'patch',
+      'patchTitle',
+      'settings',
+    ])
+    const read = readImageEditsValue(JSON.parse(text), 'edits.json')
+    expect(read.problems).toEqual([])
+    expect(read.edits.images.inn?.effects?.dust).toEqual(tied)
+    expect(effectsForGame({ dust: tied })).toEqual([
+      { kind: 'dust', settings: { speed: 0.5, amount: 1.25 }, patch: 'star' },
+    ])
+  })
+
   it('set or take away the manifest entry’s effects, keeping its other fields', () => {
     const entry: Record<string, unknown> = {
       file: 'inn.png',
