@@ -1587,14 +1587,18 @@ describe('an effect with a spot, played', () => {
     expect(host.querySelector('clipPath')).toBeNull()
   })
 
-  it('leaves nothing of a held effect on the shared canvas, by running its fade out at once', async () => {
+  it('leaves nothing of a taken-out effect on a paused canvas, by running its fade out at once', async () => {
     sizeOverlay()
-    const { host } = await render({ effects: { dust: saved({ amount: 1 }) } })
-    const before = calls().stepMs.length
+    const { host } = await render({
+      effects: { dust: saved({ amount: 1 }), mist: { on: true, settings: {} } },
+    })
+    await click(button(host, '❚❚ Pause'))
+    const steps = calls().stepMs.length
     await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
+    expect(calls().setEffects.at(-1)!).toEqual([])
     expect(
       calls()
-        .stepMs.slice(before)
+        .stepMs.slice(steps)
         .some((ms) => ms >= 1000),
     ).toBe(true)
   })
@@ -2027,7 +2031,7 @@ describe('drawing a spot', () => {
     expect(barText(host)).toContain('Dust')
   })
 
-  it('moves only the effect being drawn, and holds a spotless one out of the picture', async () => {
+  it('takes the other effects out of the picture, and holds a spotless one out until a shape is closed', async () => {
     sizeOverlay()
     const { host } = await render({
       effects: {
@@ -2036,11 +2040,8 @@ describe('drawing a spot', () => {
       },
     })
     await click(linkIn(rowOf(host, 'Mist'), 'Draw your own'))
-    const kinds = calls()
-      .setEffects.at(-1)!
-      .map((e) => e.kind)
-    expect(kinds).not.toContain('mist')
-    expect(host.querySelectorAll('.movement-canvas')).toHaveLength(2)
+    expect(calls().setEffects.at(-1)!).toEqual([])
+    expect(host.querySelectorAll('.movement-canvas')).toHaveLength(1)
   })
 
   it('says the spot could not be saved, keeps the shape, and saves again with Try again', async () => {
@@ -2098,6 +2099,24 @@ describe('drawing a spot', () => {
       send('pointerup', 0.5, 0.4)
     })
     expect(puts.at(-1)!.effects.dust!.spot![0]![1]).toEqual([0.5, 0.4])
+  })
+
+  it('hands the renderer only the effect being drawn, and every effect that is on after Finish', async () => {
+    sizeOverlay()
+    const { host } = await render({
+      effects: { dust: { ...saved({ amount: 1 }), spot: [POND] }, mist: saved({}) },
+    })
+    // Dust plays on a canvas of its own, Mist on the one over the whole picture; each scene is told its set.
+    const kinds = (from: number) =>
+      calls()
+        .setEffects.slice(from)
+        .map((set) => set.map((e) => e.kind).join())
+    const before = calls().setEffects.length
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    expect(kinds(before)).toEqual([''])
+    const drawn = calls().setEffects.length
+    await click(button(host, 'Finish'))
+    expect(kinds(drawn)).toEqual(['mist'])
   })
 
   it('finishes drawing when an effect being drawn is switched off', async () => {
@@ -2792,6 +2811,20 @@ describe('the game’s shape of an effect', () => {
     await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
     expect(host.querySelectorAll('.spot-corner')).toHaveLength(4)
     expect(polygons(host, 'spot-edge-picked')).toHaveLength(1)
+  })
+
+  it('keeps the effect moving while its spot is drawn from a copy of the game’s shape', async () => {
+    sizeOverlay()
+    const { host } = await render(everyEffect())
+    await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
+    expect(
+      calls()
+        .setEffects.at(-1)!
+        .map((e) => e.kind),
+    ).toEqual(['dust'])
+    const before = calls().steps
+    await settle()
+    expect(calls().steps).toBeGreaterThan(before)
   })
 
   it('makes the copy your own at the first change, saved at once', async () => {
