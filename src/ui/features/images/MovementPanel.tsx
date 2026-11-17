@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ImageRow, SavedEffects } from '../../../core/images'
 import {
+  effectPlays,
   effectValues,
   startSettings,
+  tieState,
+  type TiePatch,
   type EffectSetting,
   type EffectType,
 } from '../../../core/motion'
@@ -17,6 +20,14 @@ import { typingIn } from './useWorkbenchKeys'
 /** Whether this computer asks for reduced motion. */
 function asksForReducedMotion(): boolean {
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+/** The tie an effect has to a patch, to carry over into its next saved form. */
+function tieOf(saved: SavedEffects[string] | undefined) {
+  return {
+    ...(saved?.patch !== undefined && { patch: saved.patch }),
+    ...(saved?.patchTitle !== undefined && { patchTitle: saved.patchTitle }),
+  }
 }
 
 /**
@@ -95,6 +106,13 @@ export function MovementPanel({
         })
       : null
 
+  /** The patches an effect can be tied to: the game's, with whether each has a take to lay (true while that is not yet known, and if it could not be loaded). */
+  const ties: TiePatch[] = row.patches.map((patch) => ({
+    id: patch.id,
+    title: patch.title,
+    hasTake: patches === null ? true : patches.find((p) => p.id === patch.id)?.src != null,
+  }))
+
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
 
   /** Saves the effects as they are now; the latest save's outcome is the one shown. */
@@ -131,6 +149,7 @@ export function MovementPanel({
       [type.type]: {
         title: type.title,
         on,
+        ...tieOf(was),
         settings: { ...startSettings(type), ...was?.settings },
       },
     })
@@ -143,6 +162,7 @@ export function MovementPanel({
       [type.type]: {
         title: type.title,
         on: was?.on ?? true,
+        ...tieOf(was),
         settings: { ...effectValues(type, was?.settings), [setting.id]: value },
       },
     })
@@ -153,11 +173,33 @@ export function MovementPanel({
       [type.type]: {
         title: type.title,
         on: latest.current[type.type]?.on ?? true,
+        ...tieOf(latest.current[type.type]),
         settings: startSettings(type),
       },
     })
     persist()
   }
+  /** An effect is tied to a patch, or to none (null): saved, and the patch laid so the effect stays in sight. */
+  const onTie = (type: EffectType, patchId: string | null) => {
+    const was = latest.current[type.type]
+    const {
+      patch: _p,
+      patchTitle: _t,
+      ...rest
+    } = was ?? { on: true, settings: startSettings(type) }
+    const patch = ties.find((p) => p.id === patchId)
+    set({
+      ...latest.current,
+      [type.type]: {
+        ...rest,
+        title: type.title,
+        ...(patch && { patch: patch.id, patchTitle: patch.title }),
+      },
+    })
+    if (patch?.hasTake) setPatchesOn((now) => toggle(now, patch.id, true))
+    persist()
+  }
+  const onLay = (id: string) => setPatchesOn((now) => toggle(now, id, true))
   const onRemove = (type: string) => {
     const { [type]: _gone, ...rest } = latest.current
     set(rest)
@@ -215,7 +257,9 @@ export function MovementPanel({
   const playing: StageEffect[] =
     motion.status === 'ready'
       ? motion.module.types
-          .filter((t) => effects[t.type]?.on)
+          .filter(
+            (t) => effects[t.type]?.on && effectPlays(tieState(effects[t.type]!, ties, patchesOn)),
+          )
           // In the order the game is given them (by kind), so the layers stack the same.
           .sort((a, b) => (a.type < b.type ? -1 : 1))
           .map((t) => ({ kind: t.type, settings: effectValues(t, effects[t.type]!.settings) }))
@@ -254,6 +298,9 @@ export function MovementPanel({
       onCommit={persist}
       onReset={onReset}
       onRemove={onRemove}
+      ties={ties}
+      onTie={onTie}
+      onLay={onLay}
       status={status}
       onRetry={persist}
     />

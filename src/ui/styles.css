@@ -6404,3 +6404,33 @@ textarea[aria-disabled='true'][data-why] {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.movement-tag {
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.movement-shows {
+  display: grid;
+  grid-template-columns: minmax(0, 5em) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.movement-shows select {
+  width: 100%;
+  min-width: 0;
+}
+.movement-tie-line {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.movement-effect-dim .movement-slider {
+  opacity: 0.5;
+}
+.movement-effect-lost {
+  border-color: var(--warn);
+}
+.movement-effect-lost .movement-tag {
+  color: var(--warn);
+}

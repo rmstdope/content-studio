@@ -142,3 +142,36 @@ export function rangeNote(setting: EffectSetting, saved: number | undefined): st
   const limit = numberText(high ? setting.max : setting.min)
   return `${setting.title} was saved as ${valueText(saved)}; the renderer now goes ${high ? 'up' : 'down'} to ${limit}, so the game plays ${limit}.`
 }
+
+/** A patch of the image as the tie rules see it. */
+export interface TiePatch {
+  id: string
+  title: string
+  /** It has a chosen take to lay. */
+  hasTake: boolean
+}
+
+/** Where an effect stands with its tie: untied, tied to a laid patch, to one not laid, to one with no take, or to one the game dropped. */
+export type TieState =
+  | { kind: 'always' }
+  | { kind: 'laid' | 'notLaid' | 'noTake' | 'gone'; patchId: string; title: string }
+
+/** An effect's tie as the preview must treat it, given the game's patches and those laid now. */
+export function tieState(
+  saved: { patch?: string | undefined; patchTitle?: string | undefined },
+  patches: readonly TiePatch[],
+  laid: ReadonlySet<string>,
+): TieState {
+  const id = saved.patch
+  if (id === undefined) return { kind: 'always' }
+  const patch = patches.find((p) => p.id === id)
+  if (!patch) return { kind: 'gone', patchId: id, title: saved.patchTitle ?? id }
+  const base = { patchId: id, title: patch.title }
+  if (!patch.hasTake) return { kind: 'noTake', ...base }
+  return { kind: laid.has(id) ? 'laid' : 'notLaid', ...base }
+}
+
+/** Whether the picture runs the effect now. */
+export function effectPlays(state: TieState): boolean {
+  return state.kind === 'always' || state.kind === 'laid'
+}
