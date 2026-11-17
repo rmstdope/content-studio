@@ -301,6 +301,7 @@ function EffectRow({
             <label htmlFor={menuId}>{TIE_WORDS.shows}</label>
             <select
               id={menuId}
+              className="takes-count"
               ref={menu}
               value={tie.kind === 'always' ? '' : tie.patchId}
               onChange={(event) => props.onTie(type, event.target.value || null)}
