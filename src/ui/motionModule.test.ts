@@ -13,7 +13,7 @@ describe('loadMotionModule', () => {
     const loaded = await loadMotionModule(good)
     if (!('types' in loaded)) throw new Error(loaded.error)
     expect(loaded.types.map((t) => t.type)).toEqual(['dust'])
-    expect(loaded.createScene()).toEqual({ marker: 'scene' })
+    expect(loaded.createScene() as unknown).toEqual({ marker: 'scene' })
   })
 
   it('says which export is missing', async () => {

@@ -29,6 +29,7 @@ import { ImageJobTabs, JobOpenProvider } from './ImageJobTabs'
 import { NamedAreasPanel } from './NamedAreasPanel'
 import { FineTunePanel } from './FineTunePanel'
 import { GamePatchesPanel } from './GamePatchesPanel'
+import { MovementPanel } from './MovementPanel'
 import { TakesSection } from './TakesSection'
 import { WordsField, type SaveWordsNow } from './WordsField'
 
@@ -43,7 +44,7 @@ function Job({ job, open, children }: { job: ImageJob; open: ImageJob; children:
 
 /**
  * An image's own page: what is out of date above, then its jobs as tabs, one open at a time: Make
- * (the prompt, the words, editable, beside the takes), Fine-tune, Patches and Named areas.
+ * (the prompt, the words, editable, beside the takes), Fine-tune, Patches, Named areas and Movement.
  */
 export function ImagePage({
   act,
@@ -274,6 +275,9 @@ export function ImagePage({
       </Job>
       <Job job="areas" open={job}>
         <NamedAreasPanel key={`areas-${row.id}`} row={row} />
+      </Job>
+      <Job job="movement" open={job}>
+        <MovementPanel key={`movement-${row.id}`} row={row} onGoToMake={() => setJob('make')} />
       </Job>
     </>
   )
