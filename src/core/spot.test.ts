@@ -3,6 +3,10 @@ import {
   addShape,
   clampUnit,
   dropShape,
+  MARK_STEP,
+  middleOf,
+  moveMark,
+  nudgeMark,
   moveCorner,
   pointInShape,
   removeCorner,
@@ -65,5 +69,22 @@ describe('a spot’s geometry', () => {
     expect(replaceShape([tri, sq], 0, three)).toEqual([three, sq])
     expect(dropShape([tri, sq], 0)).toEqual([sq])
     expect(dropShape([tri], 0)).toBeUndefined()
+  })
+})
+
+describe('the light mark', () => {
+  it('starts at the middle of the box around every corner of every shape', () => {
+    expect(middleOf([tri, sq])).toEqual([0.5, 0.5])
+    expect(middleOf([tri])).toEqual([0.3, 0.35])
+  })
+  it('is held to the picture and to four decimals', () => {
+    expect(moveMark(-0.2, 1.4)).toEqual([0, 1])
+    expect(moveMark(0.123456, 0.5)).toEqual([0.1235, 0.5])
+  })
+  it('moves by a step for an arrow key, stops at the edges, and ignores other keys', () => {
+    expect(nudgeMark([0.5, 0.5], 'ArrowRight')).toEqual([0.5 + MARK_STEP, 0.5])
+    expect(nudgeMark([0.5, 0.5], 'ArrowUp')).toEqual([0.5, 0.5 - MARK_STEP])
+    expect(nudgeMark([1, 0], 'ArrowRight')).toEqual([1, 0])
+    expect(nudgeMark([0.5, 0.5], 'a')).toBeNull()
   })
 })

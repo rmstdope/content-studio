@@ -184,6 +184,9 @@ export const SpotShapeSchema = z.array(CornerSchema).min(3)
 /** One closed shape of an effect's spot, as fractions of the picture. */
 export type SpotShape = [number, number][]
 
+/** Where an effect's light comes from, as fractions of the picture; absent: the middle of its shapes. */
+export type SpotMark = [number, number]
+
 /**
  * One effect of an image as the studio keeps it: whether it is in the game, and every setting's
  * value, kept while off; and its spot, the shapes it plays inside (none: the whole picture).
@@ -200,6 +203,8 @@ export const EffectEditSchema = z.object({
   unlessPatch: z.string().optional(),
   settings: z.record(z.string(), z.number().finite()),
   spot: z.array(SpotShapeSchema).min(1).optional(),
+  /** Where its light comes from, when moved from the middle of the shapes; kept with the spot. */
+  mark: CornerSchema.optional(),
 })
 
 /** The effects an image has saved, by effect type: the type's values, whether or not the renderer still has it. */
@@ -348,7 +353,7 @@ function keyedEffects(effects: SavedEffects): SavedEffects {
     Object.keys(effects)
       .sort()
       .map((type) => {
-        const { title, on, patch, unlessPatch, patchTitle, settings, spot } = effects[type]!
+        const { title, on, patch, unlessPatch, patchTitle, settings, spot, mark } = effects[type]!
         const sortedSettings = Object.fromEntries(
           Object.keys(settings)
             .sort()
@@ -364,6 +369,7 @@ function keyedEffects(effects: SavedEffects): SavedEffects {
             ...(patchTitle !== undefined && { patchTitle }),
             settings: sortedSettings,
             ...(spot && { spot }),
+            ...(mark && { mark }),
           },
         ]
       }),
@@ -645,6 +651,8 @@ export interface GameEffect {
   unlessPatch?: string
   /** The shapes it plays inside, as fractions of the picture; absent: the whole picture. */
   spot?: SpotShape[]
+  /** Where its light comes from, with a spot; absent: the middle of the shapes. */
+  mark?: SpotMark
 }
 
 /** The effects the game plays: those saved as on, by kind, each with every setting saved for it. */
@@ -653,13 +661,14 @@ export function effectsForGame(effects: SavedEffects): GameEffect[] {
     .sort()
     .filter((type) => effects[type]!.on)
     .map((type) => {
-      const { settings, patch, unlessPatch, spot } = effects[type]!
+      const { settings, patch, unlessPatch, spot, mark } = effects[type]!
       return {
         kind: type,
         settings,
         ...(patch !== undefined && { patch }),
         ...(unlessPatch !== undefined && { unlessPatch }),
         ...(spot && { spot }),
+        ...(spot && mark && { mark }),
       }
     })
 }
