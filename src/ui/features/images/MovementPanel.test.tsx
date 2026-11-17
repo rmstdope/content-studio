@@ -398,6 +398,18 @@ describe('the Movement panel', () => {
   })
 })
 
+/** Counts the asks for full screen on any element; nothing goes full screen. */
+function spyFullscreen(): number[] {
+  const asked: number[] = []
+  ;(
+    HTMLElement.prototype as unknown as { requestFullscreen: () => Promise<void> }
+  ).requestFullscreen = async () => void asked.push(1)
+  cleanups.push(() => {
+    delete (HTMLElement.prototype as unknown as { requestFullscreen?: unknown }).requestFullscreen
+  })
+  return asked
+}
+
 describe('what the stage does for the renderer', () => {
   it('gives the canvas a pixel buffer as big as it is on the screen, and tells the scene its size', async () => {
     const { host } = await render()
@@ -414,6 +426,46 @@ describe('what the stage does for the renderer', () => {
     Object.defineProperty(image, 'naturalHeight', { value: 200 })
     await act(async () => image.dispatchEvent(new Event('load')))
     expect(calls().sources.at(-1)).toMatchObject({ width: 320, height: 200 })
+  })
+
+  it('paints a paused picture again when the canvas changes size, which clears it', async () => {
+    let resized: () => void = () => {}
+    const real = globalThis.ResizeObserver
+    globalThis.ResizeObserver = class {
+      constructor(callback: () => void) {
+        resized = callback
+      }
+      observe() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver
+    const realContext = HTMLCanvasElement.prototype.getContext
+    HTMLCanvasElement.prototype.getContext = (() => ({ setTransform() {} })) as never
+    cleanups.push(() => {
+      globalThis.ResizeObserver = real
+      HTMLCanvasElement.prototype.getContext = realContext
+    })
+    const { host } = await render()
+    await click(button(host, '❚❚ Pause'))
+    const before = calls().draws
+    // The canvas becomes another size, as it does when full screen opens.
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+      get: () => 1280,
+      configurable: true,
+    })
+    await act(async () => resized())
+    expect(calls().draws).toBeGreaterThan(before)
+  })
+
+  it('feeds the scene the picture again when the take changes', async () => {
+    const { host } = await render()
+    const image = host.querySelector<HTMLImageElement>('.movement-pic')!
+    Object.defineProperty(image, 'complete', { value: true })
+    Object.defineProperty(image, 'naturalWidth', { value: 320 })
+    Object.defineProperty(image, 'naturalHeight', { value: 200 })
+    await act(async () => image.dispatchEvent(new Event('load')))
+    const once = calls().sources.length
+    await act(async () => image.dispatchEvent(new Event('load')))
+    expect(calls().sources.length).toBe(once + 1)
   })
 
   it('runs no frames while its tab is hidden, and none while paused', async () => {
@@ -433,7 +485,7 @@ describe('what the stage does for the renderer', () => {
 })
 
 describe('the keys', () => {
-  it('leave Space to a focused switch, which toggles it and does not pause', async () => {
+  it('leave Space to a focused switch: it does not pause', async () => {
     const { host } = await render()
     const dust = switchFor(host, 'Dust')!
     await press(' ', dust)
@@ -445,18 +497,20 @@ describe('the keys', () => {
     const { host } = await render({
       answer: () => new Promise<MotionRendererAnswer>((resolve) => (release = resolve)),
     })
+    const asked = spyFullscreen()
     await press(' ')
     await press('f')
-    expect(host.querySelector('.movement-float')).toBeNull()
+    expect(asked.length).toBe(0)
     release({ named: true, ok: true, code: RENDERER(FOUR) })
     await settle()
     expect(button(host, '❚❚ Pause')).toBeDefined()
   })
 
   it('do nothing when there is no picture', async () => {
-    const { host } = await render({ chosenTake: null })
+    await render({ chosenTake: null })
+    const asked = spyFullscreen()
     await press('f')
-    expect(host.querySelector('.movement-float')).toBeNull()
+    expect(asked.length).toBe(0)
   })
 })
 
@@ -468,6 +522,8 @@ describe('a renderer that fails with no picture to show', () => {
     })
     expect(text(host)).toContain('The motion renderer could not be loaded.')
     expect(button(host, 'Try again')).toBeDefined()
+    expect(button(host, 'Go to Make')).toBeDefined()
+    expect(text(host)).toContain('No take chosen yet')
   })
 })
 

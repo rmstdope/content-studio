@@ -140,6 +140,16 @@ export function MovementPanel({ row, onGoToMake }: { row: ImageRow; onGoToMake: 
       hasPicture={picture !== null}
     />
   )
+  const failure =
+    motion.status === 'failed' ? (
+      <>
+        <strong>{MOVEMENT_WORDS.failed}</strong>
+        <code className="mono">{motion.message}</code>
+        <button type="button" className="btn" onClick={retry}>
+          {MOVEMENT_WORDS.tryAgain}
+        </button>
+      </>
+    ) : null
   const playLabel = paused ? MOVEMENT_WORDS.play : MOVEMENT_WORDS.pause
 
   let caption: string | null = null
@@ -167,6 +177,11 @@ export function MovementPanel({ row, onGoToMake }: { row: ImageRow; onGoToMake: 
           >
             {picture === null ? (
               <div className="movement-empty">
+                {motion.status === 'failed' && (
+                  <div role="alert" className="movement-failure">
+                    {failure}
+                  </div>
+                )}
                 <strong>{MOVEMENT_WORDS.noTake}</strong>
                 <span className="muted">{MOVEMENT_WORDS.chooseOnMake}</span>
                 <button type="button" className="btn" onClick={onGoToMake}>
@@ -194,16 +209,9 @@ export function MovementPanel({ row, onGoToMake }: { row: ImageRow; onGoToMake: 
                 {MOVEMENT_WORDS.loading}
               </div>
             )}
-            {motion.status === 'failed' && (
-              <div
-                className={picture === null ? 'movement-over movement-over-solid' : 'movement-over'}
-                role="alert"
-              >
-                <strong>{MOVEMENT_WORDS.failed}</strong>
-                <code className="mono">{motion.message}</code>
-                <button type="button" className="btn" onClick={retry}>
-                  {MOVEMENT_WORDS.tryAgain}
-                </button>
+            {motion.status === 'failed' && picture !== null && (
+              <div className="movement-over" role="alert">
+                {failure}
               </div>
             )}
             {running && !full && (

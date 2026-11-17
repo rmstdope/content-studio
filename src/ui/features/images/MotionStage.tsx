@@ -51,6 +51,13 @@ export function MotionStage({
     if (!module || !element) return
     const made = module.createScene()
     scene.current = made
+    const paint = () => {
+      const context = element.getContext('2d')
+      if (!context || element.clientWidth === 0) return
+      const ratio = element.width / element.clientWidth
+      context.setTransform(ratio, 0, 0, ratio, 0, 0)
+      made.draw(context)
+    }
     fit.current = () => {
       if (element.clientWidth === 0 || element.clientHeight === 0) return
       const ratio = Math.min(2, globalThis.devicePixelRatio || 1)
@@ -60,6 +67,8 @@ export function MotionStage({
       if (element.width !== width) element.width = width
       if (element.height !== height) element.height = height
       made.resize(element.clientWidth, element.clientHeight, layers.size)
+      // The new size cleared the canvas: paint it again, or a paused picture loses its effects.
+      paint()
     }
     feed.current = () => {
       const image = picture.current
@@ -79,6 +88,8 @@ export function MotionStage({
     return () => {
       watcher?.disconnect()
       scene.current = null
+      fit.current = () => {}
+      feed.current = () => {}
     }
   }, [module, layers.size.width, layers.size.height])
 
