@@ -26,6 +26,7 @@ interface Calls {
   sources: unknown[]
   setEffects: { kind: string; settings?: Record<string, number> }[][]
   steps: number
+  stepMs: number[]
   draws: number
   resizes: { width: number; height: number }[]
 }
@@ -41,7 +42,7 @@ export const createMotionScene = () => {
     setSource: (source) => note().sources.push(source),
     resize: (width, height, picture) => note().resizes.push(picture),
     setEffects: (specs) => note().setEffects.push(specs),
-    step: () => note().steps++,
+    step: (ms) => { note().steps++; note().stepMs.push(ms) },
     draw: () => note().draws++,
     isEmpty: () => true,
   }
@@ -79,6 +80,7 @@ async function render(options: Options = {}) {
     sources: [],
     setEffects: [],
     steps: 0,
+    stepMs: [],
     draws: 0,
     resizes: [],
   }
@@ -1266,5 +1268,495 @@ describe('an effect tied to a patch', () => {
     expect(switchFor(host, 'The star on the door')!.checked).toBe(true)
     expect(host.querySelector('.movement-side')!.textContent).not.toContain('Not showing')
     expect(menu(host, '.movement-float')!.value).toBe('star')
+  })
+})
+
+const POND: [number, number][] = [
+  [0.1, 0.5],
+  [0.4, 0.5],
+  [0.25, 0.9],
+]
+
+describe('an effect with a spot, played', () => {
+  it('runs on a canvas of its own, clipped to its shapes, the others on the one over the whole picture', async () => {
+    const { host } = await render({
+      effects: {
+        dust: { ...dust({ amount: 1, size: 1, speed: 1 }), spot: [POND] },
+        mist: { on: true, settings: { amount: 1 } },
+      },
+    })
+    expect(calls().made).toBe(2)
+    const asked = calls().setEffects.map((s) => s.map((e) => e.kind).join())
+    expect(asked).toContain('mist')
+    expect(asked).toContain('dust')
+    expect(asked).not.toContain('dust,mist')
+    const canvases = host.querySelectorAll<HTMLCanvasElement>('.movement-canvas')
+    expect(canvases).toHaveLength(2)
+    expect(canvases[0]!.style.clipPath).toBe('')
+    const clip = host.querySelector('clipPath')!
+    expect(clip.getAttribute('clipPathUnits')).toBe('objectBoundingBox')
+    expect(clip.querySelector('polygon')!.getAttribute('points')).toBe('0.1,0.5 0.4,0.5 0.25,0.9')
+    expect(canvases[1]!.style.clipPath).toContain(`#${clip.id}`)
+  })
+
+  it('leaves nothing of a held effect on the shared canvas, by running its fade out at once', async () => {
+    sizeOverlay()
+    const { host } = await render({ effects: { dust: saved({ amount: 1 }) } })
+    const before = calls().stepMs.length
+    await click(linkIn(rowOf(host, 'Dust'), 'Draw a spot'))
+    expect(
+      calls()
+        .stepMs.slice(before)
+        .some((ms) => ms >= 1000),
+    ).toBe(true)
+  })
+
+  it('plays an effect over the whole picture again once its spot is gone', async () => {
+    sizeOverlay()
+    const { host } = await render({
+      effects: { dust: { ...saved({ amount: 1 }), spot: [POND] } },
+    })
+    expect(host.querySelectorAll('.movement-canvas')).toHaveLength(2)
+    await click(linkIn(rowOf(host, 'Dust'), 'Clear'))
+    expect(
+      calls()
+        .setEffects.at(-1)!
+        .map((e) => e.kind),
+    ).toEqual(['dust'])
+    expect(host.querySelectorAll('.movement-canvas')).toHaveLength(1)
+  })
+
+  it('plays no effect over the whole picture while it is off', async () => {
+    const { host } = await render({
+      effects: { dust: { ...dust({ amount: 1, size: 1, speed: 1 }), on: false, spot: [POND] } },
+    })
+    expect(calls().made).toBe(1)
+    expect(host.querySelectorAll('.movement-canvas')).toHaveLength(1)
+  })
+})
+
+/** The effect row of the side column with this name. */
+const rowOf = (host: HTMLElement, name: string) =>
+  [...host.querySelectorAll('.movement-side .movement-effect')].find(
+    (r) => r.querySelector('.movement-switch')?.textContent === name,
+  ) as HTMLElement
+const spotLineOf = (host: HTMLElement, name: string) =>
+  rowOf(host, name).querySelector('.movement-spot')?.textContent ?? null
+const linkIn = (row: Element, label: string) =>
+  [...row.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent === label)
+const SQUARE: [number, number][] = [
+  [0.6, 0.6],
+  [0.9, 0.6],
+  [0.9, 0.9],
+  [0.6, 0.9],
+]
+
+describe('the spot line of an effect', () => {
+  it('says the whole picture with Draw a spot while the effect is on and has no spot', async () => {
+    const { host } = await render({ effects: { dust: saved({ amount: 1 }) } })
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: the whole picture' + 'Draw a spot')
+    expect(spotLineOf(host, 'Mist')).toBeNull()
+  })
+
+  it('counts the shapes, with Change and Clear, and Clear saves at once with no question', async () => {
+    const { host, puts } = await render({
+      effects: { dust: { ...saved({ amount: 1 }), spot: [POND] } },
+    })
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: 1 shapeChangeClear')
+    await click(linkIn(rowOf(host, 'Dust'), 'Clear'))
+    expect(puts.at(-1)!.effects.dust).toEqual(saved({ amount: 1 }))
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: the whole pictureDraw a spot')
+  })
+
+  it('says “2 shapes” for two', async () => {
+    const { host } = await render({
+      effects: { dust: { ...saved({ amount: 1 }), spot: [POND, SQUARE] } },
+    })
+    expect(spotLineOf(host, 'Dust')).toStartWith('Spot: 2 shapes')
+  })
+
+  it('keeps the spot while the effect is off, said so, with no links', async () => {
+    const { host } = await render({
+      effects: { dust: { ...saved({ amount: 1 }, false), spot: [POND, SQUARE] } },
+    })
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: 2 shapes (kept while off)')
+    await click(switchFor(host, 'Dust'))
+    expect(spotLineOf(host, 'Dust')).toStartWith('Spot: 2 shapesChange')
+  })
+
+  it('keeps the spot when a slider moves or Reset is pressed', async () => {
+    const { host, puts } = await render({
+      effects: { dust: { ...saved({ amount: 2, size: 1, speed: 1 }), spot: [POND] } },
+    })
+    await click(linkIn(rowOf(host, 'Dust'), 'Reset'))
+    expect(puts.at(-1)!.effects.dust!.spot).toEqual([POND])
+  })
+
+  it('greys Draw a spot with the reason when there is no picture at all', async () => {
+    const { host } = await render({ chosenTake: null, effects: { dust: saved({ amount: 1 }) } })
+    const link = linkIn(rowOf(host, 'Dust'), 'Draw a spot')!
+    expect(link.getAttribute('aria-disabled')).toBe('true')
+    expect(text(rowOf(host, 'Dust'))).toContain('Choose a take on Make to draw a spot.')
+  })
+
+  it('is just the line, with no links, in the full-screen panel', async () => {
+    let current: Element | null = null
+    Object.defineProperty(document, 'fullscreenElement', { get: () => current, configurable: true })
+    ;(
+      HTMLElement.prototype as unknown as { requestFullscreen: () => Promise<void> }
+    ).requestFullscreen = async function (this: Element) {
+      current = this
+      document.dispatchEvent(new Event('fullscreenchange'))
+    }
+    cleanups.push(() => {
+      current = null
+      delete (HTMLElement.prototype as unknown as { requestFullscreen?: unknown }).requestFullscreen
+    })
+    const { host } = await render({
+      effects: { dust: { ...saved({ amount: 1 }), spot: [POND] }, mist: saved({ amount: 1 }) },
+    })
+    await click(button(host, '⛶ Full screen'))
+    const panel = host.querySelector('.movement-float')!
+    const lines = [...panel.querySelectorAll('.movement-spot')].map((l) => l.textContent)
+    expect(lines).toEqual(['Spot: 1 shape', 'Spot: the whole picture'])
+  })
+})
+
+/** The overlay the shapes are drawn and clicked on: 640 x 400 on screen, as the canvas is. */
+const overlay = (host: HTMLElement) => host.querySelector<HTMLElement>('.spot-overlay')!
+function sizeOverlay() {
+  const was = Element.prototype.getBoundingClientRect
+  Element.prototype.getBoundingClientRect = function () {
+    return {
+      left: 0,
+      top: 0,
+      right: 640,
+      bottom: 400,
+      width: 640,
+      height: 400,
+      x: 0,
+      y: 0,
+    } as DOMRect
+  }
+  cleanups.push(() => (Element.prototype.getBoundingClientRect = was))
+}
+/** A pointer event on the overlay at fractions of the picture. */
+async function pointer(host: HTMLElement, type: string, x: number, y: number) {
+  await act(async () => {
+    const event = new MouseEvent(type, {
+      clientX: x * 640,
+      clientY: y * 400,
+      bubbles: true,
+      cancelable: true,
+    })
+    overlay(host).dispatchEvent(event)
+  })
+}
+/** A click: a press and a letting go at the same place. */
+async function tap(host: HTMLElement, x: number, y: number) {
+  await pointer(host, 'pointerdown', x, y)
+  await pointer(host, 'pointerup', x, y)
+}
+const barText = (host: HTMLElement) => host.querySelector('.spot-bar')?.textContent ?? null
+const polygons = (host: HTMLElement, cls: string) => host.querySelectorAll(`polygon.${cls}`)
+
+describe('drawing a spot', () => {
+  const withDust = (spot?: [number, number][][]) => ({
+    effects: { dust: { ...saved({ amount: 1 }), ...(spot && { spot }) } },
+  })
+
+  it('goes straight to placing a first shape, with Finish focused, and closes it on the first corner', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(withDust())
+    await click(linkIn(rowOf(host, 'Dust'), 'Draw a spot'))
+    expect(barText(host)).toBe(
+      'New shape for Dust. Click to place each corner; click the first corner to close the shape. Esc stops this shape.Finish',
+    )
+    expect(document.activeElement?.textContent).toBe('Finish')
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: the whole picture · drawing now')
+    await tap(host, 0.1, 0.5)
+    await tap(host, 0.4, 0.5)
+    await tap(host, 0.25, 0.9)
+    expect(puts).toHaveLength(0)
+    await tap(host, 0.1, 0.5)
+    expect(puts.at(-1)!.effects.dust!.spot).toEqual([
+      [
+        [0.1, 0.5],
+        [0.4, 0.5],
+        [0.25, 0.9],
+      ],
+    ])
+    expect(barText(host)).toContain('Drawing the spot for Dust.')
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: 1 shape · drawing now')
+    expect(button(host, 'Delete this shape')).toBeDefined()
+  })
+
+  it('does not close a shape with fewer than three corners', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(withDust())
+    await click(linkIn(rowOf(host, 'Dust'), 'Draw a spot'))
+    await tap(host, 0.1, 0.5)
+    await tap(host, 0.4, 0.5)
+    await tap(host, 0.1, 0.5)
+    expect(puts).toHaveLength(0)
+    expect(barText(host)).toContain('New shape for Dust.')
+  })
+
+  it('opens drawing on a spot with its words, Add a shape focused, and nothing to delete yet', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    expect(barText(host)).toBe(
+      'Drawing the spot for Dust. Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it.＋ Add a shapeFinish',
+    )
+    expect(document.activeElement?.textContent).toBe('＋ Add a shape')
+    expect(rowOf(host, 'Dust').className).toContain('movement-effect-drawing')
+    expect(host.querySelector('.movement-zoom')!.getAttribute('data-still')).toBe('true')
+  })
+
+  it('picks a shape by a click in it and un-picks by a click outside every shape', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await tap(host, 0.25, 0.6)
+    expect(button(host, 'Delete this shape')).toBeDefined()
+    expect(host.querySelectorAll('.spot-corner')).toHaveLength(3)
+    await tap(host, 0.8, 0.2)
+    expect(button(host, 'Delete this shape')).toBeUndefined()
+    expect(host.querySelectorAll('.spot-corner')).toHaveLength(0)
+  })
+
+  it('asks before deleting a shape, and Delete saves; the last one puts the effect on the whole picture', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await tap(host, 0.25, 0.6)
+    await click(button(host, 'Delete this shape'))
+    expect(barText(host)).toBe('Delete this shape? It has 3 corners.Keep itDelete')
+    await click(button(host, 'Keep it'))
+    expect(barText(host)).toContain('Drawing the spot for Dust.')
+    expect(puts).toHaveLength(0)
+    await click(button(host, 'Delete this shape'))
+    await click(button(host, 'Delete'))
+    expect(puts.at(-1)!.effects.dust!.spot).toBeUndefined()
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: the whole picture · drawing now')
+    expect(barText(host)).toContain('Drawing the spot for Dust.')
+  })
+
+  it('moves a corner by dragging it, saving once on letting go, and keeps it on the picture', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await tap(host, 0.25, 0.6)
+    await pointer(host, 'pointerdown', 0.4, 0.5)
+    await pointer(host, 'pointermove', 0.5, 0.4)
+    expect(puts).toHaveLength(0)
+    await pointer(host, 'pointermove', 1.3, 0.3)
+    await pointer(host, 'pointerup', 1.3, 0.3)
+    expect(puts).toHaveLength(1)
+    expect(puts[0]!.effects.dust!.spot![0]![1]).toEqual([1, 0.3])
+  })
+
+  it('takes a corner out on a double-click, but keeps three', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(withDust([SQUARE]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await tap(host, 0.75, 0.75)
+    await pointer(host, 'dblclick', 0.9, 0.6)
+    expect(puts.at(-1)!.effects.dust!.spot![0]).toHaveLength(3)
+    const count = puts.length
+    await pointer(host, 'dblclick', 0.9, 0.9)
+    expect(puts).toHaveLength(count)
+  })
+
+  it('adds a second shape and picks it when it closes', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await click(button(host, '＋ Add a shape'))
+    expect(barText(host)).toContain('New shape for Dust.')
+    for (const [x, y] of SQUARE) await tap(host, x, y)
+    await tap(host, SQUARE[0]![0], SQUARE[0]![1])
+    expect(puts.at(-1)!.effects.dust!.spot).toEqual([POND, SQUARE])
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: 2 shapes · drawing now')
+    expect(host.querySelectorAll('.spot-corner')).toHaveLength(4)
+  })
+
+  it('leaves an unclosed shape out on Finish, says so, and returns focus to Change', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await click(button(host, '＋ Add a shape'))
+    await tap(host, 0.6, 0.6)
+    await tap(host, 0.9, 0.6)
+    await click(button(host, 'Finish'))
+    expect(host.querySelector('.spot-bar')).toBeNull()
+    expect(puts).toHaveLength(0)
+    expect(text(rowOf(host, 'Dust'))).toContain("The shape you hadn't closed was left out.")
+    expect(document.activeElement?.textContent).toBe('Change')
+    expect(host.querySelector('.movement-zoom')!.getAttribute('data-still')).toBeNull()
+  })
+
+  it('stops a shape on Esc without a word, and leaves drawing on the next Esc', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await click(button(host, '＋ Add a shape'))
+    await tap(host, 0.6, 0.6)
+    await press('Escape')
+    expect(barText(host)).toContain('Drawing the spot for Dust.')
+    expect(text(rowOf(host, 'Dust'))).not.toContain('left out')
+    await press('Escape')
+    expect(host.querySelector('.spot-bar')).toBeNull()
+  })
+
+  it('greys the other rows’ links while one effect is being drawn, saying which', async () => {
+    sizeOverlay()
+    const { host } = await render({
+      effects: {
+        dust: { ...saved({ amount: 1 }), spot: [POND] },
+        mist: { on: true, settings: {} },
+      },
+    })
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    const link = linkIn(rowOf(host, 'Mist'), 'Draw a spot')!
+    expect(link.getAttribute('aria-disabled')).toBe('true')
+    expect(text(rowOf(host, 'Mist'))).toContain('Finish the Dust spot first.')
+    await click(link)
+    expect(barText(host)).toContain('Dust')
+  })
+
+  it('moves only the effect being drawn, and holds a spotless one out of the picture', async () => {
+    sizeOverlay()
+    const { host } = await render({
+      effects: {
+        dust: { ...saved({ amount: 1 }), spot: [POND] },
+        mist: { on: true, settings: {} },
+      },
+    })
+    await click(linkIn(rowOf(host, 'Mist'), 'Draw a spot'))
+    const kinds = calls()
+      .setEffects.at(-1)!
+      .map((e) => e.kind)
+    expect(kinds).not.toContain('mist')
+    expect(host.querySelectorAll('.movement-canvas')).toHaveLength(2)
+  })
+
+  it('says the spot could not be saved, keeps the shape, and saves again with Try again', async () => {
+    sizeOverlay()
+    let ok = false
+    const { host, puts } = await render({
+      ...withDust([POND]),
+      saved: () =>
+        ok
+          ? Response.json({ ok: true })
+          : Response.json({ ok: false, problems: [] }, { status: 409 }),
+    })
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await tap(host, 0.25, 0.6)
+    await click(button(host, 'Delete this shape'))
+    await click(button(host, 'Delete'))
+    expect(text(host)).toContain(
+      "Couldn't save the spot: the image edits file can't be written. Your shape is still on the picture.",
+    )
+    expect(barText(host)).toContain('Drawing the spot for Dust.')
+    ok = true
+    await click(button(host, 'Try again'))
+    expect(text(host)).not.toContain("Couldn't save the spot")
+    expect(puts.length).toBe(2)
+  })
+
+  it('outlines an effect’s shapes while its row is pointed at, with no dots, and not after', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND, SQUARE]))
+    expect(polygons(host, 'spot-peek')).toHaveLength(0)
+    await act(async () => {
+      rowOf(host, 'Dust').dispatchEvent(new MouseEvent('pointerover', { bubbles: true }))
+    })
+    expect(polygons(host, 'spot-peek')).toHaveLength(2)
+    expect(host.querySelectorAll('.spot-corner')).toHaveLength(0)
+    await act(async () => {
+      rowOf(host, 'Dust').dispatchEvent(new MouseEvent('pointerout', { bubbles: true }))
+    })
+    expect(polygons(host, 'spot-peek')).toHaveLength(0)
+  })
+
+  it('saves where a fast drag ended even when no render came between the moves and the release', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await tap(host, 0.25, 0.6)
+    await act(async () => {
+      const send = (type: string, x: number, y: number) =>
+        overlay(host).dispatchEvent(
+          new MouseEvent(type, { clientX: x * 640, clientY: y * 400, bubbles: true }),
+        )
+      send('pointerdown', 0.4, 0.5)
+      send('pointermove', 0.45, 0.45)
+      send('pointermove', 0.5, 0.4)
+      send('pointerup', 0.5, 0.4)
+    })
+    expect(puts.at(-1)!.effects.dust!.spot![0]![1]).toEqual([0.5, 0.4])
+  })
+
+  it('finishes drawing when an effect being drawn is switched off', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await click(switchFor(host, 'Dust'))
+    expect(host.querySelector('.spot-bar')).toBeNull()
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: 1 shape (kept while off)')
+  })
+
+  it('clears the left-out line at the next change of that spot', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await click(button(host, '＋ Add a shape'))
+    await tap(host, 0.6, 0.6)
+    await click(button(host, 'Finish'))
+    expect(text(rowOf(host, 'Dust'))).toContain('left out')
+    await click(linkIn(rowOf(host, 'Dust'), 'Clear'))
+    expect(text(rowOf(host, 'Dust'))).not.toContain('left out')
+  })
+
+  it('outlines the shapes while keyboard focus is in the row', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    const link = linkIn(rowOf(host, 'Dust'), 'Change')!
+    await act(async () => link.focus())
+    expect(polygons(host, 'spot-peek')).toHaveLength(1)
+    await act(async () => link.blur())
+    expect(polygons(host, 'spot-peek')).toHaveLength(0)
+  })
+
+  it('finishes drawing when the tab is left', async () => {
+    sizeOverlay()
+    const { host, setOpen } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await setOpen(false)
+    await setOpen(true)
+    expect(host.querySelector('.spot-bar')).toBeNull()
+  })
+
+  it('finishes drawing when full screen opens', async () => {
+    sizeOverlay()
+    let current: Element | null = null
+    Object.defineProperty(document, 'fullscreenElement', { get: () => current, configurable: true })
+    ;(
+      HTMLElement.prototype as unknown as { requestFullscreen: () => Promise<void> }
+    ).requestFullscreen = async function (this: Element) {
+      current = this
+      document.dispatchEvent(new Event('fullscreenchange'))
+    }
+    cleanups.push(() => {
+      current = null
+      delete (HTMLElement.prototype as unknown as { requestFullscreen?: unknown }).requestFullscreen
+    })
+    const { host } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await click(button(host, '⛶ Full screen'))
+    expect(host.querySelector('.spot-bar')).toBeNull()
+    expect(host.querySelector('.movement-float')).not.toBeNull()
   })
 })

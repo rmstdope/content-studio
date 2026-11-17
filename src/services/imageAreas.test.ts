@@ -162,4 +162,27 @@ describe('syncImageEntries and the effects', () => {
     expect(await run(['inn'])).toEqual({ ok: true })
     expect(read()).toEqual({ inn: entry })
   })
+
+  it('passes an effect’s spot to the game while it is on, and not while it is off', async () => {
+    const spot = [
+      [
+        [0.1, 0.1],
+        [0.5, 0.1],
+        [0.3, 0.6],
+      ],
+    ]
+    const dust = { on: true, settings: { amount: 1 }, spot }
+    const { run, read, root } = repo({
+      [MANIFEST]: { inn: entry },
+      [EDITS]: { images: { inn: { effects: { dust } } } },
+    })
+    expect(await run(['inn'])).toEqual({ ok: true })
+    expect(read().inn.effects).toEqual([{ kind: 'dust', settings: { amount: 1 }, spot }])
+    writeFileSync(
+      join(root, EDITS),
+      JSON.stringify({ images: { inn: { effects: { dust: { ...dust, on: false } } } } }),
+    )
+    expect(await run(['inn'])).toEqual({ ok: true })
+    expect(read()).toEqual({ inn: entry })
+  })
 })

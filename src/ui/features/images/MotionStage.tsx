@@ -1,5 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef, type ReactNode, type RefObject } from 'react'
+import type { SpotShape } from '../../../core/images'
 import type { MotionModule, MotionScene } from '../../motionModule'
+
+/** How far a held scene is moved on to finish a fade at once, in milliseconds. */
+const FINISH_FADE_MS = 2000
 
 /** What a picture is shown with: where it is, and the patches laid over it. */
 export interface StageLayers {
@@ -13,6 +17,8 @@ export interface StageLayers {
 export interface StageEffect {
   kind: string
   settings: Record<string, number>
+  /** The shapes it plays inside, as fractions of the picture; none: the whole picture. */
+  spot?: SpotShape[]
 }
 
 /**
@@ -26,6 +32,9 @@ export function MotionStage({
   effects,
   paused,
   running,
+  only,
+  drift,
+  inside,
   onMissing,
 }: {
   layers: StageLayers
@@ -36,19 +45,97 @@ export function MotionStage({
   paused: boolean
   /** Whether the stage is on show (its tab is open); a hidden stage runs no frames. */
   running: boolean
+  /** The kind of the one effect that moves while the others hold their frame (a spot being drawn); null: all move. */
+  only?: string | null
+  /** Whether the slow zoom runs; off it holds the picture at its size, so a shape stays under the mouse. */
+  drift?: boolean
+  /** Shown over the picture and zooming with it (the outline of a spot pointed at). */
+  inside?: ReactNode
   /** The picture could not be read. */
   onMissing: () => void
 }) {
-  const canvas = useRef<HTMLCanvasElement>(null)
   const picture = useRef<HTMLImageElement>(null)
+  const whole = effects.filter((effect) => !effect.spot)
+  const spotted = effects.filter((effect) => effect.spot)
+  const frozen = only !== null && only !== undefined
+  const shared = { layers, module, picture, paused, running }
+  return (
+    <div
+      className="movement-zoom"
+      data-paused={paused ? 'true' : undefined}
+      data-still={drift === false ? 'true' : undefined}
+    >
+      <img
+        ref={picture}
+        className="movement-pic"
+        src={layers.src}
+        alt="The image"
+        draggable={false}
+        onError={onMissing}
+      />
+      {layers.patches.map((patch) => (
+        <img
+          key={patch.id}
+          className="movement-pic"
+          src={patch.src}
+          alt={patch.title}
+          draggable={false}
+        />
+      ))}
+      {module && <EffectCanvas {...shared} effects={whole} stepping={!frozen} />}
+      {module &&
+        spotted.map((effect) => (
+          <EffectCanvas
+            key={effect.kind}
+            {...shared}
+            effects={[effect]}
+            spot={effect.spot}
+            stepping={!frozen || only === effect.kind}
+          />
+        ))}
+      {inside}
+    </div>
+  )
+}
+
+/**
+ * One canvas with one scene of the renderer on it, playing `effects`; with a `spot` it shows only
+ * inside the spot's shapes. Not `stepping`, it holds its frame.
+ */
+function EffectCanvas({
+  layers,
+  module,
+  picture,
+  effects,
+  spot,
+  paused,
+  running,
+  stepping,
+}: {
+  layers: StageLayers
+  module: MotionModule | null
+  /** The picture the scene may redraw. */
+  picture: RefObject<HTMLImageElement | null>
+  effects: StageEffect[]
+  spot?: SpotShape[]
+  paused: boolean
+  running: boolean
+  stepping: boolean
+}) {
+  const clip = useId().replace(/:/g, '')
+  const canvas = useRef<HTMLCanvasElement>(null)
   const scene = useRef<MotionScene | null>(null)
   const wanted = useRef(effects)
-  wanted.current = effects
+  wanted.current = effects.map(({ kind, settings }) => ({ kind, settings }))
 
   /** Gives the canvas one pixel per screen pixel (twice at most) and tells the scene its size in screen pixels. */
   const fit = useRef(() => {})
   /** Hands the scene the picture it may redraw, once the picture has loaded. */
   const feed = useRef(() => {})
+  /** Draws the scene's current frame onto the canvas now. */
+  const paintNow = useRef(() => {})
+  const holding = useRef(!stepping)
+  holding.current = !stepping
 
   // One scene per loaded renderer and picture size.
   useEffect(() => {
@@ -63,6 +150,7 @@ export function MotionStage({
       context.setTransform(ratio, 0, 0, ratio, 0, 0)
       made.draw(context)
     }
+    paintNow.current = paint
     fit.current = () => {
       if (element.clientWidth === 0 || element.clientHeight === 0) return
       const ratio = Math.min(2, globalThis.devicePixelRatio || 1)
@@ -84,13 +172,18 @@ export function MotionStage({
     fit.current()
     feed.current()
     made.setEffects(wanted.current, true)
+    const img = picture.current
+    const loaded = () => feed.current()
+    img?.addEventListener('load', loaded)
     const watcher =
       typeof ResizeObserver === 'function' ? new ResizeObserver(() => fit.current()) : null
     watcher?.observe(element)
     return () => {
       watcher?.disconnect()
+      img?.removeEventListener('load', loaded)
       scene.current = null
       fit.current = () => {}
+      paintNow.current = () => {}
       feed.current = () => {}
     }
   }, [module, layers.size.width, layers.size.height])
@@ -109,10 +202,16 @@ export function MotionStage({
     const sameSet = lastKinds.current === kinds
     lastKinds.current = kinds
     scene.current?.setEffects(wanted.current, sameSet)
+    // A canvas held while another effect is drawn gets no frames, so a fade it was just given would
+    // never finish: run it to its end and paint, so nothing of a taken-out effect stays on screen.
+    if (holding.current) {
+      scene.current?.step(FINISH_FADE_MS)
+      paintNow.current()
+    }
   }, [values, kinds])
 
   // The frame loop runs only while the stage is on show and not paused.
-  const going = running && !paused
+  const going = running && !paused && stepping
   useEffect(() => {
     const element = canvas.current
     if (!module || !element || !going) return
@@ -138,26 +237,21 @@ export function MotionStage({
   }, [module, going])
 
   return (
-    <div className="movement-zoom" data-paused={paused ? 'true' : undefined}>
-      <img
-        ref={picture}
-        className="movement-pic"
-        src={layers.src}
-        alt="The image"
-        draggable={false}
-        onLoad={() => feed.current()}
-        onError={onMissing}
+    <>
+      <canvas
+        ref={canvas}
+        className="movement-canvas"
+        style={spot ? { clipPath: `url("#${clip}")` } : undefined}
       />
-      {layers.patches.map((patch) => (
-        <img
-          key={patch.id}
-          className="movement-pic"
-          src={patch.src}
-          alt={patch.title}
-          draggable={false}
-        />
-      ))}
-      {module && <canvas ref={canvas} className="movement-canvas" />}
-    </div>
+      {spot && (
+        <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+          <clipPath id={clip} clipPathUnits="objectBoundingBox">
+            {spot.map((shape, i) => (
+              <polygon key={i} points={shape.map(([x, y]) => `${x},${y}`).join(' ')} />
+            ))}
+          </clipPath>
+        </svg>
+      )}
+    </>
   )
 }

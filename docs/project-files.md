@@ -215,7 +215,7 @@ browser on an image's Movement tab, so an image moves as the game shows it. The 
 `EFFECT_TYPES`, a list of `{ type, title, spot, settings: [{ id, title, min, max, step, default }] }`
 (each `type` once, each `default` between `min` and `max`), and `createMotionScene()`, which returns
 a scene: `resize(width, height, { width, height })` (the canvas, and the picture's own size),
-`setEffects(specs, instant)` with `specs` of `{ kind, settings? }`, `step(ms)`, `draw(ctx)` and
+`setEffects(specs, instant)` with `specs` of `{ kind, settings? }` (it ignores a `kind` the renderer does not have, since the studio keeps exporting an effect whose type the renderer dropped until the user presses Remove), `step(ms)`, `draw(ctx)` and
 `isEmpty()`, and optionally `setSource({ image, width, height })`, called once the picture has loaded, for effects that redraw the picture. The studio draws the slow zoom itself. A module that resolves, through a symlink, to a file outside the project (a linked package store) is refused. Without `motion` the Movement tab says the
 project names no renderer.
 
@@ -649,7 +649,7 @@ Refresh from the game for the act. A game that does not read `areas` is unaffect
 }
 ```
 
-**An image's effects.** The entry of an image with effects switched on in the studio gains `effects`, a list of `{ "kind": "dust", "settings": { "amount": 1.25 } }` in kind order: exactly the `specs` the game's renderer takes in `setEffects`, plus `"patch": "<patch id>"` on an effect tied to a patch: the game shows it only while that patch is laid (a game that does not read `patch` shows it always). The game's renderer should hold each setting to its own range. The key is absent when none is on. The studio writes it when an effect is switched or tuned, when a take is chosen, and on Refresh from the game.
+**An image's effects.** The entry of an image with effects switched on in the studio gains `effects`, a list of `{ "kind": "dust", "settings": { "amount": 1.25 } }` in kind order: exactly the `specs` the game's renderer takes in `setEffects`, plus `"patch": "<patch id>"` on an effect tied to a patch: the game shows it only while that patch is laid (a game that does not read `patch` shows it always). The game's renderer should hold each setting to its own range, and its `setEffects` should skip a `kind` it does not have: an effect whose type the renderer dropped stays in the manifest until the user removes it in the studio. An effect with a spot also has `"spot"`, a list of shapes, each a list of at least three `[x, y]` corners as fractions of the picture (0 to 1 across and down, so any size fits): `{ "kind": "dust", "settings": {…}, "spot": [[[0.1, 0.5], [0.4, 0.5], [0.25, 0.9]]] }`. The effect plays only inside the shapes (a point in any of them); the studio's preview clips the scene's canvas to them. An effect with no `spot` plays over the whole picture. The key is absent when none is on. The studio writes it when an effect is switched or tuned, when a take is chosen, and on Refresh from the game.
 
 **A part's mix** (`scenes.mix`) says what plays in each of a part's scenes, by scene id:
 
