@@ -384,15 +384,15 @@ export function MovementPanel({
       : []
   // The count is the renderer's effects that are on, tied to a patch or not, playing now or not.
   // With no renderer named there are no effects to count; while it loads or failed, the saved count stands.
-  const playingCount =
+  const onCount =
     motion.status === 'ready'
       ? motion.module.types.filter((t) => effects[t.type]?.on).length
       : motion.status === 'none'
         ? 0
         : null
   useEffect(() => {
-    onEffectsOn?.(playingCount)
-  }, [onEffectsOn, playingCount])
+    onEffectsOn?.(onCount)
+  }, [onEffectsOn, onCount])
   if (motion.status === 'none') {
     return (
       <section className="panel movement" aria-label="Movement">
