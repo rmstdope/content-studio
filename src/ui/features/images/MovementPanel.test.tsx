@@ -2431,7 +2431,9 @@ describe('the slow zoom of an image', () => {
     expect(reset.classList.contains('btn')).toBe(false)
     // A button's 36 px minimum height made the row taller than the switch and pushed the sliders down.
     expect(valuesInEveryWindow(reset, 'min-height')).toEqual([])
-    expect(valuesInEveryWindow(reset, 'padding')).toEqual([])
+    for (const property of ['height', 'line-height', 'padding', 'padding-block', 'border']) {
+      expect(valuesInEveryWindow(reset, property)).toEqual([])
+    }
   })
 
   it('says “Saving…” only when the save takes a moment', async () => {

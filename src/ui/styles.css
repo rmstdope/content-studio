@@ -6398,10 +6398,6 @@ textarea[aria-disabled='true'][data-why] {
   font-size: 12px;
   color: var(--accent-soft-ink);
 }
-.movement-zoom-reset:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
 .movement-slider {
   display: grid;
   grid-template-columns: minmax(0, 5em) minmax(0, 1fr) 3.2em;
@@ -6475,7 +6471,8 @@ textarea[aria-disabled='true'][data-why] {
   cursor: default;
   text-decoration: none;
 }
-.movement-spot .link-button:focus-visible {
+.movement-spot .link-button:focus-visible,
+.movement-zoom-reset:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 3px;
