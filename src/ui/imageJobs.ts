@@ -19,7 +19,10 @@ export interface JobTabsInput {
   newFineTunes: number
   makingFineTunes: boolean
   makingPatches: boolean
-  /** The image's own takes or patches, read after the list, found the images lock unreadable. */
+  /**
+   * Whether the images lock cannot be read for this image: the whole answer of `imageLockUnread`
+   * (the list row and the image's own views), not the views' alone.
+   */
   lockUnread: boolean
 }
 
@@ -28,13 +31,12 @@ export function imageJobTabs(input: JobTabsInput): JobTab[] {
   const { row } = input
   // The lock cannot be read: which take the game shows is not known, so Make and Patches say so.
   // `imageLockUnread` answers it, from the list row and the image's own views.
-  const unknown = input.lockUnread
   const notKnown = { text: IMAGE_STATUS_LABEL.unknown, tone: 'warn' } as const
   const tabs: JobTab[] = [
     {
       job: 'make',
       title: 'Make',
-      chip: unknown
+      chip: input.lockUnread
         ? notKnown
         : row.chosenTake === null
           ? { text: 'No take chosen', tone: 'warn' }
@@ -53,7 +55,7 @@ export function imageJobTabs(input: JobTabsInput): JobTab[] {
     tabs.push({
       job: 'patches',
       title: 'Patches',
-      chip: unknown
+      chip: input.lockUnread
         ? notKnown
         : {
             text: `${chosen} of ${row.patches.length}`,

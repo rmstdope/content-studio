@@ -38,7 +38,12 @@ async function render(
   patches: PatchRow[],
   answer: { status: number; body: unknown } = { status: 200, body: { ok: true } },
   view: Record<string, unknown> | null = {},
-  shape: { width?: number; height?: number; chosenTake?: number | null } = {},
+  shape: {
+    width?: number
+    height?: number
+    chosenTake?: number | null
+    status?: ImageRow['status']
+  } = {},
 ) {
   const sent: { method: string; path: string; body: unknown }[] = []
   globalThis.fetch = (async (path: string, init?: RequestInit) => {
@@ -132,6 +137,14 @@ describe('GamePatchesPanel', () => {
         expect(host.querySelectorAll('.patch-pick .chip-warn').length).toBe(0)
         expect(host.querySelector('.make-again-line')).toBeNull()
       }
+    })
+    // The list row can be older than the patches' own view: its unknown status says it too (as-b3od).
+    it('follows a list row that says unknown though the patches read the lock', async () => {
+      const shape = { chosenTake: 1, status: 'unknown' as const }
+      const { host } = await render(two(), undefined, { lockUnread: false }, shape)
+      expect(heading(host)).toBe('Patches · 2')
+      expect(host.querySelectorAll('.patch-pick .dot').length).toBe(0)
+      expect(host.querySelectorAll('.patch-pick .chip-warn').length).toBe(0)
     })
     it('says nothing of a patch to make again until the patches are loaded', async () => {
       const { host } = await render(two(), undefined, null, {})
