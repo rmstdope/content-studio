@@ -8,6 +8,7 @@ import {
   setImageActStylePick,
   setImageAreaBox,
   setImageEffects,
+  setImageZoom,
   setImagePatchWords,
   setImageWords,
   setStyleField,
@@ -19,7 +20,7 @@ import { readMotionRenderer } from '../../services/motionRenderer'
 import type { RouteContext } from '../context'
 import { makeAllRoutes } from '../makeAllRoutes'
 import { takeListRoutes } from '../takeRoutes'
-import { AreaBoxBody, EffectsBody, imageAnswer, fileRoute, notFound } from '../shared'
+import { AreaBoxBody, EffectsBody, ZoomBody, imageAnswer, fileRoute, notFound } from '../shared'
 
 /** The images routes. */
 export function imagesRoutes(c: RouteContext) {
@@ -94,6 +95,18 @@ export function imagesRoutes(c: RouteContext) {
           )
         }
         return imageAnswer(await setImageEffects(projectFile, request.params.id, body.data.effects))
+      }),
+    },
+    '/api/images/:id/zoom': {
+      PUT: fromOwnPage(async (request) => {
+        const body = ZoomBody.safeParse(await request.json().catch(() => null))
+        if (!body.success) {
+          return Response.json(
+            { error: 'expected { zoom: { on, seconds, percent } | null }' },
+            { status: 400 },
+          )
+        }
+        return imageAnswer(await setImageZoom(projectFile, request.params.id, body.data.zoom))
       }),
     },
     '/api/images/:id/game-patches/:patch/compare': {

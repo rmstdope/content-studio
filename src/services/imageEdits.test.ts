@@ -12,6 +12,7 @@ import {
   setImageActStylePick,
   setImageAreaBox,
   setImageEffects,
+  setImageZoom,
   setImagePatchWords,
   setImageWords,
   carryImageAreas,
@@ -557,6 +558,47 @@ describe('the effects of an image', () => {
     const { file, read } = repo()
     const before = read(EDITS)
     expect(await setImageEffects(file, 'ghost', { dust })).toBeNull()
+    expect(read(EDITS)).toBe(before)
+  })
+})
+
+describe('the slow zoom of an image', () => {
+  const MANIFEST = 'web/public/images/generated/manifest.json'
+  const entry = { file: 'inn.png', width: 320, height: 200 }
+  const zoom = { on: true, seconds: 24, percent: 5 }
+
+  it('is kept in the image’s edit and reaches the game in the same save', async () => {
+    const { file, read } = repo({ [MANIFEST]: { inn: entry } })
+    expect(await setImageZoom(file, 'inn', zoom)).toEqual({ ok: true })
+    expect(JSON.parse(read(EDITS)).images.inn.zoom).toEqual(zoom)
+    expect(JSON.parse(read(MANIFEST)).inn).toEqual({ ...entry, zoom: { seconds: 24, percent: 5 } })
+  })
+
+  it('switched off keeps the values and tells the game null', async () => {
+    const { file, read } = repo({ [MANIFEST]: { inn: entry } })
+    expect(await setImageZoom(file, 'inn', { ...zoom, on: false })).toEqual({ ok: true })
+    expect(JSON.parse(read(EDITS)).images.inn.zoom).toEqual({ ...zoom, on: false })
+    expect(JSON.parse(read(MANIFEST)).inn.zoom).toBeNull()
+  })
+
+  it('null takes it away from the edits and the manifest', async () => {
+    const { file, read } = repo({ [MANIFEST]: { inn: entry } })
+    await setImageZoom(file, 'inn', zoom)
+    expect(await setImageZoom(file, 'inn', null)).toEqual({ ok: true })
+    expect(JSON.parse(read(EDITS)).images).toEqual({})
+    expect(JSON.parse(read(MANIFEST))).toEqual({ inn: entry })
+  })
+
+  it('is saved for an image with no manifest entry yet, without failing', async () => {
+    const { file, read } = repo()
+    expect(await setImageZoom(file, 'inn', zoom)).toEqual({ ok: true })
+    expect(JSON.parse(read(EDITS)).images.inn.zoom).toEqual(zoom)
+  })
+
+  it('answers null for an image the game does not list', async () => {
+    const { file, read } = repo()
+    const before = read(EDITS)
+    expect(await setImageZoom(file, 'ghost', zoom)).toBeNull()
     expect(read(EDITS)).toBe(before)
   })
 })

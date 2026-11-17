@@ -67,6 +67,12 @@ describe('the Movement tab’s layout', () => {
     expect(css).not.toMatch(/\.movement-full\s*\{[^}]*position:\s*absolute/)
   })
 
+  it('runs the zoom at the speed and depth the stage sets, not a fixed 26 s', () => {
+    expect(rule('.movement-zoom')).toMatch(/animation:\s*movement-drift var\(--zoom-seconds/)
+    expect(css).not.toMatch(/movement-drift\s+26s/)
+    expect(css).toMatch(/scale\(var\(--zoom-scale/)
+  })
+
   it('holds the zoom still while paused', () => {
     expect(css).toMatch(
       /\.movement-zoom\[data-paused='true'\]\s*\{[^}]*animation-play-state:\s*paused/,

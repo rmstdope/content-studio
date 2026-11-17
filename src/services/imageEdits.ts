@@ -7,6 +7,8 @@ import {
   applyActStylePick,
   applyAreaBox,
   applyEffects,
+  applyZoom,
+  type SavedZoom,
   type SavedEffects,
   checkAreaBox,
   type AreaBox,
@@ -171,6 +173,29 @@ export function setImageEffects(
     (summary) => (summary.acts.flatMap((act) => act.rows).some((r) => r.id === id) ? true : null),
     (edits) => applyEffects(edits, id, effects),
     // An image with no manifest entry yet gets its effects when a take is chosen.
+    async (project) => {
+      const sync = await syncImageEntries(projectFile, project, [id])
+      return sync.ok
+        ? []
+        : [{ file: project.images!.manifest, path: `images.${id}`, message: sync.message }]
+    },
+  )
+}
+
+/**
+ * Saves the slow zoom of an image (null takes it away) and passes it to the game in the same
+ * save. Null for an image the game does not list.
+ */
+export function setImageZoom(
+  projectFile: string,
+  id: string,
+  zoom: SavedZoom | null,
+): Promise<ImageEditResult> {
+  return edit(
+    projectFile,
+    (summary) => (summary.acts.flatMap((act) => act.rows).some((r) => r.id === id) ? true : null),
+    (edits) => applyZoom(edits, id, zoom),
+    // An image with no manifest entry yet gets its zoom when a take is chosen.
     async (project) => {
       const sync = await syncImageEntries(projectFile, project, [id])
       return sync.ok

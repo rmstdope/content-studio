@@ -128,6 +128,7 @@ describe('the images routes', () => {
       ['POST', '/api/images/inn/game-patches/lamp-lit/compare', { choice: 'keep' }],
       ['PUT', '/api/images/inn/areas/sign', { box: null }],
       ['PUT', '/api/images/inn/effects', { effects: {} }],
+      ['PUT', '/api/images/inn/zoom', { zoom: null }],
     ] as const) {
       expect((await send(method, path, body, 'https://evil.example')).status).toBe(403)
     }
@@ -256,6 +257,18 @@ describe('the images routes', () => {
     expect(
       (await send('PUT', path, { effects: { dust: { ...dust, mark: [1.5, 0] } } })).status,
     ).toBe(400)
+  })
+
+  it('saves an image’s slow zoom, takes it away on null and refuses what is not one', async () => {
+    const path = '/api/images/inn/zoom'
+    const zoom = { on: true, seconds: 24, percent: 5 }
+    expect(await (await send('PUT', path, { zoom })).json()).toEqual({ ok: true })
+    expect((await summary()).acts[0].rows[0].zoom).toEqual(zoom)
+    expect(await (await send('PUT', path, { zoom: null })).json()).toEqual({ ok: true })
+    expect((await summary()).acts[0].rows[0].zoom).toBeUndefined()
+    expect((await send('PUT', path, { zoom: { ...zoom, seconds: 'slow' } })).status).toBe(400)
+    expect((await send('PUT', path, {})).status).toBe(400)
+    expect((await send('PUT', '/api/images/ghost/zoom', { zoom })).status).toBe(404)
   })
 
   it('keeps an effect’s tie to a patch through the effects route', async () => {

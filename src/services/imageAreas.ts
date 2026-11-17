@@ -1,5 +1,12 @@
 import { dirname } from 'node:path'
-import { areaFractions, effectsForGame, withAreas, withEffects } from '../core/images'
+import {
+  areaFractions,
+  effectsForGame,
+  withAreas,
+  withEffects,
+  withZoom,
+  zoomForGame,
+} from '../core/images'
 import { ImageManifestSchema } from '../core/imageTakes'
 import type { Problem, Project } from '../core/project'
 import { readResource, writeAtomic, writeFailure } from './files'
@@ -12,7 +19,7 @@ export type AreaSyncResult =
 
 /**
  * Brings the `areas` and `effects` of the images manifest entries of `ids` up to date with the
- * studio's edits (the effects are those saved as on, as the game's renderer is asked for them). The areas are the boxes placed in
+ * studio's edits (the effects are those saved as on, as the game's renderer is asked for them; the slow zoom is `zoom`: the saved numbers, null when off, no key when none is saved). The areas are the boxes placed in
  * the edits: only the areas the game currently asks for, as fractions of the picture, the
  * key gone when none are placed. An image with no entry is left alone (`requireEntry` makes that a
  * failure) and one the lists disagree on is no row, so it keeps what the game has. The manifest is
@@ -62,9 +69,9 @@ async function syncNow(
       }
       continue
     }
-    const next = withEffects(
-      withAreas(entry, areaFractions(row.areas, row)),
-      effectsForGame(row.effects),
+    const next = withZoom(
+      withEffects(withAreas(entry, areaFractions(row.areas, row)), effectsForGame(row.effects)),
+      zoomForGame(row.zoom),
     )
     if (JSON.stringify(next) !== JSON.stringify(entry)) {
       manifest[id] = next

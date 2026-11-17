@@ -6,7 +6,7 @@ import type { EditModelId } from '../../core/imageModels'
 import type { FineTuneAnswer, FineTuneRequest } from '../../services/imageFineTunes'
 import type { ImagePatchAnswer, PatchMakeRequest } from '../../services/imagePatches'
 import { takesAreBeingMade } from '../musicTakesText'
-import type { AreaBox, SavedEffects, StyleField } from '../../core/images'
+import type { AreaBox, SavedEffects, SavedZoom, StyleField } from '../../core/images'
 import type { ImageEditResult } from '../../services/imageEdits'
 import type {
   ImageMakeRequest,
@@ -120,6 +120,15 @@ export function useSetImageEffects(imageId: string) {
     method: 'PUT',
     path: `/api/images/${encodeURIComponent(imageId)}/effects`,
     body: { effects },
+  }))
+}
+
+/** Saves an image's slow zoom; null takes it away (the game's own is back). */
+export function useSetImageZoom(imageId: string) {
+  return useImageEdit<SavedZoom | null>(`image-${imageId}`, (zoom) => ({
+    method: 'PUT',
+    path: `/api/images/${encodeURIComponent(imageId)}/zoom`,
+    body: { zoom },
   }))
 }
 

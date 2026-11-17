@@ -6219,7 +6219,7 @@ textarea[aria-disabled='true'][data-why] {
 .movement-zoom {
   position: absolute;
   inset: 0;
-  animation: movement-drift 26s ease-in-out infinite alternate;
+  animation: movement-drift var(--zoom-seconds, 16s) ease-in-out infinite alternate;
 }
 .movement-zoom[data-paused='true'] {
   animation-play-state: paused;
@@ -6232,7 +6232,7 @@ textarea[aria-disabled='true'][data-why] {
     transform: scale(1);
   }
   to {
-    transform: scale(1.03) translate(-0.5%, -0.3%);
+    transform: scale(var(--zoom-scale, 1.03)) translate(var(--zoom-x, -0.5%), var(--zoom-y, -0.3%));
   }
 }
 .movement-pic,

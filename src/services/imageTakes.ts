@@ -36,6 +36,8 @@ import {
   withAreas,
   withEffects,
   effectsForGame,
+  withZoom,
+  zoomForGame,
   formatImageLock,
   outOfDateReasons,
   type ChosenEntry,
@@ -402,19 +404,22 @@ export function createImageTakes({
       // The boxes read again in the turn: one placed since `found` was read is what the game gets.
       const fresh = await resolve(found.projectFile, id)
       const row = fresh && 'row' in fresh ? fresh.row : found.row
-      const listed = withEffects(
-        withAreas(
-          {
-            file,
-            width: found.row.width,
-            height: found.row.height,
-            ...(Object.keys(patches).length ? { patches } : {}),
-          },
-          take === undefined
-            ? areaFractions(row.areas, row)
-            : areaFractionsOn(row.areas, take, row),
+      const listed = withZoom(
+        withEffects(
+          withAreas(
+            {
+              file,
+              width: found.row.width,
+              height: found.row.height,
+              ...(Object.keys(patches).length ? { patches } : {}),
+            },
+            take === undefined
+              ? areaFractions(row.areas, row)
+              : areaFractionsOn(row.areas, take, row),
+          ),
+          effectsForGame(row.effects),
         ),
-        effectsForGame(row.effects),
+        zoomForGame(row.zoom),
       )
       if (!next && JSON.stringify(manifest[id]) === JSON.stringify(listed)) {
         return { ok: true as const }

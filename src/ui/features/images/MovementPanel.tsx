@@ -6,7 +6,8 @@ import {
   useState,
   type CSSProperties,
 } from 'react'
-import type { ImageRow, SavedEffects, SpotMark, SpotShape } from '../../../core/images'
+import type { ImageRow, SavedEffects, SavedZoom, SpotMark, SpotShape } from '../../../core/images'
+import { zoomLook, zoomValues } from '../../../core/zoom'
 import {
   effectPlays,
   effectValues,
@@ -17,7 +18,7 @@ import {
   type EffectType,
 } from '../../../core/motion'
 import { addShape, dropShape, middleOf, nudgeMark } from '../../../core/spot'
-import { useImagePatches, useMotionRenderer, useSetImageEffects } from '../../api'
+import { useImagePatches, useMotionRenderer, useSetImageEffects, useSetImageZoom } from '../../api'
 import { IMAGE_TAKE_UNKNOWN } from '../../imagesText'
 import {
   MOVEMENT_WORDS,
@@ -102,6 +103,13 @@ export function MovementPanel({
   const save = useSetImageEffects(row.id)
   const saves = useRef(0)
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
+  // The image's slow zoom as set here (undefined: nothing saved, the game's own), with its own save.
+  const [zoom, setZoom] = useState<SavedZoom | undefined>(() => row.zoom)
+  const latestZoom = useRef(zoom)
+  const [zoomStatus, setZoomStatus] = useState<SaveStatus>('idle')
+  const saveZoom = useSetImageZoom(row.id)
+  const zoomSaves = useRef(0)
+  const zoomTimers = useRef<ReturnType<typeof setTimeout>[]>([])
   const [paused, setPaused] = useState(false)
   const [full, setFull] = useState(false)
   const [folded, setFolded] = useState(false)
@@ -198,7 +206,49 @@ export function MovementPanel({
     hasTake: patches === null ? true : patches.find((p) => p.id === patch.id)?.src != null,
   }))
 
-  useEffect(() => () => timers.current.forEach(clearTimeout), [])
+  useEffect(
+    () => () => {
+      timers.current.forEach(clearTimeout)
+      zoomTimers.current.forEach(clearTimeout)
+    },
+    [],
+  )
+
+  /** Saves the zoom as it is now (none saved: null); the latest save's outcome is the one shown. */
+  const persistZoom = useCallback(() => {
+    const mine = ++zoomSaves.current
+    zoomTimers.current.forEach(clearTimeout)
+    zoomTimers.current = [
+      setTimeout(() => {
+        if (zoomSaves.current === mine) setZoomStatus('saving')
+      }, SAVING_AFTER_MS),
+    ]
+    const done = (ok: boolean) => {
+      if (zoomSaves.current !== mine) return
+      zoomTimers.current.forEach(clearTimeout)
+      setZoomStatus(ok ? 'saved' : 'failed')
+      if (ok) zoomTimers.current = [setTimeout(() => setZoomStatus('idle'), SAVED_FOR_MS)]
+    }
+    saveZoom.mutate(latestZoom.current ?? null, {
+      onSuccess: (answer) => done(answer.ok),
+      onError: () => done(false),
+    })
+  }, [saveZoom])
+  /** Sets the zoom here (the picture follows at once); saving is `persistZoom`'s. */
+  const setZoomNow = (next: SavedZoom | undefined) => {
+    latestZoom.current = next
+    setZoom(next)
+  }
+  const onZoomOn = (on: boolean) => {
+    setZoomNow({ ...(latestZoom.current ?? zoomValues(undefined)), on })
+    persistZoom()
+  }
+  const onZoomValue = (which: 'seconds' | 'percent', value: number) =>
+    setZoomNow({ ...(latestZoom.current ?? zoomValues(undefined)), [which]: value })
+  const onZoomReset = () => {
+    setZoomNow(undefined)
+    persistZoom()
+  }
 
   /** Saves the effects as they are now; the latest save's outcome is the one shown. */
   const persist = useCallback(
@@ -516,6 +566,13 @@ export function MovementPanel({
       onTie={onTie}
       onTakeOff={onTakeOff}
       onLay={onLay}
+      zoom={zoom}
+      zoomStatus={zoomStatus}
+      onZoomOn={onZoomOn}
+      onZoomValue={onZoomValue}
+      onZoomCommit={persistZoom}
+      onZoomReset={onZoomReset}
+      onZoomRetry={persistZoom}
       status={status}
       onRetry={() => persist(failedSpot)}
       failedSpot={failedSpot}
@@ -718,7 +775,7 @@ export function MovementPanel({
                     paused={paused}
                     running={open}
                     only={drawing?.type ?? null}
-                    drift={drawing === null}
+                    zoom={drawing === null ? zoomLook(zoom ?? zoomValues(undefined)) : null}
                     inside={drawing ? null : overlay}
                     onMissing={() => setMissing(src)}
                   />

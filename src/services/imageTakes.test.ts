@@ -616,6 +616,26 @@ describe('choosing', () => {
     expect(JSON.parse(read('web/images/manifest.json')).inn.effects).toEqual(effects)
   })
 
+  it('gives the game the slow zoom saved for the image, off included, whichever take is chosen', async () => {
+    const zoom = { on: true, seconds: 24, percent: 5 }
+    const { takes, file, read } = await made({
+      [EDITS]: { style: STYLE, images: { inn: { zoom } } },
+    })
+    await takes.choose(file, 'inn', 1)
+    expect(JSON.parse(read('web/images/manifest.json')).inn.zoom).toEqual({
+      seconds: 24,
+      percent: 5,
+    })
+    const off = await made({
+      [EDITS]: { style: STYLE, images: { inn: { zoom: { ...zoom, on: false } } } },
+    })
+    await off.takes.choose(off.file, 'inn', 2)
+    expect(JSON.parse(off.read('web/images/manifest.json')).inn.zoom).toBeNull()
+    const none = await made()
+    await none.takes.choose(none.file, 'inn', 1)
+    expect('zoom' in JSON.parse(none.read('web/images/manifest.json')).inn).toBe(false)
+  })
+
   describe('the boxes of each take', () => {
     const box = { x: 80, y: 50, width: 160, height: 100 }
     const other = { x: 0, y: 0, width: 32, height: 20 }

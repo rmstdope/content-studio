@@ -86,6 +86,29 @@ export const EFFECT_WORDS = {
   gone: "The project's renderer no longer has this effect, so the game won't show it. Its settings are kept until you remove it.",
 } as const
 
+/** The words of the Slow zoom group. */
+export const ZOOM_WORDS = {
+  heading: 'Slow zoom',
+  switch: 'Zoom in and out',
+  seconds: 'Each way',
+  percent: 'How far',
+  reset: 'Reset',
+  saved: 'Saved',
+  saving: 'Saving…',
+  saveFailed:
+    "Couldn't save the slow zoom: the image edits file can't be written. Your last change is still on the picture.",
+} as const
+
+/** The line under the group while the zoom is switched off, with the values kept for when it is back on. */
+export function zoomOffLine(seconds: string, percent: string): string {
+  return `Off: the picture stands still in the game. ${seconds} each way · ${percent} kept for when it's back on.`
+}
+
+/** The read-only line while the images record cannot be read: what is saved for the game ("24 s each way, 5%", or "no zoom" when switched off). */
+export function zoomSavedLockUnread(saved: string): string {
+  return `Saved for the game: ${saved}. It can be changed once the images record can be read.`
+}
+
 /** The words of an effect's spot: its line on the row, the drawing bars and what goes wrong. */
 export const SPOT_WORDS = {
   draw: 'Draw a spot',

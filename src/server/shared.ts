@@ -1,4 +1,4 @@
-import { EffectEditSchema } from '../core/images'
+import { EffectEditSchema, ZoomEditSchema } from '../core/images'
 import { z } from 'zod'
 import { type FineTuneAnswer } from '../services/imageFineTunes'
 import { type ImagePatchAnswer, type RemakeAnswer } from '../services/imagePatches'
@@ -71,6 +71,9 @@ export const AreaBoxBody = z.object({
 export const EffectsBody = z.object({
   effects: z.record(z.string(), EffectEditSchema),
 })
+
+/** An image's slow zoom as the page saves it; null takes it away. */
+export const ZoomBody = z.object({ zoom: ZoomEditSchema.nullable() })
 
 /** The answer to a change of the studio's image words: 404 for an unknown image, 409 with the reason. */
 export function imageAnswer(
