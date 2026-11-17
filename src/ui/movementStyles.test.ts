@@ -30,6 +30,15 @@ describe('the Movement tab’s layout', () => {
     expect(float).toMatch(/max-width:\s*calc\(100% - 32px\)/)
   })
 
+  it('centres Try again and Go to Make under their message, over the shared button’s flex-start', () => {
+    const centred = /([^{}]+)\{[^}]*align-self:\s*center/g
+    const selectors = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(centred)].flatMap((m) =>
+      (m[1] ?? '').split(',').map((s) => s.trim()),
+    )
+    for (const stage of ['.movement-empty', '.movement-over', '.movement-failure'])
+      expect(selectors).toContain(`${stage} .btn`)
+  })
+
   it('holds the zoom still while paused', () => {
     expect(css).toMatch(
       /\.movement-zoom\[data-paused='true'\]\s*\{[^}]*animation-play-state:\s*paused/,
