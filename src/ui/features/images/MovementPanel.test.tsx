@@ -1974,6 +1974,53 @@ describe('drawing a spot', () => {
     expect(puts.at(-1)!.effects.dust!.spot![0]![0]).toEqual([0.2, 0.7])
   })
 
+  it('places a corner, and closes a shape, under Pause or Full screen: a raised layer takes every press while placing (as-f11k)', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await click(button(host, '＋ Add a shape'))
+    expect(host.querySelector('.movement-buttons')).not.toBeNull()
+    // happy-dom does no hit testing, so the bug is pinned by the stylesheet: the buttons come later
+    // with no z-index, so a press where they sit reaches the overlay only through a raised layer
+    // that lets pointer events in over the whole picture.
+    expect(valuesInEveryWindow(host.querySelector('.movement-buttons')!, 'z-index')).toEqual([])
+    const layer = host.querySelector<SVGElement>('.spot-handles')
+    expect(layer).not.toBeNull()
+    expect(valuesInEveryWindow(layer!, 'z-index').at(-1)).toMatch(/: [1-9]\d*$/)
+    const catcher = layer!.querySelector<SVGElement>('.spot-catch')
+    expect(catcher).not.toBeNull()
+    expect(catcher!.getAttribute('width')).toBe('640')
+    expect(catcher!.getAttribute('height')).toBe('400')
+    expect(valuesInEveryWindow(catcher!, 'pointer-events').at(-1)).toMatch(/: auto$/)
+    /** A click on the raised layer, low on the picture where the buttons sit. */
+    const press = async (x: number, y: number) => {
+      const target = host.querySelector('.spot-catch')!
+      for (const type of ['pointerdown', 'pointerup'])
+        await act(async () => {
+          target.dispatchEvent(
+            new MouseEvent(type, {
+              clientX: x * 640,
+              clientY: y * 400,
+              bubbles: true,
+              cancelable: true,
+            }),
+          )
+        })
+    }
+    await press(0.03, 0.97)
+    await press(0.5, 0.6)
+    await press(0.97, 0.97)
+    await press(0.03, 0.97)
+    expect(puts.at(-1)!.effects.dust!.spot).toEqual([
+      POND,
+      [
+        [0.03, 0.97],
+        [0.5, 0.6],
+        [0.97, 0.97],
+      ],
+    ])
+  })
+
   it('adds a second shape and picks it when it closes', async () => {
     sizeOverlay()
     const { host, puts } = await render(withDust([POND]))
