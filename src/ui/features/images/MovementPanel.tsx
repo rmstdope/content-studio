@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ImageRow } from '../../../core/images'
-import { useImagePatches, useMotionRenderer } from '../../api'
-import { MOVEMENT_WORDS, takeCaption } from '../../motionText'
-import { MotionControls, type MovementPatch } from './MotionControls'
-import { MotionStage } from './MotionStage'
+import type { ImageRow, SavedEffects } from '../../../core/images'
+import {
+  effectValues,
+  startSettings,
+  type EffectSetting,
+  type EffectType,
+} from '../../../core/motion'
+import { useImagePatches, useMotionRenderer, useSetImageEffects } from '../../api'
+import { MOVEMENT_WORDS, SAVED_FOR_MS, SAVING_AFTER_MS, takeCaption } from '../../motionText'
+import { MotionControls, type MovementPatch, type SaveStatus } from './MotionControls'
+import { MotionStage, type StageEffect } from './MotionStage'
 import { useJobOpen } from './ImageJobTabs'
 import { typingIn } from './useWorkbenchKeys'
 
@@ -14,15 +20,31 @@ function asksForReducedMotion(): boolean {
 
 /**
  * An image's Movement tab: the chosen take drawn moving by the project's own motion renderer, with
- * the patches and the renderer's effects to switch on for looking, in the page and full screen.
- * Nothing is saved: every switch goes back off when the tab is left, and it always starts playing.
+ * the patches to switch on for looking and the renderer's effects to put in the game and tune,
+ * in the page and full screen. The effects are saved as you go (and go to the game); the patch
+ * switches go back off when the tab is left, and it always starts playing.
+ * `onEffectsOn` tells the page how many of the renderer's effects are in the game, once it is known.
  */
-export function MovementPanel({ row, onGoToMake }: { row: ImageRow; onGoToMake: () => void }) {
+export function MovementPanel({
+  row,
+  onGoToMake,
+  onEffectsOn,
+}: {
+  row: ImageRow
+  onGoToMake: () => void
+  onEffectsOn?: (count: number | null) => void
+}) {
   const open = useJobOpen()
   const { state: motion, retry } = useMotionRenderer(open)
   const patchView = useImagePatches(row.id).data
   const [patchesOn, setPatchesOn] = useState<ReadonlySet<string>>(new Set())
-  const [effectsOn, setEffectsOn] = useState<ReadonlySet<string>>(new Set())
+  // The image's effects as set here: they are what the picture plays and what is saved.
+  const [effects, setEffects] = useState<SavedEffects>(() => row.effects)
+  const latest = useRef(effects)
+  const [status, setStatus] = useState<SaveStatus>('idle')
+  const save = useSetImageEffects(row.id)
+  const saves = useRef(0)
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const [paused, setPaused] = useState(false)
   const [full, setFull] = useState(false)
   const [folded, setFolded] = useState(false)
@@ -35,7 +57,6 @@ export function MovementPanel({ row, onGoToMake }: { row: ImageRow; onGoToMake: 
   useEffect(() => {
     if (open) return
     setPatchesOn(new Set())
-    setEffectsOn(new Set())
     setPaused(false)
     setFolded(false)
     if (document.fullscreenElement && document.fullscreenElement === wrap.current) {
@@ -66,6 +87,65 @@ export function MovementPanel({ row, onGoToMake }: { row: ImageRow; onGoToMake: 
           }
         })
       : null
+
+  useEffect(() => () => timers.current.forEach(clearTimeout), [])
+
+  /** Saves the effects as they are now; the latest save's outcome is the one shown. */
+  const persist = useCallback(() => {
+    const mine = ++saves.current
+    timers.current.forEach(clearTimeout)
+    timers.current = [
+      setTimeout(() => {
+        if (saves.current === mine) setStatus('saving')
+      }, SAVING_AFTER_MS),
+    ]
+    const done = (ok: boolean) => {
+      if (saves.current !== mine) return
+      timers.current.forEach(clearTimeout)
+      setStatus(ok ? 'saved' : 'failed')
+      if (ok) timers.current = [setTimeout(() => setStatus('idle'), SAVED_FOR_MS)]
+    }
+    save.mutate(latest.current, {
+      onSuccess: (answer) => done(answer.ok),
+      onError: () => done(false),
+    })
+  }, [save])
+
+  /** Sets the effects here (the picture follows at once); saving is `persist`'s. */
+  const set = (next: SavedEffects) => {
+    latest.current = next
+    setEffects(next)
+  }
+  const onEffect = (type: EffectType, on: boolean) => {
+    const was = latest.current[type.type]
+    set({
+      ...latest.current,
+      [type.type]: { on, settings: was?.settings ?? startSettings(type) },
+    })
+    persist()
+  }
+  const onSetting = (type: EffectType, setting: EffectSetting, value: number) => {
+    const was = latest.current[type.type]
+    set({
+      ...latest.current,
+      [type.type]: {
+        on: was?.on ?? true,
+        settings: { ...effectValues(type, was?.settings), [setting.id]: value },
+      },
+    })
+  }
+  const onReset = (type: EffectType) => {
+    set({
+      ...latest.current,
+      [type.type]: { on: latest.current[type.type]?.on ?? true, settings: startSettings(type) },
+    })
+    persist()
+  }
+  const onRemove = (type: string) => {
+    const { [type]: _gone, ...rest } = latest.current
+    set(rest)
+    persist()
+  }
 
   const toggle = (set: ReadonlySet<string>, id: string, on: boolean) => {
     const next = new Set(set)
@@ -113,6 +193,17 @@ export function MovementPanel({ row, onGoToMake }: { row: ImageRow; onGoToMake: 
     return () => document.removeEventListener('keydown', listen)
   }, [open, running, openFull])
 
+  // What the picture plays: the renderer's effects that are in the game, at their settings.
+  const playing: StageEffect[] =
+    motion.status === 'ready'
+      ? motion.module.types
+          .filter((t) => effects[t.type]?.on)
+          .map((t) => ({ kind: t.type, settings: effectValues(t, effects[t.type]!.settings) }))
+      : []
+  const playingCount = motion.status === 'ready' ? playing.length : null
+  useEffect(() => {
+    onEffectsOn?.(playingCount)
+  }, [onEffectsOn, playingCount])
   if (motion.status === 'none') {
     return (
       <section className="panel movement" aria-label="Movement">
@@ -128,16 +219,20 @@ export function MovementPanel({ row, onGoToMake }: { row: ImageRow; onGoToMake: 
   const chosenPatches = (patches ?? []).filter(
     (p): p is MovementPatch & { src: string } => p.src !== null && patchesOn.has(p.id),
   )
-  const types = ready ? motion.module.types.filter((t) => effectsOn.has(t.type)) : []
   const controls = (
     <MotionControls
       patches={patches}
       patchesOn={patchesOn}
       onPatch={(id, on) => setPatchesOn((now) => toggle(now, id, on))}
       motion={motion}
-      effectsOn={effectsOn}
-      onEffect={(type, on) => setEffectsOn((now) => toggle(now, type, on))}
-      hasPicture={picture !== null}
+      effects={effects}
+      onEffect={onEffect}
+      onSetting={onSetting}
+      onCommit={persist}
+      onReset={onReset}
+      onRemove={onRemove}
+      status={status}
+      onRetry={persist}
     />
   )
   const failure =
@@ -197,7 +292,7 @@ export function MovementPanel({ row, onGoToMake }: { row: ImageRow; onGoToMake: 
                     patches: chosenPatches,
                   }}
                   module={ready ? motion.module : null}
-                  effects={types}
+                  effects={playing}
                   paused={paused}
                   running={open}
                   onMissing={() => setMissing(src)}

@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react'
-import { startSettings, type EffectType } from '../../../core/motion'
 import type { MotionModule, MotionScene } from '../../motionModule'
 
 /** What a picture is shown with: where it is, and the patches laid over it. */
@@ -8,6 +7,12 @@ export interface StageLayers {
   /** The picture's own size, which the renderer fits its effects to. */
   size: { width: number; height: number }
   patches: { id: string; title: string; src: string }[]
+}
+
+/** One effect the stage plays: the renderer's kind and the settings it is asked for. */
+export interface StageEffect {
+  kind: string
+  settings: Record<string, number>
 }
 
 /**
@@ -26,8 +31,8 @@ export function MotionStage({
   layers: StageLayers
   /** The loaded renderer; null leaves the picture still. */
   module: MotionModule | null
-  /** The effect types switched on. */
-  effects: EffectType[]
+  /** The effects in the game, with the settings they play at; the picture follows them live. */
+  effects: StageEffect[]
   paused: boolean
   /** Whether the stage is on show (its tab is open); a hidden stage runs no frames. */
   running: boolean
@@ -78,10 +83,7 @@ export function MotionStage({
     }
     fit.current()
     feed.current()
-    made.setEffects(
-      wanted.current.map((type) => ({ kind: type.type, settings: startSettings(type) })),
-      true,
-    )
+    made.setEffects(wanted.current, true)
     const watcher =
       typeof ResizeObserver === 'function' ? new ResizeObserver(() => fit.current()) : null
     watcher?.observe(element)
@@ -93,19 +95,21 @@ export function MotionStage({
     }
   }, [module, layers.size.width, layers.size.height])
 
-  // What is switched on changes while the scene runs: it fades layers in and out.
-  const key = effects.map((type) => type.type).join(',')
+  // What is switched on, or how it is tuned, changes while the scene runs: a change of the set
+  // fades layers in and out; a change of values only is applied at once.
+  const kinds = effects.map((effect) => effect.kind).join(',')
+  const values = JSON.stringify(effects)
   const first = useRef(true)
+  const lastKinds = useRef(kinds)
   useEffect(() => {
     if (first.current) {
       first.current = false
       return
     }
-    scene.current?.setEffects(
-      wanted.current.map((type) => ({ kind: type.type, settings: startSettings(type) })),
-      false,
-    )
-  }, [key])
+    const sameSet = lastKinds.current === kinds
+    lastKinds.current = kinds
+    scene.current?.setEffects(wanted.current, sameSet)
+  }, [values, kinds])
 
   // The frame loop runs only while the stage is on show and not paused.
   const going = running && !paused

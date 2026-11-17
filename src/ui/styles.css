@@ -6330,6 +6330,46 @@ textarea[aria-disabled='true'][data-why] {
   color: var(--muted);
   overflow-wrap: anywhere;
 }
+.movement-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.movement-save {
+  font-size: 12px;
+}
+.movement-effect-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.movement-slider {
+  display: grid;
+  grid-template-columns: minmax(0, 5em) minmax(0, 1fr) 3.2em;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.movement-slider input {
+  width: 100%;
+  min-width: 0;
+}
+.movement-slider output {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.movement-range-note,
+.movement-effect-gone p {
+  font-size: 12px;
+  color: var(--warn);
+}
+.movement-save-failed {
+  color: var(--danger-ink);
+}
 .movement-float {
   position: absolute;
   top: 16px;
