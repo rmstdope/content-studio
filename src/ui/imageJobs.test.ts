@@ -35,12 +35,12 @@ const quiet = {
 }
 
 describe('imageJobTabs', () => {
-  it('lists only Make and Fine-tune when the game asks for no patches or areas', () => {
+  it('lists Make, Fine-tune and Movement when the game asks for no patches or areas', () => {
     const tabs = imageJobTabs({ row: row({}), ...quiet })
-    expect(tabs.map((t) => t.title)).toEqual(['Make', 'Fine-tune'])
+    expect(tabs.map((t) => t.title)).toEqual(['Make', 'Fine-tune', 'Movement'])
   })
 
-  it('lists all four in order when the game asks for patches and areas', () => {
+  it('lists every tab in order, Movement last when the game asks for patches and areas', () => {
     const tabs = imageJobTabs({
       row: row({
         patches: [{ id: 'p', chosenOn: [] }],
@@ -48,7 +48,13 @@ describe('imageJobTabs', () => {
       }),
       ...quiet,
     })
-    expect(tabs.map((t) => t.title)).toEqual(['Make', 'Fine-tune', 'Patches', 'Named areas'])
+    expect(tabs.map((t) => t.title)).toEqual([
+      'Make',
+      'Fine-tune',
+      'Patches',
+      'Named areas',
+      'Movement',
+    ])
   })
 
   it('says which take is chosen, or that none is', () => {
@@ -129,7 +135,18 @@ describe('imageJobTabs', () => {
       makingPatches: true,
       lockUnread: false,
     })
-    expect(tabs.map((t) => t.making)).toEqual([true, true, true])
+    expect(tabs.map((t) => t.making)).toEqual([true, true, true, false])
+  })
+})
+
+describe('the Movement tab', () => {
+  it('is there with no chip and nothing making, whether or not anything else is asked for', () => {
+    for (const lockUnread of [false, true]) {
+      const tab = imageJobTabs({ row: row({}), ...quiet, lockUnread }).find(
+        (t) => t.job === 'movement',
+      )
+      expect(tab).toEqual({ job: 'movement', title: 'Movement', chip: null, making: false })
+    }
   })
 })
 
@@ -138,7 +155,8 @@ describe('jobAtKey', () => {
   it('follows the tabs shown', () => {
     expect(jobAtKey(tabs, '1')).toBe('make')
     expect(jobAtKey(tabs, '3')).toBe('areas')
-    expect(jobAtKey(tabs, '4')).toBeNull()
+    expect(jobAtKey(tabs, '4')).toBe('movement')
+    expect(jobAtKey(tabs, '5')).toBeNull()
     expect(jobAtKey(tabs, 'a')).toBeNull()
   })
 })

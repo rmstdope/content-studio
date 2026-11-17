@@ -509,6 +509,17 @@ describe('the images section', () => {
     ])
   })
 
+  it("names the game's motion renderer, or none", () => {
+    expect(parse(images({ motion: 'web/src/motion.ts' })).data!.images!.motion).toBe(
+      'web/src/motion.ts',
+    )
+    expect(parse(images()).data!.images!.motion).toBeUndefined()
+    expect(problems(images({ motion: 'a/{part}/m.ts' })).map((p) => p.path)).toEqual([
+      'images.motion',
+    ])
+    expect(problems(images({ motion: '' })).map((p) => p.path)).toEqual(['images.motion'])
+  })
+
   it('refuses {language} in any images path', () => {
     const found = problems(images({ clips: '{language}/generated' }))
     expect(found.map((p) => p.path)).toEqual(['images.clips'])

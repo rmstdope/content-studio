@@ -1180,7 +1180,12 @@ describe('the patches the game asks for', () => {
       { view: 'images', page: 'image', image: 'inn', from: 'act1' },
       summary({ patches: [lamp, door] }),
     )
-    expect(heading(page)).toEqual(['Prompt', 'Fine-tune the picture', 'Patches the game asks for'])
+    expect(heading(page)).toEqual([
+      'Prompt',
+      'Fine-tune the picture',
+      'Patches the game asks for',
+      'Movement',
+    ])
     expect(page.querySelectorAll('.patch-pick').length).toBe(2)
   })
 
@@ -1355,6 +1360,7 @@ describe('the named areas the game declares', () => {
       'Fine-tune the picture',
       'Patches the game asks for',
       'Named areas',
+      'Movement',
     ])
     expect(text(page.querySelector('.named-areas-head'))).toBe('Named areas · 0 of 2 placed')
     expect([...page.querySelectorAll('.named-area')].map((r) => text(r))).toEqual([
@@ -1443,15 +1449,17 @@ describe('the jobs of an image’s page', () => {
 
   it('shows the tabs under the title and only the open job, which is Make', () => {
     const page = render(image, summary({ areas: [fountain], patches: [lamp] }))
-    expect(names(page)).toEqual(['Make', 'Fine-tune', 'Patches', 'Named areas'])
+    expect(names(page)).toEqual(['Make', 'Fine-tune', 'Patches', 'Named areas', 'Movement'])
     expect(tabsOf(page).map((t) => text(t.querySelector('.job-tab-key')))).toEqual([
       '1',
       '2',
       '3',
       '4',
+      '5',
     ])
     expect(tabsOf(page).map((t) => t.getAttribute('aria-selected'))).toEqual([
       'true',
+      'false',
       'false',
       'false',
       'false',
@@ -1469,14 +1477,16 @@ describe('the jobs of an image’s page', () => {
 
   it('has no tab for a job the game does not ask for, and the keys follow the tabs shown', () => {
     const page = render(image, summary({ areas: [fountain] }))
-    expect(names(page)).toEqual(['Make', 'Fine-tune', 'Named areas'])
+    expect(names(page)).toEqual(['Make', 'Fine-tune', 'Named areas', 'Movement'])
     press('3')
     expect(shown(page)).toEqual(['Named areas'])
     press('4')
-    expect(shown(page)).toEqual(['Named areas'])
+    expect(shown(page)).toEqual(['Movement'])
+    press('5')
+    expect(shown(page)).toEqual(['Movement'])
   })
 
-  it('switches with 1 to 4, but not while typing, in a menu, or with Command, Control or Option', () => {
+  it('switches with 1 to 5, but not while typing, in a menu, or with Command, Control or Option', () => {
     const page = render(image, summary({ areas: [fountain], patches: [lamp] }))
     press('2')
     expect(shown(page)).toEqual(['Fine-tune the picture'])

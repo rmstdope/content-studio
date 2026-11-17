@@ -17,6 +17,8 @@ import type {
 import type { ModelsChange } from '../../services/models'
 import type { ProjectFailure } from '../../services/workspace'
 
+import type { MotionRendererAnswer } from '../../core/motion'
+import { loadMotionModule, type MotionModule } from '../motionModule'
 import { useBatch, useMakeAllRequest, useStopAllRequest, type MakeAllMedium } from './batchHooks'
 import { getJson } from './core'
 import { useTakeAction, type TakeMedium } from './takeHooks'
@@ -626,4 +628,41 @@ export function useMarkImageTakeSeen(imageId: string) {
     (n) => ({ path: `/takes/${n}/seen`, method: 'POST' }),
     false,
   )
+}
+
+/** What the project's motion renderer is on this page: not named, loading, loaded or failed. */
+export type MotionState =
+  | { status: 'loading' }
+  | { status: 'none' }
+  | { status: 'failed'; file: string | null; message: string }
+  | { status: 'ready'; module: MotionModule }
+
+/**
+ * Loads the project's motion renderer, asked afresh whenever `enabled` turns true and by `retry`,
+ * so an edit of the game's renderer shows on the next look. Nothing is kept once the page is left.
+ */
+export function useMotionRenderer(enabled: boolean): { state: MotionState; retry: () => void } {
+  const query = useQuery({
+    queryKey: ['motion-renderer'],
+    enabled,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+    queryFn: async (): Promise<MotionState> => {
+      const answer = await getJson<MotionRendererAnswer>('/api/images/motion')
+      if (!answer.named) return { status: 'none' }
+      if (!answer.ok) return { status: 'failed', file: answer.file, message: answer.message }
+      const loaded = await loadMotionModule(answer.code)
+      return 'error' in loaded
+        ? { status: 'failed', file: null, message: loaded.error }
+        : { status: 'ready', module: loaded }
+    },
+  })
+  const state: MotionState = query.isFetching
+    ? { status: 'loading' }
+    : query.isError
+      ? { status: 'failed', file: null, message: query.error.message }
+      : (query.data ?? { status: 'loading' })
+  return { state, retry: () => void query.refetch() }
 }

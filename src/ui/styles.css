@@ -6135,3 +6135,225 @@ textarea[aria-disabled='true'][data-why] {
 /* ===== Scenes ===== */
 
 /* ===== Setup ===== */
+
+/* The Movement tab: the picture drawn by the project's motion renderer, and its switches */
+.movement {
+  container-type: inline-size;
+  container-name: panel;
+}
+.movement-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 10px;
+}
+.movement-head h2,
+.movement-group h3 {
+  margin: 0;
+}
+.movement-group h3 {
+  font-size: 13px;
+  color: var(--text-soft);
+}
+.movement-reduced {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--attention-ink);
+  background: var(--attention-bg);
+  box-shadow: inset 0 0 0 1px var(--attention-line);
+}
+.movement-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  align-items: start;
+}
+@container panel (max-width: 800px) {
+  .movement-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.movement-picture {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.movement-wrap {
+  position: relative;
+  width: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--inset);
+}
+.movement-wrap:fullscreen,
+.movement-wrap-full {
+  aspect-ratio: auto;
+  border-radius: 0;
+  background: #000;
+}
+.movement-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.movement-wrap:fullscreen .movement-pic {
+  object-fit: cover;
+}
+.movement-dim {
+  opacity: 0.35;
+}
+.movement-zoom {
+  position: absolute;
+  inset: 0;
+  animation: movement-drift 26s ease-in-out infinite alternate;
+}
+.movement-zoom[data-paused='true'] {
+  animation-play-state: paused;
+}
+@keyframes movement-drift {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.03) translate(-0.5%, -0.3%);
+  }
+}
+.movement-pic,
+.movement-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.movement-pic {
+  object-fit: fill;
+}
+.movement-empty,
+.movement-over {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  text-align: center;
+  overflow: auto;
+}
+.movement-empty {
+  position: relative;
+  min-height: 200px;
+}
+.movement-failure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.movement-failure code {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--text-soft);
+}
+.movement-over code {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--text-soft);
+}
+.movement-pause,
+.movement-full {
+  position: absolute;
+  bottom: 10px;
+  background: rgb(16 18 26 / 80%);
+}
+.movement-pause {
+  left: 10px;
+}
+.movement-full {
+  right: 10px;
+}
+.movement-caption {
+  margin: 0;
+  font-size: 13px;
+}
+.movement-side {
+  min-width: 0;
+}
+.movement-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.movement-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.movement-group p {
+  margin: 0;
+  font-size: 13px;
+}
+.movement-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.movement-effect {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+}
+.movement-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.movement-switch-off {
+  color: var(--faint);
+}
+.movement-settings {
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.movement-float {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 300px;
+  max-width: calc(100% - 32px);
+  max-height: calc(100% - 32px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgb(16 18 26 / 92%);
+  border: 1px solid var(--line-strong);
+  font-size: 13px;
+}
+.movement-float-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.movement-float-head strong {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

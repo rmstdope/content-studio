@@ -728,3 +728,54 @@ describe('the image model routes', () => {
     expect(view.images.model).toBe('z-image-turbo')
   })
 })
+
+describe('the motion renderer route', () => {
+  const motionRoot = tempRepo({
+    'content-studio.json': projectJson({
+      images: {
+        from: { part: 'tts/{part}/images.json' },
+        clips: 'img',
+        manifest: 'img/manifest.json',
+        motion: 'web/motion.ts',
+      },
+    }),
+    'web/motion.ts':
+      'export const EFFECT_TYPES = []\nexport const createMotionScene = () => ({})\n',
+  })
+  const studio = startServer({
+    projectFile: join(motionRoot, 'content-studio.json'),
+    port: 0,
+    fish,
+    encode,
+    transcriber: null,
+  })
+  afterAll(() => studio.stop(true))
+
+  it('says the project names none when it does not', async () => {
+    const plain = tempRepo({ 'content-studio.json': projectJson() })
+    const bare = startServer({
+      projectFile: join(plain, 'content-studio.json'),
+      port: 0,
+      fish,
+      encode,
+      transcriber: null,
+    })
+    const answer = await (await fetch(new URL('/api/images/motion', bare.url))).json()
+    bare.stop(true)
+    expect(answer).toEqual({ named: false })
+  })
+
+  it('answers with the bundled renderer', async () => {
+    const answer = await (await fetch(new URL('/api/images/motion', studio.url))).json()
+    expect(answer.named).toBe(true)
+    expect(answer.ok).toBe(true)
+    expect(answer.code).toContain('createMotionScene')
+  })
+
+  it('answers with the renderer’s error, afresh each time', async () => {
+    writeFileSync(join(motionRoot, 'web/motion.ts'), 'export const a = (\n')
+    const answer = await (await fetch(new URL('/api/images/motion', studio.url))).json()
+    expect(answer).toMatchObject({ named: true, ok: false, file: 'web/motion.ts' })
+    expect(answer.message).toContain('web/motion.ts: ')
+  })
+})

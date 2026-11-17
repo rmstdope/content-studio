@@ -103,6 +103,9 @@ bundle breaks.
   and `effects.model`, saved from the Sound effects row of the same panel. Each save
   writes the whole file again in its own indentation and line endings (a hand-compacted object is
   written out).
+- The studio also reads the motion renderer the project names (`images.motion`) and what it
+  imports, all inside the project root, and bundles it in memory for the browser; it writes nothing
+  of it (§8.7, the Movement job).
 - The images manifest is the studio's to write beyond the chosen takes in one way: an image's entry
   gains `areas`, the boxes placed for the game's named areas as fractions of the picture (each with
   its point as `mark` when it has one), written in the
