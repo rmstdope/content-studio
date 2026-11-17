@@ -48,6 +48,7 @@ import {
 } from '../../motionText'
 import type { MotionState } from '../../api/images'
 import { off } from '../../off'
+import { handFocusOn } from './handFocusOn'
 
 /** A patch of the image as the controls list it: its title and where its chosen take's picture is, if it has one. */
 export interface MovementPatch {
@@ -294,6 +295,8 @@ function EffectRow({
 }) {
   const values = effectValues(type, saved?.settings)
   const menu = useRef<HTMLSelectElement>(null)
+  // Reset leaves with the press, so focus goes to this row's switch rather than the page body.
+  const switchRef = useRef<HTMLInputElement>(null)
   const menuId = useId()
   const tie = tieState(saved ?? {}, props.ties, props.patchesOn)
   const without = tie.kind !== 'always' && tie.without === true
@@ -323,13 +326,21 @@ function EffectRow({
           label={type.title}
           checked={on}
           why={why}
+          inputRef={switchRef}
           onChange={(next) => props.onEffect(type, next)}
         />
         {tie.kind !== 'always' && (
           <span className="movement-tag">{tieTag(tie.title, without)}</span>
         )}
         {on && effectDiffers(type, saved?.settings) && (
-          <button type="button" className="btn movement-reset" onClick={() => props.onReset(type)}>
+          <button
+            type="button"
+            className="btn movement-reset"
+            onClick={() => {
+              props.onReset(type)
+              handFocusOn(() => switchRef.current)
+            }}
+          >
             {EFFECT_WORDS.reset}
           </button>
         )}
@@ -542,7 +553,7 @@ function ZoomGroup(props: MotionControlsProps) {
             className="link-button movement-reset movement-zoom-reset"
             onClick={() => {
               props.onZoomReset()
-              switchRef.current?.focus()
+              handFocusOn(() => switchRef.current)
             }}
           >
             {ZOOM_WORDS.reset}

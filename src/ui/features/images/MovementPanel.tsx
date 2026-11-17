@@ -42,16 +42,13 @@ import { MotionStage, type StageEffect } from './MotionStage'
 import { movementRoom } from './movementRoom'
 import { SpotOverlay } from './SpotOverlay'
 import { off } from '../../off'
+import { handFocusOn } from './handFocusOn'
 import { useJobOpen } from './ImageJobTabs'
 import { typingIn } from './useWorkbenchKeys'
 
-/** Puts focus on an effect's spot link once its row has been drawn again. */
-function focusSpotLink(type: string) {
-  setTimeout(
-    () => document.querySelector<HTMLElement>(`.movement-side [data-spot-link="${type}"]`)?.focus(),
-    0,
-  )
-}
+/** An effect's spot link, once its row has been drawn. */
+const spotLink = (type: string) =>
+  document.querySelector<HTMLElement>(`.movement-side [data-spot-link="${type}"]`)
 
 /** Whether this computer asks for reduced motion. */
 function asksForReducedMotion(): boolean {
@@ -403,7 +400,7 @@ export function MovementPanel({
       [type.type]: { ...now, spot: back.spot, ...(back.mark && { mark: back.mark }) },
     })
     persist(true)
-    focusSpotLink(type.type)
+    handFocusOn(() => spotLink(type.type))
   }
   /** An effect is tied to a patch, or to none (null): saved, and the patch laid (or taken off, for "not laid") so the effect stays in sight. */
   const onTie = (type: EffectType, choice: { patchId: string; without: boolean } | null) => {
@@ -451,7 +448,7 @@ export function MovementPanel({
     if (now.placing && now.placing.length > 0) setLeftOut(now.type)
     drawingRef.current = null
     setDrawing(null)
-    if (refocus) focusSpotLink(now.type)
+    if (refocus) handFocusOn(() => spotLink(now.type))
   }, [])
   /** Sets an effect's spot (none: the game's) in the effects; saving is the caller's. A change makes the shape the person's own. */
   const setSpot = (type: string, spot: SpotShape[] | undefined) => {
