@@ -1386,6 +1386,20 @@ describe('the spot line of an effect', () => {
     expect(spotLineOf(host, 'Dust')).toBe('Spot: the whole pictureDraw a spot')
   })
 
+  it('Clear leaves keyboard focus on that row’s Draw a spot', async () => {
+    const { host } = await render({
+      effects: { dust: { ...saved({ amount: 1 }), spot: [POND] } },
+    })
+    const clear = linkIn(rowOf(host, 'Dust'), 'Clear')!
+    await act(async () => clear.focus())
+    await click(clear)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5))
+    })
+    expect(document.activeElement?.textContent).toBe('Draw a spot')
+    expect(rowOf(host, 'Dust').contains(document.activeElement)).toBe(true)
+  })
+
   it('says “2 shapes” for two', async () => {
     const { host } = await render({
       effects: { dust: { ...saved({ amount: 1 }), spot: [POND, SQUARE] } },
