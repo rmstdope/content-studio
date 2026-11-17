@@ -1,0 +1,204 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Focus after an effect's Reset — on the switch</title>
+    <style>
+      :root {
+        --bg: #06070c;
+        --panel: #10121a;
+        --edge: rgb(255 255 255/8%);
+        --text: #eceef3;
+        --muted: #a9b0bd;
+        --faint: #8a91a0;
+        --accent: #ff6b2c;
+        --line: rgb(255 255 255/7%);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.45 -apple-system,
+          system-ui,
+          sans-serif;
+        padding: 24px 16px;
+      }
+      h1 {
+        font-size: 17px;
+        margin: 0 0 4px;
+      }
+      p.lead {
+        color: var(--muted);
+        margin: 0 0 20px;
+        max-width: 720px;
+      }
+      .steps {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .step {
+        flex: 1 1 320px;
+        max-width: 380px;
+      }
+      .step h2 {
+        font-size: 13px;
+        color: var(--faint);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin: 0 0 8px;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--edge);
+        border-radius: 10px;
+        padding: 14px;
+      }
+      .grp {
+        font-weight: 600;
+        margin: 0 0 10px;
+      }
+      ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      li {
+        border-top: 1px solid var(--line);
+        padding: 10px 0;
+      }
+      .head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .sw {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        padding: 2px 4px;
+        border-radius: 5px;
+      }
+      .sw input {
+        accent-color: var(--accent);
+      }
+      .btn {
+        margin-left: auto;
+        background: #1a1d26;
+        border: 1px solid var(--edge);
+        color: var(--text);
+        border-radius: 6px;
+        padding: 2px 10px;
+        font-size: 13px;
+      }
+      .sl {
+        display: grid;
+        grid-template-columns: 70px 1fr 36px;
+        gap: 8px;
+        align-items: center;
+        margin-top: 8px;
+        padding: 2px 4px;
+        border-radius: 5px;
+        color: var(--muted);
+      }
+      .sl input {
+        width: 100%;
+        accent-color: var(--accent);
+      }
+      .sl output {
+        color: var(--text);
+        text-align: right;
+      }
+      .focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .muted {
+        color: var(--faint);
+      }
+      .note {
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .note b {
+        color: var(--text);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Focus after an effect's Reset — on the switch</h1>
+    <p class="lead">
+      An image's Movement tab, Effects group. The orange ring is where keyboard focus is.
+    </p>
+    <div class="steps">
+      <div class="step">
+        <h2>1 · Before: focus on Reset</h2>
+        <div class="panel">
+          <div class="grp">Effects</div>
+          <ul>
+            <li>
+              <div class="head">
+                <label class="sw"><input type="checkbox" checked /> Dust</label
+                ><button class="btn focus">Reset</button>
+              </div>
+              <div class="sl">
+                Amount<input type="range" min="0" max="3" step=".05" value="2.1" /><output
+                  >2.1</output
+                >
+              </div>
+              <div class="sl">
+                Speed<input type="range" min="0" max="3" step=".05" value="0.6" /><output
+                  >0.6</output
+                >
+              </div>
+            </li>
+            <li>
+              <div class="head">
+                <label class="sw"><input type="checkbox" /> Embers</label>
+              </div>
+              <div class="muted" style="margin-top: 4px; font-size: 13px">Amount 1 · Speed 1</div>
+            </li>
+          </ul>
+        </div>
+        <p class="note">The person presses <b>Enter</b> or <b>Space</b> on Reset.</p>
+      </div>
+      <div class="step">
+        <h2>2 · After: Reset is gone</h2>
+        <div class="panel">
+          <div class="grp">Effects</div>
+          <ul>
+            <li>
+              <div class="head">
+                <label class="sw focus"><input type="checkbox" checked /> Dust</label>
+              </div>
+              <div class="sl">
+                Amount<input type="range" min="0" max="3" step=".05" value="1" /><output>1</output>
+              </div>
+              <div class="sl">
+                Speed<input type="range" min="0" max="3" step=".05" value="1" /><output>1</output>
+              </div>
+            </li>
+            <li>
+              <div class="head">
+                <label class="sw"><input type="checkbox" /> Embers</label>
+              </div>
+              <div class="muted" style="margin-top: 4px; font-size: 13px">Amount 1 · Speed 1</div>
+            </li>
+          </ul>
+        </div>
+        <p class="note">
+          Focus is on the effect's own switch (<b>Dust</b>) — the same as the slow zoom's Reset,
+          which puts focus on <b>Zoom in and out</b>.<br /><b>Next Tab:</b> the first slider,
+          Amount.<br /><b>Today:</b> focus falls to the page and the next Tab starts again from the
+          top.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
