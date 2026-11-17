@@ -6379,9 +6379,19 @@ textarea[aria-disabled='true'][data-why] {
 }
 .movement-effect-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+/* The effect's name never shrinks for a long patch tag beside it: the tag wraps below instead. */
+.movement-effect-head .movement-switch {
+  flex-shrink: 0;
+  max-width: 100%;
+}
+/* Reset stays at the row's right edge, even alone on a wrapped line. */
+.movement-reset {
+  margin-left: auto;
 }
 .movement-slider {
   display: grid;

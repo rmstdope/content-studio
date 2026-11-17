@@ -30,6 +30,10 @@ describe('the Movement tab’s layout', () => {
     expect(rule('.movement-wrap-full')).toMatch(/width:\s*100%/)
   })
 
+  it('keeps an effect’s Reset at the row’s right edge when a long patch tag wraps the row', () => {
+    expect(rule('.movement-reset')).toMatch(/margin-left:\s*auto/)
+  })
+
   it('lets long names and settings wrap', () => {
     expect(rule('.movement-switch')).toMatch(/overflow-wrap:\s*anywhere/)
     expect(rule('.movement-settings')).toMatch(/overflow-wrap:\s*anywhere/)
