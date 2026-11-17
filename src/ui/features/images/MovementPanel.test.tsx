@@ -1577,6 +1577,28 @@ describe('drawing a spot', () => {
     expect(host.querySelector('.movement-zoom')!.getAttribute('data-still')).toBe('true')
   })
 
+  it('hands the renderer the spot again when a shape is added while it plays', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await click(button(host, '＋ Add a shape'))
+    await tap(host, 0.6, 0.1)
+    await tap(host, 0.9, 0.1)
+    await tap(host, 0.9, 0.4)
+    await tap(host, 0.6, 0.1)
+    const dustSpot = calls()
+      .setEffects.at(-1)!
+      .find((e) => e.kind === 'dust')!.spot
+    expect(dustSpot).toEqual([
+      POND,
+      [
+        [0.6, 0.1],
+        [0.9, 0.1],
+        [0.9, 0.4],
+      ],
+    ])
+  })
+
   it('picks a shape by a click in it and un-picks by a click outside every shape', async () => {
     sizeOverlay()
     const { host } = await render(withDust([POND]))

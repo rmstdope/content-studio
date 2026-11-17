@@ -14,3 +14,65 @@ describe('the sample motion renderer', () => {
     expect(scene.isEmpty()).toBe(false)
   })
 })
+
+/** A drawing context that only notes the calls that shape and clip what is drawn. */
+function notingContext() {
+  const calls: string[] = []
+  const note =
+    (name: string) =>
+    (...args: number[]) =>
+      calls.push(args.length ? `${name} ${args.map((n) => Math.round(n)).join(' ')}` : name)
+  const ctx = {
+    clearRect: () => {},
+    beginPath: note('beginPath'),
+    moveTo: note('moveTo'),
+    lineTo: note('lineTo'),
+    closePath: note('closePath'),
+    clip: note('clip'),
+    save: note('save'),
+    restore: note('restore'),
+    arc: () => {},
+    fill: () => {},
+    fillStyle: '',
+  }
+  return { calls, ctx: ctx as unknown as CanvasRenderingContext2D }
+}
+
+describe('the sample motion renderer with a spot', () => {
+  it('draws an effect with a spot only inside its shapes, at the canvas size', () => {
+    const scene = createMotionScene()
+    scene.resize(200, 100)
+    scene.setEffects([
+      {
+        kind: 'dust',
+        spot: [
+          [
+            [0.1, 0.5],
+            [0.4, 0.5],
+            [0.25, 0.9],
+          ],
+        ],
+      },
+    ])
+    const { calls, ctx } = notingContext()
+    scene.draw(ctx)
+    expect(calls.slice(0, 7)).toEqual([
+      'save',
+      'beginPath',
+      'moveTo 20 50',
+      'lineTo 80 50',
+      'lineTo 50 90',
+      'closePath',
+      'clip',
+    ])
+    expect(calls).toContain('restore')
+  })
+
+  it('draws an effect with no spot unclipped', () => {
+    const scene = createMotionScene()
+    scene.setEffects([{ kind: 'dust' }])
+    const { calls, ctx } = notingContext()
+    scene.draw(ctx)
+    expect(calls).not.toContain('clip')
+  })
+})

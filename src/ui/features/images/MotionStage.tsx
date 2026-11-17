@@ -122,11 +122,7 @@ function EffectCanvas({
   const canvas = useRef<HTMLCanvasElement>(null)
   const scene = useRef<MotionScene | null>(null)
   const wanted = useRef(effects)
-  wanted.current = effects.map(({ kind, settings, spot }) => ({
-    kind,
-    settings,
-    ...(spot && { spot }),
-  }))
+  wanted.current = effects
 
   /** Gives the canvas one pixel per screen pixel (twice at most) and tells the scene its size in screen pixels. */
   const fit = useRef(() => {})
