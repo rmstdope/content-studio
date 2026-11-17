@@ -215,6 +215,28 @@ describe('the images routes', () => {
     expect(
       (await send('PUT', path, { effects: { dust: { on: 'yes', settings: {} } } })).status,
     ).toBe(400)
+    const spot = [
+      [
+        [0.1, 0.1],
+        [0.5, 0.1],
+        [0.3, 0.6],
+      ],
+    ]
+    const spotted = { dust: { ...dust, spot } }
+    expect(await (await send('PUT', path, { effects: spotted })).json()).toEqual({ ok: true })
+    expect((await summary()).acts[0].rows[0].effects).toEqual(spotted)
+    const flat = {
+      dust: {
+        ...dust,
+        spot: [
+          [
+            [0, 0],
+            [1, 1],
+          ],
+        ],
+      },
+    }
+    expect((await send('PUT', path, { effects: flat })).status).toBe(400)
     expect((await send('PUT', path, {})).status).toBe(400)
     expect((await send('PUT', '/api/images/ghost/effects', { effects: {} })).status).toBe(404)
   })
