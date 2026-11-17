@@ -71,6 +71,10 @@ interface Options {
   title?: string
   /** The effects the image has saved. */
   effects?: ImageRow['effects']
+  /** The slow zoom the image has saved. */
+  zoom?: ImageRow['zoom']
+  /** What saving the zoom answers (default: ok). */
+  zoomSaved?: () => Response | Promise<Response>
   /** What saving the effects answers (default: ok); a function can wait or fail. */
   saved?: () => Response | Promise<Response>
   onEffectsOn?: (count: number | null) => void
@@ -91,6 +95,7 @@ async function render(options: Options = {}) {
   }
   const asked: string[] = []
   const puts: { effects: ImageRow['effects'] }[] = []
+  const zoomPuts: { zoom: ImageRow['zoom'] | null }[] = []
   // The canvas is 640 x 400 on screen; happy-dom has no layout.
   Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
     get: () => 640,
@@ -106,6 +111,10 @@ async function render(options: Options = {}) {
     if (url === '/api/images/inn/effects') {
       puts.push(JSON.parse(String(init?.body)))
       return options.saved ? options.saved() : Response.json({ ok: true })
+    }
+    if (url === '/api/images/inn/zoom') {
+      zoomPuts.push(JSON.parse(String(init?.body)))
+      return options.zoomSaved ? options.zoomSaved() : Response.json({ ok: true })
     }
     if (url === '/api/images/motion') {
       return Response.json(typeof answer === 'function' ? await answer() : answer)
@@ -136,6 +145,7 @@ async function render(options: Options = {}) {
       gameFile: options.gameFile ?? null,
       patches: (options.patches ?? []).map((p) => ({ id: p.id, title: p.title })),
       effects: options.effects ?? {},
+      zoom: options.zoom,
     } as ImageRow
     await act(async () => {
       root.render(
@@ -167,7 +177,7 @@ async function render(options: Options = {}) {
     await draw()
     await settle()
   }
-  return { host, asked, puts, goneToMake, setOpen }
+  return { host, asked, puts, zoomPuts, goneToMake, setOpen }
 }
 
 /** Lets pending requests, state updates and animation frames run. */
@@ -1047,7 +1057,7 @@ describe('the effects in full screen', () => {
         },
         onEffectsOn: (c) => counts.push(c),
       })
-      expect(host.querySelector('.movement-side h3')!.textContent).toBe('Effects')
+      expect(host.querySelector('.movement-side [aria-label="Effects"] h3')!.textContent).toBe('Effects')
       expect(text(host)).toContain(
         'Saved for the game: Fireflies, Pond ripples, Dust. They can be changed once the images lock can be read.',
       )
@@ -1059,7 +1069,7 @@ describe('the effects in full screen', () => {
 
     it('says so when no effects are saved, keeping the Effects heading', async () => {
       const { host } = await render({ lockUnread: true })
-      expect(host.querySelector('.movement-side h3')!.textContent).toBe('Effects')
+      expect(host.querySelector('.movement-side [aria-label="Effects"] h3')!.textContent).toBe('Effects')
       expect(text(host)).toContain(
         'None are saved for the game. Effects can be put in once the images lock can be read.',
       )
@@ -2310,5 +2320,222 @@ describe('the light mark of a spot', () => {
       (l) => l.textContent,
     )
     expect(lines).toEqual(['Spot: 1 shape, light from a marked point'])
+  })
+})
+
+describe('the slow zoom of an image', () => {
+  const group = (host: HTMLElement) =>
+    host.querySelector<HTMLElement>('.movement-side [aria-label="Slow zoom"]')!
+  const style = (host: HTMLElement) => host.querySelector<HTMLElement>('.movement-zoom')!.style
+  const own = { on: true, seconds: 24, percent: 5 }
+
+  it('is the first group of the side column, above Patches and Effects, on the game’s own values with no chip or Reset', async () => {
+    const { host, zoomPuts } = await render({ patches: [{ id: 'fire', title: 'Fire', take: 2 }] })
+    const groups = [...host.querySelectorAll('.movement-side .movement-group')].map((g) =>
+      g.getAttribute('aria-label'),
+    )
+    expect(groups).toEqual(['Slow zoom', 'Patches', 'Effects'])
+    expect(group(host).querySelector('h3')!.textContent).toBe('Slow zoom')
+    expect(switchFor(host, 'Zoom in and out')!.checked).toBe(true)
+    expect(valueOf(host, 'Each way')).toBe('16 s')
+    expect(valueOf(host, 'How far')).toBe('3%')
+    expect(group(host).querySelector('.movement-save')).toBeNull()
+    expect(button(group(host), 'Reset')).toBeUndefined()
+    expect(zoomPuts).toEqual([])
+    expect(style(host).getPropertyValue('--zoom-seconds')).toBe('16s')
+    expect(style(host).getPropertyValue('--zoom-scale')).toBe('1.03')
+  })
+
+  it('sets the sliders’ ranges and steps, and counts nothing in the tab’s effects', async () => {
+    const counts: (number | null)[] = []
+    const { host } = await render({ onEffectsOn: (n) => counts.push(n) })
+    const seconds = sliderFor(host, 'Each way')!
+    expect([seconds.min, seconds.max, seconds.step]).toEqual(['4', '60', '1'])
+    const far = sliderFor(host, 'How far')!
+    expect([far.min, far.max, far.step]).toEqual(['0.5', '10', '0.5'])
+    expect(counts.at(-1)).toBe(0)
+  })
+
+  it('follows a slider live and saves once on letting go', async () => {
+    const { host, zoomPuts } = await render({ zoom: own })
+    const far = sliderFor(host, 'How far')!
+    await move(far, 7, true)
+    expect(valueOf(host, 'How far')).toBe('7%')
+    expect(style(host).getPropertyValue('--zoom-scale')).toBe('1.07')
+    expect(zoomPuts).toEqual([])
+    await release(far)
+    expect(zoomPuts).toEqual([{ zoom: { on: true, seconds: 24, percent: 7 } }])
+    expect(text(group(host))).toContain('Saved')
+  })
+
+  it('saves every step moved with the keyboard', async () => {
+    const { host, zoomPuts } = await render({ zoom: own })
+    await move(sliderFor(host, 'Each way')!, 25)
+    await move(sliderFor(host, 'Each way')!, 26)
+    expect(zoomPuts.map((p) => p.zoom!.seconds)).toEqual([25, 26])
+  })
+
+  it('saves the switch at once, keeps the values and says so, and the picture stands still', async () => {
+    const { host, zoomPuts } = await render({ zoom: own })
+    await click(switchFor(host, 'Zoom in and out'))
+    expect(zoomPuts).toEqual([{ zoom: { on: false, seconds: 24, percent: 5 } }])
+    expect(text(group(host))).toContain(
+      "Off: the picture stands still in the game. 24 s each way · 5% kept for when it's back on.",
+    )
+    expect(sliderFor(host, 'Each way')).toBeUndefined()
+    expect(button(group(host), 'Reset')).toBeDefined()
+    expect(text(group(host))).toContain('Saved')
+    expect(host.querySelector('.movement-zoom')!.getAttribute('data-still')).toBe('true')
+    await click(switchFor(host, 'Zoom in and out'))
+    expect(valueOf(host, 'Each way')).toBe('24 s')
+    expect(zoomPuts.at(-1)).toEqual({ zoom: own })
+    expect(host.querySelector('.movement-zoom')!.getAttribute('data-still')).toBeNull()
+  })
+
+  it('shows Reset only while it differs from on, 16 s and 3%, and takes the image back to nothing saved', async () => {
+    const { host, zoomPuts } = await render({ zoom: own })
+    await click(button(group(host), 'Reset'))
+    expect(zoomPuts).toEqual([{ zoom: null }])
+    expect(valueOf(host, 'Each way')).toBe('16 s')
+    expect(valueOf(host, 'How far')).toBe('3%')
+    expect(button(group(host), 'Reset')).toBeUndefined()
+    const same = await render({ zoom: { on: true, seconds: 16, percent: 3 } })
+    expect(button(group(same.host), 'Reset')).toBeUndefined()
+  })
+
+  it('says “Saving…” only when the save takes a moment', async () => {
+    let done: () => void = () => {}
+    const { host } = await render({
+      zoom: own,
+      zoomSaved: () =>
+        new Promise((resolve) => (done = () => resolve(Response.json({ ok: true })))),
+    })
+    await click(switchFor(host, 'Zoom in and out'))
+    expect(text(group(host))).not.toContain('Saving…')
+    await act(async () => await new Promise((r) => setTimeout(r, 450)))
+    expect(text(group(host))).toContain('Saving…')
+    await act(async () => done())
+    await settle()
+    expect(text(group(host))).toContain('Saved')
+  })
+
+  it('says it could not be saved, keeps the change on the picture, and saves again with Try again', async () => {
+    let fail = true
+    const { host, zoomPuts } = await render({
+      zoom: own,
+      zoomSaved: () =>
+        fail
+          ? Response.json({ ok: false, problems: [] }, { status: 409 })
+          : Response.json({ ok: true }),
+    })
+    await move(sliderFor(host, 'How far')!, 8)
+    expect(text(group(host))).toContain(
+      "Couldn't save the slow zoom: the image edits file can't be written. Your last change is still on the picture.",
+    )
+    expect(style(host).getPropertyValue('--zoom-scale')).toBe('1.08')
+    fail = false
+    await click(button(group(host), 'Try again'))
+    expect(zoomPuts).toHaveLength(2)
+    expect(zoomPuts[1]).toEqual(zoomPuts[0]!)
+    expect(text(group(host))).not.toContain("Couldn't save")
+  })
+
+  it('still shows and plays when the renderer did not load or has no effects', async () => {
+    const failed = await render({
+      answer: { named: true, ok: false, file: 'web/motion.ts', message: 'boom' },
+    })
+    expect(switchFor(failed.host, 'Zoom in and out')).toBeDefined()
+    expect(sliderFor(failed.host, 'Each way')).toBeDefined()
+    const none = await render({ answer: { named: true, ok: true, code: RENDERER('[]') } })
+    expect(sliderFor(none.host, 'How far')).toBeDefined()
+  })
+
+  it('holds the zoom still while paused', async () => {
+    const { host } = await render()
+    await click(button(host, '❚❚ Pause'))
+    expect(host.querySelector('.movement-zoom')!.getAttribute('data-paused')).toBe('true')
+  })
+
+  it('shows the Saved chip as long as a zoom is saved, even before anything is pressed, and none when nothing is', async () => {
+    const saved = await render({ zoom: own })
+    expect(group(saved.host).querySelector('.movement-save')!.textContent).toBe('Saved')
+    await settle()
+    await act(async () => await new Promise((r) => setTimeout(r, 2100)))
+    expect(group(saved.host).querySelector('.movement-save')!.textContent).toBe('Saved')
+    const hand = await render({ zoom: { on: true, seconds: 90, percent: 12 } })
+    expect(group(hand.host).querySelector('.movement-save')!.textContent).toBe('Saved')
+    const none = await render()
+    expect(group(none.host).querySelector('.movement-save')).toBeNull()
+  })
+
+  it('plays what the game plays for a hand-edited 0%: no depth, and the slider at its end', async () => {
+    const { host } = await render({ zoom: { on: true, seconds: 16, percent: 0 } })
+    expect(style(host).getPropertyValue('--zoom-scale')).toBe('1')
+    expect(valueOf(host, 'How far')).toBe('0.5%')
+    expect(text(group(host))).not.toContain('How far was saved')
+  })
+
+  it('keeps the saved numbers in the off line of a hand-edited zoom', async () => {
+    const { host } = await render({ zoom: { on: false, seconds: 90, percent: 12 } })
+    expect(text(group(host))).toContain('90 s each way · 12% kept')
+  })
+
+  it('stands still while a spot is drawn, whatever the zoom is saved as', async () => {
+    const { host } = await render({
+      zoom: own,
+      effects: { fire: { title: 'Fire', on: true, settings: {} } },
+    })
+    await click(host.querySelector<HTMLElement>('[data-spot-link="fire"]'))
+    expect(host.querySelector('.movement-zoom')!.getAttribute('data-still')).toBe('true')
+    expect(style(host).getPropertyValue('--zoom-scale')).toBe('')
+  })
+
+  it('sits at the nearest end of the game’s range for a value edited by hand, and says what the game plays', async () => {
+    const { host } = await render({ zoom: { on: true, seconds: 90, percent: 12 } })
+    expect(valueOf(host, 'Each way')).toBe('60 s')
+    expect(valueOf(host, 'How far')).toBe('10%')
+    expect(text(group(host))).toContain(
+      'Each way was saved as 90 s; the game goes up to 60, so it plays 60.',
+    )
+    expect(text(group(host))).toContain(
+      'How far was saved as 12%; the game goes up to 10, so it plays 10.',
+    )
+  })
+
+  it('is read-only while the images record cannot be read, with what is saved', async () => {
+    const saved = await render({ lockUnread: true, zoom: own })
+    expect(text(group(saved.host))).toContain(
+      'Saved for the game: 24 s each way, 5%. It can be changed once the images record can be read.',
+    )
+    expect(group(saved.host).querySelector('input')).toBeNull()
+    expect(button(group(saved.host), 'Reset')).toBeUndefined()
+    const off = await render({ lockUnread: true, zoom: { ...own, on: false } })
+    expect(text(group(off.host))).toContain('Saved for the game: no zoom. It can be changed')
+    const none = await render({ lockUnread: true })
+    expect(text(group(none.host))).toContain('Saved for the game: 16 s each way, 3%.')
+  })
+
+  it('is shown in the full-screen panel too, in step with the tab', async () => {
+    let current: Element | null = null
+    Object.defineProperty(document, 'fullscreenElement', { get: () => current, configurable: true })
+    ;(
+      HTMLElement.prototype as unknown as { requestFullscreen: () => Promise<void> }
+    ).requestFullscreen = async function (this: Element) {
+      current = this
+      document.dispatchEvent(new Event('fullscreenchange'))
+    }
+    cleanups.push(() => {
+      current = null
+      delete (HTMLElement.prototype as unknown as { requestFullscreen?: unknown }).requestFullscreen
+    })
+    const { host, zoomPuts } = await render({ zoom: own })
+    await click(button(host, '⛶ Full screen'))
+    const float = host.querySelector<HTMLElement>('.movement-float')!
+    expect(float.querySelector('.movement-group h3')!.textContent).toBe('Slow zoom')
+    const input = [...float.querySelectorAll('.movement-switch')]
+      .find((s) => s.textContent === 'Zoom in and out')!
+      .querySelector('input')!
+    await click(input)
+    expect(zoomPuts.at(-1)).toEqual({ zoom: { on: false, seconds: 24, percent: 5 } })
   })
 })

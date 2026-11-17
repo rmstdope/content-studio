@@ -1,5 +1,6 @@
-import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
+import { useEffect, useRef, type CSSProperties, type ReactNode, type RefObject } from 'react'
 import type { SpotMark, SpotShape } from '../../../core/images'
+import type { ZoomLook } from '../../../core/zoom'
 import type { MotionModule, MotionScene } from '../../motionModule'
 
 /** How far a held scene is moved on to finish a fade at once, in milliseconds. */
@@ -24,7 +25,7 @@ export interface StageEffect {
 }
 
 /**
- * The picture with the slow zoom, the laid patches and, when the renderer is loaded, a canvas the
+ * The picture with the slow zoom (as `zoom` asks, or still), the laid patches and, when the renderer is loaded, a canvas the
  * renderer draws the switched-on effects on. Paused, the zoom and the renderer both hold their
  * frame. Without a loaded renderer it is the still picture, dimmed by its parent.
  */
@@ -35,7 +36,7 @@ export function MotionStage({
   paused,
   running,
   only,
-  drift,
+  zoom,
   inside,
   onMissing,
 }: {
@@ -49,8 +50,8 @@ export function MotionStage({
   running: boolean
   /** The kind of the one effect that moves while the others hold their frame (a spot being drawn); null: all move. */
   only?: string | null
-  /** Whether the slow zoom runs; off it holds the picture at its size, so a shape stays under the mouse. */
-  drift?: boolean
+  /** How the slow zoom runs; null holds the picture at its size (the zoom is off, or a shape is being drawn and must stay under the mouse). */
+  zoom: ZoomLook | null
   /** Shown over the picture and zooming with it (the outline of a spot pointed at). */
   inside?: ReactNode
   /** The picture could not be read. */
@@ -65,7 +66,17 @@ export function MotionStage({
     <div
       className="movement-zoom"
       data-paused={paused ? 'true' : undefined}
-      data-still={drift === false ? 'true' : undefined}
+      data-still={zoom === null ? 'true' : undefined}
+      style={
+        zoom
+          ? ({
+              '--zoom-seconds': `${zoom.seconds}s`,
+              '--zoom-scale': zoom.scale,
+              '--zoom-x': `${zoom.x}%`,
+              '--zoom-y': `${zoom.y}%`,
+            } as CSSProperties)
+          : undefined
+      }
     >
       <img
         ref={picture}

@@ -113,6 +113,7 @@ bundle breaks.
   same save as the box and on Refresh from the game; the entry keeps its other fields as they were.
   Likewise `effects`, the effects the user put in the game for the image with their settings
   and, where drawn, the spot each plays inside (§8.7, the Movement job), written in the same save as the change, on choosing a take and on Refresh from the game.
+  And `zoom`, the image's slow zoom as `{ seconds, percent }` (`null` for none, no key when nothing is saved), written the same way.
 - Never run git commands that change the consumer (`add`, `commit`, `push`, `checkout`). The user
   commits; the studio at most reads `git status`.
 - The game reads `manifest.json`: keep its format exactly. For images that includes a chosen

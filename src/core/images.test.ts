@@ -22,6 +22,9 @@ import {
   effectiveStyle,
   formatImageEdits,
   applyEffects,
+  applyZoom,
+  withZoom,
+  zoomForGame,
   effectsForGame,
   withEffects,
   formatImageLock,
@@ -1739,5 +1742,50 @@ describe('an image’s saved effects', () => {
     expect(withEffects(entry, list)).toEqual({ ...entry, effects: list })
     const had: Record<string, unknown> = { ...entry, effects: list }
     expect(withEffects(had, [])).toEqual(entry)
+  })
+})
+
+describe('an image’s saved slow zoom', () => {
+  const zoom = { on: true, seconds: 24, percent: 5 }
+
+  it('is written as on, seconds and percent and read back, out-of-range numbers included', () => {
+    const edits = applyZoom({ images: {} }, 'inn', { percent: 12, seconds: 90, on: false })
+    const text = formatImageEdits(edits)
+    expect(JSON.parse(text).images.inn.zoom).toEqual({ on: false, seconds: 90, percent: 12 })
+    expect(Object.keys(JSON.parse(text).images.inn.zoom)).toEqual(['on', 'seconds', 'percent'])
+    const read = readImageEditsValue(JSON.parse(text), 'edits.json')
+    expect(read.problems).toEqual([])
+    expect(read.edits.images.inn?.zoom).toEqual({ on: false, seconds: 90, percent: 12 })
+  })
+
+  it('leaves the image’s other edits alone, and null takes the key away', () => {
+    const own = { text: 'cosy', gameWas: 'low' }
+    const edits = applyZoom({ images: { inn: own } }, 'inn', zoom)
+    expect(edits.images.inn).toEqual({ ...own, zoom })
+    expect(applyZoom(edits, 'inn', null).images).toEqual({ inn: own })
+    expect(applyZoom(applyZoom({ images: {} }, 'inn', zoom), 'inn', null).images).toEqual({})
+  })
+
+  it('drops only that image when a value is not a number', () => {
+    const read = readImageEditsValue(
+      { images: { inn: { zoom: { on: true, seconds: 'slow', percent: 3 } } } },
+      'edits.json',
+    )
+    expect(read.edits.images).toEqual({})
+    expect(read.problems[0]?.path).toBe('images.inn.zoom.seconds')
+  })
+
+  it('goes to the game as seconds and percent, null when off, and nothing when none is saved', () => {
+    expect(zoomForGame(zoom)).toEqual({ seconds: 24, percent: 5 })
+    expect(zoomForGame({ ...zoom, on: false })).toBeNull()
+    expect(zoomForGame(undefined)).toBeUndefined()
+  })
+
+  it('sets, nulls or removes the zoom key of an entry, keeping its other fields in order', () => {
+    const entry = { file: 'a.png', width: 320, height: 200, extra: 1 }
+    const set = withZoom(entry, { seconds: 24, percent: 5 })
+    expect(Object.keys(set)).toEqual(['file', 'width', 'height', 'extra', 'zoom'])
+    expect(withZoom(set, null) as object).toEqual({ ...entry, zoom: null })
+    expect('zoom' in withZoom(set, undefined)).toBe(false)
   })
 })

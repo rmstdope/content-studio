@@ -207,6 +207,16 @@ export const EffectEditSchema = z.object({
   mark: CornerSchema.optional(),
 })
 
+/** An image's slow zoom as the studio saves it: whether it is on, and the two values kept for when it is. No range is checked, so a value edited by hand still loads. */
+export const ZoomEditSchema = z.object({
+  on: z.boolean(),
+  seconds: z.number().finite(),
+  percent: z.number().finite(),
+})
+
+/** The slow zoom an image has saved. */
+export type SavedZoom = z.infer<typeof ZoomEditSchema>
+
 /** The effects an image has saved, by effect type: the type's values, whether or not the renderer still has it. */
 export type SavedEffects = Record<string, z.infer<typeof EffectEditSchema>>
 
@@ -227,6 +237,7 @@ const ImageEditSchema = z
     patches: z.record(z.string(), PatchEditSchema).optional(),
     areas: z.record(z.string(), AreaBoxSchema).optional(),
     effects: z.record(z.string(), EffectEditSchema).optional(),
+    zoom: ZoomEditSchema.optional(),
     takeAreas: z
       .record(z.string().regex(/^\d+$/, 'a take number'), z.record(z.string(), AreaBoxSchema))
       .optional(),
@@ -303,7 +314,8 @@ export function formatImageEdits(edits: ImageEdits): string {
     Object.keys(edits.images)
       .sort()
       .map((id) => {
-        const { text, gameWas, partStyle, patches, areas, takeAreas, effects } = edits.images[id]!
+        const { text, gameWas, partStyle, patches, areas, takeAreas, effects, zoom } =
+          edits.images[id]!
         const sorted =
           patches &&
           Object.fromEntries(
@@ -340,6 +352,7 @@ export function formatImageEdits(edits: ImageEdits): string {
             areas: areas && keyed(areas),
             takeAreas: perTake,
             effects: effects && keyedEffects(effects),
+            zoom: zoom && { on: zoom.on, seconds: zoom.seconds, percent: zoom.percent },
           },
         ]
       }),
@@ -639,6 +652,29 @@ function withImage(edits: ImageEdits, id: string, edit: ImageEdit): ImageEdits {
 export function applyEffects(edits: ImageEdits, id: string, effects: SavedEffects): ImageEdits {
   const { effects: _old, ...rest } = edits.images[id] ?? {}
   return withImage(edits, id, Object.keys(effects).length ? { ...rest, effects } : rest)
+}
+
+/** The edits with an image's saved slow zoom replaced by `zoom`; null takes the key away. The image's other edits stay. */
+export function applyZoom(edits: ImageEdits, id: string, zoom: SavedZoom | null): ImageEdits {
+  const { zoom: _old, ...rest } = edits.images[id] ?? {}
+  return withImage(edits, id, zoom ? { ...rest, zoom } : rest)
+}
+
+/** What the game is told of the zoom: its seconds and percent, null when it is off, nothing when none is saved. */
+export function zoomForGame(
+  zoom: SavedZoom | undefined,
+): { seconds: number; percent: number } | null | undefined {
+  if (!zoom) return undefined
+  return zoom.on ? { seconds: zoom.seconds, percent: zoom.percent } : null
+}
+
+/** A manifest entry with its `zoom` set, nulled (no zoom) or taken away (none saved); its other fields stay in place. */
+export function withZoom<T extends object>(
+  entry: T,
+  zoom: { seconds: number; percent: number } | null | undefined,
+): T {
+  const { zoom: _old, ...rest } = entry as T & { zoom?: unknown }
+  return (zoom === undefined ? rest : { ...rest, zoom }) as T
 }
 
 /** One effect as the game's renderer is asked for it: `setEffects` takes a list of these. */
@@ -1033,6 +1069,8 @@ export interface ImageRow {
   areas: AreaRow[]
   /** The effects the studio has saved for it (by effect type), in the game or not; none when nothing is saved. */
   effects: SavedEffects
+  /** The slow zoom the studio has saved for it; none when nothing is saved (the game's own 16 s and 3%). */
+  zoom?: SavedZoom | undefined
   /** The whole prompt. */
   prompt: string
   /**
@@ -1305,6 +1343,7 @@ export function summarizeImages(input: ImagesInput): {
         }
       }),
       effects: own?.effects ?? {},
+      zoom: own?.zoom,
       prompt: assemblePrompt(words, eff),
       actStyle: shared
         ? choices.length

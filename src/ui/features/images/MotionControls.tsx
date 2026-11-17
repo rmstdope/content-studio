@@ -1,5 +1,5 @@
 import { useId, useRef } from 'react'
-import type { SavedEffects } from '../../../core/images'
+import type { SavedEffects, SavedZoom } from '../../../core/images'
 import type { EffectSetting, EffectType } from '../../../core/motion'
 import {
   clampSetting,
@@ -13,8 +13,20 @@ import {
   valueText,
 } from '../../../core/motion'
 import {
+  GAME_ZOOM,
+  ZOOM_RANGE,
+  percentText,
+  secondsText,
+  zoomDiffers,
+  zoomRangeNotes,
+  zoomValues,
+} from '../../../core/zoom'
+import {
   EFFECT_WORDS,
   MOVEMENT_WORDS,
+  ZOOM_WORDS,
+  zoomOffLine,
+  zoomSavedLockUnread,
   SPOT_WORDS,
   effectsLine,
   finishFirst,
@@ -78,6 +90,20 @@ export interface MotionControlsProps {
   onRetry: () => void
   /** Whether the failed save was of a spot, which has its own words. */
   failedSpot?: boolean
+  /** The slow zoom the image has saved; undefined when nothing is (the game's own). */
+  zoom: SavedZoom | undefined
+  /** What saving the zoom is doing. */
+  zoomStatus: SaveStatus
+  /** The zoom's switch is pressed. */
+  onZoomOn: (on: boolean) => void
+  /** One of the zoom's sliders moves (live: nothing is saved until `onZoomCommit`). */
+  onZoomValue: (which: 'seconds' | 'percent', value: number) => void
+  /** A zoom slider was let go of, or moved with the keyboard: save what is set. */
+  onZoomCommit: () => void
+  /** Reset presses: back to nothing saved. */
+  onZoomReset: () => void
+  /** Try again presses after the zoom could not be saved. */
+  onZoomRetry: () => void
   /** Drawing spots, on the tab only: absent (full screen), the spot line has no links. */
   spot?: SpotControls
 }
@@ -188,11 +214,14 @@ function Switch({
 function SettingSlider({
   setting,
   value,
+  format = valueText,
   onChange,
   onCommit,
 }: {
   setting: EffectSetting
   value: number
+  /** The value as the output shows it. */
+  format?: (value: number) => string
   onChange: (value: number) => void
   onCommit: () => void
 }) {
@@ -223,7 +252,7 @@ function SettingSlider({
           if (!down.current) onCommit()
         }}
       />
-      <output htmlFor={id}>{valueText(value)}</output>
+      <output htmlFor={id}>{format(value)}</output>
     </div>
   )
 }
@@ -394,6 +423,7 @@ export function MotionControls(props: MotionControlsProps) {
   const { patches } = props
   return (
     <div className="movement-groups">
+      <ZoomGroup {...props} />
       {patches !== null && patches.length > 0 && (
         <section className="movement-group" aria-label={MOVEMENT_WORDS.patches}>
           <h3>{MOVEMENT_WORDS.patches}</h3>
@@ -431,6 +461,93 @@ export function MotionControls(props: MotionControlsProps) {
       )}
       <EffectsGroup {...props} />
     </div>
+  )
+}
+
+/** The two sliders of the slow zoom as the shared slider takes them. */
+const ZOOM_SLIDERS = [
+  { which: 'seconds', title: ZOOM_WORDS.seconds, format: secondsText, ...ZOOM_RANGE.seconds },
+  { which: 'percent', title: ZOOM_WORDS.percent, format: percentText, ...ZOOM_RANGE.percent },
+] as const
+
+/** The Slow zoom group: one switch and, on, two sliders; the studio's own, so it shows whatever the renderer does. */
+function ZoomGroup(props: MotionControlsProps) {
+  const { zoom, zoomStatus } = props
+  const values = zoomValues(zoom)
+  const heading = (
+    <div className="movement-group-head">
+      <h3>{ZOOM_WORDS.heading}</h3>
+      {!props.lockUnread && (zoomStatus === 'saving' || zoomStatus === 'saved') && (
+        <span className="movement-save muted" role="status">
+          {zoomStatus === 'saving' ? ZOOM_WORDS.saving : ZOOM_WORDS.saved}
+        </span>
+      )}
+    </div>
+  )
+  // The images lock cannot be read: what is saved, read-only; nothing can be changed or saved.
+  if (props.lockUnread) {
+    const own = zoom ?? { on: true, ...GAME_ZOOM }
+    return (
+      <section className="movement-group" aria-label={ZOOM_WORDS.heading}>
+        {heading}
+        <p className="muted">
+          {zoomSavedLockUnread(
+            own.on
+              ? `${secondsText(own.seconds)} each way, ${percentText(own.percent)}`
+              : 'no zoom',
+          )}
+        </p>
+      </section>
+    )
+  }
+  const notes = zoomRangeNotes(zoom)
+  return (
+    <section className="movement-group" aria-label={ZOOM_WORDS.heading}>
+      {heading}
+      <div className="movement-effect-head">
+        <Switch
+          label={ZOOM_WORDS.switch}
+          checked={values.on}
+          why={false}
+          onChange={props.onZoomOn}
+        />
+        {zoomDiffers(zoom) && (
+          <button type="button" className="btn movement-reset" onClick={props.onZoomReset}>
+            {ZOOM_WORDS.reset}
+          </button>
+        )}
+      </div>
+      {!values.on && (
+        <p className="movement-settings">
+          {zoomOffLine(secondsText(values.seconds), percentText(values.percent))}
+        </p>
+      )}
+      {values.on &&
+        ZOOM_SLIDERS.map(({ which, title, format, min, max, step }) => (
+          <SettingSlider
+            key={which}
+            setting={{ id: which, title, min, max, step, default: GAME_ZOOM[which] }}
+            value={values[which]}
+            format={format}
+            onChange={(value) => props.onZoomValue(which, value)}
+            onCommit={props.onZoomCommit}
+          />
+        ))}
+      {values.on &&
+        notes.map((note) => (
+          <p key={note} className="movement-range-note notice-warn">
+            {note}
+          </p>
+        ))}
+      {zoomStatus === 'failed' && (
+        <p role="alert" className="movement-save-failed">
+          {ZOOM_WORDS.saveFailed}{' '}
+          <button type="button" className="btn" onClick={props.onZoomRetry}>
+            {MOVEMENT_WORDS.tryAgain}
+          </button>
+        </p>
+      )}
+    </section>
   )
 }
 
