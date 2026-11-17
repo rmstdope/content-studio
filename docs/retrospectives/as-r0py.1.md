@@ -18,4 +18,4 @@ suites, a real `Bun.build`, add a few seconds of CPU).
 **Prevent by.** Make the take-making tests in `imageTakes.test.ts` and `musicTakes.test.ts` await the
 background work they start before asserting (a test-side wait on the board, not a sleep).
 
-**Seen before.** Nothing like it yet in `docs/retrospectives/`.
+**Seen before.** The same imageTakes test, in `as-kw3x.6.md`; load-sensitive imageTakes tests in `as-5wc.5.md` and `as-l00.md`.
