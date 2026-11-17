@@ -1012,3 +1012,193 @@ describe('the effects in full screen', () => {
     })
   })
 })
+
+describe('an effect tied to a patch', () => {
+  const PATCHES = [
+    { id: 'star', title: 'The star on the door', take: 2 },
+    { id: 'lantern', title: 'Broken lantern', take: null },
+  ]
+  const tied = (patch: string, title: string, on = true) => ({
+    dust: {
+      ...dust({ amount: 1, size: 1, speed: 1 }, on),
+      title: 'Dust',
+      patch,
+      patchTitle: title,
+    },
+  })
+  const menu = (host: HTMLElement, within = '.movement-side') =>
+    host.querySelector<HTMLSelectElement>(`${within} .movement-effect select`)
+  async function choose(select: HTMLSelectElement, value: string) {
+    await act(async () => {
+      select.value = value
+      select.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await settle()
+  }
+  const dustRow = (host: HTMLElement) => host.querySelector('.movement-side .movement-effect')!
+  const playing = () =>
+    calls()
+      .setEffects.at(-1)!
+      .map((e) => e.kind)
+
+  it('has a Shows menu on an effect that is on, Always first then each patch in the game’s order', async () => {
+    const { host } = await render({
+      patches: PATCHES,
+      effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) },
+    })
+    const select = menu(host)!
+    expect(dustRow(host).querySelector('.movement-shows label')!.textContent).toBe('Shows')
+    expect([...select.options].map((o) => o.textContent)).toEqual([
+      'Always',
+      'While The star on the door is laid',
+      'While Broken lantern is laid',
+    ])
+    expect(select.value).toBe('')
+    expect(dustRow(host).querySelector('.movement-tag')).toBeNull()
+  })
+
+  it('has no menu while the effect is off, and none on an image with no patches', async () => {
+    const off = await render({ patches: PATCHES })
+    expect(menu(off.host)).toBeNull()
+    const none = await render({ effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) } })
+    expect(menu(none.host)).toBeNull()
+  })
+
+  it('saves a choice at once, lays the patch in the preview and tags the effect', async () => {
+    const { host, puts } = await render({
+      patches: PATCHES,
+      effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) },
+    })
+    await choose(menu(host)!, 'star')
+    expect(puts.at(-1)!.effects.dust).toEqual({
+      ...saved({ amount: 1, size: 1, speed: 1 }),
+      patch: 'star',
+      patchTitle: 'The star on the door',
+    })
+    expect(text(host)).toContain('Saved')
+    expect(switchFor(host, 'The star on the door')!.checked).toBe(true)
+    expect(dustRow(host).querySelector('.movement-tag')!.textContent).toBe(
+      'with The star on the door',
+    )
+    expect(playing()).toEqual(['dust'])
+    await choose(menu(host)!, '')
+    expect(puts.at(-1)!.effects.dust).toEqual(saved({ amount: 1, size: 1, speed: 1 }))
+    expect(dustRow(host).querySelector('.movement-tag')).toBeNull()
+  })
+
+  it('runs only while the patch is laid, dims the sliders and offers Lay it, which keeps focus on the menu', async () => {
+    const { host, puts } = await render({
+      patches: PATCHES,
+      effects: tied('star', 'The star on the door'),
+    })
+    expect(playing()).toEqual([])
+    expect(dustRow(host).className).toContain('movement-effect-dim')
+    expect(dustRow(host).textContent).toContain("Not showing: The star on the door isn't laid.")
+    const before = puts.length
+    await click(button(host, 'Lay it'))
+    expect(switchFor(host, 'The star on the door')!.checked).toBe(true)
+    expect(playing()).toEqual(['dust'])
+    expect(button(host, 'Lay it')).toBeUndefined()
+    expect(dustRow(host).className).not.toContain('movement-effect-dim')
+    expect(document.activeElement).toBe(menu(host))
+    expect(puts.length).toBe(before)
+    await click(switchFor(host, 'The star on the door'))
+    expect(playing()).toEqual([])
+  })
+
+  it('can be tied to a patch with no take, which lays nothing and has no button', async () => {
+    const { host } = await render({
+      patches: PATCHES,
+      effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) },
+    })
+    await choose(menu(host)!, 'lantern')
+    expect(dustRow(host).textContent).toContain(
+      'Not showing: Broken lantern has no take chosen yet.',
+    )
+    expect(button(host, 'Lay it')).toBeUndefined()
+    expect(dustRow(host).className).toContain('movement-effect-dim')
+    expect(playing()).toEqual([])
+  })
+
+  it('keeps the tie, with its tag and no menu, while the effect is switched off, and counts it when on', async () => {
+    const { host, puts } = await render({
+      patches: PATCHES,
+      effects: tied('star', 'The star on the door'),
+    })
+    expect(text(host)).toContain("1 of the renderer's 4 are on.")
+    await click(switchFor(host, 'Dust'))
+    expect(menu(host)).toBeNull()
+    expect(dustRow(host).querySelector('.movement-tag')!.textContent).toBe(
+      'with The star on the door',
+    )
+    expect(puts.at(-1)!.effects.dust!.patch).toBe('star')
+    await click(switchFor(host, 'Dust'))
+    expect(menu(host)!.value).toBe('star')
+  })
+
+  it('keeps a tie to a patch the game no longer lists, flagged, until another choice is made', async () => {
+    const { host, puts } = await render({
+      patches: PATCHES,
+      effects: tied('old', 'Old sign'),
+    })
+    expect(dustRow(host).className).toContain('movement-effect-lost')
+    expect(dustRow(host).querySelector('.movement-tag')!.textContent).toBe('with Old sign')
+    expect([...menu(host)!.options].map((o) => o.textContent)).toEqual([
+      'Always',
+      'While The star on the door is laid',
+      'While Broken lantern is laid',
+      'While Old sign is laid · gone',
+    ])
+    expect(menu(host)!.value).toBe('old')
+    expect(dustRow(host).textContent).toContain(
+      "The game no longer lists the patch Old sign, so it won't show this effect. Choose Always or another patch.",
+    )
+    expect(playing()).toEqual([])
+    await choose(menu(host)!, '')
+    expect(dustRow(host).className).not.toContain('movement-effect-lost')
+    expect(puts.at(-1)!.effects.dust!.patch).toBeUndefined()
+    expect([...menu(host)!.options].length).toBe(3)
+  })
+
+  it('keeps the tie through slider moves and Reset', async () => {
+    const { host, puts } = await render({
+      patches: PATCHES,
+      effects: tied('star', 'The star on the door'),
+    })
+    await move(sliderFor(host, 'Amount')!, 2)
+    expect(puts.at(-1)!.effects.dust!.patch).toBe('star')
+    await click(button(host, 'Reset'))
+    expect(puts.at(-1)!.effects.dust!.patch).toBe('star')
+  })
+
+  it('shows the same menu, tag and line in full screen, in step with the tab', async () => {
+    let current: Element | null = null
+    Object.defineProperty(document, 'fullscreenElement', { get: () => current, configurable: true })
+    ;(
+      HTMLElement.prototype as unknown as { requestFullscreen: () => Promise<void> }
+    ).requestFullscreen = async function (this: Element) {
+      current = this
+      document.dispatchEvent(new Event('fullscreenchange'))
+    }
+    cleanups.push(() => {
+      current = null
+      delete (HTMLElement.prototype as unknown as { requestFullscreen?: unknown }).requestFullscreen
+    })
+    const { host } = await render({
+      patches: PATCHES,
+      effects: tied('star', 'The star on the door'),
+    })
+    await click(button(host, '⛶ Full screen'))
+    expect(host.querySelector('.movement-float')!.textContent).toContain(
+      "Not showing: The star on the door isn't laid.",
+    )
+    await click(
+      [...host.querySelectorAll<HTMLButtonElement>('.movement-float button')].find(
+        (b) => b.textContent === 'Lay it',
+      ),
+    )
+    expect(switchFor(host, 'The star on the door')!.checked).toBe(true)
+    expect(host.querySelector('.movement-side')!.textContent).not.toContain('Not showing')
+    expect(menu(host, '.movement-float')!.value).toBe('star')
+  })
+})

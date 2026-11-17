@@ -85,3 +85,35 @@ export const EFFECT_WORDS = {
   remove: 'Remove',
   gone: "The project's renderer no longer has this effect, so the game won't show it. Its settings are kept until you remove it.",
 } as const
+
+/** The words of tying an effect to a patch. */
+export const TIE_WORDS = {
+  shows: 'Shows',
+  always: 'Always',
+  lay: 'Lay it',
+} as const
+
+/** A menu choice: the effect shows while this patch is laid. */
+export function tieChoice(title: string, gone = false): string {
+  return `While ${title} is laid${gone ? ' · gone' : ''}`
+}
+
+/** The tag beside a tied effect's name. */
+export function tieTag(title: string): string {
+  return `with ${title}`
+}
+
+/** Why a tied effect is not on the picture: its patch is not laid. */
+export function notLaidLine(title: string): string {
+  return `Not showing: ${title} isn't laid.`
+}
+
+/** Why a tied effect is not on the picture: its patch has no take to lay. */
+export function noTakeLine(title: string): string {
+  return `Not showing: ${title} has no take chosen yet.`
+}
+
+/** What a tie to a patch the game no longer lists means. */
+export function patchGoneLine(title: string): string {
+  return `The game no longer lists the patch ${title}, so it won't show this effect. Choose Always or another patch.`
+}

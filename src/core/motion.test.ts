@@ -150,12 +150,12 @@ describe('what an effect tied to a patch does', () => {
   const none = new Set<string>()
 
   it('always shows when it is not tied', () => {
-    expect(tieState({ on: true, settings: {} }, patches, none)).toEqual({ kind: 'always' })
+    expect(tieState({}, patches, none)).toEqual({ kind: 'always' })
     expect(effectPlays({ kind: 'always' })).toBe(true)
   })
 
   it('shows only while the tied patch is laid', () => {
-    const saved = { on: true, settings: {}, patch: 'star' }
+    const saved = { patch: 'star' }
     const laid = tieState(saved, patches, new Set(['star']))
     expect(laid).toEqual({ kind: 'laid', patchId: 'star', title: 'The star on the door' })
     expect(effectPlays(laid)).toBe(true)
@@ -165,24 +165,16 @@ describe('what an effect tied to a patch does', () => {
   })
 
   it('says a patch with no take chosen has nothing to lay', () => {
-    const state = tieState(
-      { on: true, settings: {}, patch: 'lantern' },
-      patches,
-      new Set(['lantern']),
-    )
+    const state = tieState({ patch: 'lantern' }, patches, new Set(['lantern']))
     expect(state).toEqual({ kind: 'noTake', patchId: 'lantern', title: 'Broken lantern' })
     expect(effectPlays(state)).toBe(false)
   })
 
   it('keeps a tie to a patch the game no longer lists, under its saved title', () => {
-    const state = tieState(
-      { on: true, settings: {}, patch: 'old', patchTitle: 'Old sign' },
-      patches,
-      none,
-    )
+    const state = tieState({ patch: 'old', patchTitle: 'Old sign' }, patches, none)
     expect(state).toEqual({ kind: 'gone', patchId: 'old', title: 'Old sign' })
     expect(effectPlays(state)).toBe(false)
-    expect(tieState({ on: true, settings: {}, patch: 'old' }, patches, none)).toMatchObject({
+    expect(tieState({ patch: 'old' }, patches, none)).toMatchObject({
       title: 'old',
     })
   })
