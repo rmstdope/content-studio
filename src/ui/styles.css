@@ -6261,6 +6261,12 @@ textarea[aria-disabled='true'][data-why] {
   align-items: center;
   gap: 8px;
 }
+/* The shared .btn sits at flex-start; in these centred stages it sits under its message. */
+.movement-empty .btn,
+.movement-over .btn,
+.movement-failure .btn {
+  align-self: center;
+}
 .movement-failure code {
   max-width: 100%;
   overflow-wrap: anywhere;
