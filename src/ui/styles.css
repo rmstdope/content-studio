@@ -6389,6 +6389,10 @@ textarea[aria-disabled='true'][data-why] {
   flex-shrink: 0;
   max-width: 100%;
 }
+/* Reset stays at the row's right edge, even alone on a wrapped line. */
+.movement-reset {
+  margin-left: auto;
+}
 .movement-slider {
   display: grid;
   grid-template-columns: minmax(0, 5em) minmax(0, 1fr) 3.2em;
