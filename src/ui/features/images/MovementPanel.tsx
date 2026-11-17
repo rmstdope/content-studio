@@ -728,79 +728,113 @@ export function MovementPanel({
     persist(true)
     draw({ ...drawingRef.current!, picked: null, confirm: false })
   }
+  // The bar holds, unseen in the one cell with what it says and shows now, the words of every
+  // step of drawing and its widest row of buttons: it is as tall as the tallest of them whichever
+  // step is shown, so the picture below does not move under the pointer as the steps change.
+  const barSpot = drawing ? spotOf(drawing.type) : []
+  const barWords =
+    drawing && drawName
+      ? drawing.confirm
+        ? deleteAsk(barSpot[drawing.picked ?? 0]?.length ?? 0)
+        : drawing.placing && (drawing.placing.length > 0 || barSpot.length > 0)
+          ? newShapeBar(drawName)
+          : drawingBar(
+              drawName,
+              drawing.draft ? 'fromGame' : barSpot.length === 0 ? 'empty' : 'own',
+            )
+      : null
+  const barSteps = drawName
+    ? [
+        drawingBar(drawName, 'fromGame'),
+        drawingBar(drawName, 'own'),
+        drawingBar(drawName, 'empty'),
+        newShapeBar(drawName),
+        deleteAsk(Math.max(0, ...barSpot.map((shape) => shape.length))),
+      ]
+    : []
   const drawBar =
-    drawing && drawName ? (
+    drawing && barWords ? (
       <div ref={bar} className="spot-bar">
-        {(() => {
-          const words = drawing.confirm
-            ? deleteAsk(spotOf(drawing.type)[drawing.picked ?? 0]?.length ?? 0)
-            : drawing.placing && (drawing.placing.length > 0 || spotOf(drawing.type).length > 0)
-              ? newShapeBar(drawName)
-              : drawingBar(
-                  drawName,
-                  drawing.draft ? 'fromGame' : spotOf(drawing.type).length === 0 ? 'empty' : 'own',
-                )
-          return (
-            <span className="spot-bar-words">
-              <b>{words.lead}</b>
-              {words.rest}
+        <span className="spot-bar-words">
+          <span className="spot-bar-now">
+            <b>{barWords.lead}</b>
+            {barWords.rest}
+          </span>
+          {barSteps.map((step) => (
+            <span key={step.lead + step.rest} className="spot-bar-room" aria-hidden="true">
+              <b>{step.lead}</b>
+              {step.rest}
             </span>
-          )
-        })()}
-        {drawing.confirm ? (
-          <>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => draw({ ...drawing, confirm: false })}
-            >
-              {SPOT_WORDS.keep}
-            </button>
-            <button type="button" className="btn btn-primary" onClick={dropPicked}>
-              {SPOT_WORDS.delete}
-            </button>
-          </>
-        ) : (
-          <>
-            {!drawing.placing && (
-              <button
-                type="button"
-                className="btn"
-                onClick={() => draw({ ...drawing, placing: [], picked: null })}
-              >
-                {SPOT_WORDS.addShape}
-              </button>
-            )}
-            {!drawing.placing && drawing.picked !== null && (
-              <button
-                type="button"
-                className="btn"
-                onClick={() => draw({ ...drawing, confirm: true })}
-              >
-                {SPOT_WORDS.deleteShape}
-              </button>
-            )}
-            {!drawing.placing && spotOf(drawing.type).length > 0 && (
-              <button
-                type="button"
-                className="btn"
-                {...off(
-                  latest.current[drawing.type]?.mark === undefined && SPOT_WORDS.alreadyMiddle,
+          ))}
+        </span>
+        <span className="spot-bar-buttons">
+          <span className="spot-bar-now">
+            {drawing.confirm ? (
+              <>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => draw({ ...drawing, confirm: false })}
+                >
+                  {SPOT_WORDS.keep}
+                </button>
+                <button type="button" className="btn btn-primary" onClick={dropPicked}>
+                  {SPOT_WORDS.delete}
+                </button>
+              </>
+            ) : (
+              <>
+                {!drawing.placing && (
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => draw({ ...drawing, placing: [], picked: null })}
+                  >
+                    {SPOT_WORDS.addShape}
+                  </button>
                 )}
-                onClick={() => {
-                  if (latest.current[drawing.type]?.mark === undefined) return
-                  setMark(drawing.type, undefined)
-                  persist(true)
-                }}
-              >
-                {SPOT_WORDS.lightFromMiddle}
-              </button>
+                {!drawing.placing && drawing.picked !== null && (
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => draw({ ...drawing, confirm: true })}
+                  >
+                    {SPOT_WORDS.deleteShape}
+                  </button>
+                )}
+                {!drawing.placing && barSpot.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn"
+                    {...off(
+                      latest.current[drawing.type]?.mark === undefined && SPOT_WORDS.alreadyMiddle,
+                    )}
+                    onClick={() => {
+                      if (latest.current[drawing.type]?.mark === undefined) return
+                      setMark(drawing.type, undefined)
+                      persist(true)
+                    }}
+                  >
+                    {SPOT_WORDS.lightFromMiddle}
+                  </button>
+                )}
+                <button type="button" className="btn btn-primary" onClick={() => finish(true)}>
+                  {SPOT_WORDS.finish}
+                </button>
+              </>
             )}
-            <button type="button" className="btn btn-primary" onClick={() => finish(true)}>
-              {SPOT_WORDS.finish}
-            </button>
-          </>
-        )}
+          </span>
+          <span className="spot-bar-room" aria-hidden="true">
+            {[SPOT_WORDS.addShape, SPOT_WORDS.deleteShape, SPOT_WORDS.lightFromMiddle].map(
+              (word) => (
+                <span key={word} className="btn">
+                  {word}
+                </span>
+              ),
+            )}
+            <span className="btn btn-primary">{SPOT_WORDS.finish}</span>
+          </span>
+        </span>
       </div>
     ) : null
   const typeOf = (kind: string) =>

@@ -1767,7 +1767,12 @@ async function tap(host: HTMLElement, x: number, y: number) {
   await pointer(host, 'pointerdown', x, y)
   await pointer(host, 'pointerup', x, y)
 }
-const barText = (host: HTMLElement) => host.querySelector('.spot-bar')?.textContent ?? null
+/** What the bar says and shows, without the unseen room it holds for its other steps. */
+const barText = (host: HTMLElement) => {
+  const bar = host.querySelector('.spot-bar')?.cloneNode(true) as HTMLElement | undefined
+  bar?.querySelectorAll('.spot-bar-room').forEach((r) => r.remove())
+  return bar?.textContent ?? null
+}
 const polygons = (host: HTMLElement, cls: string) => host.querySelectorAll(`polygon.${cls}`)
 
 describe('drawing a spot', () => {
@@ -2897,6 +2902,38 @@ describe('the game’s shape of an effect', () => {
         .setEffects.at(-1)!
         .find((e) => e.kind === 'dust')!.spot,
     ).toHaveLength(1)
+  })
+
+  it('holds room in the bar for every step of drawing, so the picture below stays put', async () => {
+    sizeOverlay()
+    const { host } = await render(everyEffect())
+    await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
+    const bar = host.querySelector('.spot-bar')!
+    const room = [...bar.querySelectorAll('.spot-bar-room')]
+    // The words of every step and the widest row of buttons are in the bar, unseen and unread…
+    expect(room.map((r) => r.textContent)).toEqual([
+      "Drawing your own spot for Dust. It starts as the game's: drag a corner to move it, double-click a corner to take it out, click the picture to add a shape.",
+      'Drawing your own spot for Dust. Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it. Drag the ● to where the light comes from, or press Alt and the arrows.',
+      'Drawing your own spot for Dust. Click to place each corner; click the first corner to close the shape. Esc stops this shape.',
+      'New shape for Dust. Click to place each corner; click the first corner to close the shape. Esc stops this shape.',
+      'Delete this shape? It has 4 corners.',
+      '＋ Add a shapeDelete this shapeLight from the middleFinish',
+    ])
+    for (const r of room) {
+      expect(r.getAttribute('aria-hidden')).toBe('true')
+      expect(r.querySelectorAll('button')).toHaveLength(0)
+      expect(valuesInEveryWindow(r, 'visibility').at(-1)).toEndWith(': hidden')
+    }
+    // …each in the one cell with what the bar says and shows now, so the bar is as tall as the
+    // tallest of them whichever step is shown, and the stage under it does not move.
+    for (const cell of ['.spot-bar-words', '.spot-bar-buttons']) {
+      expect(valuesInEveryWindow(bar.querySelector(cell)!, 'display').at(-1)).toEndWith(': grid')
+    }
+    const now = [...bar.querySelectorAll('.spot-bar-now')]
+    expect(now).toHaveLength(2)
+    for (const cell of [...now, ...room]) {
+      expect(valuesInEveryWindow(cell, 'grid-area').at(-1)).toEndWith(': 1 / 1')
+    }
   })
 
   it('starts empty where the game does not say, with the lead sentence and the empty-spot help', async () => {
