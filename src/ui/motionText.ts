@@ -17,6 +17,9 @@ export const MOVEMENT_WORDS = {
   effectsFailed: 'None: the renderer did not load.',
   noEffects: "The project's renderer has no effects yet. The slow zoom and the patches still move.",
   noTake: 'No take chosen yet',
+  lockHeading: 'The images lock could not be read',
+  effectsLockNone:
+    'None are saved for the game. Effects can be put in once the images lock can be read.',
   chooseOnMake: 'Choose a take on Make to see it move.',
   goToMake: 'Go to Make',
   notNamed:
@@ -38,6 +41,15 @@ export function patchNoTake(title: string): string {
   return `${title} · no take chosen`
 }
 
+/** A patch of the game's list while the images lock cannot be read: which of its takes is chosen is not known. */
+export function patchNotKnown(title: string): string {
+  return `${title} · not known`
+}
+
+/** Why a patch's switch is off while the images lock cannot be read. */
+export const PATCH_NOT_KNOWN_WHY =
+  'Which patch take is chosen is not known until the images lock can be read.'
+
 /** How long a save may take before "Saving…" shows, and how long "Saved" stays, in milliseconds. */
 export const SAVING_AFTER_MS = 400
 export const SAVED_FOR_MS = 2000
@@ -56,6 +68,11 @@ export function movementTitle(on: number): string {
 /** What the Effects group says when the renderer has not loaded but effects are saved for the game. */
 export function savedForGame(types: string[]): string {
   return `Saved for the game: ${types.join(', ')}. They can be changed once the renderer loads.`
+}
+
+/** What the Effects group says of the effects saved for the game while the images lock cannot be read. */
+export function savedForGameLockUnread(types: string[]): string {
+  return `Saved for the game: ${types.join(', ')}. They can be changed once the images lock can be read.`
 }
 
 /** The words of saving the effects and of an effect the renderer no longer has. */
