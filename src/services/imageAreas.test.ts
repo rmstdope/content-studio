@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test'
-import { chmodSync, readFileSync } from 'node:fs'
+import { chmodSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { projectJson, tempRepo } from '../../test/helpers'
 import { choices } from './musicClips'
-import { syncImageAreas } from './imageAreas'
+import { syncImageEntries } from './imageAreas'
 import { openProject } from './workspace'
 
 const images = {
@@ -29,14 +29,14 @@ function repo(files: Record<string, unknown> = {}) {
   const run = async (ids: string[], requireEntry = false) => {
     const opened = await openProject(join(root, 'content-studio.json'))
     if (!opened.ok) throw new Error('project')
-    return syncImageAreas(join(root, 'content-studio.json'), opened.project, ids, {
+    return syncImageEntries(join(root, 'content-studio.json'), opened.project, ids, {
       requireEntry,
     })
   }
   return { root, read, run }
 }
 
-describe('syncImageAreas', () => {
+describe('syncImageEntries', () => {
   it('writes the placed areas as fractions under the image’s entry', async () => {
     const { run, read } = repo({
       [MANIFEST]: { inn: entry },
@@ -142,5 +142,24 @@ describe('syncImageAreas', () => {
     await run(['inn'])
     expect(read().inn.areas).toBeDefined()
     expect(read().hall.areas).toBeUndefined()
+  })
+})
+
+describe('syncImageEntries and the effects', () => {
+  it('writes the effects that are on, beside the areas, and takes them out again', async () => {
+    const dust = { on: true, settings: { amount: 1.5 } }
+    const { run, read, root } = repo({
+      [MANIFEST]: { inn: entry },
+      [EDITS]: { images: { inn: { areas: { fountain: box }, effects: { dust } } } },
+    })
+    expect(await run(['inn'])).toEqual({ ok: true })
+    expect(read().inn.effects).toEqual([{ kind: 'dust', settings: { amount: 1.5 } }])
+    expect(read().inn.areas).toBeDefined()
+    writeFileSync(
+      join(root, EDITS),
+      JSON.stringify({ images: { inn: { effects: { dust: { ...dust, on: false } } } } }),
+    )
+    expect(await run(['inn'])).toEqual({ ok: true })
+    expect(read()).toEqual({ inn: entry })
   })
 })

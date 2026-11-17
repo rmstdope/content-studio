@@ -16,6 +16,7 @@ function row(over: {
   chosenTake?: number | null
   patches?: { id: string; chosenOn: number[] }[]
   areas?: { id: string; placed: boolean }[]
+  effects?: Record<string, { on: boolean; settings: Record<string, number> }>
   status?: ImageStatus
 }): ImageRow {
   return {
@@ -23,6 +24,7 @@ function row(over: {
     chosenTake: over.chosenTake ?? null,
     patches: over.patches ?? [],
     areas: over.areas ?? [],
+    effects: over.effects ?? {},
   } as unknown as ImageRow
 }
 
@@ -209,5 +211,22 @@ describe('the Patches tab', () => {
         { n: 2, chosen: true },
       ]),
     ).toBe('Take 2 chosen')
+  })
+
+  it('counts the effects in the game in its title', () => {
+    const on = { on: true, settings: {} }
+    const off = { on: false, settings: {} }
+    const title = (input: Partial<Parameters<typeof imageJobTabs>[0]> & { effects?: never }) =>
+      imageJobTabs({ row: row({}), ...quiet, ...input }).find((t) => t.job === 'movement')!.title
+    const saved = (effects: Record<string, typeof on>) => title({ row: row({ effects }) })
+    expect(saved({})).toBe('Movement')
+    expect(saved({ dust: off })).toBe('Movement')
+    expect(saved({ dust: on, mist: off })).toBe('Movement · 1 effect')
+    expect(saved({ dust: on, mist: on })).toBe('Movement · 2 effects')
+    // The renderer's own count, once known, leaves out an effect it no longer has.
+    expect(title({ row: row({ effects: { dust: on, gone: on } }), effectsOn: 1 })).toBe(
+      'Movement · 1 effect',
+    )
+    expect(title({ row: row({ effects: { dust: on } }), effectsOn: 0 })).toBe('Movement')
   })
 })

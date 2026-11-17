@@ -89,7 +89,8 @@ bundle breaks.
   shared command rewrites the stingers and the effects lists alike, but each page reports only its
   own list's changes.
   After the part command, whichever page it was run from, the studio also brings the placed named
-  areas of that act's images up to date in the images manifest (`areas`, §8.7).
+  areas and the effects of that act's images up to date in the images manifest (`areas` and
+  `effects`, §8.7).
   The studio runs nothing else of the consumer's. The Scenes page writes one file of an act, the
   mix (`scenes.mix`, §8.11), and never the declarations the game writes.
 - The project file itself is read, and changed in seven kinds of places only: the words that sound
@@ -110,6 +111,8 @@ bundle breaks.
   gains `areas`, the boxes placed for the game's named areas as fractions of the picture (each with
   its point as `mark` when it has one), written in the
   same save as the box and on Refresh from the game; the entry keeps its other fields as they were.
+  Likewise `effects`, the effects the user put in the game for the image with their settings
+  (§8.7, the Movement job), written in the same save as the change, on choosing a take and on Refresh from the game.
 - Never run git commands that change the consumer (`add`, `commit`, `push`, `checkout`). The user
   commits; the studio at most reads `git status`.
 - The game reads `manifest.json`: keep its format exactly. For images that includes a chosen

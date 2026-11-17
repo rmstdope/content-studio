@@ -534,6 +534,7 @@ and `key` (`null` for none).
 | `images.<id>.text`, `gameWas`         | A rewording.                                                                                                                                                                                                                                                                                                                            | none                         |
 | `images.<id>.patches.<patch>`         | A rewording of a patch the game asks for: `text` and `gameWas`, as for an image. Kept when the game stops asking.                                                                                                                                                                                                                       | none                         |
 | `images.<id>.areas.<area>`            | The box marked for a named area: `{ x, y, width, height }`, whole pixels of the image's own size (at least 4 each way, inside the picture), and optionally `point: { x, y }`, where the game marks the thing, inside the box (absent: the centre). Boxes of no take yet; they go with the take chosen. Kept when the game stops asking. | none                         |
+| `images.<id>.effects.<type>`          | An effect of the game's motion renderer for this image: `{ on, settings }`, `settings` by setting id. `on` puts it in the game; off keeps the values. Kept when the renderer stops having the type.                                                                                                                                     | none                         |
 | `images.<id>.takeAreas.<take>.<area>` | The same boxes, kept per take (by take number), so each take has its own.                                                                                                                                                                                                                                                               | none                         |
 | `images.<id>.partStyle`               | Which part's addition the image uses: a part id, or `null` for none (today's `actStyleFrom` and `actStyleOff`).                                                                                                                                                                                                                         | the first part that lists it |
 
@@ -647,6 +648,8 @@ Refresh from the game for the act. A game that does not read `areas` is unaffect
   }
 }
 ```
+
+**An image's effects.** The entry of an image with effects switched on in the studio gains `effects`, a list of `{ "kind": "dust", "settings": { "amount": 1.25 } }` in kind order: exactly the `specs` the game's renderer takes in `setEffects`. The game's renderer should hold each setting to its own range. The key is absent when none is on. The studio writes it when an effect is switched or tuned, when a take is chosen, and on Refresh from the game.
 
 **A part's mix** (`scenes.mix`) says what plays in each of a part's scenes, by scene id:
 

@@ -38,9 +38,33 @@ export function patchNoTake(title: string): string {
   return `${title} · no take chosen`
 }
 
-/** What the Effects group says of the effects the renderer has. */
-export function effectsCount(count: number, tryThem: boolean): string {
-  return tryThem
-    ? `The project's renderer has ${count}. Try them here; nothing is saved yet.`
-    : `The project's renderer has ${count}.`
+/** How long a save may take before "Saving…" shows, and how long "Saved" stays, in milliseconds. */
+export const SAVING_AFTER_MS = 400
+export const SAVED_FOR_MS = 2000
+
+/** The line under the Effects label: how many of the renderer's effects are in the game. */
+export function effectsLine(on: number, total: number): string {
+  const how = on === 0 ? 'None are on.' : `${on} of the renderer's ${total} are on.`
+  return `Switch an effect on to put it in the game. ${how}`
 }
+
+/** The Movement tab's title: with the number of effects in the game, when there are any. */
+export function movementTitle(on: number): string {
+  return on === 0 ? 'Movement' : `Movement · ${on} ${on === 1 ? 'effect' : 'effects'}`
+}
+
+/** What the Effects group says when the renderer has not loaded but effects are saved for the game. */
+export function savedForGame(types: string[]): string {
+  return `Saved for the game: ${types.join(', ')}. They can be changed once the renderer loads.`
+}
+
+/** The words of saving the effects and of an effect the renderer no longer has. */
+export const EFFECT_WORDS = {
+  reset: 'Reset',
+  saved: 'Saved',
+  saving: 'Saving…',
+  saveFailed:
+    "Couldn't save the effects: the image edits file can't be written. Your last change is still on the picture.",
+  remove: 'Remove',
+  gone: "The project's renderer no longer has this effect, so the game won't show it. Its settings are kept until you remove it.",
+} as const

@@ -9,7 +9,7 @@ import {
   type TrackRef,
 } from '../core/music'
 import { partPathFor, type Problem, type Project } from '../core/project'
-import { syncImageAreas } from './imageAreas'
+import { syncImageEntries } from './imageAreas'
 import { readImages } from './imageLists'
 import { DialogSchema, type Line } from '../core/resources'
 import { readResource } from './files'
@@ -239,7 +239,7 @@ async function passAreasToGame(
   if (!project.images) return { ok: true }
   const summary = await readImages(dirname(projectFile), project, [])
   const ids = summary?.acts.find((act) => act.id === partId)?.rows.map((row) => row.id) ?? []
-  const sync = await syncImageAreas(projectFile, project, ids)
+  const sync = await syncImageEntries(projectFile, project, ids)
   if (sync.ok) return sync
   const what =
     sync.reason === 'read'

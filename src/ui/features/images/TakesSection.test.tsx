@@ -44,6 +44,7 @@ const row: ImageRow = {
   gameWas: null,
   patches: [],
   areas: [],
+  effects: {},
   prompt: 'a low inn',
   actStyle: null,
   sharedWith: [],

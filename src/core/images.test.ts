@@ -21,6 +21,9 @@ import {
   assemblePrompt,
   effectiveStyle,
   formatImageEdits,
+  applyEffects,
+  effectsForGame,
+  withEffects,
   formatImageLock,
   readImageEditsValue,
   acceptableReasons,
@@ -1545,5 +1548,62 @@ describe('areas for the game', () => {
     expect(Object.keys(with_)).toEqual(['file', 'width', 'height', 'extra', 'areas'])
     expect(withAreas(with_, undefined)).toEqual(entry)
     expect('areas' in withAreas(with_, undefined)).toBe(false)
+  })
+})
+
+describe('an image’s saved effects', () => {
+  const dust = { on: true, settings: { speed: 0.5, amount: 1.25 } }
+  const embers = { on: false, settings: { amount: 2 } }
+
+  it('are written sorted by effect and setting, off ones included, and read back', () => {
+    const edits = applyEffects({ images: {} }, 'inn', { embers, dust })
+    const text = formatImageEdits(edits)
+    expect(JSON.parse(text).images.inn.effects).toEqual({
+      dust: { on: true, settings: { amount: 1.25, speed: 0.5 } },
+      embers,
+    })
+    expect(Object.keys(JSON.parse(text).images.inn.effects)).toEqual(['dust', 'embers'])
+    const read = readImageEditsValue(JSON.parse(text), 'edits.json')
+    expect(read.problems).toEqual([])
+    expect(read.edits.images.inn?.effects).toEqual({ dust, embers })
+  })
+
+  it('leave the image’s other edits alone, and an empty set takes the key away', () => {
+    const own = { text: 'cosy', gameWas: 'low' }
+    const edits = applyEffects({ images: { inn: own } }, 'inn', { dust })
+    expect(edits.images.inn).toEqual({ ...own, effects: { dust } })
+    expect(applyEffects(edits, 'inn', {}).images).toEqual({ inn: own })
+    expect(applyEffects(applyEffects({ images: {} }, 'inn', { dust }), 'inn', {}).images).toEqual(
+      {},
+    )
+  })
+
+  it('drop only that image when a setting is not a number', () => {
+    const read = readImageEditsValue(
+      { images: { inn: { effects: { dust: { on: true, settings: { amount: 'lots' } } } } } },
+      'edits.json',
+    )
+    expect(read.edits.images).toEqual({})
+    expect(read.problems[0]?.path).toBe('images.inn.effects.dust.settings.amount')
+  })
+
+  it('go to the game only when on, by kind, with their settings', () => {
+    expect(effectsForGame({ embers, dust })).toEqual([
+      { kind: 'dust', settings: { speed: 0.5, amount: 1.25 } },
+    ])
+    expect(effectsForGame({ embers })).toEqual([])
+  })
+
+  it('set or take away the manifest entry’s effects, keeping its other fields', () => {
+    const entry: Record<string, unknown> = {
+      file: 'inn.png',
+      width: 320,
+      height: 200,
+      areas: { a: { x: 0 } },
+    }
+    const list = effectsForGame({ dust })
+    expect(withEffects(entry, list)).toEqual({ ...entry, effects: list })
+    const had: Record<string, unknown> = { ...entry, effects: list }
+    expect(withEffects(had, [])).toEqual(entry)
   })
 })

@@ -102,3 +102,43 @@ export function settingsLine(type: EffectType): string {
 export function startSettings(type: EffectType): Record<string, number> {
   return Object.fromEntries(type.settings.map((s) => [s.id, s.default]))
 }
+
+/** A setting's value as the sliders show it: a plain number with two decimals. */
+export function valueText(n: number): string {
+  return n.toFixed(2)
+}
+
+/** A value held to the setting's range. */
+export function clampSetting(setting: EffectSetting, value: number): number {
+  return Math.min(setting.max, Math.max(setting.min, value))
+}
+
+/**
+ * What an effect plays and its sliders show: each setting's saved value held to the renderer's
+ * range now, or its starting value where none is saved.
+ */
+export function effectValues(
+  type: EffectType,
+  saved: Readonly<Record<string, number>> | undefined,
+): Record<string, number> {
+  return Object.fromEntries(
+    type.settings.map((s) => [s.id, clampSetting(s, saved?.[s.id] ?? s.default)]),
+  )
+}
+
+/** Whether any of an effect's settings is not at the renderer's starting value (when Reset shows). */
+export function effectDiffers(
+  type: EffectType,
+  saved: Readonly<Record<string, number>> | undefined,
+): boolean {
+  const values = effectValues(type, saved)
+  return type.settings.some((s) => values[s.id] !== s.default)
+}
+
+/** The sentence for a saved value the renderer's range no longer holds; null when it is in range or nothing is saved. */
+export function rangeNote(setting: EffectSetting, saved: number | undefined): string | null {
+  if (saved === undefined || (saved >= setting.min && saved <= setting.max)) return null
+  const high = saved > setting.max
+  const limit = numberText(high ? setting.max : setting.min)
+  return `${setting.title} was saved as ${valueText(saved)}; the renderer now goes ${high ? 'up' : 'down'} to ${limit}, so the game plays ${limit}.`
+}

@@ -6,7 +6,7 @@ import type { EditModelId } from '../../core/imageModels'
 import type { FineTuneAnswer, FineTuneRequest } from '../../services/imageFineTunes'
 import type { ImagePatchAnswer, PatchMakeRequest } from '../../services/imagePatches'
 import { takesAreBeingMade } from '../musicTakesText'
-import type { AreaBox, StyleField } from '../../core/images'
+import type { AreaBox, SavedEffects, StyleField } from '../../core/images'
 import type { ImageEditResult } from '../../services/imageEdits'
 import type {
   ImageMakeRequest,
@@ -111,6 +111,15 @@ export function useSetImageAreaBox(imageId: string) {
     method: 'PUT',
     path: `/api/images/${encodeURIComponent(imageId)}/areas/${encodeURIComponent(value.area)}`,
     body: { box: value.box },
+  }))
+}
+
+/** Saves the whole set of an image's effects, by effect type; an empty set takes them all away. */
+export function useSetImageEffects(imageId: string) {
+  return useImageEdit<SavedEffects>(`image-${imageId}`, (effects) => ({
+    method: 'PUT',
+    path: `/api/images/${encodeURIComponent(imageId)}/effects`,
+    body: { effects },
   }))
 }
 

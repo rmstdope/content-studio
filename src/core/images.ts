@@ -175,6 +175,17 @@ export function checkAreaBox(box: AreaBox, size: { width: number; height: number
   return null
 }
 
+/** One effect of an image as the studio keeps it: whether it is in the game, and every setting's value, kept while off. */
+export const EffectEditSchema = z.object({
+  /** What the renderer called it when it was saved, to name it when the renderer is not there. */
+  title: z.string().optional(),
+  on: z.boolean(),
+  settings: z.record(z.string(), z.number().finite()),
+})
+
+/** The effects an image has saved, by effect type: the type's values, whether or not the renderer still has it. */
+export type SavedEffects = Record<string, z.infer<typeof EffectEditSchema>>
+
 /**
  * The studio's change to one image: its own words over the game's (`text`, with the game's words
  * it was written over, `gameWas`), which part's addition it uses (`partStyle`: a part id, or
@@ -191,6 +202,7 @@ const ImageEditSchema = z
     partStyle: z.string().nullable().optional(),
     patches: z.record(z.string(), PatchEditSchema).optional(),
     areas: z.record(z.string(), AreaBoxSchema).optional(),
+    effects: z.record(z.string(), EffectEditSchema).optional(),
     takeAreas: z
       .record(z.string().regex(/^\d+$/, 'a take number'), z.record(z.string(), AreaBoxSchema))
       .optional(),
@@ -267,7 +279,7 @@ export function formatImageEdits(edits: ImageEdits): string {
     Object.keys(edits.images)
       .sort()
       .map((id) => {
-        const { text, gameWas, partStyle, patches, areas, takeAreas } = edits.images[id]!
+        const { text, gameWas, partStyle, patches, areas, takeAreas, effects } = edits.images[id]!
         const sorted =
           patches &&
           Object.fromEntries(
@@ -303,11 +315,29 @@ export function formatImageEdits(edits: ImageEdits): string {
             patches: sorted,
             areas: areas && keyed(areas),
             takeAreas: perTake,
+            effects: effects && keyedEffects(effects),
           },
         ]
       }),
   )
   return `${JSON.stringify(out, null, 2)}\n`
+}
+
+/** Saved effects with their types and settings in a fixed order, so changes make small diffs. */
+function keyedEffects(effects: SavedEffects): SavedEffects {
+  return Object.fromEntries(
+    Object.keys(effects)
+      .sort()
+      .map((type) => {
+        const { title, on, settings } = effects[type]!
+        const sortedSettings = Object.fromEntries(
+          Object.keys(settings)
+            .sort()
+            .map((id) => [id, settings[id]!]),
+        )
+        return [type, { ...(title !== undefined && { title }), on, settings: sortedSettings }]
+      }),
+  )
 }
 
 /** What a chosen take was made from; the lock records it, and staleness compares it. */
@@ -567,6 +597,32 @@ function withImage(edits: ImageEdits, id: string, edit: ImageEdit): ImageEdits {
   const { [id]: _removed, ...rest } = edits.images
   const kept = Object.values(edit).some((value) => value !== undefined)
   return { ...edits, images: kept ? { ...rest, [id]: edit } : rest }
+}
+
+/** The edits with an image's saved effects replaced by `effects`; none takes the key away. The image's other edits stay. */
+export function applyEffects(edits: ImageEdits, id: string, effects: SavedEffects): ImageEdits {
+  const { effects: _old, ...rest } = edits.images[id] ?? {}
+  return withImage(edits, id, Object.keys(effects).length ? { ...rest, effects } : rest)
+}
+
+/** One effect as the game's renderer is asked for it: `setEffects` takes a list of these. */
+export interface GameEffect {
+  kind: string
+  settings: Record<string, number>
+}
+
+/** The effects the game plays: those saved as on, by kind, each with every setting saved for it. */
+export function effectsForGame(effects: SavedEffects): GameEffect[] {
+  return Object.keys(effects)
+    .sort()
+    .filter((type) => effects[type]!.on)
+    .map((type) => ({ kind: type, settings: effects[type]!.settings }))
+}
+
+/** A manifest entry with its `effects` set, or taken away when there are none; its other fields stay in place. */
+export function withEffects<T extends object>(entry: T, effects: readonly GameEffect[]): T {
+  const { effects: _old, ...rest } = entry as T & { effects?: unknown }
+  return (effects.length ? { ...rest, effects: [...effects] } : rest) as T
 }
 
 /** The edits with an image's use of its part's style addition changed: off is `partStyle: null`, ticked again removes it. */
@@ -921,6 +977,8 @@ export interface ImageRow {
   patches: PatchRow[]
   /** The named areas the game wants placed on it, in the game's order (the first act's, for a shared image). */
   areas: AreaRow[]
+  /** The effects the studio has saved for it (by effect type), in the game or not; none when nothing is saved. */
+  effects: SavedEffects
   /** The whole prompt. */
   prompt: string
   /**
@@ -1192,6 +1250,7 @@ export function summarizeImages(input: ImagesInput): {
           elsewhereGone: box === null && gone,
         }
       }),
+      effects: own?.effects ?? {},
       prompt: assemblePrompt(words, eff),
       actStyle: shared
         ? choices.length

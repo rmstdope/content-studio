@@ -604,6 +604,18 @@ describe('choosing', () => {
     expect(JSON.parse(read('web/images/manifest.json')).inn.areas).toEqual(areas)
   })
 
+  it('gives the game the effects saved for the image, whichever take is chosen', async () => {
+    const dust = { on: true, settings: { amount: 1.5 } }
+    const { takes, file, read } = await made({
+      [EDITS]: { style: STYLE, images: { inn: { effects: { dust } } } },
+    })
+    const effects = [{ kind: 'dust', settings: { amount: 1.5 } }]
+    await takes.choose(file, 'inn', 1)
+    expect(JSON.parse(read('web/images/manifest.json')).inn.effects).toEqual(effects)
+    await takes.choose(file, 'inn', 2)
+    expect(JSON.parse(read('web/images/manifest.json')).inn.effects).toEqual(effects)
+  })
+
   describe('the boxes of each take', () => {
     const box = { x: 80, y: 50, width: 160, height: 100 }
     const other = { x: 0, y: 0, width: 32, height: 20 }

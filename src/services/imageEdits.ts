@@ -6,6 +6,8 @@ import {
   applyActStyleChange,
   applyActStylePick,
   applyAreaBox,
+  applyEffects,
+  type SavedEffects,
   checkAreaBox,
   type AreaBox,
   applyPatchWordsChange,
@@ -20,7 +22,7 @@ import {
 } from '../core/images'
 import { IMAGES_EDITS_FILE, type Problem, type Project } from '../core/project'
 import { writeAtomic, writeFailure } from './files'
-import { syncImageAreas } from './imageAreas'
+import { syncImageEntries } from './imageAreas'
 import { readImageEdits, readImages } from './imageLists'
 import { createSerial } from './serial'
 import { openProject, type ProjectFailure } from './workspace'
@@ -145,7 +147,32 @@ export function setImageAreaBox(
     },
     // The game gets the box in the same save; a clear never fails for want of an entry.
     async (project) => {
-      const sync = await syncImageAreas(projectFile, project, [id], { requireEntry: box !== null })
+      const sync = await syncImageEntries(projectFile, project, [id], {
+        requireEntry: box !== null,
+      })
+      return sync.ok
+        ? []
+        : [{ file: project.images!.manifest, path: `images.${id}`, message: sync.message }]
+    },
+  )
+}
+
+/**
+ * Saves the effects of an image (the whole set; none takes them away) and passes the ones that
+ * are on to the game in the same save. Null for an image the game does not list.
+ */
+export function setImageEffects(
+  projectFile: string,
+  id: string,
+  effects: SavedEffects,
+): Promise<ImageEditResult> {
+  return edit(
+    projectFile,
+    (summary) => (summary.acts.flatMap((act) => act.rows).some((r) => r.id === id) ? true : null),
+    (edits) => applyEffects(edits, id, effects),
+    // An image with no manifest entry yet gets its effects when a take is chosen.
+    async (project) => {
+      const sync = await syncImageEntries(projectFile, project, [id])
       return sync.ok
         ? []
         : [{ file: project.images!.manifest, path: `images.${id}`, message: sync.message }]

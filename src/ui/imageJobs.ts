@@ -1,4 +1,5 @@
 import type { ImageRow, PatchRow } from '../core/images'
+import { movementTitle } from './motionText'
 import { IMAGE_STATUS_LABEL } from './imagesText'
 
 /** The jobs of an image's page, one tab each. */
@@ -24,6 +25,8 @@ export interface JobTabsInput {
    * (the list row and the image's own views), not the views' alone.
    */
   lockUnread: boolean
+  /** How many of the renderer's effects are in the game, once the renderer has loaded; absent: count what is saved. */
+  effectsOn?: number
 }
 
 /** The tabs an image's page shows, in order; Make, Fine-tune and Movement are on every image; Patches and Named areas only when the game asks for them. */
@@ -76,7 +79,14 @@ export function imageJobTabs(input: JobTabsInput): JobTab[] {
       making: false,
     })
   }
-  tabs.push({ job: 'movement', title: 'Movement', chip: null, making: false })
+  tabs.push({
+    job: 'movement',
+    title: movementTitle(
+      input.effectsOn ?? Object.values(row.effects).filter((effect) => effect.on).length,
+    ),
+    chip: null,
+    making: false,
+  })
   return tabs
 }
 

@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'bun:test'
-import { numberText, parseEffectTypes, settingLine, settingsLine, startSettings } from './motion'
+import {
+  clampSetting,
+  effectDiffers,
+  effectValues,
+  rangeNote,
+  valueText,
+  numberText,
+  parseEffectTypes,
+  settingLine,
+  settingsLine,
+  startSettings,
+} from './motion'
 
 const setting = (over: Record<string, unknown> = {}) => ({
   id: 'amount',
@@ -82,5 +93,49 @@ describe('the words of an effect', () => {
     expect(numberText(1)).toBe('1')
     expect(numberText(0.25)).toBe('0.25')
     expect(numberText(0.1 + 0.2)).toBe('0.3')
+  })
+})
+
+describe('an effect’s saved settings', () => {
+  const size = setting({ id: 'size', title: 'Size', max: 2, min: 0.5, default: 1 })
+  const amount = setting()
+  const read = () => {
+    const answer = parseEffectTypes([effect({ settings: [amount, size] })])
+    if (!answer.ok) throw new Error('unreadable')
+    return answer.types[0]!
+  }
+
+  it('writes a value as a plain number with two decimals', () => {
+    expect(valueText(1.25)).toBe('1.25')
+    expect(valueText(2)).toBe('2.00')
+  })
+
+  it('holds a value to the setting’s range', () => {
+    expect(clampSetting(size, 2.5)).toBe(2)
+    expect(clampSetting(size, 0.1)).toBe(0.5)
+    expect(clampSetting(size, 1.5)).toBe(1.5)
+  })
+
+  it('takes the saved value, the starting value where none is saved, each held to its range', () => {
+    expect(effectValues(read(), { amount: 1.25 })).toEqual({ amount: 1.25, size: 1 })
+    expect(effectValues(read(), { size: 9 })).toEqual({ amount: 1, size: 2 })
+    expect(effectValues(read(), undefined)).toEqual({ amount: 1, size: 1 })
+  })
+
+  it('differs from the start only when a setting is not at its starting value', () => {
+    expect(effectDiffers(read(), undefined)).toBe(false)
+    expect(effectDiffers(read(), { amount: 1, size: 1 })).toBe(false)
+    expect(effectDiffers(read(), { amount: 1.25 })).toBe(true)
+  })
+
+  it('says when a saved value is outside the range now, and the end the game plays', () => {
+    expect(rangeNote(size, 2.5)).toBe(
+      'Size was saved as 2.50; the renderer now goes up to 2, so the game plays 2.',
+    )
+    expect(rangeNote(size, 0.25)).toBe(
+      'Size was saved as 0.25; the renderer now goes down to 0.5, so the game plays 0.5.',
+    )
+    expect(rangeNote(size, 1.5)).toBeNull()
+    expect(rangeNote(size, undefined)).toBeNull()
   })
 })

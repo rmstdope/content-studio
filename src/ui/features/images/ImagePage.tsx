@@ -61,6 +61,7 @@ export function ImagePage({
   }
   const [saved, setSaved] = useState(false)
   const [job, setJob] = useState<ImageJob>('make')
+  const [effectsOn, setEffectsOn] = useState<number | null>(null)
   const takesView = useImageTakes(row.id).data
   const tunesView = useFineTunes(row.id).data
   const patchesView = useImagePatches(row.id).data
@@ -75,6 +76,7 @@ export function ImagePage({
       'patches' in patchesView &&
       (patchesView.patches.some((p) => p.making.length > 0) || !!patchesView.remake.press?.running),
     lockUnread: imageLockUnread(row, takesView, patchesView),
+    ...(effectsOn !== null && { effectsOn }),
   })
   const save = useSetImageWords(row.id)
   const compare = useImageCompare(row.id)
@@ -277,7 +279,12 @@ export function ImagePage({
         <NamedAreasPanel key={`areas-${row.id}`} row={row} />
       </Job>
       <Job job="movement" open={job}>
-        <MovementPanel key={`movement-${row.id}`} row={row} onGoToMake={() => setJob('make')} />
+        <MovementPanel
+          key={`movement-${row.id}`}
+          row={row}
+          onGoToMake={() => setJob('make')}
+          onEffectsOn={setEffectsOn}
+        />
       </Job>
     </>
   )
