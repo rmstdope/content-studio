@@ -14,6 +14,7 @@ import {
 import { ActStyleBody, CompareBody, StyleFieldBody, WordsBody } from '../../core/images'
 import { figuresOf } from '../../core/takeTimes'
 import { readTakeTimes } from '../../services/takeTimes'
+import { readMotionRenderer } from '../../services/motionRenderer'
 import type { RouteContext } from '../context'
 import { makeAllRoutes } from '../makeAllRoutes'
 import { takeListRoutes } from '../takeRoutes'
@@ -91,6 +92,9 @@ export function imagesRoutes(c: RouteContext) {
         const { id, patch } = request.params
         return imageAnswer(await resolveImagePatchCompare(projectFile, id, patch, body.data.choice))
       }),
+    },
+    '/api/images/motion': {
+      GET: guard(async () => Response.json(await readMotionRenderer(projectFile))),
     },
     '/api/images/making': {
       GET: guard(async () => Response.json(await imageTakes.making(projectFile))),
