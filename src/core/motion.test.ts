@@ -12,6 +12,9 @@ import {
   startSettings,
   effectPlays,
   tieState,
+  gameShapes,
+  spotView,
+  type Placement,
 } from './motion'
 
 const setting = (over: Record<string, unknown> = {}) => ({
@@ -204,5 +207,81 @@ describe('what an effect tied to a patch does', () => {
     const state = tieState({ unlessPatch: 'old', patchTitle: 'Old bucket' }, patches, none)
     expect(state).toEqual({ kind: 'gone', without: true, patchId: 'old', title: 'Old bucket' })
     expect(effectPlays(state)).toBe(false)
+  })
+})
+
+describe('placement', () => {
+  const band: [number, number][][] = [
+    [
+      [0.1, 0.5],
+      [0.9, 0.5],
+      [0.5, 0.9],
+    ],
+  ]
+  it('reads shapes, "whole", "fixed" or nothing', () => {
+    const all: Placement[] = [band, 'whole', 'fixed', undefined]
+    for (const placement of all) {
+      const answer = parseEffectTypes([effect({ placement })])
+      expect(answer.ok).toBe(true)
+      if (answer.ok) expect(answer.types[0]!.placement).toEqual(placement)
+    }
+  })
+  it('refuses a shape of two corners and any other word', () => {
+    expect(
+      parseEffectTypes([
+        effect({
+          placement: [
+            [
+              [0, 0],
+              [1, 1],
+            ],
+          ],
+        }),
+      ]).ok,
+    ).toBe(false)
+    expect(parseEffectTypes([effect({ placement: 'anywhere' })]).ok).toBe(false)
+    expect(parseEffectTypes([effect({ placement: [] })]).ok).toBe(false)
+  })
+  it('gameShapes gives the shapes, the picture for "whole", and none otherwise', () => {
+    expect(gameShapes(band)).toEqual(band)
+    expect(gameShapes('whole')).toEqual([
+      [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+      ],
+    ])
+    expect(gameShapes('fixed')).toEqual([])
+    expect(gameShapes(undefined)).toEqual([])
+  })
+})
+
+describe('spotView', () => {
+  const shape = [
+    [0.1, 0.5],
+    [0.9, 0.5],
+    [0.5, 0.9],
+  ] as [number, number][]
+  it("is the game's shape when none is saved", () => {
+    expect(spotView([shape], undefined)).toEqual({ who: 'game', shape: 'shapes' })
+    expect(spotView('whole', undefined)).toEqual({ who: 'game', shape: 'whole' })
+    expect(spotView(undefined, undefined)).toEqual({ who: 'game', shape: 'unknown' })
+  })
+  it('is your own once a shape is saved, whatever the game says', () => {
+    expect(spotView([shape], { spot: [shape, shape] })).toEqual({
+      who: 'own',
+      count: 2,
+      marked: false,
+    })
+    expect(spotView(undefined, { spot: [shape], mark: [0.5, 0.5] })).toEqual({
+      who: 'own',
+      count: 1,
+      marked: true,
+    })
+  })
+  it('is fixed when the game cannot move it, noting a kept shape', () => {
+    expect(spotView('fixed', undefined)).toEqual({ who: 'fixed', kept: false })
+    expect(spotView('fixed', { spot: [shape] })).toEqual({ who: 'fixed', kept: true })
   })
 })

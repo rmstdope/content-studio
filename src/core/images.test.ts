@@ -1597,6 +1597,37 @@ describe('an image’s saved effects', () => {
     expect(effectsForGame({ embers })).toEqual([])
   })
 
+  it('keep a shape of an effect the game cannot move, and do not send it to the game', () => {
+    const shape: [number, number][] = [
+      [0.1, 0.1],
+      [0.9, 0.1],
+      [0.5, 0.9],
+    ]
+    const fixed = {
+      ...dust,
+      spot: [shape],
+      mark: [0.5, 0.5] as [number, number],
+      fixed: true as const,
+    }
+    const text = formatImageEdits(applyEffects({ images: {} }, 'inn', { dust: fixed }))
+    expect(Object.keys(JSON.parse(text).images.inn.effects.dust)).toEqual([
+      'on',
+      'settings',
+      'spot',
+      'mark',
+      'fixed',
+    ])
+    const read = readImageEditsValue(JSON.parse(text), 'edits.json')
+    expect(read.problems).toEqual([])
+    expect(read.edits.images.inn?.effects?.dust).toEqual(fixed)
+    expect(effectsForGame({ dust: fixed })).toEqual([
+      { kind: 'dust', settings: { speed: 0.5, amount: 1.25 } },
+    ])
+    expect(effectsForGame({ dust: { ...fixed, fixed: undefined } })).toEqual([
+      { kind: 'dust', settings: { speed: 0.5, amount: 1.25 }, spot: [shape], mark: [0.5, 0.5] },
+    ])
+  })
+
   it('keep a tie to a patch, in order, and send only its id to the game', () => {
     const tied = { ...dust, patch: 'star', patchTitle: 'The star on the door' }
     const text = formatImageEdits(applyEffects({ images: {} }, 'inn', { dust: tied }))

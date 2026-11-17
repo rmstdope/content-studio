@@ -22,6 +22,10 @@ const MARK_RING = 11
 export interface SpotOverlayProps {
   /** The effect's shapes as they stand. */
   spot: readonly SpotShape[]
+  /** The shapes the game itself places the effect in, dashed beneath (faint when `spot` is the person's own); none: the game doesn't say. */
+  game?: readonly SpotShape[]
+  /** The game's shapes are shown faintly: the person's own are over them. */
+  gameFaint?: boolean
   /** `peek` only outlines them; `draw` dims the rest of the picture and takes the presses. */
   mode: 'peek' | 'draw'
   /** The picked shape, if any (drawing). */
@@ -215,6 +219,13 @@ export function SpotOverlay(props: SpotOverlayProps) {
             <rect className="spot-dim" width={w} height={h} mask={`url(#${mask})`} />
           </>
         )}
+        {props.game?.map((shape, i) => (
+          <polygon
+            key={`game${i}`}
+            points={points(shape)}
+            className={props.gameFaint ? 'spot-game spot-game-faint' : 'spot-game'}
+          />
+        ))}
         {spot.map((shape, i) => (
           <polygon
             key={i}

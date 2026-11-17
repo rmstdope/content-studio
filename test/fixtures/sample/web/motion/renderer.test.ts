@@ -68,9 +68,18 @@ describe('the sample motion renderer with a spot', () => {
     expect(calls).toContain('restore')
   })
 
-  it('draws an effect with no spot unclipped', () => {
+  it('draws an effect with no spot inside the game’s own shape, at the canvas size', () => {
     const scene = createMotionScene()
+    scene.resize(200, 100)
     scene.setEffects([{ kind: 'dust' }])
+    const { calls, ctx } = notingContext()
+    scene.draw(ctx)
+    expect(calls.slice(0, 4)).toEqual(['save', 'beginPath', 'moveTo 10 60', 'lineTo 190 60'])
+  })
+
+  it('draws an effect the game places over the whole picture unclipped', () => {
+    const scene = createMotionScene()
+    scene.setEffects([{ kind: 'embers' }])
     const { calls, ctx } = notingContext()
     scene.draw(ctx)
     expect(calls).not.toContain('clip')

@@ -38,6 +38,7 @@
   --warn: #ffc24b;
   --warn-bg: #2d2412;
   --info: #7aa7ff;
+  --game-shape: #b9c6ff;
   --danger-bg: #2e1720;
   --danger-ink: #ff94a8;
   --status-ok: #3ddc97;
@@ -6518,6 +6519,15 @@ textarea[aria-disabled='true'][data-why] {
 .spot-dim {
   fill: #000;
   opacity: 0.5;
+}
+.spot-game {
+  fill: none;
+  stroke: var(--game-shape);
+  stroke-width: 2px;
+  stroke-dasharray: 7 5;
+}
+.spot-game-faint {
+  opacity: 0.45;
 }
 .spot-peek {
   fill: none;

@@ -112,7 +112,7 @@ bundle breaks.
   its point as `mark` when it has one), written in the
   same save as the box and on Refresh from the game; the entry keeps its other fields as they were.
   Likewise `effects`, the effects the user put in the game for the image with their settings
-  and, where drawn, the spot each plays inside and, with a spot, its `mark`, where its light comes from (§8.7, the Movement job), written in the same save as the change, on choosing a take and on Refresh from the game.
+  and, where drawn, the spot each plays inside (only a shape drawn in the studio, and not for an effect the renderer says the game cannot move) and, with a spot, its `mark`, where its light comes from (§8.7, the Movement job), written in the same save as the change, on choosing a take and on Refresh from the game.
   And `zoom`, the image's slow zoom as `{ seconds, percent }` (`null` for none, no key when nothing is saved), written the same way.
 - Never run git commands that change the consumer (`add`, `commit`, `push`, `checkout`). The user
   commits; the studio at most reads `git status`.

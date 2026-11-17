@@ -519,6 +519,26 @@ describe('the effects of an image', () => {
     })
   })
 
+  it('keep the shape of an effect the game cannot move in the edit, but do not give it to the game', async () => {
+    const { file, read } = repo({ [MANIFEST]: { inn: entry } })
+    const shape: [number, number][] = [
+      [0.1, 0.1],
+      [0.5, 0.1],
+      [0.3, 0.6],
+    ]
+    const fixed = {
+      ...dust,
+      spot: [shape],
+      mark: [0.3, 0.3] as [number, number],
+      fixed: true as const,
+    }
+    expect(await setImageEffects(file, 'inn', { dust: fixed })).toEqual({ ok: true })
+    expect(JSON.parse(read(EDITS)).images.inn.effects).toEqual({ dust: fixed })
+    expect(JSON.parse(read(MANIFEST)).inn.effects).toEqual([
+      { kind: 'dust', settings: { amount: 1.25, speed: 1 } },
+    ])
+  })
+
   it('keep a tie to a patch, even off, and give the game only the patch id of those on', async () => {
     const { file, read } = repo({ [MANIFEST]: { inn: entry } })
     const tied = { ...dust, patch: 'star', patchTitle: 'The star on the door' }

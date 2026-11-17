@@ -205,6 +205,8 @@ export const EffectEditSchema = z.object({
   spot: z.array(SpotShapeSchema).min(1).optional(),
   /** Where its light comes from, when moved from the middle of the shapes; kept with the spot. */
   mark: CornerSchema.optional(),
+  /** Set when the renderer said, at the last save, that the game cannot place this effect elsewhere: its shape is kept but not exported. */
+  fixed: z.literal(true).optional(),
 })
 
 /** An image's slow zoom as the studio saves it: whether it is on, and the two values kept for when it is. No range is checked, so a value edited by hand still loads. */
@@ -366,7 +368,8 @@ function keyedEffects(effects: SavedEffects): SavedEffects {
     Object.keys(effects)
       .sort()
       .map((type) => {
-        const { title, on, patch, unlessPatch, patchTitle, settings, spot, mark } = effects[type]!
+        const { title, on, patch, unlessPatch, patchTitle, settings, spot, mark, fixed } =
+          effects[type]!
         const sortedSettings = Object.fromEntries(
           Object.keys(settings)
             .sort()
@@ -383,6 +386,7 @@ function keyedEffects(effects: SavedEffects): SavedEffects {
             settings: sortedSettings,
             ...(spot && { spot }),
             ...(mark && { mark }),
+            ...(fixed && { fixed }),
           },
         ]
       }),
@@ -697,14 +701,14 @@ export function effectsForGame(effects: SavedEffects): GameEffect[] {
     .sort()
     .filter((type) => effects[type]!.on)
     .map((type) => {
-      const { settings, patch, unlessPatch, spot, mark } = effects[type]!
+      const { settings, patch, unlessPatch, spot, mark, fixed } = effects[type]!
       return {
         kind: type,
         settings,
         ...(patch !== undefined && { patch }),
         ...(unlessPatch !== undefined && { unlessPatch }),
-        ...(spot && { spot }),
-        ...(spot && mark && { mark }),
+        ...(spot && !fixed && { spot }),
+        ...(spot && !fixed && mark && { mark }),
       }
     })
 }

@@ -11,6 +11,8 @@ import { zoomLook, zoomValues } from '../../../core/zoom'
 import {
   effectPlays,
   effectValues,
+  gameShapes,
+  spotView,
   startSettings,
   tieState,
   type TiePatch,
@@ -62,6 +64,18 @@ interface Drawing {
   placing: [number, number][] | null
   picked: number | null
   confirm: boolean
+  /** The copy of the game's shape being started from, not yet the person's own; null once a change made it theirs, or when the game doesn't say where. */
+  draft: SpotShape[] | null
+}
+
+/** How long Undo stays offered after a shape is taken away. */
+const UNDO_FOR_MS = 8000
+
+/** The shapes and mark just taken away from an effect, to bring back with Undo. */
+interface Removed {
+  type: string
+  spot: SpotShape[]
+  mark?: SpotMark
 }
 
 /** The tie an effect has to a patch, to carry over into its next saved form. */
@@ -119,6 +133,14 @@ export function MovementPanel({
   const [peek, setPeek] = useState<string | null>(null)
   const [leftOut, setLeftOut] = useState<string | null>(null)
   const [failedSpot, setFailedSpot] = useState(false)
+  // Shapes just taken away, offered back for a moment (never kept past this tab).
+  const [removed, setRemoved] = useState<Removed | null>(null)
+  const removedRef = useRef<Removed | null>(null)
+  const removedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // The effect whose shapes could not be taken away, so Try again takes them away again.
+  const failedBack = useRef<string | null>(null)
+  // The types the renderer says the game cannot place elsewhere, as of this render; null while the renderer is not loaded.
+  const fixedTypes = useRef<ReadonlySet<string> | null>(null)
   const bar = useRef<HTMLDivElement>(null)
   const wrap = useRef<HTMLDivElement>(null)
   const fullButton = useRef<HTMLButtonElement>(null)
@@ -183,6 +205,10 @@ export function MovementPanel({
   const picture = src !== null && missing !== src ? src : null
   // Playing: the renderer is loaded and there is a picture to move; only then do the keys act.
   const running = motion.status === 'ready' && picture !== null
+  fixedTypes.current =
+    motion.status === 'ready'
+      ? new Set(motion.module.types.filter((t) => t.placement === 'fixed').map((t) => t.type))
+      : null
 
   const patches: MovementPatch[] | null = lockUnread
     ? row.patches.map((patch) => ({ id: patch.id, title: patch.title, src: null }))
@@ -252,8 +278,10 @@ export function MovementPanel({
 
   /** Saves the effects as they are now; the latest save's outcome is the one shown. */
   const persist = useCallback(
-    (spot = false) => {
+    (spot = false, onFail?: () => void) => {
       const mine = ++saves.current
+      // Try again retries the latest save: only a revert's own save is retried as a revert.
+      if (!onFail) failedBack.current = null
       timers.current.forEach(clearTimeout)
       timers.current = [
         setTimeout(() => {
@@ -265,9 +293,18 @@ export function MovementPanel({
         timers.current.forEach(clearTimeout)
         setFailedSpot(spot)
         setStatus(ok ? 'saved' : 'failed')
+        if (!ok) onFail?.()
         if (ok) timers.current = [setTimeout(() => setStatus('idle'), SAVED_FOR_MS)]
       }
-      save.mutate(latest.current, {
+      // An effect the game cannot place elsewhere is marked so, so its kept shape is not exported.
+      const marked: SavedEffects = Object.fromEntries(
+        Object.entries(latest.current).map(([type, effect]) => {
+          if (!fixedTypes.current) return [type, effect]
+          const { fixed: _was, ...rest } = effect
+          return [type, fixedTypes.current.has(type) ? { ...rest, fixed: true as const } : rest]
+        }),
+      )
+      save.mutate(marked, {
         onSuccess: (answer) => done(answer.ok),
         onError: () => done(false),
       })
@@ -281,6 +318,7 @@ export function MovementPanel({
     setEffects(next)
   }
   const onEffect = (type: EffectType, on: boolean) => {
+    clearRemoved(type.type)
     if (!on && drawingRef.current?.type === type.type) finish(false)
     const was = latest.current[type.type]
     // Every setting goes to the game: those the renderer has added since take their starting value.
@@ -297,6 +335,7 @@ export function MovementPanel({
     persist()
   }
   const onSetting = (type: EffectType, setting: EffectSetting, value: number) => {
+    clearRemoved(type.type)
     const was = latest.current[type.type]
     set({
       ...latest.current,
@@ -310,6 +349,7 @@ export function MovementPanel({
     })
   }
   const onReset = (type: EffectType) => {
+    clearRemoved(type.type)
     set({
       ...latest.current,
       [type.type]: {
@@ -322,17 +362,52 @@ export function MovementPanel({
     })
     persist()
   }
-  const onClear = (type: EffectType) => {
+  /** Stops offering Undo; for a type, only when it is that type's. */
+  const clearRemoved = (type?: string) => {
+    if (type !== undefined && removedRef.current?.type !== type) return
+    if (removedTimer.current) clearTimeout(removedTimer.current)
+    removedTimer.current = null
+    removedRef.current = null
+    setRemoved(null)
+  }
+  /** Back to the game's / Remove it: the shapes and their mark go at once, and Undo is offered for a moment. */
+  const onBack = (type: EffectType) => {
     setLeftOut(null)
     const was = latest.current[type.type]
-    if (!was) return
-    const { spot: _gone, mark: _mark, ...rest } = was
+    if (!was?.spot) return
+    const { spot, mark, ...rest } = was
+    const snapshot: Removed = { type: type.type, spot, ...(mark && { mark }) }
+    failedBack.current = null
     set({ ...latest.current, [type.type]: rest })
+    clearRemoved()
+    removedRef.current = snapshot
+    setRemoved(snapshot)
+    removedTimer.current = setTimeout(() => clearRemoved(type.type), UNDO_FOR_MS)
+    // A failed save puts the shapes back: the row stays on the person's own.
+    persist(true, () => {
+      failedBack.current = type.type
+      clearRemoved(type.type)
+      const now = latest.current[type.type]
+      if (now) set({ ...latest.current, [type.type]: { ...now, spot, ...(mark && { mark }) } })
+    })
+    focusSpotLink(type.type)
+  }
+  /** Undo: the shapes and mark just taken away come back, saved at once. */
+  const onUndo = (type: EffectType) => {
+    const back = removedRef.current
+    clearRemoved()
+    const now = latest.current[type.type]
+    if (!back || back.type !== type.type || !now) return
+    set({
+      ...latest.current,
+      [type.type]: { ...now, spot: back.spot, ...(back.mark && { mark: back.mark }) },
+    })
     persist(true)
     focusSpotLink(type.type)
   }
   /** An effect is tied to a patch, or to none (null): saved, and the patch laid (or taken off, for "not laid") so the effect stays in sight. */
   const onTie = (type: EffectType, choice: { patchId: string; without: boolean } | null) => {
+    clearRemoved(type.type)
     const was = latest.current[type.type]
     const {
       patch: _p,
@@ -358,6 +433,7 @@ export function MovementPanel({
   const onLay = (id: string) => setPatchesOn((now) => toggle(now, id, true))
   const onTakeOff = (id: string) => setPatchesOn((now) => toggle(now, id, false))
   const onRemove = (type: string) => {
+    clearRemoved(type)
     const { [type]: _gone, ...rest } = latest.current
     set(rest)
     persist()
@@ -377,24 +453,42 @@ export function MovementPanel({
     setDrawing(null)
     if (refocus) focusSpotLink(now.type)
   }, [])
-  /** Sets an effect's spot (none: the whole picture) in the effects; saving is the caller's. */
+  /** Sets an effect's spot (none: the game's) in the effects; saving is the caller's. A change makes the shape the person's own. */
   const setSpot = (type: string, spot: SpotShape[] | undefined) => {
     setLeftOut((was) => (was === type ? null : was))
+    const now = drawingRef.current
+    if (now?.type === type && now.draft) draw({ ...now, draft: null })
     const was = latest.current[type]
     if (!was) return
     const { spot: _old, mark, ...rest } = was
     set({ ...latest.current, [type]: spot ? { ...rest, spot, ...(mark && { mark }) } : rest })
   }
-  /** Sets where an effect's light comes from (none: the middle of its shapes) in the effects; saving is the caller's. */
+  /** Sets where an effect's light comes from (none: the middle of its shapes) in the effects; saving is the caller's. A change makes the shape the person's own. */
   const setMark = (type: string, mark: SpotMark | undefined) => {
+    const now = drawingRef.current
+    if (now?.type === type && now.draft) {
+      const was = latest.current[type]
+      if (was) set({ ...latest.current, [type]: { ...was, spot: now.draft } })
+      draw({ ...now, draft: null })
+    }
     const was = latest.current[type]
     if (!was) return
     const { mark: _old, ...rest } = was
     set({ ...latest.current, [type]: mark ? { ...rest, mark } : rest })
   }
+  // Undo is not kept past the tab.
+  useEffect(
+    () => () => {
+      if (removedTimer.current) clearTimeout(removedTimer.current)
+    },
+    [],
+  )
   // Leaving the tab finishes drawing.
   useEffect(() => {
-    if (!open) finish(false)
+    if (!open) {
+      finish(false)
+      clearRemoved()
+    }
   }, [open, finish])
   // Esc stops the shape being placed, or otherwise leaves drawing.
   useEffect(() => {
@@ -418,8 +512,9 @@ export function MovementPanel({
       if (!event.altKey || event.metaKey || event.ctrlKey || typingIn(event.target)) return
       const now = drawingRef.current
       const saved = now && latest.current[now.type]
-      if (!now || now.placing || now.confirm || !saved?.spot?.length) return
-      const next = nudgeMark(saved.mark ?? middleOf(saved.spot), event.key)
+      const shapes = now ? spotOf(now.type) : []
+      if (!now || now.placing || now.confirm || shapes.length === 0) return
+      const next = nudgeMark(saved?.mark ?? middleOf(shapes), event.key)
       if (!next) return
       event.preventDefault()
       setMark(now.type, next)
@@ -434,14 +529,26 @@ export function MovementPanel({
   useEffect(() => {
     if (barMode) bar.current?.querySelector('button')?.focus()
   }, [barMode, drawing?.type])
-  const spotOf = (type: string): SpotShape[] => latest.current[type]?.spot ?? []
+  /** The shapes of an effect as the picture has them: the person's own, else the game's copy being started from. */
+  function spotOf(type: string): SpotShape[] {
+    const now = drawingRef.current
+    return latest.current[type]?.spot ?? (now?.type === type ? (now.draft ?? []) : [])
+  }
   const onDraw = (type: EffectType) => {
     setLeftOut(null)
+    clearRemoved(type.type)
+    const own = latest.current[type.type]?.spot
+    // Without shapes of their own, drawing starts from a copy of the game's; where the game doesn't say, empty.
+    const copy = own
+      ? []
+      : gameShapes(type.placement).map((shape) => shape.map((c) => [...c] as [number, number]))
+    const draft = copy.length > 0 ? copy : null
     draw({
       type: type.type,
-      placing: spotOf(type.type).length === 0 ? [] : null,
+      placing: !own && !draft ? [] : null,
       picked: null,
       confirm: false,
+      draft,
     })
   }
 
@@ -500,12 +607,19 @@ export function MovementPanel({
           .filter(
             (t) => effects[t.type]?.on && effectPlays(tieState(effects[t.type]!, ties, patchesOn)),
           )
-          // A spot being drawn that has no shape yet shows nothing until one is closed.
-          .filter((t) => drawing?.type !== t.type || (effects[t.type]?.spot?.length ?? 0) > 0)
+          // A spot being drawn that has no shape yet (and no copy of the game's) shows nothing until one is closed.
+          .filter(
+            (t) =>
+              drawing?.type !== t.type ||
+              (effects[t.type]?.spot?.length ?? 0) > 0 ||
+              drawing.draft !== null,
+          )
           // In the order the game is given them (by kind), so the layers stack the same.
           .sort((a, b) => (a.type < b.type ? -1 : 1))
           .map((t) => {
-            const { settings, spot, mark } = effects[t.type]!
+            const { settings, mark } = effects[t.type]!
+            // The game's shape, and an effect the game cannot place elsewhere: the renderer is handed none.
+            const spot = t.placement === 'fixed' ? undefined : effects[t.type]!.spot
             return {
               kind: t.type,
               settings: effectValues(t, settings),
@@ -544,7 +658,9 @@ export function MovementPanel({
     drawing: drawing?.type ?? null,
     why: picture === null && SPOT_WORDS.noPicture,
     onDraw,
-    onClear,
+    onBack,
+    onUndo,
+    undo: removed?.type ?? null,
     onPeek: setPeek,
     leftOut,
   }
@@ -574,7 +690,13 @@ export function MovementPanel({
       onZoomReset={onZoomReset}
       onZoomRetry={persistZoom}
       status={status}
-      onRetry={() => persist(failedSpot)}
+      onRetry={() => {
+        const again = failedBack.current
+        const type =
+          motion.status === 'ready' ? motion.module.types.find((t) => t.type === again) : undefined
+        if (type) onBack(type)
+        else persist(failedSpot)
+      }}
       failedSpot={failedSpot}
       spot={spot}
     />
@@ -599,13 +721,13 @@ export function MovementPanel({
     const spot = addShape(spotOf(drawing.type), shape)
     setSpot(drawing.type, spot)
     persist(true)
-    draw({ ...drawing, placing: null, picked: spot.length - 1 })
+    draw({ ...drawingRef.current!, placing: null, picked: spot.length - 1 })
   }
   const dropPicked = () => {
     if (!drawing || drawing.picked === null) return
     setSpot(drawing.type, dropShape(spotOf(drawing.type), drawing.picked))
     persist(true)
-    draw({ ...drawing, picked: null, confirm: false })
+    draw({ ...drawingRef.current!, picked: null, confirm: false })
   }
   const drawBar =
     drawing && drawName ? (
@@ -613,9 +735,12 @@ export function MovementPanel({
         {(() => {
           const words = drawing.confirm
             ? deleteAsk(spotOf(drawing.type)[drawing.picked ?? 0]?.length ?? 0)
-            : drawing.placing
+            : drawing.placing && (drawing.placing.length > 0 || spotOf(drawing.type).length > 0)
               ? newShapeBar(drawName)
-              : drawingBar(drawName)
+              : drawingBar(
+                  drawName,
+                  drawing.draft ? 'fromGame' : spotOf(drawing.type).length === 0 ? 'empty' : 'own',
+                )
           return (
             <span className="spot-bar-words">
               <b>{words.lead}</b>
@@ -679,17 +804,26 @@ export function MovementPanel({
         )}
       </div>
     ) : null
-  const peeked = peek && effects[peek]?.on ? effects[peek]?.spot : undefined
-  const peekedMark = peek && effects[peek]?.on && peeked ? (effects[peek]?.mark ?? null) : null
+  const typeOf = (kind: string) =>
+    motion.status === 'ready' ? motion.module.types.find((t) => t.type === kind) : undefined
+  // Pointing at an effect's row outlines the shapes it plays in: the game's dashed, your own solid
+  // (the game's faint beneath); an effect that is off, or that the game cannot move, shows nothing.
+  const peekType = peek && effects[peek]?.on ? typeOf(peek) : undefined
+  const peekView = peekType ? spotView(peekType.placement, effects[peekType.type]) : undefined
+  const peekedOwn = peekView?.who === 'own' ? (effects[peek!]?.spot ?? []) : []
+  const peekedGame = peekType && peekView?.who !== 'fixed' ? gameShapes(peekType.placement) : []
+  const peekedMark = peekedOwn.length > 0 ? (effects[peek!]?.mark ?? null) : null
   const drawnSpot = drawing ? spotOf(drawing.type) : []
   const drawnMark =
-    !drawing || drawnSpot.length === 0
+    !drawing || drawnSpot.length === 0 || drawing.draft
       ? null
       : (latest.current[drawing.type]?.mark ?? middleOf(drawnSpot))
   const overlay =
-    drawing || peeked ? (
+    drawing || peekedOwn.length > 0 || peekedGame.length > 0 ? (
       <SpotOverlay
-        spot={drawing ? spotOf(drawing.type) : peeked!}
+        spot={drawing ? drawnSpot : peekedOwn}
+        game={drawing ? gameShapes(typeOf(drawing.type)?.placement) : peekedGame}
+        gameFaint={drawing ? true : peekedOwn.length > 0}
         mode={drawing ? 'draw' : 'peek'}
         picked={drawing?.picked ?? null}
         placing={drawing?.placing ?? null}
