@@ -211,7 +211,10 @@ export function MovementPanel({
           .filter((t) => effects[t.type]?.on)
           // In the order the game is given them (by kind), so the layers stack the same.
           .sort((a, b) => (a.type < b.type ? -1 : 1))
-          .map((t) => ({ kind: t.type, settings: effectValues(t, effects[t.type]!.settings) }))
+          .map((t) => {
+            const { settings, spot } = effects[t.type]!
+            return { kind: t.type, settings: effectValues(t, settings), ...(spot && { spot }) }
+          })
       : []
   // With no renderer named there are no effects to count; while it loads or failed, the saved count stands.
   const playingCount =

@@ -6213,6 +6213,9 @@ textarea[aria-disabled='true'][data-why] {
 .movement-zoom[data-paused='true'] {
   animation-play-state: paused;
 }
+.movement-zoom[data-still='true'] {
+  animation: none;
+}
 @keyframes movement-drift {
   from {
     transform: scale(1);

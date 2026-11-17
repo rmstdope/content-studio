@@ -916,3 +916,40 @@ describe('the effects in full screen', () => {
     expect(host.querySelector(`${panel}`)!.textContent).toContain("1 of the renderer's 4 are on.")
   })
 })
+
+const POND: [number, number][] = [
+  [0.1, 0.5],
+  [0.4, 0.5],
+  [0.25, 0.9],
+]
+
+describe('an effect with a spot, played', () => {
+  it('runs on a canvas of its own, clipped to its shapes, the others on the one over the whole picture', async () => {
+    const { host } = await render({
+      effects: {
+        dust: { ...dust({ amount: 1, size: 1, speed: 1 }), spot: [POND] },
+        mist: { on: true, settings: { amount: 1 } },
+      },
+    })
+    expect(calls().made).toBe(2)
+    const asked = calls().setEffects.map((s) => s.map((e) => e.kind).join())
+    expect(asked).toContain('mist')
+    expect(asked).toContain('dust')
+    expect(asked).not.toContain('dust,mist')
+    const canvases = host.querySelectorAll<HTMLCanvasElement>('.movement-canvas')
+    expect(canvases).toHaveLength(2)
+    expect(canvases[0]!.style.clipPath).toBe('')
+    const clip = host.querySelector('clipPath')!
+    expect(clip.getAttribute('clipPathUnits')).toBe('objectBoundingBox')
+    expect(clip.querySelector('polygon')!.getAttribute('points')).toBe('0.1,0.5 0.4,0.5 0.25,0.9')
+    expect(canvases[1]!.style.clipPath).toContain(`#${clip.id}`)
+  })
+
+  it('plays an effect over the whole picture again once its spot is gone, and not while it is off', async () => {
+    const { host } = await render({
+      effects: { dust: { ...dust({ amount: 1, size: 1, speed: 1 }), on: false, spot: [POND] } },
+    })
+    expect(calls().made).toBe(1)
+    expect(host.querySelectorAll('.movement-canvas')).toHaveLength(1)
+  })
+})
