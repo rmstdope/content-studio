@@ -51,7 +51,8 @@ export function createMotionScene() {
       reseed()
     },
     setEffects(next: typeof specs) {
-      specs = [...next]
+      // A kind this renderer does not have is ignored, as the contract asks of a game's renderer.
+      specs = next.filter((spec) => EFFECT_TYPES.some((t) => t.type === spec.kind))
       reseed()
     },
     step(ms: number) {
