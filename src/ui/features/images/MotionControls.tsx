@@ -102,17 +102,21 @@ export interface SpotControls {
 function SpotLine({
   type,
   count,
+  marked,
   on,
   props,
 }: {
   type: EffectType
   count: number
+  marked: boolean
   on: boolean
   props: MotionControlsProps
 }) {
   const spot = props.spot
   if (!on) {
-    return count > 0 ? <p className="movement-spot muted">{spotLine(count, 'off')}</p> : null
+    return count > 0 ? (
+      <p className="movement-spot muted">{spotLine(count, 'off', marked)}</p>
+    ) : null
   }
   const drawing = spot?.drawing === type.type
   const other = spot?.drawing != null && !drawing
@@ -135,7 +139,7 @@ function SpotLine({
   return (
     <div className="movement-spot-block">
       <p className="movement-spot muted">
-        {spotLine(count, drawing ? 'drawing' : 'plain')}
+        {spotLine(count, drawing ? 'drawing' : 'plain', marked)}
         {spot && !drawing && count === 0 && link(SPOT_WORDS.draw, () => spot.onDraw(type))}
         {spot && !drawing && count > 0 && link(SPOT_WORDS.change, () => spot.onDraw(type))}
         {spot && !drawing && count > 0 && link(SPOT_WORDS.clear, () => spot.onClear(type))}
@@ -374,7 +378,13 @@ function EffectRow({
           )}
         </>
       )}
-      <SpotLine type={type} count={saved?.spot?.length ?? 0} on={on} props={props} />
+      <SpotLine
+        type={type}
+        count={saved?.spot?.length ?? 0}
+        marked={saved?.mark !== undefined}
+        on={on}
+        props={props}
+      />
     </li>
   )
 }

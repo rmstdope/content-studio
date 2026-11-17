@@ -1,4 +1,4 @@
-import type { SpotShape } from '../core/images'
+import type { SpotMark, SpotShape } from '../core/images'
 import { parseEffectTypes, type EffectType } from '../core/motion'
 
 /** One slow-running picture's moving layer: the part of the renderer's scene the studio drives. */
@@ -10,13 +10,14 @@ export interface MotionScene {
   /**
    * What applies now; with `instant`, a new layer is run ahead and starts at full strength. An
    * effect with a `spot` is placed on its shapes (fractions of the picture) by the renderer, which
-   * decides how far it reaches from them.
+   * decides how far it reaches from them, and from where its light comes (`mark`; absent: the middle).
    */
   setEffects(
     specs: readonly {
       kind: string
       settings?: Record<string, number>
       spot?: SpotShape[]
+      mark?: SpotMark
     }[],
     instant: boolean,
   ): void

@@ -28,6 +28,7 @@ interface Calls {
     kind: string
     settings?: Record<string, number>
     spot?: [number, number][][]
+    mark?: [number, number]
   }[][]
   steps: number
   stepMs: number[]
@@ -1772,7 +1773,7 @@ describe('drawing a spot', () => {
     const { host } = await render(withDust([POND]))
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
     expect(barText(host)).toBe(
-      'Drawing the spot for Dust. Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it.＋ Add a shapeFinish',
+      'Drawing the spot for Dust. Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it. Drag the ● to where the light comes from, or press Alt and the arrows.＋ Add a shapeLight from the middleFinish',
     )
     expect(document.activeElement?.textContent).toBe('＋ Add a shape')
     expect(rowOf(host, 'Dust').className).toContain('movement-effect-drawing')
@@ -2045,5 +2046,228 @@ describe('drawing a spot', () => {
     await click(button(host, '⛶ Full screen'))
     expect(host.querySelector('.spot-bar')).toBeNull()
     expect(host.querySelector('.movement-float')).not.toBeNull()
+  })
+})
+
+describe('the light mark of a spot', () => {
+  const withDust = (spot: [number, number][][], mark?: [number, number], on = true) => ({
+    effects: { dust: { ...saved({ amount: 1 }, on), spot, ...(mark && { mark }) } },
+  })
+  const markAt = (host: HTMLElement) => host.querySelector('.spot-mark')?.getAttribute('data-at')
+  const lineOf = (host: HTMLElement) => spotLineOf(host, 'Dust')
+  async function alt(key: string) {
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key, altKey: true, bubbles: true, cancelable: true }),
+      )
+    })
+    await settle()
+  }
+  /** Drags from one point to another on the overlay. */
+  async function drag(host: HTMLElement, from: [number, number], to: [number, number]) {
+    await pointer(host, 'pointerdown', ...from)
+    await pointer(host, 'pointermove', ...to)
+    await pointer(host, 'pointerup', ...to)
+  }
+  const middle = (host: HTMLElement) => button(host, 'Light from the middle')!
+
+  it('shows at the middle of the shapes once one is closed, with Light from the middle greyed', async () => {
+    sizeOverlay()
+    const { host } = await render({ effects: { dust: saved({ amount: 1 }) } })
+    await click(linkIn(rowOf(host, 'Dust'), 'Draw a spot'))
+    expect(host.querySelector('.spot-mark')).toBeNull()
+    await tap(host, 0.1, 0.5)
+    await tap(host, 0.4, 0.5)
+    await tap(host, 0.25, 0.9)
+    await tap(host, 0.1, 0.5)
+    expect(markAt(host)).toBe('0.25,0.7')
+    expect(host.querySelector('.spot-mark-ring')).not.toBeNull()
+    expect(middle(host).getAttribute('aria-disabled')).toBe('true')
+    expect(lineOf(host)).toBe('Spot: 1 shape · drawing now')
+  })
+
+  it('says its words in the bar, beside Delete this shape', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    expect(barText(host)).toBe(
+      'Drawing the spot for Dust. Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it. Drag the ● to where the light comes from, or press Alt and the arrows.＋ Add a shapeLight from the middleFinish',
+    )
+    await tap(host, 0.25, 0.6)
+    expect(barText(host)).toEndWith('＋ Add a shapeDelete this shapeLight from the middleFinish')
+  })
+
+  it('is dragged anywhere on the picture, saved on release, and said on the line', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    const before = puts.length
+    await pointer(host, 'pointerdown', 0.25, 0.7)
+    await pointer(host, 'pointermove', 0.8, 0.1)
+    expect(puts).toHaveLength(before)
+    await pointer(host, 'pointerup', 0.8, 0.1)
+    expect(puts.at(-1)!.effects.dust!.mark).toEqual([0.8, 0.1])
+    expect(puts.at(-1)!.effects.dust!.spot).toEqual([POND])
+    expect(markAt(host)).toBe('0.8,0.1')
+    expect(middle(host).getAttribute('aria-disabled')).toBeNull()
+    expect(lineOf(host)).toBe('Spot: 1 shape, light from a marked point · drawing now')
+  })
+
+  it('stays within the picture’s edges', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await drag(host, [0.25, 0.7], [1.4, -0.3])
+    expect(puts.at(-1)!.effects.dust!.mark).toEqual([1, 0])
+  })
+
+  it('moves with Alt and the arrows, each press saved, and plain arrows do nothing', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await press('ArrowRight')
+    expect(puts).toHaveLength(0)
+    await alt('ArrowRight')
+    await alt('ArrowDown')
+    expect(puts).toHaveLength(2)
+    expect(puts.at(-1)!.effects.dust!.mark).toEqual([0.26, 0.71])
+  })
+
+  it('goes back to the middle with Light from the middle, saved at once', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(withDust([POND], [0.8, 0.1]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    expect(markAt(host)).toBe('0.8,0.1')
+    await click(middle(host))
+    expect(puts.at(-1)!.effects.dust).toEqual({ ...saved({ amount: 1 }), spot: [POND] })
+    expect(markAt(host)).toBe('0.25,0.7')
+    expect(middle(host).getAttribute('aria-disabled')).toBe('true')
+  })
+
+  it('stays on the same spot of the picture when a corner moves or a shape is added', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(withDust([POND], [0.8, 0.1]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await tap(host, 0.25, 0.6)
+    await drag(host, [0.4, 0.5], [0.5, 0.45])
+    expect(puts.at(-1)!.effects.dust!.mark).toEqual([0.8, 0.1])
+    await click(button(host, '＋ Add a shape'))
+    for (const [x, y] of [
+      [0.6, 0.6],
+      [0.9, 0.6],
+      [0.9, 0.9],
+      [0.6, 0.6],
+    ] as const)
+      await tap(host, x, y)
+    expect(puts.at(-1)!.effects.dust!.mark).toEqual([0.8, 0.1])
+  })
+
+  it('keeps following the middle while it was never moved, as shapes change', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await click(button(host, '＋ Add a shape'))
+    for (const [x, y] of [
+      [0.6, 0.6],
+      [0.9, 0.6],
+      [0.9, 0.9],
+      [0.6, 0.6],
+    ] as const)
+      await tap(host, x, y)
+    expect(markAt(host)).toBe('0.5,0.7')
+  })
+
+  it('goes with the shapes when the last is deleted', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(withDust([POND], [0.8, 0.1]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await tap(host, 0.25, 0.6)
+    await click(button(host, 'Delete this shape'))
+    await click(button(host, 'Delete'))
+    expect(puts.at(-1)!.effects.dust).toEqual(saved({ amount: 1 }))
+    expect(host.querySelector('.spot-mark')).toBeNull()
+  })
+
+  it('goes with the shapes on Clear', async () => {
+    const { host, puts } = await render(withDust([POND], [0.8, 0.1]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Clear'))
+    expect(puts.at(-1)!.effects.dust).toEqual(saved({ amount: 1 }))
+  })
+
+  it('says on the row whether the mark was moved', async () => {
+    const moved = await render(withDust([POND, SQUARE], [0.8, 0.1]))
+    expect(lineOf(moved.host)).toBe('Spot: 2 shapes, light from a marked pointChangeClear')
+    const unmoved = await render(withDust([POND]))
+    expect(lineOf(unmoved.host)).toBe('Spot: 1 shapeChangeClear')
+  })
+
+  it('is kept while the effect is off, said so', async () => {
+    const { host } = await render(withDust([POND], [0.8, 0.1], false))
+    expect(lineOf(host)).toBe('Spot: 1 shape, light from a marked point (kept while off)')
+  })
+
+  it('shows a small dot with no ring when its row is pointed at, only if it was moved', async () => {
+    sizeOverlay()
+    const over = async (host: HTMLElement) =>
+      act(async () => {
+        rowOf(host, 'Dust').dispatchEvent(new MouseEvent('pointerover', { bubbles: true }))
+      })
+    const moved = await render(withDust([POND], [0.8, 0.1]))
+    await over(moved.host)
+    expect(moved.host.querySelector('.spot-peek-mark')).not.toBeNull()
+    expect(moved.host.querySelector('.spot-mark-ring')).toBeNull()
+    const unmoved = await render(withDust([POND]))
+    await over(unmoved.host)
+    expect(polygons(unmoved.host, 'spot-peek')).toHaveLength(1)
+    expect(unmoved.host.querySelector('.spot-peek-mark')).toBeNull()
+  })
+
+  it('is handed to the renderer with the spot, and only when moved', async () => {
+    await render(withDust([POND], [0.8, 0.1]))
+    expect(
+      calls()
+        .setEffects.at(-1)!
+        .find((e) => e.kind === 'dust')!.mark,
+    ).toEqual([0.8, 0.1])
+    await render(withDust([POND]))
+    expect(
+      calls()
+        .setEffects.at(-1)!
+        .find((e) => e.kind === 'dust')!.mark,
+    ).toBeUndefined()
+  })
+
+  it('keeps the mark where it was put and drawing open when the save fails', async () => {
+    sizeOverlay()
+    const { host } = await render({
+      ...withDust([POND]),
+      saved: () => Response.json({ ok: false, problems: [] }, { status: 409 }),
+    })
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await drag(host, [0.25, 0.7], [0.8, 0.1])
+    expect(text(host)).toContain("Couldn't save the spot")
+    expect(markAt(host)).toBe('0.8,0.1')
+    expect(barText(host)).toContain('Drawing the spot for Dust.')
+  })
+
+  it('is on the line, with no links, in the full-screen panel', async () => {
+    let current: Element | null = null
+    Object.defineProperty(document, 'fullscreenElement', { get: () => current, configurable: true })
+    ;(
+      HTMLElement.prototype as unknown as { requestFullscreen: () => Promise<void> }
+    ).requestFullscreen = async function (this: Element) {
+      current = this
+      document.dispatchEvent(new Event('fullscreenchange'))
+    }
+    cleanups.push(() => {
+      current = null
+      delete (HTMLElement.prototype as unknown as { requestFullscreen?: unknown }).requestFullscreen
+    })
+    const { host } = await render(withDust([POND], [0.8, 0.1]))
+    await click(button(host, '⛶ Full screen'))
+    const lines = [...host.querySelectorAll('.movement-float .movement-spot')].map(
+      (l) => l.textContent,
+    )
+    expect(lines).toEqual(['Spot: 1 shape, light from a marked point'])
   })
 })

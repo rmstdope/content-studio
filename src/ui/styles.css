@@ -6516,6 +6516,22 @@ textarea[aria-disabled='true'][data-why] {
 .spot-edge-picked {
   stroke-width: 4px;
 }
+.spot-mark circle {
+  fill: var(--warn);
+  stroke: var(--accent-ink);
+  stroke-width: 2px;
+}
+.spot-mark .spot-mark-ring {
+  fill: none;
+  stroke: var(--warn);
+  stroke-width: 2px;
+  stroke-dasharray: 4 3;
+}
+.spot-peek-mark {
+  fill: var(--warn);
+  stroke: var(--accent-ink);
+  stroke-width: 1px;
+}
 .spot-corner {
   fill: #fff;
   stroke: var(--accent-ink);
