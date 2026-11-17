@@ -293,7 +293,7 @@ export function MovementPanel({
             className={full ? 'movement-wrap movement-wrap-full' : 'movement-wrap'}
             style={full ? undefined : { aspectRatio: `${row.width} / ${row.height}` }}
           >
-            {picture === null && lockUnread ? (
+            {lockUnread ? (
               <div className="movement-empty movement-unknown" data-unknown="true">
                 {motion.status === 'failed' && (
                   <div role="alert" className="movement-failure">

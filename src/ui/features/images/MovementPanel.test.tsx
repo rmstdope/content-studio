@@ -966,17 +966,18 @@ describe('the effects in full screen', () => {
         effects: {
           fireflies: { title: 'Fireflies', on: true, settings: {} },
           ripples: { title: 'Pond ripples', on: true, settings: {} },
+          dust: { title: 'Dust', on: true, settings: {} },
         },
         onEffectsOn: (c) => counts.push(c),
       })
       expect(host.querySelector('.movement-side h3')!.textContent).toBe('Effects')
       expect(text(host)).toContain(
-        'Saved for the game: Fireflies, Pond ripples. They can be changed once the images lock can be read.',
+        'Saved for the game: Fireflies, Pond ripples, Dust. They can be changed once the images lock can be read.',
       )
       expect(host.querySelector('.movement-effect')).toBeNull()
       expect(button(host, 'Reset')).toBeUndefined()
       expect(puts).toEqual([])
-      expect(counts.at(-1)).toBe(0)
+      expect(counts.at(-1)).toBe(1)
     })
 
     it('says so when no effects are saved, keeping the Effects heading', async () => {

@@ -250,6 +250,21 @@ function EffectsGroup(props: MotionControlsProps) {
   const switchedOn = Object.keys(effects)
     .filter((type) => effects[type]!.on)
     .map(nameOf)
+  // The lock cannot be read: the heading and what is saved, read-only; nothing can be changed or saved.
+  if (props.lockUnread) {
+    return (
+      <section className="movement-group" aria-label={MOVEMENT_WORDS.effects}>
+        <div className="movement-group-head">
+          <h3>{MOVEMENT_WORDS.effects}</h3>
+        </div>
+        <p className="muted">
+          {switchedOn.length > 0
+            ? savedForGameLockUnread(switchedOn)
+            : MOVEMENT_WORDS.effectsLockNone}
+        </p>
+      </section>
+    )
+  }
   return (
     <section className="movement-group" aria-label={MOVEMENT_WORDS.effects}>
       <div className="movement-group-head">
@@ -260,28 +275,19 @@ function EffectsGroup(props: MotionControlsProps) {
           </span>
         )}
       </div>
-      {props.lockUnread && (
-        <p className="muted">
-          {switchedOn.length > 0
-            ? savedForGameLockUnread(switchedOn)
-            : MOVEMENT_WORDS.effectsLockNone}
-        </p>
-      )}
-      {!props.lockUnread && motion.status === 'loading' && (
-        <p className="muted">{MOVEMENT_WORDS.effectsLoading}</p>
-      )}
-      {!props.lockUnread && motion.status === 'failed' && (
+      {motion.status === 'loading' && <p className="muted">{MOVEMENT_WORDS.effectsLoading}</p>}
+      {motion.status === 'failed' && (
         <p className="muted">
           {switchedOn.length > 0 ? savedForGame(switchedOn) : MOVEMENT_WORDS.effectsFailed}
         </p>
       )}
-      {!props.lockUnread && motion.status === 'ready' && types.length === 0 && (
+      {motion.status === 'ready' && types.length === 0 && (
         <p className="muted">{MOVEMENT_WORDS.noEffects}</p>
       )}
-      {!props.lockUnread && motion.status === 'ready' && types.length > 0 && (
+      {motion.status === 'ready' && types.length > 0 && (
         <p className="muted">{effectsLine(onCount, types.length)}</p>
       )}
-      {!props.lockUnread && motion.status === 'ready' && (types.length > 0 || gone.length > 0) && (
+      {motion.status === 'ready' && (types.length > 0 || gone.length > 0) && (
         <ul className="movement-list">
           {types.map((type) => (
             <EffectRow
@@ -306,7 +312,7 @@ function EffectsGroup(props: MotionControlsProps) {
           ))}
         </ul>
       )}
-      {!props.lockUnread && status === 'failed' && (
+      {status === 'failed' && (
         <p role="alert" className="movement-save-failed">
           {EFFECT_WORDS.saveFailed}{' '}
           <button type="button" className="btn" onClick={props.onRetry}>
