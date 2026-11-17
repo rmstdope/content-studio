@@ -123,15 +123,24 @@ export function MovementPanel({
     if (!el || !frame) return
     // The page may scroll inside a container, so the frame's place on the page is its place on
     // the screen plus how far each ancestor has scrolled.
-    let top = frame.getBoundingClientRect().top
-    for (let up = el.parentElement; up; up = up.parentElement) top += up.scrollTop
+    const onScreen = frame.getBoundingClientRect().top
+    let scrolled = 0
+    for (let up = el.parentElement; up; up = up.parentElement) scrolled += up.scrollTop
+    const top = onScreen + scrolled
+    // The image's tabs, when the stage starts too low to fit: the room is then what is below them.
+    const tabs = document.querySelector<HTMLElement>('.job-tabs')
     const caption = el.querySelector<HTMLElement>('.movement-caption')
     const gap = parseFloat(getComputedStyle(el).rowGap) || 0
     const pad = parseFloat(getComputedStyle(el.closest('.panel') ?? el).paddingBottom) || 0
     const below = (caption ? caption.offsetHeight + gap : 0) + pad
     el.style.setProperty(
       '--movement-room',
-      `${movementRoom({ windowHeight: window.innerHeight, top, below })}px`,
+      `${movementRoom({
+        windowHeight: window.innerHeight,
+        top,
+        below,
+        ...(tabs && { tabs: tabs.getBoundingClientRect().top + scrolled }),
+      })}px`,
     )
   }
   useLayoutEffect(() => fit.current())
@@ -666,7 +675,7 @@ export function MovementPanel({
                 </div>
               )}
               {running && !full && (
-                <>
+                <div className="movement-buttons">
                   <button
                     type="button"
                     className="btn movement-pause"
@@ -682,7 +691,7 @@ export function MovementPanel({
                   >
                     {MOVEMENT_WORDS.fullScreen}
                   </button>
-                </>
+                </div>
               )}
               {running && full && (
                 <aside className="movement-float" aria-label={row.title}>

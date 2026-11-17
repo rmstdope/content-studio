@@ -6297,17 +6297,22 @@ textarea[aria-disabled='true'][data-why] {
   overflow-wrap: anywhere;
   color: var(--text-soft);
 }
+/* Pause at the left of the stage's foot, Full screen at the right; a narrow stage wraps them. */
+.movement-buttons {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+  pointer-events: none;
+}
 .movement-pause,
 .movement-full {
-  position: absolute;
-  bottom: 10px;
   background: rgb(16 18 26 / 80%);
-}
-.movement-pause {
-  left: 10px;
-}
-.movement-full {
-  right: 10px;
+  pointer-events: auto;
 }
 .movement-caption {
   margin: 0;

@@ -314,6 +314,14 @@ describe('the Movement panel', () => {
     expect(wrap.querySelector('.movement-pause')).not.toBeNull()
   })
 
+  it('puts Pause and Full screen in one row on the stage, so a narrow stage wraps them instead of overlapping (as-l7wb)', async () => {
+    const { host } = await render()
+    const row = host.querySelector('.movement-wrap > .movement-buttons')!
+    expect(row).not.toBeNull()
+    expect(row.querySelector('.movement-pause')).not.toBeNull()
+    expect(row.querySelector('.movement-full')).not.toBeNull()
+  })
+
   it('gives the stage no shape to fit when there is no picture or the lock cannot be read: both stay as wide as the column', async () => {
     for (const options of [{ chosenTake: null }, { lockUnread: true, chosenTake: null }]) {
       const { host } = await render(options)
@@ -338,6 +346,32 @@ describe('the Movement panel', () => {
       expect(room()).toBe('240px')
     } finally {
       window.innerHeight = was
+    }
+  })
+
+  it('when the stage starts too low on the page to fit, measures the room below the image’s tabs, as when scrolled to them (as-l7wb)', async () => {
+    // 600x800: the sidebar is stacked above the page, so the tabs sit at 652 and the frame at 922.
+    const was = window.innerHeight
+    const rect = HTMLElement.prototype.getBoundingClientRect
+    const tabs = document.createElement('div')
+    tabs.setAttribute('role', 'tablist')
+    tabs.className = 'job-tabs'
+    document.body.append(tabs)
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      const top = this === tabs ? 652 : this.classList.contains('movement-frame') ? 922 : 0
+      return { ...rect.call(this), top, y: top }
+    }
+    try {
+      window.innerHeight = 800
+      const { host } = await render()
+      const room = host
+        .querySelector<HTMLElement>('.movement-picture')!
+        .style.getPropertyValue('--movement-room')
+      expect(parseInt(room)).toBeGreaterThan(400)
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = rect
+      window.innerHeight = was
+      tabs.remove()
     }
   })
 

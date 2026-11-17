@@ -57,6 +57,16 @@ describe('the Movement tab’s layout', () => {
     expect(shows).not.toMatch(/background|border|color|padding|font/)
   })
 
+  it('keeps Pause and Full screen apart on a narrow stage: one row along the stage’s foot that wraps (as-l7wb)', () => {
+    const row = rule('.movement-buttons')
+    expect(row).toMatch(/position:\s*absolute/)
+    expect(row).toMatch(/display:\s*flex/)
+    expect(row).toMatch(/flex-wrap:\s*wrap/)
+    expect(row).toMatch(/justify-content:\s*space-between/)
+    expect(css).not.toMatch(/\.movement-pause\s*\{[^}]*position:\s*absolute/)
+    expect(css).not.toMatch(/\.movement-full\s*\{[^}]*position:\s*absolute/)
+  })
+
   it('holds the zoom still while paused', () => {
     expect(css).toMatch(
       /\.movement-zoom\[data-paused='true'\]\s*\{[^}]*animation-play-state:\s*paused/,
