@@ -2424,6 +2424,18 @@ describe('the slow zoom of an image', () => {
     expect(button(group(same.host), 'Reset')).toBeUndefined()
   })
 
+  it('draws Reset as a link that adds no height to the switch row, so appearing moves neither slider', async () => {
+    const { host } = await render({ zoom: own })
+    const reset = button(group(host), 'Reset')!
+    expect(reset.classList.contains('link-button')).toBe(true)
+    expect(reset.classList.contains('btn')).toBe(false)
+    // A button's 36 px minimum height made the row taller than the switch and pushed the sliders down.
+    expect(valuesInEveryWindow(reset, 'min-height')).toEqual([])
+    for (const property of ['height', 'line-height', 'padding', 'padding-block', 'border']) {
+      expect(valuesInEveryWindow(reset, property)).toEqual([])
+    }
+  })
+
   it('says “Saving…” only when the save takes a moment', async () => {
     let done: () => void = () => {}
     const { host } = await render({

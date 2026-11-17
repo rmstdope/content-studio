@@ -519,7 +519,11 @@ function ZoomGroup(props: MotionControlsProps) {
           onChange={props.onZoomOn}
         />
         {zoomDiffers(zoom) && (
-          <button type="button" className="btn movement-reset" onClick={props.onZoomReset}>
+          <button
+            type="button"
+            className="link-button movement-reset movement-zoom-reset"
+            onClick={props.onZoomReset}
+          >
             {ZOOM_WORDS.reset}
           </button>
         )}
