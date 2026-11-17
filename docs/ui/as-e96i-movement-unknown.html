@@ -1,0 +1,664 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Movement tab, images lock unread</title>
+    <style>
+      :root {
+        --bg: #06070c;
+        --panel: #10121a;
+        --edge: rgb(255 255 255/8%);
+        --raised: #191c24;
+        --line: rgb(255 255 255/7%);
+        --text: #eceef3;
+        --soft: #c7ccd6;
+        --muted: #a9b0bd;
+        --faint: #8a91a0;
+        --accent: #ff6b2c;
+        --accent-soft-bg: #2a1b12;
+        --accent-soft-ink: #ff9a6b;
+        --ok-bg: #10291f;
+        --ok-ink: #5be3ae;
+        --att-ink: #ffb38f;
+        --att-bg: rgb(255 122 61/10%);
+        --att-line: rgb(255 122 61/25%);
+        --chip: #1a1d26;
+        --bad: #ff8080;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.45 -apple-system,
+          system-ui,
+          sans-serif;
+      }
+      .app {
+        display: flex;
+        min-height: 100vh;
+      }
+      .sidebar {
+        flex: 0 0 212px;
+        padding: 16px 10px;
+        border-right: 1px solid var(--edge);
+        background: rgb(10 11 18/55%);
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .sidebar b {
+        display: block;
+        color: var(--text);
+        margin: 0 0 14px 6px;
+      }
+      .sidebar div {
+        padding: 6px 8px;
+        border-radius: 8px;
+      }
+      .sidebar .on {
+        background: var(--raised);
+        color: var(--text);
+      }
+      .content {
+        flex: 1;
+        min-width: 0;
+        padding: 20px 24px 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .note {
+        background: #1f1936;
+        color: #c4b5ff;
+        border: 1px dashed #5a4a9a;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 13px;
+      }
+      .note b {
+        color: #e2d9ff;
+      }
+      h1 {
+        margin: 0;
+        font-size: 22px;
+      }
+      h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .tabs {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .tab {
+        padding: 7px 14px;
+        border-radius: 9px;
+        background: var(--raised);
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .tab.on {
+        background: var(--accent-soft-bg);
+        color: var(--accent-soft-ink);
+        box-shadow: inset 0 0 0 1px #5a3218;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--edge);
+        border-radius: 14px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .faint {
+        color: var(--faint);
+      }
+      .mono {
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        background: var(--chip);
+        color: var(--soft);
+      }
+      .chip.ok {
+        background: var(--ok-bg);
+        color: var(--ok-ink);
+      }
+      .chip.att {
+        background: var(--att-bg);
+        color: var(--att-ink);
+        box-shadow: inset 0 0 0 1px var(--att-line);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 8px;
+        background: var(--raised);
+        color: var(--text);
+        border: 1px solid var(--line);
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #1a0a02;
+        border-color: var(--accent);
+        font-weight: 600;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+      }
+      .stage {
+        position: relative;
+        width: 100%;
+        max-width: 1100px;
+        aspect-ratio: 3/2;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #111;
+      }
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        animation: zoom 16s ease-in-out infinite alternate;
+        transform-origin: 50% 55%;
+      }
+      @keyframes zoom {
+        from {
+          transform: scale(1);
+        }
+        to {
+          transform: scale(1.04) translate(-0.5%, -0.3%);
+        }
+      }
+      .ff {
+        animation: blink 2.4s ease-in-out infinite;
+      }
+      .ff:nth-child(2n) {
+        animation-delay: 0.8s;
+      }
+      .ff:nth-child(3n) {
+        animation-delay: 1.6s;
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 0;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+      .cap {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 0;
+      }
+      .state {
+        border-top: 1px dashed #5a4a9a;
+        padding-top: 18px;
+        margin-top: 10px;
+      }
+      .state > .lbl {
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #c4b5ff;
+        margin-bottom: 8px;
+        display: block;
+      }
+      .fs {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16/9;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #000;
+        border: 1px solid #333;
+      }
+      .fs .scene {
+        object-fit: cover;
+      }
+      .fx {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .fx li {
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: var(--raised);
+        border: 1px solid var(--line);
+      }
+      .fx .set {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .sw {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+      }
+      .sw i {
+        display: inline-block;
+        width: 26px;
+        height: 15px;
+        border-radius: 9px;
+        background: #333;
+        position: relative;
+      }
+      .sw i:after {
+        content: '';
+        position: absolute;
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #999;
+        top: 2px;
+        left: 2px;
+      }
+      .sw.on i {
+        background: var(--accent);
+      }
+      .sw.on i:after {
+        left: 13px;
+        background: #fff;
+      }
+      .err {
+        color: var(--bad);
+      }
+      .fp {
+        position: absolute;
+        right: 16px;
+        top: 16px;
+        width: 300px;
+        max-height: calc(100% - 32px);
+        overflow: auto;
+        background: rgb(16 18 26/92%);
+        border: 1px solid #2c3040;
+        border-radius: 14px;
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        font-size: 13px;
+      }
+      .fp .hd {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .fp .hd b {
+        flex: 1;
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--accent-soft-ink);
+      }
+      .fp .fx li {
+        padding: 5px 8px;
+      }
+      .lbl2 {
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .cols {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 16px;
+        align-items: start;
+      }
+      .side {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .ovl {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 8px;
+        background: rgb(0 0 0/55%);
+        text-align: center;
+        padding: 20px;
+      }
+      .ctl {
+        position: absolute;
+        left: 10px;
+        bottom: 10px;
+        display: flex;
+        gap: 6px;
+      }
+      .ctl .btn,
+      .fsb {
+        background: rgb(0 0 0/60%);
+      }
+      .fsb {
+        position: absolute;
+        right: 10px;
+        bottom: 10px;
+      }
+    </style>
+    <style>
+      .sl {
+        display: grid;
+        grid-template-columns: auto 1fr 2.6em;
+        gap: 4px 8px;
+        align-items: center;
+        margin-top: 6px;
+      }
+      .sl label {
+        font-size: 12px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .sl input {
+        width: 100%;
+        min-width: 0;
+        accent-color: var(--accent);
+      }
+      .sl output {
+        font-size: 12px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        color: var(--accent-soft-ink);
+      }
+      .link {
+        background: none;
+        border: 0;
+        color: var(--accent-soft-ink);
+        font: inherit;
+        font-size: 12px;
+        padding: 0;
+        cursor: pointer;
+        text-decoration: underline;
+      }
+      .hdr {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: space-between;
+      }
+      .gone {
+        border-color: var(--att-line) !important;
+        background: var(--att-bg) !important;
+      }
+      .small {
+        font-size: 12px;
+        margin: 4px 0 0;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 16px;
+        align-items: start;
+      }
+      @media (max-width: 900px) {
+        .cols {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+    <style>
+      .unk {
+        position: relative;
+        width: 100%;
+        max-width: 1100px;
+        aspect-ratio: 3/2;
+        border-radius: 10px;
+        border: 1px dashed var(--att-line);
+        background: var(--att-bg);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        text-align: center;
+        padding: 20px;
+      }
+      .unk b {
+        color: var(--att-ink);
+      }
+      .unkline {
+        border: 1px dashed var(--att-line);
+        background: var(--att-bg);
+        border-radius: 10px;
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .unkline b {
+        color: var(--att-ink);
+      }
+      .sw.dim {
+        opacity: 0.55;
+      }
+      .tip {
+        font-size: 12px;
+        color: var(--faint);
+        margin: 2px 0 0 32px;
+      }
+      .q {
+        display: inline-block;
+        background: #5a4a9a;
+        color: #fff;
+        border-radius: 6px;
+        padding: 0 7px;
+        font-size: 11px;
+        margin-right: 6px;
+        letter-spacing: 0;
+      }
+      .narrow {
+        max-width: 420px;
+      }
+      .narrow .cols {
+        grid-template-columns: 1fr;
+      }
+      .fx.ro li {
+        opacity: 0.8;
+      }
+      .fx input[disabled] {
+        opacity: 0.5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <nav class="sidebar">
+        <b>Content Studio</b>
+        <div>Setup</div>
+        <div>Narration</div>
+        <div>Music</div>
+        <div class="on">Images</div>
+        <div>Sound effects</div>
+        <div>Scenes</div>
+      </nav>
+      <main class="content">
+        <div class="faint" style="font-size: 13px">
+          Images › Act I: The Lantern › The lantern hall
+        </div>
+        <h1>The lantern hall</h1>
+        <div class="tabs">
+          <span class="tab">Make · <span style="color: var(--att-ink)">not known</span></span
+          ><span class="tab">Fine-tune</span
+          ><span class="tab">Patches · <span style="color: var(--att-ink)">not known</span></span
+          ><span class="tab">Named areas · 4 of 9</span
+          ><span class="tab on">Movement · 2 effects</span>
+        </div>
+        <div class="note">
+          <b>Agreed (as-e96i): the Movement tab while the images lock cannot be read.</b> Nothing is
+          said about which take, or which patch takes, the game shows. The picture is an amber frame
+          at the picture's size with the Make tab's words; nothing plays, so there is no Pause, Full
+          screen or caption, and Space and F do nothing. Every patch is listed greyed as "· not
+          known". Effects wait: what is saved for the game is listed, and nothing can be switched,
+          tuned, reset or removed. The tab's title still counts the saved effects.
+        </div>
+        <section class="panel">
+          <div class="row">
+            <h2>Movement</h2>
+            <span class="muted">drawn by the project's renderer</span>
+          </div>
+          <div class="cols">
+            <div>
+              <div class="unk">
+                <b>The images lock could not be read</b
+                ><span class="muted"
+                  >Which take the game shows is not known until the images lock can be read; fix it,
+                  then reload.</span
+                >
+              </div>
+              <p class="cap" style="margin-top: 8px; color: var(--faint)">
+                (No Pause, no Full screen, no caption: nothing is playing.)
+              </p>
+            </div>
+            <div class="side">
+              <div class="lbl2">Patches</div>
+              <span class="sw dim"><i></i>The star on the door · not known</span>
+              <span class="sw dim"><i></i>Broken lantern · not known</span>
+              <p class="tip">
+                Hovering a switch: “Which patch take is chosen is not known until the images lock
+                can be read.”
+              </p>
+              <div class="hdr" style="margin-top: 6px"><span class="lbl2">Effects</span></div>
+              <p class="cap">
+                Saved for the game: Fireflies, Pond ripples. They can be changed once the images
+                lock can be read.
+              </p>
+            </div>
+          </div>
+        </section>
+        <div class="state">
+          <span class="lbl">The same in a narrow window</span>
+          <section class="panel narrow">
+            <div class="row">
+              <h2>Movement</h2>
+              <span class="muted">drawn by the project's renderer</span>
+            </div>
+            <div class="cols">
+              <div>
+                <div class="unk">
+                  <b>The images lock could not be read</b
+                  ><span class="muted"
+                    >Which take the game shows is not known until the images lock can be read; fix
+                    it, then reload.</span
+                  >
+                </div>
+                <p class="cap" style="margin-top: 8px; color: var(--faint)">
+                  (No Pause, no Full screen, no caption: nothing is playing.)
+                </p>
+              </div>
+              <div class="side">
+                <div class="lbl2">Patches</div>
+                <span class="sw dim"><i></i>The star on the door · not known</span>
+                <span class="sw dim"><i></i>Broken lantern · not known</span>
+                <p class="tip">
+                  Hovering a switch: “Which patch take is chosen is not known until the images lock
+                  can be read.”
+                </p>
+                <div class="hdr" style="margin-top: 6px"><span class="lbl2">Effects</span></div>
+                <p class="cap">
+                  Saved for the game: Fireflies, Pond ripples. They can be changed once the images
+                  lock can be read.
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div class="grid2">
+          <div class="state">
+            <span class="lbl">Nothing saved for the game</span>
+            <section class="panel" style="max-width: 520px">
+              <div class="lbl2">Effects</div>
+              <p class="cap">
+                None are saved for the game. Effects can be put in once the images lock can be read.
+              </p>
+            </section>
+          </div>
+          <div class="state">
+            <span class="lbl">The renderer could not be loaded as well</span>
+            <section class="panel" style="max-width: 520px">
+              <div class="unk" style="aspect-ratio: auto; min-height: 180px">
+                <p class="err" style="margin: 0">The motion renderer could not be loaded.</p>
+                <b>The images lock could not be read</b
+                ><span class="muted"
+                  >Which take the game shows is not known until the images lock can be read; fix it,
+                  then reload.</span
+                >
+              </div>
+              <div class="lbl2">Effects</div>
+              <p class="cap">
+                Saved for the game: Fireflies, Pond ripples. They can be changed once the images
+                lock can be read.
+              </p>
+              <button class="btn" style="align-self: flex-start">Try again</button>
+              <p class="cap small faint">Try again reloads the renderer only.</p>
+            </section>
+          </div>
+          <div class="state">
+            <span class="lbl">An effect the renderer no longer has</span>
+            <section class="panel" style="max-width: 520px">
+              <div class="lbl2">Effects</div>
+              <p class="cap">
+                Saved for the game: Fireflies, Moon glints. They can be changed once the images lock
+                can be read.
+              </p>
+              <p class="cap small faint">
+                Listed by its saved name; no Remove button while everything waits.
+              </p>
+            </section>
+          </div>
+        </div>
+        <div class="state">
+          <span class="lbl"
+            >Today (for comparison): what the tab wrongly says now while the lock can't be
+            read</span
+          >
+          <section class="panel narrow">
+            <div class="unk" style="border-color: var(--line); background: #111">
+              <b style="color: var(--text)">No take chosen yet</b
+              ><span class="muted">Choose a take on Make to see it move.</span
+              ><button class="btn">Go to Make</button>
+            </div>
+            <span class="sw dim"><i></i>Broken lantern · no take chosen</span>
+          </section>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
