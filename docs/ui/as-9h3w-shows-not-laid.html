@@ -1,0 +1,760 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Shows while a patch is not laid</title>
+    <style>
+      :root {
+        --bg: #06070c;
+        --panel: #10121a;
+        --edge: rgb(255 255 255/8%);
+        --raised: #191c24;
+        --line: rgb(255 255 255/7%);
+        --text: #eceef3;
+        --soft: #c7ccd6;
+        --muted: #a9b0bd;
+        --faint: #8a91a0;
+        --accent: #ff6b2c;
+        --accent-soft-bg: #2a1b12;
+        --accent-soft-ink: #ff9a6b;
+        --ok-bg: #10291f;
+        --ok-ink: #5be3ae;
+        --att-ink: #ffb38f;
+        --att-bg: rgb(255 122 61/10%);
+        --att-line: rgb(255 122 61/25%);
+        --chip: #1a1d26;
+        --bad: #ff8080;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.45 -apple-system,
+          system-ui,
+          sans-serif;
+      }
+      .app {
+        display: flex;
+        min-height: 100vh;
+      }
+      .sidebar {
+        flex: 0 0 212px;
+        padding: 16px 10px;
+        border-right: 1px solid var(--edge);
+        background: rgb(10 11 18/55%);
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .sidebar b {
+        display: block;
+        color: var(--text);
+        margin: 0 0 14px 6px;
+      }
+      .sidebar div {
+        padding: 6px 8px;
+        border-radius: 8px;
+      }
+      .sidebar .on {
+        background: var(--raised);
+        color: var(--text);
+      }
+      .content {
+        flex: 1;
+        min-width: 0;
+        padding: 20px 24px 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .note {
+        background: #1f1936;
+        color: #c4b5ff;
+        border: 1px dashed #5a4a9a;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 13px;
+      }
+      .note b {
+        color: #e2d9ff;
+      }
+      h1 {
+        margin: 0;
+        font-size: 22px;
+      }
+      h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .tabs {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .tab {
+        padding: 7px 14px;
+        border-radius: 9px;
+        background: var(--raised);
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .tab.on {
+        background: var(--accent-soft-bg);
+        color: var(--accent-soft-ink);
+        box-shadow: inset 0 0 0 1px #5a3218;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--edge);
+        border-radius: 14px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .faint {
+        color: var(--faint);
+      }
+      .mono {
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        background: var(--chip);
+        color: var(--soft);
+      }
+      .chip.ok {
+        background: var(--ok-bg);
+        color: var(--ok-ink);
+      }
+      .chip.att {
+        background: var(--att-bg);
+        color: var(--att-ink);
+        box-shadow: inset 0 0 0 1px var(--att-line);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 8px;
+        background: var(--raised);
+        color: var(--text);
+        border: 1px solid var(--line);
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #1a0a02;
+        border-color: var(--accent);
+        font-weight: 600;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+      }
+      .stage {
+        position: relative;
+        width: 100%;
+        max-width: 1100px;
+        aspect-ratio: 3/2;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #111;
+      }
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        animation: zoom 16s ease-in-out infinite alternate;
+        transform-origin: 50% 55%;
+      }
+      @keyframes zoom {
+        from {
+          transform: scale(1);
+        }
+        to {
+          transform: scale(1.04) translate(-0.5%, -0.3%);
+        }
+      }
+      .ff {
+        animation: blink 2.4s ease-in-out infinite;
+      }
+      .ff:nth-child(2n) {
+        animation-delay: 0.8s;
+      }
+      .ff:nth-child(3n) {
+        animation-delay: 1.6s;
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 0;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+      .cap {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 0;
+      }
+      .state {
+        border-top: 1px dashed #5a4a9a;
+        padding-top: 18px;
+        margin-top: 10px;
+      }
+      .state > .lbl {
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #c4b5ff;
+        margin-bottom: 8px;
+        display: block;
+      }
+      .fs {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16/9;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #000;
+        border: 1px solid #333;
+      }
+      .fs .scene {
+        object-fit: cover;
+      }
+      .fx {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .fx li {
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: var(--raised);
+        border: 1px solid var(--line);
+      }
+      .fx .set {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .sw {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+      }
+      .sw i {
+        display: inline-block;
+        width: 26px;
+        height: 15px;
+        border-radius: 9px;
+        background: #333;
+        position: relative;
+      }
+      .sw i:after {
+        content: '';
+        position: absolute;
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #999;
+        top: 2px;
+        left: 2px;
+      }
+      .sw.on i {
+        background: var(--accent);
+      }
+      .sw.on i:after {
+        left: 13px;
+        background: #fff;
+      }
+      .err {
+        color: var(--bad);
+      }
+      .fp {
+        position: absolute;
+        right: 16px;
+        top: 16px;
+        width: 300px;
+        max-height: calc(100% - 32px);
+        overflow: auto;
+        background: rgb(16 18 26/92%);
+        border: 1px solid #2c3040;
+        border-radius: 14px;
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        font-size: 13px;
+      }
+      .fp .hd {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .fp .hd b {
+        flex: 1;
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--accent-soft-ink);
+      }
+      .fp .fx li {
+        padding: 5px 8px;
+      }
+      .lbl2 {
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .cols {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 16px;
+        align-items: start;
+      }
+      .side {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .ovl {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 8px;
+        background: rgb(0 0 0/55%);
+        text-align: center;
+        padding: 20px;
+      }
+      .ctl {
+        position: absolute;
+        left: 10px;
+        bottom: 10px;
+        display: flex;
+        gap: 6px;
+      }
+      .ctl .btn,
+      .fsb {
+        background: rgb(0 0 0/60%);
+      }
+      .fsb {
+        position: absolute;
+        right: 10px;
+        bottom: 10px;
+      }
+    </style>
+    <style>
+      .sl {
+        display: grid;
+        grid-template-columns: auto 1fr 2.6em;
+        gap: 4px 8px;
+        align-items: center;
+        margin-top: 6px;
+      }
+      .sl label {
+        font-size: 12px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .sl input {
+        width: 100%;
+        min-width: 0;
+        accent-color: var(--accent);
+      }
+      .sl output {
+        font-size: 12px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        color: var(--accent-soft-ink);
+      }
+      .link {
+        background: none;
+        border: 0;
+        color: var(--accent-soft-ink);
+        font: inherit;
+        font-size: 12px;
+        padding: 0;
+        cursor: pointer;
+        text-decoration: underline;
+      }
+      .hdr {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: space-between;
+      }
+      .gone {
+        border-color: var(--att-line) !important;
+        background: var(--att-bg) !important;
+      }
+      .small {
+        font-size: 12px;
+        margin: 4px 0 0;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 16px;
+        align-items: start;
+      }
+      @media (max-width: 900px) {
+        .cols {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <style>
+    .tie {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 8px;
+      align-items: center;
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    select {
+      background: var(--raised);
+      color: var(--text);
+      border: 1px solid var(--edge);
+      border-radius: 8px;
+      padding: 5px 8px;
+      font: inherit;
+      font-size: 12px;
+      min-width: 0;
+      width: 100%;
+    }
+    .tag {
+      font-size: 11px;
+      color: var(--accent-soft-ink);
+      border: 1px solid rgb(255 107 44/40%);
+      border-radius: 6px;
+      padding: 0 6px;
+      white-space: nowrap;
+    }
+    .dim {
+      opacity: 0.55;
+    }
+    .why {
+      font-size: 12px;
+      color: var(--faint);
+      margin: 6px 0 0;
+    }
+    .ptie {
+      margin: 2px 0 6px 34px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .ptie .t {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      background: var(--chip);
+      border: 1px solid var(--edge);
+      border-radius: 999px;
+      padding: 1px 8px;
+      color: var(--soft);
+    }
+    .pill button {
+      background: none;
+      border: 0;
+      color: var(--faint);
+      cursor: pointer;
+      padding: 0 0 0 4px;
+      font: inherit;
+    }
+    .menu {
+      background: var(--raised);
+      border: 1px solid var(--edge);
+      border-radius: 8px;
+      padding: 4px;
+      display: flex;
+      flex-direction: column;
+      width: 200px;
+      margin-top: 4px;
+    }
+    .menu span {
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    .menu span:hover {
+      background: var(--chip);
+    }
+  </style>
+  <body>
+    <div class="content" style="max-width: 1100px; margin: auto">
+      <div class="note">
+        <b>Shows while a patch is not laid — one menu, two lines per patch</b><br />The Shows menu
+        keeps its shape: Always, then for each patch in the game's order “While … is laid” and
+        “While … is not laid”. One control, one choice.<br />Agreed in as-9h3w: tag “without
+        <br />Words marked in the cards (tag, line, button) are asked separately; they are the same
+        in both options.lt;patch<br />Words marked in the cards (tag, line, button) are asked
+        separately; they are the same in both options.gt;”, choosing switches the patch off in the
+        preview, button “Take it off”, no line for a patch with no take.
+      </div>
+      <h1>Movement tab · Fire glow on the forge picture</h1>
+      <div class="grid2">
+        <div class="state">
+          <span class="lbl">The menu, open</span>
+          <section class="panel" style="max-width: 340px">
+            <div class="lbl2">Shows</div>
+            <div
+              style="border: 1px solid var(--edge); border-radius: 8px; background: var(--raised)"
+            >
+              <div style="padding: 6px 10px">Always</div>
+              <div style="padding: 6px 10px">While The water on the fire is laid</div>
+              <div style="padding: 6px 10px; background: #2a2f3a">
+                While The water on the fire is not laid
+              </div>
+              <div style="padding: 6px 10px">While Broken lantern is laid</div>
+              <div style="padding: 6px 10px">While Broken lantern is not laid</div>
+            </div>
+          </section>
+        </div>
+        <div class="state">
+          <span class="lbl"
+            >Shows while the patch is not laid, patch off in the preview: the fire glows</span
+          >
+          <section class="panel" style="max-width: 340px">
+            <div class="lbl2">Patches</div>
+            <span class="sw"><i></i>The water on the fire</span
+            ><span class="sw faint"><i></i>Broken lantern · no take chosen</span>
+            <div class="lbl2" style="margin-top: 6px">Effects</div>
+            <ul class="fx">
+              <li>
+                <div class="hdr">
+                  <span class="sw on"
+                    ><i></i><b>Fire glow</b>
+                    <span class="tag">without The water on the fire</span></span
+                  >
+                </div>
+                <div class="sl">
+                  <label>Strength</label
+                  ><input type="range" min="0" max="3" step="0.05" value="1.4" /><output
+                    >1.40</output
+                  ><label>Flicker speed</label
+                  ><input type="range" min="0" max="3" step="0.05" value="1" /><output>1.00</output>
+                </div>
+                <div class="tie">
+                  <label>Shows</label
+                  ><select>
+                    <option>Always</option>
+                    <option>While The water on the fire is laid</option>
+                    <option selected>While The water on the fire is not laid</option>
+                    <option>While Broken lantern is laid</option>
+                    <option>While Broken lantern is not laid</option>
+                  </select>
+                </div>
+              </li>
+            </ul>
+          </section>
+        </div>
+        <div class="state">
+          <span class="lbl">The patch is switched on in the preview: the glow goes out</span>
+          <section class="panel" style="max-width: 340px">
+            <div class="lbl2">Patches</div>
+            <span class="sw on"><i></i>The water on the fire</span
+            ><span class="sw faint"><i></i>Broken lantern · no take chosen</span>
+            <div class="lbl2" style="margin-top: 6px">Effects</div>
+            <ul class="fx">
+              <li>
+                <div class="hdr">
+                  <span class="sw on"
+                    ><i></i><b>Fire glow</b>
+                    <span class="tag">without The water on the fire</span></span
+                  >
+                </div>
+                <div class="dim">
+                  <div class="sl">
+                    <label>Strength</label
+                    ><input type="range" min="0" max="3" step="0.05" value="1.4" /><output
+                      >1.40</output
+                    ><label>Flicker speed</label
+                    ><input type="range" min="0" max="3" step="0.05" value="1" /><output
+                      >1.00</output
+                    >
+                  </div>
+                </div>
+                <div class="tie">
+                  <label>Shows</label
+                  ><select>
+                    <option>Always</option>
+                    <option>While The water on the fire is laid</option>
+                    <option selected>While The water on the fire is not laid</option>
+                    <option>While Broken lantern is laid</option>
+                    <option>While Broken lantern is not laid</option>
+                  </select>
+                </div>
+                <p class="why">
+                  Not showing: The water on the fire is laid.
+                  <button class="link">Take it off</button>
+                </p>
+              </li>
+            </ul>
+          </section>
+        </div>
+        <div class="state">
+          <span class="lbl"
+            >Tied this way to a patch with no take chosen: nothing can be laid, so it shows</span
+          >
+          <section class="panel" style="max-width: 340px">
+            <div class="lbl2">Patches</div>
+            <span class="sw"><i></i>The water on the fire</span
+            ><span class="sw faint"><i></i>Broken lantern · no take chosen</span>
+            <div class="lbl2" style="margin-top: 6px">Effects</div>
+            <ul class="fx">
+              <li>
+                <div class="hdr">
+                  <span class="sw on"
+                    ><i></i><b>Fire glow</b> <span class="tag">without Broken lantern</span></span
+                  >
+                </div>
+                <div class="sl">
+                  <label>Strength</label
+                  ><input type="range" min="0" max="3" step="0.05" value="1.4" /><output
+                    >1.40</output
+                  ><label>Flicker speed</label
+                  ><input type="range" min="0" max="3" step="0.05" value="1" /><output>1.00</output>
+                </div>
+                <div class="tie">
+                  <label>Shows</label
+                  ><select>
+                    <option>Always</option>
+                    <option>While The water on the fire is laid</option>
+                    <option>While The water on the fire is not laid</option>
+                    <option>While Broken lantern is laid</option>
+                    <option selected>While Broken lantern is not laid</option>
+                  </select>
+                </div>
+              </li>
+            </ul>
+          </section>
+        </div>
+        <div class="state">
+          <span class="lbl">The game no longer lists the patch</span>
+          <section class="panel" style="max-width: 340px">
+            <div class="lbl2">Patches</div>
+            <span class="sw"><i></i>The water on the fire</span
+            ><span class="sw faint"><i></i>Broken lantern · no take chosen</span>
+            <div class="lbl2" style="margin-top: 6px">Effects</div>
+            <ul class="fx">
+              <li
+                style="
+                  border: 1px solid var(--att-line);
+                  background: var(--att-bg);
+                  border-radius: 10px;
+                  padding: 8px;
+                "
+              >
+                <div class="hdr">
+                  <span class="sw on"
+                    ><i></i><b>Fire glow</b> <span class="tag">without Old bucket</span></span
+                  >
+                </div>
+                <div class="dim">
+                  <div class="sl">
+                    <label>Strength</label
+                    ><input type="range" min="0" max="3" step="0.05" value="1.4" /><output
+                      >1.40</output
+                    ><label>Flicker speed</label
+                    ><input type="range" min="0" max="3" step="0.05" value="1" /><output
+                      >1.00</output
+                    >
+                  </div>
+                </div>
+                <div class="tie">
+                  <label>Shows</label
+                  ><select>
+                    <option>Always</option>
+                    <option>While The water on the fire is laid</option>
+                    <option>While The water on the fire is not laid</option>
+                    <option>While Broken lantern is laid</option>
+                    <option>While Broken lantern is not laid</option>
+                    <option selected>While Old bucket is not laid · gone</option>
+                  </select>
+                </div>
+                <p class="why" style="color: var(--att-ink)">
+                  The game no longer lists the patch Old bucket. Choose Always or another patch.
+                </p>
+              </li>
+            </ul>
+          </section>
+        </div>
+        <div class="state">
+          <span class="lbl">For comparison: the existing tie, unchanged</span>
+          <section class="panel" style="max-width: 340px">
+            <div class="lbl2">Patches</div>
+            <span class="sw on"><i></i>The water on the fire</span
+            ><span class="sw faint"><i></i>Broken lantern · no take chosen</span>
+            <div class="lbl2" style="margin-top: 6px">Effects</div>
+            <ul class="fx">
+              <li>
+                <div class="hdr">
+                  <span class="sw on"
+                    ><i></i><b>Fire glow</b>
+                    <span class="tag">with The water on the fire</span></span
+                  >
+                </div>
+                <div class="sl">
+                  <label>Strength</label
+                  ><input type="range" min="0" max="3" step="0.05" value="1.4" /><output
+                    >1.40</output
+                  ><label>Flicker speed</label
+                  ><input type="range" min="0" max="3" step="0.05" value="1" /><output>1.00</output>
+                </div>
+                <div class="tie">
+                  <label>Shows</label
+                  ><select>
+                    <option>Always</option>
+                    <option selected>While The water on the fire is laid</option>
+                    <option>While The water on the fire is not laid</option>
+                    <option>While Broken lantern is laid</option>
+                    <option>While Broken lantern is not laid</option>
+                  </select>
+                </div>
+              </li>
+            </ul>
+          </section>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
