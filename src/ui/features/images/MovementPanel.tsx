@@ -543,7 +543,8 @@ export function MovementPanel({
     draw({
       type: type.type,
       placing: !own && !draft ? [] : null,
-      picked: null,
+      // The first shape is picked, so its corners show and can be dragged at once.
+      picked: own?.length || draft ? 0 : null,
       confirm: false,
       draft,
     })
