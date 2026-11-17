@@ -1,0 +1,554 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Movement tab, the game's shape</title>
+    <style>
+      :root {
+        --bg: #06070c;
+        --panel: #10121a;
+        --edge: rgb(255 255 255/8%);
+        --raised: #191c24;
+        --line: rgb(255 255 255/7%);
+        --text: #eceef3;
+        --soft: #c7ccd6;
+        --muted: #a9b0bd;
+        --faint: #8a91a0;
+        --accent: #ff6b2c;
+        --accent-soft-bg: #2a1b12;
+        --accent-soft-ink: #ff9a6b;
+        --ok-bg: #10291f;
+        --ok-ink: #5be3ae;
+        --chip: #1a1d26;
+        --bad: #ff8080;
+        --spot: #8fd3ff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.45 -apple-system,
+          system-ui,
+          sans-serif;
+      }
+      .wrap {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 20px 24px 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .note {
+        background: #1f1936;
+        color: #c4b5ff;
+        border: 1px dashed #5a4a9a;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 13px;
+      }
+      .note b {
+        color: #e2d9ff;
+      }
+      h1 {
+        margin: 0;
+        font-size: 22px;
+      }
+      h2 {
+        margin: 0;
+        font-size: 15px;
+        color: var(--soft);
+      }
+      .tabs {
+        display: flex;
+        gap: 6px;
+      }
+      .tab {
+        padding: 7px 14px;
+        border-radius: 9px;
+        background: var(--raised);
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .tab.on {
+        background: var(--accent-soft-bg);
+        color: var(--accent-soft-ink);
+        box-shadow: inset 0 0 0 1px #5a3218;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 330px;
+        gap: 16px;
+        align-items: start;
+      }
+      @media (max-width: 860px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--edge);
+        border-radius: 14px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .bar {
+        background: var(--raised);
+        border: 1px solid var(--accent);
+        border-radius: 10px;
+        padding: 10px 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        align-items: center;
+        font-size: 13px;
+      }
+      .bar .w {
+        flex: 1 1 260px;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 8px;
+        background: var(--panel);
+        color: var(--text);
+        border: 1px solid var(--line);
+        font: inherit;
+        font-size: 13px;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #1a0a02;
+        border-color: var(--accent);
+        font-weight: 600;
+      }
+      .stage {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 3/2;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #111;
+      }
+      .stage svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .cap {
+        font-size: 12px;
+        color: var(--faint);
+      }
+      .fx {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        background: #0d0f16;
+      }
+      .fx.act {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px var(--accent);
+      }
+      .fx .t {
+        display: flex;
+        justify-content: space-between;
+        font-weight: 600;
+      }
+      .sl {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .sl i {
+        display: block;
+        height: 4px;
+        border-radius: 3px;
+        background: #2a2e3a;
+        margin-top: 4px;
+      }
+      .ln {
+        font-size: 12.5px;
+        color: var(--soft);
+      }
+      .ln a {
+        color: var(--accent-soft-ink);
+        text-decoration: underline;
+        margin-left: 4px;
+      }
+      .ln a.dis {
+        color: var(--faint);
+        text-decoration: none;
+      }
+      .lbl {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .ok {
+        color: var(--ok-ink);
+        text-transform: none;
+        letter-spacing: 0;
+      }
+      .states {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 12px;
+      }
+      .err {
+        color: var(--bad);
+        font-size: 12.5px;
+      }
+
+      .game {
+        color: #b9c6ff;
+      }
+      .ln .tag {
+        display: inline-block;
+        font-size: 11px;
+        padding: 1px 6px;
+        border-radius: 6px;
+        background: #1c2340;
+        color: #b9c6ff;
+        margin-right: 4px;
+      }
+      .ln .tag.own {
+        background: #12303f;
+        color: #8fd3ff;
+      }
+      .warn {
+        color: #ffc46b;
+        font-size: 12.5px;
+      }
+      .faint {
+        color: var(--faint);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="note">
+        <b>Agreed (as-m157): every effect shows where the game puts it.</b> The game’s shape shows
+        dashed on pointing; your own replaces it, starts as a copy of the game’s, and “Back to the
+        game’s” returns at once with Undo. An effect the game can’t move offers no drawing.
+      </div>
+      <h1>Title screen</h1>
+      <div class="tabs">
+        <span class="tab">Make</span><span class="tab">Named areas</span
+        ><span class="tab">Patches</span><span class="tab on">Movement · 2 effects</span>
+      </div>
+      <h2>Pointing at an effect in the game's shape</h2>
+      <div class="grid">
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <div class="stage">
+            <svg viewBox="0 0 600 400" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#0b1330" />
+                  <stop offset="1" stop-color="#26335c" />
+                </linearGradient>
+              </defs>
+              <rect width="600" height="400" fill="url(#sky)" />
+              <circle cx="468" cy="72" r="22" fill="#fdf3c9" />
+              <path
+                d="M0 250 L120 190 L210 230 L330 170 L450 225 L600 200 V400H0Z"
+                fill="#141a2e"
+              />
+              <text
+                x="300"
+                y="120"
+                text-anchor="middle"
+                fill="#e8d9a8"
+                font-size="34"
+                font-family="Georgia"
+              >
+                RetroQuest
+              </text>
+              <circle cx="90" cy="300" r="2.2" fill="#f6ff9a" />
+              <circle cx="160" cy="285" r="2.2" fill="#f6ff9a" />
+              <circle cx="230" cy="330" r="2.2" fill="#f6ff9a" />
+              <circle cx="300" cy="295" r="2.2" fill="#f6ff9a" />
+              <circle cx="370" cy="320" r="2.2" fill="#f6ff9a" />
+              <circle cx="440" cy="288" r="2.2" fill="#f6ff9a" />
+              <circle cx="510" cy="335" r="2.2" fill="#f6ff9a" />
+              <circle cx="130" cy="340" r="2.2" fill="#f6ff9a" />
+              <circle cx="480" cy="300" r="2.2" fill="#f6ff9a" />
+              <path
+                d="M40 270 L560 270 L560 350 L40 350Z"
+                fill="none"
+                stroke="#b9c6ff"
+                stroke-width="2"
+                stroke-dasharray="7 5"
+              />
+            </svg>
+          </div>
+          <div class="cap">
+            Pointing at or focusing a row outlines the game’s shape dashed (lilac). Nothing is
+            outlined otherwise.
+          </div>
+        </div>
+        <div class="panel">
+          <div class="lbl"><span>Effects</span><span class="ok">Saved</span></div>
+          <div class="fx act">
+            <div class="t"><span>☑ Fireflies</span></div>
+            <div class="sl">Amount<i></i></div>
+            <div class="ln">Spot: the game’s <a>Draw your own</a></div>
+          </div>
+          <div class="fx">
+            <div class="t"><span>☑ Mist</span></div>
+            <div class="sl">Amount<i></i></div>
+            <div class="ln">Spot: the game’s <a>Draw your own</a></div>
+          </div>
+        </div>
+      </div>
+      <h2>Pointing at an effect with your own shape</h2>
+      <div class="grid">
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <div class="stage">
+            <svg viewBox="0 0 600 400" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#0b1330" />
+                  <stop offset="1" stop-color="#26335c" />
+                </linearGradient>
+              </defs>
+              <rect width="600" height="400" fill="url(#sky)" />
+              <circle cx="468" cy="72" r="22" fill="#fdf3c9" />
+              <path
+                d="M0 250 L120 190 L210 230 L330 170 L450 225 L600 200 V400H0Z"
+                fill="#141a2e"
+              />
+              <text
+                x="300"
+                y="120"
+                text-anchor="middle"
+                fill="#e8d9a8"
+                font-size="34"
+                font-family="Georgia"
+              >
+                RetroQuest
+              </text>
+              <circle cx="90" cy="300" r="2.2" fill="#f6ff9a" />
+              <circle cx="160" cy="285" r="2.2" fill="#f6ff9a" />
+              <circle cx="230" cy="330" r="2.2" fill="#f6ff9a" />
+              <circle cx="300" cy="295" r="2.2" fill="#f6ff9a" />
+              <circle cx="370" cy="320" r="2.2" fill="#f6ff9a" />
+              <circle cx="440" cy="288" r="2.2" fill="#f6ff9a" />
+              <circle cx="510" cy="335" r="2.2" fill="#f6ff9a" />
+              <circle cx="130" cy="340" r="2.2" fill="#f6ff9a" />
+              <circle cx="480" cy="300" r="2.2" fill="#f6ff9a" />
+              <path
+                d="M40 270 L560 270 L560 350 L40 350Z"
+                fill="none"
+                stroke="#b9c6ff"
+                stroke-width="2"
+                stroke-dasharray="7 5"
+              />
+              <path
+                d="M440 120 L590 120 L590 390 L440 390Z"
+                fill="none"
+                stroke="#8fd3ff"
+                stroke-width="2"
+              />
+            </svg>
+          </div>
+          <div class="cap">
+            Your shape solid blue, the one the preview and the game play; the game’s stays faintly
+            dashed for comparison.
+          </div>
+        </div>
+        <div class="panel">
+          <div class="lbl"><span>Effects</span><span class="ok">Saved</span></div>
+          <div class="fx act">
+            <div class="t"><span>☑ Fireflies</span></div>
+            <div class="sl">Amount<i></i></div>
+            <div class="ln">Spot: your own, 1 shape <a>Change</a> <a>Back to the game’s</a></div>
+          </div>
+          <div class="fx">
+            <div class="t"><span>☑ Mist</span></div>
+            <div class="sl">Amount<i></i></div>
+            <div class="ln">Spot: the game’s <a>Draw your own</a></div>
+          </div>
+        </div>
+      </div>
+      <h2>Draw your own: it starts as a copy of the game's</h2>
+      <div class="bar">
+        <span class="w"
+          ><b>Drawing your own spot for Fireflies.</b> It starts as the game’s: drag a corner to
+          move it, double-click a corner to take it out, click the picture to add a shape.</span
+        ><span class="btn">＋ Add a shape</span><span class="btn">Delete this shape</span
+        ><span class="btn">Light from the middle</span><span class="btn primary">Finish</span>
+      </div>
+      <div class="stage">
+        <svg viewBox="0 0 600 400" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#0b1330" />
+              <stop offset="1" stop-color="#26335c" />
+            </linearGradient>
+          </defs>
+          <rect width="600" height="400" fill="url(#sky)" />
+          <circle cx="468" cy="72" r="22" fill="#fdf3c9" />
+          <path d="M0 250 L120 190 L210 230 L330 170 L450 225 L600 200 V400H0Z" fill="#141a2e" />
+          <text
+            x="300"
+            y="120"
+            text-anchor="middle"
+            fill="#e8d9a8"
+            font-size="34"
+            font-family="Georgia"
+          >
+            RetroQuest
+          </text>
+          <circle cx="90" cy="300" r="2.2" fill="#f6ff9a" />
+          <circle cx="160" cy="285" r="2.2" fill="#f6ff9a" />
+          <circle cx="230" cy="330" r="2.2" fill="#f6ff9a" />
+          <circle cx="300" cy="295" r="2.2" fill="#f6ff9a" />
+          <circle cx="370" cy="320" r="2.2" fill="#f6ff9a" />
+          <circle cx="440" cy="288" r="2.2" fill="#f6ff9a" />
+          <circle cx="510" cy="335" r="2.2" fill="#f6ff9a" />
+          <circle cx="130" cy="340" r="2.2" fill="#f6ff9a" />
+          <circle cx="480" cy="300" r="2.2" fill="#f6ff9a" />
+          <path
+            d="M40 270 L560 270 L560 350 L40 350Z"
+            fill="none"
+            stroke="#b9c6ff"
+            stroke-width="2"
+            stroke-dasharray="7 5"
+          />
+          <path
+            fill-rule="evenodd"
+            d="M0 0H600V400H0Z M40 270 L560 270 L560 350 L40 350Z"
+            fill="rgb(0 0 0/45%)"
+          />
+          <path
+            d="M40 270 L560 270 L560 350 L40 350Z"
+            fill="none"
+            stroke="#8fd3ff"
+            stroke-width="2"
+          />
+          <circle cx="40" cy="270" r="4" fill="#fff" stroke="#333" />
+          <circle cx="560" cy="270" r="4" fill="#fff" stroke="#333" />
+          <circle cx="560" cy="350" r="4" fill="#fff" stroke="#333" />
+          <circle cx="40" cy="350" r="4" fill="#fff" stroke="#333" />
+        </svg>
+      </div>
+      <div class="cap">
+        Finish without changing anything keeps the game’s; nothing is saved. Your first change is
+        saved at once, as today. When the game doesn’t say where, it starts empty.
+      </div>
+      <h2>The rows, every state</h2>
+      <div class="states">
+        <div class="panel">
+          <b>Game's shape</b>
+          <div class="fx">
+            <div class="t"><span>☑ Fireflies</span></div>
+            <div class="sl">Amount<i></i></div>
+            <div class="ln">Spot: the game’s <a>Draw your own</a></div>
+          </div>
+        </div>
+        <div class="panel">
+          <b>Game's shape is the whole picture</b>
+          <div class="fx">
+            <div class="t"><span>☑ Mist</span></div>
+            <div class="sl">Amount<i></i></div>
+            <div class="ln">Spot: the game’s — the whole picture <a>Draw your own</a></div>
+          </div>
+        </div>
+        <div class="panel">
+          <b>The game doesn't say where</b>
+          <div class="fx">
+            <div class="t"><span>☑ Mist</span></div>
+            <div class="sl">Amount<i></i></div>
+            <div class="ln">Spot: the game’s — the game doesn’t say where <a>Draw your own</a></div>
+          </div>
+        </div>
+        <div class="panel">
+          <b>Your own</b>
+          <div class="fx">
+            <div class="t"><span>☑ Fireflies</span></div>
+            <div class="sl">Amount<i></i></div>
+            <div class="ln">Spot: your own, 1 shape <a>Change</a> <a>Back to the game’s</a></div>
+          </div>
+        </div>
+        <div class="panel">
+          <b>Your own, light moved</b>
+          <div class="fx">
+            <div class="t"><span>☑ Fireflies</span></div>
+            <div class="sl">Amount<i></i></div>
+            <div class="ln">
+              Spot: your own, 2 shapes, light from a marked point <a>Change</a>
+              <a>Back to the game’s</a>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <b>Just pressed Back to the game's</b>
+          <div class="fx">
+            <div class="t"><span>☑ Fireflies</span></div>
+            <div class="sl">Amount<i></i></div>
+            <div class="ln">
+              Spot: the game’s <a>Draw your own</a> · Your shape was removed. <a>Undo</a>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <b>Can't be moved</b>
+          <div class="fx">
+            <div class="t"><span>☑ Fireflies</span></div>
+            <div class="sl">Amount<i></i></div>
+            <div class="ln">Spot: the game’s — this effect can’t be moved in the studio</div>
+          </div>
+        </div>
+        <div class="panel">
+          <b>Can't be moved, with a shape from before</b>
+          <div class="fx">
+            <div class="t"><span>☑ Fireflies</span></div>
+            <div class="sl">Amount<i></i></div>
+            <div class="ln">
+              Spot: the game’s — this effect can’t be moved in the studio. A shape drawn earlier is
+              kept but not used. <a>Remove it</a>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <b>Effect off</b>
+          <div class="fx">
+            <div class="t"><span>☐ Fireflies</span></div>
+            <div class="ln">Spot: your own, 1 shape (kept while off)</div>
+          </div>
+        </div>
+        <div class="panel">
+          <b>Full screen panel (no links)</b>
+          <div class="fx">
+            <div class="t"><span>☑ Fireflies</span></div>
+            <div class="sl">Amount<i></i></div>
+            <div class="ln">Spot: your own, 1 shape</div>
+          </div>
+        </div>
+      </div>
+      <h2>Save failed</h2>
+      <div class="panel">
+        <div class="err">
+          Couldn't save the spot: the image edits file can't be written. Your shape is still on the
+          picture. <span class="btn">Try again</span>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
