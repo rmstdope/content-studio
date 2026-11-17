@@ -14,7 +14,9 @@ import {
 import {
   EFFECT_WORDS,
   MOVEMENT_WORDS,
+  SPOT_WORDS,
   effectsLine,
+  finishFirst,
   PATCH_NOT_KNOWN_WHY,
   noTakeLine,
   notLaidLine,
@@ -22,6 +24,7 @@ import {
   patchNoTake,
   patchNotKnown,
   savedForGame,
+  spotLine,
   savedForGameLockUnread,
   tieChoice,
   tieTag,
@@ -68,6 +71,74 @@ export interface MotionControlsProps {
   status: SaveStatus
   /** Try again presses after a save failed. */
   onRetry: () => void
+  /** Whether the failed save was of a spot, which has its own words. */
+  failedSpot?: boolean
+  /** Drawing spots, on the tab only: absent (full screen), the spot line has no links. */
+  spot?: SpotControls
+}
+
+/** What an effect's spot line can do on the tab: draw, clear, show the shapes, and why it cannot. */
+export interface SpotControls {
+  /** The type being drawn now, or null. */
+  drawing: string | null
+  /** Why no spot can be drawn (there is no picture), or false. */
+  why: string | false
+  /** Draw a spot / Change presses. */
+  onDraw: (type: EffectType) => void
+  /** Clear presses. */
+  onClear: (type: EffectType) => void
+  /** Pointer or focus came to or left an effect's row; null when it left. */
+  onPeek: (type: string | null) => void
+  /** The type whose unclosed shape was just left out. */
+  leftOut: string | null
+}
+
+/** What an effect's row says of its spot, and the links for it where there are any. */
+function SpotLine({
+  type,
+  count,
+  on,
+  props,
+}: {
+  type: EffectType
+  count: number
+  on: boolean
+  props: MotionControlsProps
+}) {
+  const spot = props.spot
+  if (!on) {
+    return count > 0 ? <p className="movement-spot muted">{spotLine(count, 'off')}</p> : null
+  }
+  const drawing = spot?.drawing === type.type
+  const other = spot?.drawing != null && !drawing
+  const why = spot
+    ? other
+      ? finishFirst(props.effects[spot.drawing!]?.title ?? spot.drawing!)
+      : spot.why
+    : false
+  const link = (label: string, press: () => void) => (
+    <button
+      type="button"
+      className="link-button"
+      data-spot-link={type.type}
+      {...off(why)}
+      onClick={() => !why && press()}
+    >
+      {label}
+    </button>
+  )
+  return (
+    <div className="movement-spot-block">
+      <p className="movement-spot muted">
+        {spotLine(count, drawing ? 'drawing' : 'plain')}
+        {spot && !drawing && count === 0 && link(SPOT_WORDS.draw, () => spot.onDraw(type))}
+        {spot && !drawing && count > 0 && link(SPOT_WORDS.change, () => spot.onDraw(type))}
+        {spot && !drawing && count > 0 && link(SPOT_WORDS.clear, () => spot.onClear(type))}
+      </p>
+      {spot && !drawing && why && <p className="movement-spot-why muted">{why}</p>}
+      {spot?.leftOut === type.type && <p className="movement-spot-why">{SPOT_WORDS.leftOut}</p>}
+    </div>
+  )
 }
 
 /** What saving the effects is doing: nothing to say, taking a moment, done, or failed. */
@@ -171,7 +242,21 @@ function EffectRow({
   if (on && tiedAway) classes.push('movement-effect-dim')
   if (tie.kind === 'gone') classes.push('movement-effect-lost')
   return (
-    <li className={classes.join(' ')}>
+    <li
+      className={
+        props.spot?.drawing === type.type
+          ? `${classes.join(' ')} movement-effect-drawing`
+          : classes.join(' ')
+      }
+      onPointerEnter={() => props.spot?.onPeek(type.type)}
+      onPointerLeave={() => props.spot?.onPeek(null)}
+      onFocus={() => props.spot?.onPeek(type.type)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          props.spot?.onPeek(null)
+        }
+      }}
+    >
       <div className="movement-effect-head">
         <Switch
           label={type.title}
@@ -253,6 +338,7 @@ function EffectRow({
           )}
         </>
       )}
+      <SpotLine type={type} count={saved?.spot?.length ?? 0} on={on} props={props} />
     </li>
   )
 }
@@ -379,7 +465,7 @@ function EffectsGroup(props: MotionControlsProps) {
       )}
       {status === 'failed' && (
         <p role="alert" className="movement-save-failed">
-          {EFFECT_WORDS.saveFailed}{' '}
+          {props.failedSpot ? SPOT_WORDS.saveFailed : EFFECT_WORDS.saveFailed}{' '}
           <button type="button" className="btn" onClick={props.onRetry}>
             {MOVEMENT_WORDS.tryAgain}
           </button>

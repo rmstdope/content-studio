@@ -175,7 +175,19 @@ export function checkAreaBox(box: AreaBox, size: { width: number; height: number
   return null
 }
 
-/** One effect of an image as the studio keeps it: whether it is in the game, and every setting's value, kept while off. */
+/** A corner of a spot's shape, as fractions of the picture (0 to 1 across, 0 to 1 down). */
+const CornerSchema = z.tuple([z.number().min(0).max(1), z.number().min(0).max(1)])
+
+/** One closed shape of an effect's spot: its corners in order, at least three. */
+export const SpotShapeSchema = z.array(CornerSchema).min(3)
+
+/** One closed shape of an effect's spot, as fractions of the picture. */
+export type SpotShape = [number, number][]
+
+/**
+ * One effect of an image as the studio keeps it: whether it is in the game, and every setting's
+ * value, kept while off; and its spot, the shapes it plays inside (none: the whole picture).
+ */
 export const EffectEditSchema = z.object({
   /** What the renderer called it when it was saved, to name it when the renderer is not there. */
   title: z.string().optional(),
@@ -185,6 +197,7 @@ export const EffectEditSchema = z.object({
   /** The tied patch's title when it was tied, to name it once the game stops listing it. */
   patchTitle: z.string().optional(),
   settings: z.record(z.string(), z.number().finite()),
+  spot: z.array(SpotShapeSchema).min(1).optional(),
 })
 
 /** The effects an image has saved, by effect type: the type's values, whether or not the renderer still has it. */
@@ -333,7 +346,7 @@ function keyedEffects(effects: SavedEffects): SavedEffects {
     Object.keys(effects)
       .sort()
       .map((type) => {
-        const { title, on, patch, patchTitle, settings } = effects[type]!
+        const { title, on, patch, patchTitle, settings, spot } = effects[type]!
         const sortedSettings = Object.fromEntries(
           Object.keys(settings)
             .sort()
@@ -347,6 +360,7 @@ function keyedEffects(effects: SavedEffects): SavedEffects {
             ...(patch !== undefined && { patch }),
             ...(patchTitle !== undefined && { patchTitle }),
             settings: sortedSettings,
+            ...(spot && { spot }),
           },
         ]
       }),
@@ -624,6 +638,8 @@ export interface GameEffect {
   settings: Record<string, number>
   /** The patch it shows with: only while that patch is laid; absent shows always. */
   patch?: string
+  /** The shapes it plays inside, as fractions of the picture; absent: the whole picture. */
+  spot?: SpotShape[]
 }
 
 /** The effects the game plays: those saved as on, by kind, each with every setting saved for it. */
@@ -632,8 +648,13 @@ export function effectsForGame(effects: SavedEffects): GameEffect[] {
     .sort()
     .filter((type) => effects[type]!.on)
     .map((type) => {
-      const { settings, patch } = effects[type]!
-      return { kind: type, settings, ...(patch !== undefined && { patch }) }
+      const { settings, patch, spot } = effects[type]!
+      return {
+        kind: type,
+        settings,
+        ...(patch !== undefined && { patch }),
+        ...(spot && { spot }),
+      }
     })
 }
 

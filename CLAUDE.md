@@ -112,7 +112,7 @@ bundle breaks.
   its point as `mark` when it has one), written in the
   same save as the box and on Refresh from the game; the entry keeps its other fields as they were.
   Likewise `effects`, the effects the user put in the game for the image with their settings
-  (§8.7, the Movement job), written in the same save as the change, on choosing a take and on Refresh from the game.
+  and, where drawn, the spot each plays inside (§8.7, the Movement job), written in the same save as the change, on choosing a take and on Refresh from the game.
 - Never run git commands that change the consumer (`add`, `commit`, `push`, `checkout`). The user
   commits; the studio at most reads `git status`.
 - The game reads `manifest.json`: keep its format exactly. For images that includes a chosen
