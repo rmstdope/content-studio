@@ -1124,6 +1124,19 @@ describe('an effect tied to a patch', () => {
     expect(dustRow(host).querySelector('.movement-tag')).toBeNull()
   })
 
+  it('counts a tied effect that is on for the tab, whether or not its patch is laid', async () => {
+    const counts: (number | null)[] = []
+    const { host } = await render({
+      patches: PATCHES,
+      effects: tied('star', 'The star on the door'),
+      onEffectsOn: (c) => counts.push(c),
+    })
+    expect(playing()).toEqual([])
+    expect(counts.at(-1)).toBe(1)
+    await click(button(host, 'Lay it'))
+    expect(counts.at(-1)).toBe(1)
+  })
+
   it('runs only while the patch is laid, dims the sliders and offers Lay it, which keeps focus on the menu', async () => {
     const { host, puts } = await render({
       patches: PATCHES,
