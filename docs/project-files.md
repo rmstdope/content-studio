@@ -649,7 +649,7 @@ Refresh from the game for the act. A game that does not read `areas` is unaffect
 }
 ```
 
-**An image's effects.** The entry of an image with effects switched on in the studio gains `effects`, a list of `{ "kind": "dust", "settings": { "amount": 1.25 } }` in kind order: exactly the `specs` the game's renderer takes in `setEffects`. The game's renderer should hold each setting to its own range. The key is absent when none is on. The studio writes it when an effect is switched or tuned, when a take is chosen, and on Refresh from the game.
+**An image's effects.** The entry of an image with effects switched on in the studio gains `effects`, a list of `{ "kind": "dust", "settings": { "amount": 1.25 } }` in kind order: exactly the `specs` the game's renderer takes in `setEffects`. The game's renderer should hold each setting to its own range. An effect with a spot also has `"spot"`, a list of shapes, each a list of at least three `[x, y]` corners as fractions of the picture (0 to 1 across and down, so any size fits): `{ "kind": "dust", "settings": {…}, "spot": [[[0.1, 0.5], [0.4, 0.5], [0.25, 0.9]]] }`. The effect plays only inside the shapes (a point in any of them); the studio's preview clips the scene's canvas to them. An effect with no `spot` plays over the whole picture, and the renderer itself never sees the key. The key is absent when none is on. The studio writes it when an effect is switched or tuned, when a take is chosen, and on Refresh from the game.
 
 **A part's mix** (`scenes.mix`) says what plays in each of a part's scenes, by scene id:
 
