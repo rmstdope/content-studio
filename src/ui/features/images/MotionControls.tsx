@@ -6,6 +6,7 @@ import {
   effectDiffers,
   effectValues,
   rangeNote,
+  effectPlays,
   settingsLine,
   tieState,
   type TiePatch,
@@ -21,6 +22,8 @@ import {
   noTakeLine,
   notLaidLine,
   patchGoneLine,
+  patchGoneWithoutLine,
+  laidLine,
   patchNoTake,
   patchNotKnown,
   savedForGame,
@@ -63,8 +66,10 @@ export interface MotionControlsProps {
   onRemove: (type: string) => void
   /** The game's patches an effect can be tied to, in its order; none when the image has none. */
   ties: readonly TiePatch[]
-  /** An effect is tied to a patch (its id) or to none (null). */
-  onTie: (type: EffectType, patchId: string | null) => void
+  /** An effect is tied to a patch (its id), to show while it is laid or with `without` while it is not, or to none (null). */
+  onTie: (type: EffectType, choice: { patchId: string; without: boolean } | null) => void
+  /** Take it off presses: switch that patch off in the preview. */
+  onTakeOff: (id: string) => void
   /** Lay it presses: switch that patch on in the preview. */
   onLay: (id: string) => void
   /** What saving the effects is doing. */
@@ -237,7 +242,8 @@ function EffectRow({
   const menu = useRef<HTMLSelectElement>(null)
   const menuId = useId()
   const tie = tieState(saved ?? {}, props.ties, props.patchesOn)
-  const tiedAway = tie.kind !== 'always' && tie.kind !== 'laid'
+  const without = tie.kind !== 'always' && tie.without === true
+  const tiedAway = !effectPlays(tie)
   const classes = ['movement-effect']
   if (on && tiedAway) classes.push('movement-effect-dim')
   if (tie.kind === 'gone') classes.push('movement-effect-lost')
@@ -264,7 +270,9 @@ function EffectRow({
           why={why}
           onChange={(next) => props.onEffect(type, next)}
         />
-        {tie.kind !== 'always' && <span className="movement-tag">{tieTag(tie.title)}</span>}
+        {tie.kind !== 'always' && (
+          <span className="movement-tag">{tieTag(tie.title, without)}</span>
+        )}
         {on && effectDiffers(type, saved?.settings) && (
           <button type="button" className="btn movement-reset" onClick={() => props.onReset(type)}>
             {EFFECT_WORDS.reset}
@@ -303,21 +311,47 @@ function EffectRow({
               id={menuId}
               className="takes-count"
               ref={menu}
-              value={tie.kind === 'always' ? '' : tie.patchId}
-              onChange={(event) => props.onTie(type, event.target.value || null)}
+              value={tie.kind === 'always' ? '' : `${without ? 'without' : 'with'}:${tie.patchId}`}
+              onChange={(event) => {
+                const [how, ...id] = event.target.value.split(':')
+                props.onTie(
+                  type,
+                  id.length ? { patchId: id.join(':'), without: how === 'without' } : null,
+                )
+              }}
             >
               <option value="">{TIE_WORDS.always}</option>
-              {props.ties.map((patch) => (
-                <option key={patch.id} value={patch.id}>
+              {props.ties.flatMap((patch) => [
+                <option key={`with:${patch.id}`} value={`with:${patch.id}`}>
                   {tieChoice(patch.title)}
-                </option>
-              ))}
+                </option>,
+                <option key={`without:${patch.id}`} value={`without:${patch.id}`}>
+                  {tieChoice(patch.title, false, true)}
+                </option>,
+              ])}
               {tie.kind === 'gone' && (
-                <option value={tie.patchId}>{tieChoice(tie.title, true)}</option>
+                <option value={`${without ? 'without' : 'with'}:${tie.patchId}`}>
+                  {tieChoice(tie.title, true, without)}
+                </option>
               )}
             </select>
           </div>
-          {(tie.kind === 'notLaid' || tie.kind === 'noTake') && (
+          {without && tie.kind === 'laid' && (
+            <p className="movement-tie-line muted">
+              {laidLine(tie.title)}{' '}
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  props.onTakeOff(tie.patchId)
+                  menu.current?.focus()
+                }}
+              >
+                {TIE_WORDS.takeOff}
+              </button>
+            </p>
+          )}
+          {!without && (tie.kind === 'notLaid' || tie.kind === 'noTake') && (
             <p className="movement-tie-line muted">
               {tie.kind === 'notLaid' ? notLaidLine(tie.title) : noTakeLine(tie.title)}{' '}
               {tie.kind === 'notLaid' && (
@@ -335,7 +369,9 @@ function EffectRow({
             </p>
           )}
           {tie.kind === 'gone' && (
-            <p className="movement-tie-line notice-warn">{patchGoneLine(tie.title)}</p>
+            <p className="movement-tie-line notice-warn">
+              {without ? patchGoneWithoutLine(tie.title) : patchGoneLine(tie.title)}
+            </p>
           )}
         </>
       )}

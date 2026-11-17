@@ -248,6 +248,18 @@ describe('the images routes', () => {
     expect((await summary()).acts[0].rows[0].effects).toEqual({ dust })
   })
 
+  it('keeps an effect’s "not laid" choice through the effects route', async () => {
+    const path = '/api/images/inn/effects'
+    const dust = {
+      on: true,
+      settings: { amount: 1.5 },
+      unlessPatch: 'bucket',
+      patchTitle: 'The bucket',
+    }
+    expect(await (await send('PUT', path, { effects: { dust } })).json()).toEqual({ ok: true })
+    expect((await summary()).acts[0].rows[0].effects).toEqual({ dust })
+  })
+
   it('saves an image leaving its act’s style out, refuses a bad body and an unknown image', async () => {
     expect(await (await send('PATCH', '/api/images/inn/act-style', { on: false })).json()).toEqual({
       ok: true,

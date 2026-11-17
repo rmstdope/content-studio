@@ -1132,7 +1132,9 @@ describe('an effect tied to a patch', () => {
     expect([...select.options].map((o) => o.textContent)).toEqual([
       'Always',
       'While The star on the door is laid',
+      'While The star on the door is not laid',
       'While Broken lantern is laid',
+      'While Broken lantern is not laid',
     ])
     expect(select.value).toBe('')
     expect(dustRow(host).querySelector('.movement-tag')).toBeNull()
@@ -1158,7 +1160,7 @@ describe('an effect tied to a patch', () => {
       patches: PATCHES,
       effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) },
     })
-    await choose(menu(host)!, 'star')
+    await choose(menu(host)!, 'with:star')
     expect(puts.at(-1)!.effects.dust).toEqual({
       ...saved({ amount: 1, size: 1, speed: 1 }),
       patch: 'star',
@@ -1213,7 +1215,7 @@ describe('an effect tied to a patch', () => {
       patches: PATCHES,
       effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) },
     })
-    await choose(menu(host)!, 'lantern')
+    await choose(menu(host)!, 'with:lantern')
     expect(dustRow(host).textContent).toContain(
       'Not showing: Broken lantern has no take chosen yet.',
     )
@@ -1235,7 +1237,7 @@ describe('an effect tied to a patch', () => {
     )
     expect(puts.at(-1)!.effects.dust!.patch).toBe('star')
     await click(switchFor(host, 'Dust'))
-    expect(menu(host)!.value).toBe('star')
+    expect(menu(host)!.value).toBe('with:star')
   })
 
   it('keeps a tie to a patch the game no longer lists, flagged, until another choice is made', async () => {
@@ -1248,10 +1250,12 @@ describe('an effect tied to a patch', () => {
     expect([...menu(host)!.options].map((o) => o.textContent)).toEqual([
       'Always',
       'While The star on the door is laid',
+      'While The star on the door is not laid',
       'While Broken lantern is laid',
+      'While Broken lantern is not laid',
       'While Old sign is laid · gone',
     ])
-    expect(menu(host)!.value).toBe('old')
+    expect(menu(host)!.value).toBe('with:old')
     expect(dustRow(host).textContent).toContain(
       "The game no longer lists the patch Old sign, so it won't show this effect. Choose Always or another patch.",
     )
@@ -1259,7 +1263,7 @@ describe('an effect tied to a patch', () => {
     await choose(menu(host)!, '')
     expect(dustRow(host).className).not.toContain('movement-effect-lost')
     expect(puts.at(-1)!.effects.dust!.patch).toBeUndefined()
-    expect([...menu(host)!.options].length).toBe(3)
+    expect([...menu(host)!.options].length).toBe(5)
   })
 
   it('keeps the tie through slider moves and Reset', async () => {
@@ -1275,7 +1279,7 @@ describe('an effect tied to a patch', () => {
 
   it('can still be undone when the game now lists no patches at all', async () => {
     const { host, puts } = await render({ effects: tied('old', 'Old sign') })
-    expect(menu(host)!.value).toBe('old')
+    expect(menu(host)!.value).toBe('with:old')
     expect(dustRow(host).textContent).toContain('The game no longer lists the patch Old sign')
     await choose(menu(host)!, '')
     expect(puts.at(-1)!.effects.dust!.patch).toBeUndefined()
@@ -1287,9 +1291,9 @@ describe('an effect tied to a patch', () => {
       effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) },
       saved: () => Response.json({ ok: false, problems: [] }, { status: 409 }),
     })
-    await choose(menu(host)!, 'star')
+    await choose(menu(host)!, 'with:star')
     expect(text(host)).toContain("Couldn't save the effects")
-    expect(menu(host)!.value).toBe('star')
+    expect(menu(host)!.value).toBe('with:star')
     expect(playing()).toEqual(['dust'])
   })
 
@@ -1331,7 +1335,168 @@ describe('an effect tied to a patch', () => {
     )
     expect(switchFor(host, 'The star on the door')!.checked).toBe(true)
     expect(host.querySelector('.movement-side')!.textContent).not.toContain('Not showing')
-    expect(menu(host, '.movement-float')!.value).toBe('star')
+    expect(menu(host, '.movement-float')!.value).toBe('with:star')
+  })
+
+  describe('shown only while a patch is not laid', () => {
+    const untied = (patch: string, title: string, on = true) => ({
+      dust: {
+        ...dust({ amount: 1, size: 1, speed: 1 }, on),
+        title: 'Dust',
+        unlessPatch: patch,
+        patchTitle: title,
+      },
+    })
+    const FIRE = [
+      { id: 'water', title: 'The water on the fire', take: 2 },
+      { id: 'lantern', title: 'Broken lantern', take: null },
+    ]
+
+    it('saves the choice at once, switches the patch off and tags the effect', async () => {
+      const { host, puts } = await render({
+        patches: FIRE,
+        effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) },
+      })
+      await click(switchFor(host, 'The water on the fire'))
+      expect(switchFor(host, 'The water on the fire')!.checked).toBe(true)
+      await choose(menu(host)!, 'without:water')
+      expect(puts.at(-1)!.effects.dust).toEqual({
+        ...saved({ amount: 1, size: 1, speed: 1 }),
+        unlessPatch: 'water',
+        patchTitle: 'The water on the fire',
+      })
+      expect(puts.at(-1)!.effects.dust!.patch).toBeUndefined()
+      expect(text(host)).toContain('Saved')
+      expect(switchFor(host, 'The water on the fire')!.checked).toBe(false)
+      expect(dustRow(host).querySelector('.movement-tag')!.textContent).toBe(
+        'without The water on the fire',
+      )
+      expect(menu(host)!.value).toBe('without:water')
+      expect(playing()).toEqual(['dust'])
+    })
+
+    it('changing from one way to the other leaves only the new one', async () => {
+      const { host, puts } = await render({
+        patches: FIRE,
+        effects: tied('water', 'The water on the fire'),
+      })
+      await choose(menu(host)!, 'without:water')
+      expect(puts.at(-1)!.effects.dust!.patch).toBeUndefined()
+      expect(puts.at(-1)!.effects.dust!.unlessPatch).toBe('water')
+      await choose(menu(host)!, 'with:water')
+      expect(puts.at(-1)!.effects.dust!.unlessPatch).toBeUndefined()
+      expect(puts.at(-1)!.effects.dust!.patch).toBe('water')
+    })
+
+    it('stops while the patch is laid, dims the sliders, and Take it off switches it off and keeps focus on the menu', async () => {
+      const { host, puts } = await render({
+        patches: FIRE,
+        effects: untied('water', 'The water on the fire'),
+      })
+      expect(playing()).toEqual(['dust'])
+      expect(dustRow(host).textContent).not.toContain('Not showing')
+      await click(switchFor(host, 'The water on the fire'))
+      expect(playing()).toEqual([])
+      expect(dustRow(host).className).toContain('movement-effect-dim')
+      expect(dustRow(host).textContent).toContain('Not showing: The water on the fire is laid.')
+      const before = puts.length
+      await click(button(host, 'Take it off'))
+      expect(switchFor(host, 'The water on the fire')!.checked).toBe(false)
+      expect(playing()).toEqual(['dust'])
+      expect(button(host, 'Take it off')).toBeUndefined()
+      expect(dustRow(host).className).not.toContain('movement-effect-dim')
+      expect(document.activeElement).toBe(menu(host))
+      expect(puts.length).toBe(before)
+    })
+
+    it('runs on a patch with no take chosen, with no line and no button', async () => {
+      const { host } = await render({
+        patches: FIRE,
+        effects: { dust: dust({ amount: 1, size: 1, speed: 1 }) },
+      })
+      await choose(menu(host)!, 'without:lantern')
+      expect(dustRow(host).textContent).not.toContain('Not showing')
+      expect(button(host, 'Take it off')).toBeUndefined()
+      expect(dustRow(host).className).not.toContain('movement-effect-dim')
+      expect(playing()).toEqual(['dust'])
+    })
+
+    it('keeps a choice of a patch the game no longer lists, flagged, until another is made', async () => {
+      const { host, puts } = await render({
+        patches: FIRE,
+        effects: untied('old', 'Old bucket'),
+      })
+      expect(dustRow(host).className).toContain('movement-effect-lost')
+      expect(dustRow(host).className).toContain('movement-effect-dim')
+      expect(dustRow(host).querySelector('.movement-tag')!.textContent).toBe('without Old bucket')
+      expect([...menu(host)!.options].map((o) => o.textContent)).toEqual([
+        'Always',
+        'While The water on the fire is laid',
+        'While The water on the fire is not laid',
+        'While Broken lantern is laid',
+        'While Broken lantern is not laid',
+        'While Old bucket is not laid · gone',
+      ])
+      expect(menu(host)!.value).toBe('without:old')
+      expect(dustRow(host).textContent).toContain(
+        'The game no longer lists the patch Old bucket. Choose Always or another patch.',
+      )
+      expect(playing()).toEqual([])
+      await choose(menu(host)!, '')
+      expect(dustRow(host).className).not.toContain('movement-effect-lost')
+      expect(puts.at(-1)!.effects.dust!.unlessPatch).toBeUndefined()
+    })
+
+    it('keeps the choice, with its tag and no menu, while the effect is off, and through sliders', async () => {
+      const { host, puts } = await render({
+        patches: FIRE,
+        effects: untied('water', 'The water on the fire'),
+      })
+      await click(switchFor(host, 'Dust'))
+      expect(menu(host)).toBeNull()
+      expect(dustRow(host).querySelector('.movement-tag')!.textContent).toBe(
+        'without The water on the fire',
+      )
+      expect(puts.at(-1)!.effects.dust!.unlessPatch).toBe('water')
+      await click(switchFor(host, 'Dust'))
+      expect(menu(host)!.value).toBe('without:water')
+    })
+
+    it('shows the same menu, tag and line in full screen, in step with the tab', async () => {
+      let current: Element | null = null
+      Object.defineProperty(document, 'fullscreenElement', {
+        get: () => current,
+        configurable: true,
+      })
+      ;(
+        HTMLElement.prototype as unknown as { requestFullscreen: () => Promise<void> }
+      ).requestFullscreen = async function (this: Element) {
+        current = this
+        document.dispatchEvent(new Event('fullscreenchange'))
+      }
+      cleanups.push(() => {
+        current = null
+        delete (HTMLElement.prototype as unknown as { requestFullscreen?: unknown })
+          .requestFullscreen
+      })
+      const { host } = await render({
+        patches: FIRE,
+        effects: untied('water', 'The water on the fire'),
+      })
+      await click(button(host, '⛶ Full screen'))
+      await click(switchFor(host, 'The water on the fire'))
+      const float = host.querySelector('.movement-float')!
+      expect(float.textContent).toContain('Not showing: The water on the fire is laid.')
+      expect(float.textContent).toContain('without The water on the fire')
+      await click(
+        [...float.querySelectorAll<HTMLButtonElement>('button')].find(
+          (b) => b.textContent === 'Take it off',
+        ),
+      )
+      expect(switchFor(host, 'The water on the fire')!.checked).toBe(false)
+      expect(host.querySelector('.movement-side')!.textContent).not.toContain('Not showing')
+      expect(menu(host, '.movement-float')!.value).toBe('without:water')
+    })
   })
 })
 

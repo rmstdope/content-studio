@@ -529,6 +529,16 @@ describe('the effects of an image', () => {
     ])
   })
 
+  it('keep a "not laid" choice and give the game its patch id as unlessPatch', async () => {
+    const { file, read } = repo({ [MANIFEST]: { inn: entry } })
+    const tied = { ...dust, unlessPatch: 'bucket', patchTitle: 'The water on the fire' }
+    expect(await setImageEffects(file, 'inn', { dust: tied })).toEqual({ ok: true })
+    expect(JSON.parse(read(EDITS)).images.inn.effects).toEqual({ dust: tied })
+    expect(JSON.parse(read(MANIFEST)).inn.effects).toEqual([
+      { kind: 'dust', settings: { amount: 1.25, speed: 1 }, unlessPatch: 'bucket' },
+    ])
+  })
+
   it('leave the game with the last one taken away', async () => {
     const { file, read } = repo({ [MANIFEST]: { inn: entry } })
     await setImageEffects(file, 'inn', { dust })

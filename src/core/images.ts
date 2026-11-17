@@ -194,8 +194,10 @@ export const EffectEditSchema = z.object({
   on: z.boolean(),
   /** The id of the patch it is tied to: the game shows it only while that patch is laid. */
   patch: z.string().optional(),
-  /** The tied patch's title when it was tied, to name it once the game stops listing it. */
+  /** The title of the patch it is tied to, either way, to name it once the game stops listing it. */
   patchTitle: z.string().optional(),
+  /** The id of the patch it shows without: the game shows it only while that patch is not laid. */
+  unlessPatch: z.string().optional(),
   settings: z.record(z.string(), z.number().finite()),
   spot: z.array(SpotShapeSchema).min(1).optional(),
 })
@@ -346,7 +348,7 @@ function keyedEffects(effects: SavedEffects): SavedEffects {
     Object.keys(effects)
       .sort()
       .map((type) => {
-        const { title, on, patch, patchTitle, settings, spot } = effects[type]!
+        const { title, on, patch, unlessPatch, patchTitle, settings, spot } = effects[type]!
         const sortedSettings = Object.fromEntries(
           Object.keys(settings)
             .sort()
@@ -358,6 +360,7 @@ function keyedEffects(effects: SavedEffects): SavedEffects {
             ...(title !== undefined && { title }),
             on,
             ...(patch !== undefined && { patch }),
+            ...(unlessPatch !== undefined && { unlessPatch }),
             ...(patchTitle !== undefined && { patchTitle }),
             settings: sortedSettings,
             ...(spot && { spot }),
@@ -638,6 +641,8 @@ export interface GameEffect {
   settings: Record<string, number>
   /** The patch it shows with: only while that patch is laid; absent shows always. */
   patch?: string
+  /** The patch it shows without: only while that patch is not laid. */
+  unlessPatch?: string
   /** The shapes it plays inside, as fractions of the picture; absent: the whole picture. */
   spot?: SpotShape[]
 }
@@ -648,11 +653,12 @@ export function effectsForGame(effects: SavedEffects): GameEffect[] {
     .sort()
     .filter((type) => effects[type]!.on)
     .map((type) => {
-      const { settings, patch, spot } = effects[type]!
+      const { settings, patch, unlessPatch, spot } = effects[type]!
       return {
         kind: type,
         settings,
         ...(patch !== undefined && { patch }),
+        ...(unlessPatch !== undefined && { unlessPatch }),
         ...(spot && { spot }),
       }
     })
