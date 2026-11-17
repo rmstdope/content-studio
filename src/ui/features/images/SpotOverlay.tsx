@@ -264,9 +264,11 @@ export function SpotOverlay(props: SpotOverlayProps) {
       </svg>
       {/* The picked shape's corners and the light's mark, in a layer above the stage's own buttons
           (Pause, Full screen), so one under them can still be grabbed: each corner as far out as
-          the grab reaches, and the mark over the corners, as a press takes it first. */}
-      {drawing && ((picked !== null && spot[picked]) || props.mark) && (
+          the grab reaches, and the mark over the corners, as a press takes it first. While a new
+          shape is being placed, the whole layer takes presses, so a corner can go anywhere. */}
+      {drawing && (placing || (picked !== null && spot[picked]) || props.mark) && (
         <svg className="spot-handles" width={w} height={h} aria-hidden="true">
+          {placing && <rect className="spot-catch" width={w} height={h} />}
           {picked !== null &&
             spot[picked]?.map((corner, i) => (
               <g key={i}>
