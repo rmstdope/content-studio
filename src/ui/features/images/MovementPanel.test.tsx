@@ -2424,6 +2424,15 @@ describe('the slow zoom of an image', () => {
     expect(button(group(same.host), 'Reset')).toBeUndefined()
   })
 
+  it('puts focus on the switch after Reset, so a keyboard user keeps their place', async () => {
+    const { host } = await render({ zoom: own })
+    const reset = button(group(host), 'Reset')!
+    reset.focus()
+    await click(reset)
+    expect(button(group(host), 'Reset')).toBeUndefined()
+    expect(document.activeElement).toBe(switchFor(host, 'Zoom in and out')!)
+  })
+
   it('draws Reset as a link that adds no height to the switch row, so appearing moves neither slider', async () => {
     const { host } = await render({ zoom: own })
     const reset = button(group(host), 'Reset')!

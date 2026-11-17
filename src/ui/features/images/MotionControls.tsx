@@ -1,4 +1,4 @@
-import { useId, useRef } from 'react'
+import { type Ref, useId, useRef } from 'react'
 import type { SavedEffects, SavedZoom } from '../../../core/images'
 import type { EffectSetting, EffectType } from '../../../core/motion'
 import {
@@ -185,10 +185,13 @@ function Switch({
   checked,
   why,
   dim,
+  inputRef,
   onChange,
 }: {
   label: string
   checked: boolean
+  /** The switch's own input, for focus to be put on it. */
+  inputRef?: Ref<HTMLInputElement>
   /** Shown faint: the switch is there but cannot be used. */
   dim?: boolean
   /** Why the switch cannot be changed, or false when it can. */
@@ -198,6 +201,7 @@ function Switch({
   return (
     <label className={dim ? 'movement-switch movement-switch-off' : 'movement-switch'}>
       <input
+        ref={inputRef}
         type="checkbox"
         checked={checked}
         {...off(why)}
@@ -474,6 +478,8 @@ const ZOOM_SLIDERS = [
 function ZoomGroup(props: MotionControlsProps) {
   const { zoom, zoomStatus } = props
   const values = zoomValues(zoom)
+  // Reset leaves with the press, so focus goes to the switch beside it rather than the page body.
+  const switchRef = useRef<HTMLInputElement>(null)
   // The chip marks a state: "Saving…" while a save runs, else "Saved" whenever the image has a zoom saved (nothing saved, or a save that failed: none).
   const chip =
     zoomStatus === 'saving'
@@ -516,13 +522,17 @@ function ZoomGroup(props: MotionControlsProps) {
           label={ZOOM_WORDS.switch}
           checked={values.on}
           why={false}
+          inputRef={switchRef}
           onChange={props.onZoomOn}
         />
         {zoomDiffers(zoom) && (
           <button
             type="button"
             className="link-button movement-reset movement-zoom-reset"
-            onClick={props.onZoomReset}
+            onClick={() => {
+              props.onZoomReset()
+              switchRef.current?.focus()
+            }}
           >
             {ZOOM_WORDS.reset}
           </button>
