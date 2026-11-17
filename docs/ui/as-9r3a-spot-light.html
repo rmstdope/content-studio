@@ -1,0 +1,475 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Movement tab, a spot’s light</title>
+    <style>
+      :root {
+        --bg: #06070c;
+        --panel: #10121a;
+        --edge: rgb(255 255 255/8%);
+        --raised: #191c24;
+        --line: rgb(255 255 255/7%);
+        --text: #eceef3;
+        --soft: #c7ccd6;
+        --muted: #a9b0bd;
+        --faint: #8a91a0;
+        --accent: #ff6b2c;
+        --accent-soft-bg: #2a1b12;
+        --accent-soft-ink: #ff9a6b;
+        --ok-bg: #10291f;
+        --ok-ink: #5be3ae;
+        --chip: #1a1d26;
+        --bad: #ff8080;
+        --spot: #8fd3ff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.45 -apple-system,
+          system-ui,
+          sans-serif;
+      }
+      .wrap {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 20px 24px 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .note {
+        background: #1f1936;
+        color: #c4b5ff;
+        border: 1px dashed #5a4a9a;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 13px;
+      }
+      .note b {
+        color: #e2d9ff;
+      }
+      h1 {
+        margin: 0;
+        font-size: 22px;
+      }
+      h2 {
+        margin: 0;
+        font-size: 15px;
+        color: var(--soft);
+      }
+      .tabs {
+        display: flex;
+        gap: 6px;
+      }
+      .tab {
+        padding: 7px 14px;
+        border-radius: 9px;
+        background: var(--raised);
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .tab.on {
+        background: var(--accent-soft-bg);
+        color: var(--accent-soft-ink);
+        box-shadow: inset 0 0 0 1px #5a3218;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 330px;
+        gap: 16px;
+        align-items: start;
+      }
+      @media (max-width: 860px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--edge);
+        border-radius: 14px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .bar {
+        background: var(--raised);
+        border: 1px solid var(--accent);
+        border-radius: 10px;
+        padding: 10px 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        align-items: center;
+        font-size: 13px;
+      }
+      .bar .w {
+        flex: 1 1 260px;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 8px;
+        background: var(--panel);
+        color: var(--text);
+        border: 1px solid var(--line);
+        font: inherit;
+        font-size: 13px;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #1a0a02;
+        border-color: var(--accent);
+        font-weight: 600;
+      }
+      .stage {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 3/2;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #111;
+      }
+      .stage svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .cap {
+        font-size: 12px;
+        color: var(--faint);
+      }
+      .fx {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        background: #0d0f16;
+      }
+      .fx.act {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px var(--accent);
+      }
+      .fx .t {
+        display: flex;
+        justify-content: space-between;
+        font-weight: 600;
+      }
+      .sl {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .sl i {
+        display: block;
+        height: 4px;
+        border-radius: 3px;
+        background: #2a2e3a;
+        margin-top: 4px;
+      }
+      .ln {
+        font-size: 12.5px;
+        color: var(--soft);
+      }
+      .ln a {
+        color: var(--accent-soft-ink);
+        text-decoration: underline;
+        margin-left: 4px;
+      }
+      .ln a.dis {
+        color: var(--faint);
+        text-decoration: none;
+      }
+      .lbl {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .ok {
+        color: var(--ok-ink);
+        text-transform: none;
+        letter-spacing: 0;
+      }
+      .states {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 12px;
+      }
+      .err {
+        color: var(--bad);
+        font-size: 12.5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="note">
+        <b>Agreed (as-9r3a): where a spot’s light comes from.</b> The yellow mark is part of drawing
+        the spot, starts at the middle of the shapes, can go anywhere on the picture, and moves by
+        dragging or Alt+arrows. It is called the light on every effect with a spot.
+      </div>
+      <h1>Title screen</h1>
+      <div class="tabs">
+        <span class="tab">Make</span><span class="tab">Named areas</span
+        ><span class="tab">Patches</span><span class="tab on">Movement · 3 effects</span>
+      </div>
+      <h2>Drawing the spot</h2>
+      <div class="grid">
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <div class="bar">
+            <span class="w"
+              ><b>Drawing the spot for Moonlight on water.</b> Drag a corner to move it;
+              double-click a corner to take it out. Click a shape to pick it. Drag the
+              <span style="color: #ffd56b">●</span> to where the light comes from, or press Alt and
+              the arrows.</span
+            ><span class="btn">＋ Add a shape</span><span class="btn">Delete this shape</span
+            ><span class="btn">Light from the middle</span><span class="btn primary">Finish</span>
+          </div>
+          <div class="stage">
+            <svg viewBox="0 0 600 400" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#0b1330" />
+                  <stop offset="1" stop-color="#26335c" />
+                </linearGradient>
+                <radialGradient id="glow">
+                  <stop offset="0" stop-color="#fff7d6" stop-opacity=".8" />
+                  <stop offset="1" stop-color="#fff7d6" stop-opacity="0" />
+                </radialGradient>
+              </defs>
+              <rect width="600" height="400" fill="url(#sky)" />
+              <circle cx="468" cy="72" r="60" fill="url(#glow)" />
+              <circle cx="468" cy="72" r="22" fill="#fdf3c9" />
+              <path
+                d="M0 250 L120 190 L210 230 L330 170 L450 225 L600 200 V400H0Z"
+                fill="#141a2e"
+              />
+              <path d="M40 290 L260 255 L540 280 L580 370 L70 380Z" fill="#1d2b4d" />
+              <path
+                fill-rule="evenodd"
+                d="M0 0H600V400H0Z M60 300 L250 260 L520 285 L560 360 L90 372Z"
+                fill="rgb(0 0 0/45%)"
+              />
+              <path
+                d="M60 300 L250 260 L520 285 L560 360 L90 372Z"
+                fill="none"
+                stroke="#8fd3ff"
+                stroke-width="2"
+              />
+              <circle cx="60" cy="300" r="4" fill="#fff" stroke="#333" />
+              <circle cx="250" cy="260" r="4" fill="#fff" stroke="#333" />
+              <circle cx="520" cy="285" r="4" fill="#fff" stroke="#333" />
+              <circle cx="560" cy="360" r="4" fill="#fff" stroke="#333" />
+              <circle cx="90" cy="372" r="4" fill="#fff" stroke="#333" />
+              <circle
+                cx="468"
+                cy="72"
+                r="15"
+                fill="none"
+                stroke="#ffd56b"
+                stroke-width="2"
+                stroke-dasharray="3 3"
+              />
+              <circle cx="468" cy="72" r="6" fill="#ffd56b" stroke="#1a0a02" stroke-width="1.5" />
+            </svg>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="lbl"><span>Effects</span><span class="ok">Saved</span></div>
+          <div class="fx act">
+            <div class="t"><span>☑ Moonlight on water</span></div>
+            <div class="sl">Amount<i></i></div>
+            <div class="ln">Spot: 1 shape, light from a marked point · drawing now</div>
+          </div>
+        </div>
+      </div>
+      <h2>The rows, not drawing — the same words on every effect with a spot</h2>
+      <div class="states">
+        <div class="panel">
+          <b>Mark moved</b>
+          <div class="fx">
+            <div class="t"><span>☑ Moonlight on water</span></div>
+            <div class="sl">Amount<i></i></div>
+            <div class="ln">
+              Spot: 1 shape, light from a marked point <a>Change</a> <a>Clear</a>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <b>Mark left in the middle</b>
+          <div class="fx">
+            <div class="t"><span>☑ Campfire</span></div>
+            <div class="sl">Amount<i></i></div>
+            <div class="ln">Spot: 1 shape <a>Change</a> <a>Clear</a></div>
+          </div>
+        </div>
+        <div class="panel">
+          <b>Fire and smoke read the same</b>
+          <div class="fx">
+            <div class="t"><span>☑ Chimney smoke</span></div>
+            <div class="sl">Amount<i></i></div>
+            <div class="ln">
+              Spot: 1 shape, light from a marked point <a>Change</a> <a>Clear</a>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <b>Full screen panel (no links)</b>
+          <div class="fx">
+            <div class="t"><span>☑ Moonlight on water</span></div>
+            <div class="sl">Amount<i></i></div>
+            <div class="ln">Spot: 1 shape, light from a marked point</div>
+          </div>
+        </div>
+        <div class="panel">
+          <b>Effect off</b>
+          <div class="fx">
+            <div class="t"><span>☐ Moonlight on water</span></div>
+            <div class="ln faint">Glints 1.2 · Speed 0.8</div>
+            <div class="ln">Spot: 1 shape, light from a marked point (kept while off)</div>
+          </div>
+        </div>
+      </div>
+      <h2>Pointing at the row, not drawing</h2>
+      <div class="states" style="grid-template-columns: 1fr 1fr">
+        <div class="panel">
+          <b>H1 — shapes and the mark</b>
+          <div class="stage">
+            <svg viewBox="0 0 600 400" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#0b1330" />
+                  <stop offset="1" stop-color="#26335c" />
+                </linearGradient>
+                <radialGradient id="glow">
+                  <stop offset="0" stop-color="#fff7d6" stop-opacity=".8" />
+                  <stop offset="1" stop-color="#fff7d6" stop-opacity="0" />
+                </radialGradient>
+              </defs>
+              <rect width="600" height="400" fill="url(#sky)" />
+              <circle cx="468" cy="72" r="60" fill="url(#glow)" />
+              <circle cx="468" cy="72" r="22" fill="#fdf3c9" />
+              <path
+                d="M0 250 L120 190 L210 230 L330 170 L450 225 L600 200 V400H0Z"
+                fill="#141a2e"
+              />
+              <path d="M40 290 L260 255 L540 280 L580 370 L70 380Z" fill="#1d2b4d" />
+              <path
+                d="M60 300 L250 260 L520 285 L560 360 L90 372Z"
+                fill="none"
+                stroke="#8fd3ff"
+                stroke-width="2"
+              />
+              <circle cx="468" cy="72" r="5" fill="#ffd56b" stroke="#1a0a02" />
+            </svg>
+          </div>
+          <div class="cap">
+            Pointing at or focusing the row outlines the shapes in light blue and shows the mark as
+            a small yellow dot (only when it was moved).
+          </div>
+        </div>
+      </div>
+      <h2>Other states</h2>
+      <div class="states">
+        <div class="panel" style="display: none">
+          <b>x</b>
+          <div class="fx">
+            <div class="t"><span>☑ Moonlight on water</span></div>
+            <div class="sl">Glints<i></i></div>
+            <div class="sl">Speed<i></i></div>
+            <div class="ln">
+              Spot: 1 shape, light from a marked point <a>Change</a> <a>Clear</a>
+            </div>
+          </div>
+          <div class="cap">“Spot: 1 shape <a>…</a>” alone when the light is from the middle.</div>
+        </div>
+        <div class="panel">
+          <b>New spot, not moved yet</b>
+          <div class="stage">
+            <svg viewBox="0 0 600 400" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#0b1330" />
+                  <stop offset="1" stop-color="#26335c" />
+                </linearGradient>
+                <radialGradient id="glow">
+                  <stop offset="0" stop-color="#fff7d6" stop-opacity=".8" />
+                  <stop offset="1" stop-color="#fff7d6" stop-opacity="0" />
+                </radialGradient>
+              </defs>
+              <rect width="600" height="400" fill="url(#sky)" />
+              <circle cx="468" cy="72" r="60" fill="url(#glow)" />
+              <circle cx="468" cy="72" r="22" fill="#fdf3c9" />
+              <path
+                d="M0 250 L120 190 L210 230 L330 170 L450 225 L600 200 V400H0Z"
+                fill="#141a2e"
+              />
+              <path d="M40 290 L260 255 L540 280 L580 370 L70 380Z" fill="#1d2b4d" />
+              <g stroke="#fdf3c9" stroke-width="2" opacity=".8">
+                <line x1="420" y1="300" x2="440" y2="300" />
+                <line x1="380" y1="325" x2="410" y2="325" />
+                <line x1="450" y1="345" x2="470" y2="345" />
+              </g>
+              <path
+                fill-rule="evenodd"
+                d="M0 0H600V400H0Z M60 300 L250 260 L520 285 L560 360 L90 372Z"
+                fill="rgb(0 0 0/45%)"
+              />
+              <path
+                d="M60 300 L250 260 L520 285 L560 360 L90 372Z"
+                fill="none"
+                stroke="#8fd3ff"
+                stroke-width="2"
+                stroke-dasharray="0"
+              />
+              <circle cx="60" cy="300" r="4" fill="#fff" stroke="#333" />
+              <circle cx="250" cy="260" r="4" fill="#fff" stroke="#333" />
+              <circle cx="520" cy="285" r="4" fill="#fff" stroke="#333" />
+              <circle cx="560" cy="360" r="4" fill="#fff" stroke="#333" />
+              <circle cx="90" cy="372" r="4" fill="#fff" stroke="#333" />
+              <g opacity=".55">
+                <line x1="296" y1="320" x2="306" y2="320" stroke="#fff" />
+                <line x1="301" y1="315" x2="301" y2="325" stroke="#fff" />
+              </g>
+              <g opacity=".7">
+                <circle cx="301" cy="320" r="6" fill="none" stroke="#ffd56b" stroke-width="1.5" />
+              </g>
+            </svg>
+          </div>
+          <div class="cap">
+            The mark sits at the middle of the shapes, faint, until dragged. “Light from the middle”
+            is greyed.
+          </div>
+        </div>
+        <div class="panel">
+          <b>Clear</b>
+          <div class="cap">
+            Clear takes the shapes and the mark: the effect plays over the whole picture again.
+          </div>
+        </div>
+        <div class="panel">
+          <b>Save failed</b>
+          <div class="err">
+            Couldn't save the spot: the image edits file can't be written. Your shape is still on
+            the picture. <span class="btn">Try again</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
