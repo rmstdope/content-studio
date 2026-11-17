@@ -57,3 +57,20 @@ describe('the Movement tab’s layout', () => {
     )
   })
 })
+
+describe('the Movement tab’s lock-unread frame', () => {
+  it('fills the picture’s area: absolute, no minimum height, after the .movement-empty rule that is relative', () => {
+    const frame = rule('.movement-unknown')
+    expect(frame).toMatch(/position:\s*absolute/)
+    expect(frame).toMatch(/min-height:\s*0/)
+    expect(css.indexOf('.movement-unknown {')).toBeGreaterThan(css.indexOf('.movement-empty {'))
+  })
+
+  it('colours only its own heading amber and the renderer failure red', () => {
+    expect(css).not.toContain('.movement-unknown strong')
+    expect(rule('.movement-unknown-heading')).toMatch(/color:\s*var\(--warn\)/)
+    expect(rule('.movement-unknown .movement-failure strong')).toMatch(
+      /color:\s*var\(--danger-ink\)/,
+    )
+  })
+})
