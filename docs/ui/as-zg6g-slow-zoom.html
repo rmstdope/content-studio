@@ -1,0 +1,863 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Slow zoom, every state</title>
+    <style>
+      <style > :root {
+        --bg: #06070c;
+        --panel: #10121a;
+        --edge: rgb(255 255 255/8%);
+        --raised: #191c24;
+        --line: rgb(255 255 255/7%);
+        --text: #eceef3;
+        --soft: #c7ccd6;
+        --muted: #a9b0bd;
+        --faint: #8a91a0;
+        --accent: #ff6b2c;
+        --accent-soft-bg: #2a1b12;
+        --accent-soft-ink: #ff9a6b;
+        --ok-bg: #10291f;
+        --ok-ink: #5be3ae;
+        --att-ink: #ffb38f;
+        --att-bg: rgb(255 122 61/10%);
+        --att-line: rgb(255 122 61/25%);
+        --chip: #1a1d26;
+        --bad: #ff8080;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.45 -apple-system,
+          system-ui,
+          sans-serif;
+      }
+      .app {
+        display: flex;
+        min-height: 100vh;
+      }
+      .sidebar {
+        flex: 0 0 212px;
+        padding: 16px 10px;
+        border-right: 1px solid var(--edge);
+        background: rgb(10 11 18/55%);
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .sidebar b {
+        display: block;
+        color: var(--text);
+        margin: 0 0 14px 6px;
+      }
+      .sidebar div {
+        padding: 6px 8px;
+        border-radius: 8px;
+      }
+      .sidebar .on {
+        background: var(--raised);
+        color: var(--text);
+      }
+      .content {
+        flex: 1;
+        min-width: 0;
+        padding: 20px 24px 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .note {
+        background: #1f1936;
+        color: #c4b5ff;
+        border: 1px dashed #5a4a9a;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 13px;
+      }
+      .note b {
+        color: #e2d9ff;
+      }
+      h1 {
+        margin: 0;
+        font-size: 22px;
+      }
+      h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .tabs {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .tab {
+        padding: 7px 14px;
+        border-radius: 9px;
+        background: var(--raised);
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .tab.on {
+        background: var(--accent-soft-bg);
+        color: var(--accent-soft-ink);
+        box-shadow: inset 0 0 0 1px #5a3218;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--edge);
+        border-radius: 14px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .faint {
+        color: var(--faint);
+      }
+      .mono {
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        background: var(--chip);
+        color: var(--soft);
+      }
+      .chip.ok {
+        background: var(--ok-bg);
+        color: var(--ok-ink);
+      }
+      .chip.att {
+        background: var(--att-bg);
+        color: var(--att-ink);
+        box-shadow: inset 0 0 0 1px var(--att-line);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 8px;
+        background: var(--raised);
+        color: var(--text);
+        border: 1px solid var(--line);
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #1a0a02;
+        border-color: var(--accent);
+        font-weight: 600;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+      }
+      .stage {
+        position: relative;
+        width: 100%;
+        max-width: 1100px;
+        aspect-ratio: 3/2;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #111;
+      }
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        animation: zoom 16s ease-in-out infinite alternate;
+        transform-origin: 50% 55%;
+      }
+      @keyframes zoom {
+        from {
+          transform: scale(1);
+        }
+        to {
+          transform: scale(1.04) translate(-0.5%, -0.3%);
+        }
+      }
+      .ff {
+        animation: blink 2.4s ease-in-out infinite;
+      }
+      .ff:nth-child(2n) {
+        animation-delay: 0.8s;
+      }
+      .ff:nth-child(3n) {
+        animation-delay: 1.6s;
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 0;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+      .cap {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 0;
+      }
+      .state {
+        border-top: 1px dashed #5a4a9a;
+        padding-top: 18px;
+        margin-top: 10px;
+      }
+      .state > .lbl {
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #c4b5ff;
+        margin-bottom: 8px;
+        display: block;
+      }
+      .fs {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16/9;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #000;
+        border: 1px solid #333;
+      }
+      .fs .scene {
+        object-fit: cover;
+      }
+      .fx {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .fx li {
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: var(--raised);
+        border: 1px solid var(--line);
+      }
+      .fx .set {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .sw {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+      }
+      .sw i {
+        display: inline-block;
+        width: 26px;
+        height: 15px;
+        border-radius: 9px;
+        background: #333;
+        position: relative;
+      }
+      .sw i:after {
+        content: '';
+        position: absolute;
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #999;
+        top: 2px;
+        left: 2px;
+      }
+      .sw.on i {
+        background: var(--accent);
+      }
+      .sw.on i:after {
+        left: 13px;
+        background: #fff;
+      }
+      .err {
+        color: var(--bad);
+      }
+      .fp {
+        position: absolute;
+        right: 16px;
+        top: 16px;
+        width: 300px;
+        max-height: calc(100% - 32px);
+        overflow: auto;
+        background: rgb(16 18 26/92%);
+        border: 1px solid #2c3040;
+        border-radius: 14px;
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        font-size: 13px;
+      }
+      .fp .hd {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .fp .hd b {
+        flex: 1;
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--accent-soft-ink);
+      }
+      .fp .fx li {
+        padding: 5px 8px;
+      }
+      .lbl2 {
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .cols {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 16px;
+        align-items: start;
+      }
+      .side {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .ovl {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 8px;
+        background: rgb(0 0 0/55%);
+        text-align: center;
+        padding: 20px;
+      }
+      .ctl {
+        position: absolute;
+        left: 10px;
+        bottom: 10px;
+        display: flex;
+        gap: 6px;
+      }
+      .ctl .btn,
+      .fsb {
+        background: rgb(0 0 0/60%);
+      }
+      .fsb {
+        position: absolute;
+        right: 10px;
+        bottom: 10px;
+      }
+    </style>
+    <style>
+      .sl {
+        display: grid;
+        grid-template-columns: auto 1fr 2.6em;
+        gap: 4px 8px;
+        align-items: center;
+        margin-top: 6px;
+      }
+      .sl label {
+        font-size: 12px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .sl input {
+        width: 100%;
+        min-width: 0;
+        accent-color: var(--accent);
+      }
+      .sl output {
+        font-size: 12px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        color: var(--accent-soft-ink);
+      }
+      .link {
+        background: none;
+        border: 0;
+        color: var(--accent-soft-ink);
+        font: inherit;
+        font-size: 12px;
+        padding: 0;
+        cursor: pointer;
+        text-decoration: underline;
+      }
+      .hdr {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: space-between;
+      }
+      .gone {
+        border-color: var(--att-line) !important;
+        background: var(--att-bg) !important;
+      }
+      .small {
+        font-size: 12px;
+        margin: 4px 0 0;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 16px;
+        align-items: start;
+      }
+      @media (max-width: 900px) {
+        .cols {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+    <style>
+      .scene {
+        animation: z var(--secs, 16s) ease-in-out infinite alternate;
+      }
+      @keyframes z {
+        from {
+          transform: scale(1);
+        }
+        to {
+          transform: scale(var(--scale, 1.03));
+        }
+      }
+      .zbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 16px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: var(--raised);
+        border: 1px solid var(--line);
+        margin-top: 8px;
+      }
+      .zbar .sl {
+        display: flex;
+        gap: 8px;
+        margin: 0;
+        align-items: center;
+      }
+      .zbar .sl input {
+        width: 160px;
+      }
+      .opt {
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #c4b5ff;
+        margin: 0 0 6px;
+      }
+      .dim {
+        opacity: 0.55;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <nav class="sidebar">
+        <b>Content Studio</b>
+        <div>Setup</div>
+        <div>Narration</div>
+        <div>Music</div>
+        <div class="on">Images</div>
+        <div>Sound effects</div>
+        <div>Scenes</div>
+      </nav>
+      <main class="content">
+        <div class="faint" style="font-size: 13px">Images › Prologue › Title page</div>
+        <h1>Title page</h1>
+        <div class="tabs">
+          <span class="tab">Make · Take 2 chosen</span><span class="tab">Fine-tune</span
+          ><span class="tab">Patches · 1 of 1</span><span class="tab">Named areas</span
+          ><span class="tab on">Movement · 1 effect</span>
+        </div>
+        <div class="note">
+          <b>The chosen shape (A, plain sliders, a switch), with every state.</b> Saved as you go,
+          like the effects: the switch at once, a slider on letting go. Reset appears only when the
+          zoom differs from the game's own (on, 16 s, 3%) and takes the image back to nothing saved.
+          Pause and drawing a spot still hold the zoom still. Drag the sliders above: the picture
+          follows.
+        </div>
+        <section class="panel">
+          <div class="row">
+            <h2>Movement</h2>
+            <span class="muted">drawn by the project's renderer</span>
+          </div>
+          <div class="cols">
+            <div>
+              <div class="stage">
+                <div class="scene-slot"></div>
+                <div class="ctl"><button class="btn">❚❚ Pause</button></div>
+                <button class="btn fsb">⛶ Full screen</button>
+              </div>
+              <p class="cap" style="margin-top: 8px">
+                Take 2, as the game will show it. Space pauses · F for full screen.
+              </p>
+            </div>
+            <div class="side">
+              <div class="hdr">
+                <span class="lbl2">Slow zoom</span><span class="chip ok">Saved</span>
+              </div>
+              <ul class="fx">
+                <li>
+                  <div class="hdr">
+                    <span class="sw on"><i></i><b>Zoom in and out</b></span
+                    ><button class="link">Reset</button>
+                  </div>
+                  <div class="sl">
+                    <label>Each way</label
+                    ><input
+                      type="range"
+                      data-z="secs"
+                      min="4"
+                      max="60"
+                      step="1"
+                      value="24"
+                    /><output data-unit="s">24 s</output><label>How far</label
+                    ><input
+                      type="range"
+                      data-z="pct"
+                      min="0.5"
+                      max="10"
+                      step="0.5"
+                      value="5"
+                    /><output data-unit="%">5%</output>
+                  </div>
+                </li>
+              </ul>
+              <div class="lbl2" style="margin-top: 6px">Patches</div>
+              <span class="sw"><i></i>The star on the door</span>
+              <div class="hdr" style="margin-top: 6px">
+                <span class="lbl2">Effects</span><span class="chip ok">Saved</span>
+              </div>
+              <ul class="fx">
+                <li>
+                  <span class="sw on"><i></i><b>Fireflies</b></span>
+                  <div class="set">Spot: the whole picture</div>
+                </li>
+                <li>
+                  <span class="sw"><i></i><b>Drifting clouds</b></span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+        <div class="grid2">
+          <div class="state">
+            <span class="lbl">Nothing saved yet (every image today)</span>
+            <section class="panel" style="max-width: 340px">
+              <div class="hdr"><span class="lbl2">Slow zoom</span></div>
+              <ul class="fx">
+                <li>
+                  <div class="hdr">
+                    <span class="sw on"><i></i><b>Zoom in and out</b></span
+                    ><span></span>
+                  </div>
+                  <div class="sl">
+                    <label>Each way</label
+                    ><input type="range" data-z="q" min="4" max="60" step="1" value="16" /><output
+                      data-unit="s"
+                      >16 s</output
+                    ><label>How far</label
+                    ><input
+                      type="range"
+                      data-z="r"
+                      min="0.5"
+                      max="10"
+                      step="0.5"
+                      value="3"
+                    /><output data-unit="%">3%</output>
+                  </div>
+                </li>
+              </ul>
+              <p class="cap">
+                No chip, no Reset. The tab title is unchanged: it still counts only the effects.
+              </p>
+            </section>
+          </div>
+          <div class="state">
+            <span class="lbl">Switched off</span>
+            <section class="panel" style="max-width: 340px">
+              <div class="hdr">
+                <span class="lbl2">Slow zoom</span><span class="chip ok">Saved</span>
+              </div>
+              <ul class="fx">
+                <li>
+                  <div class="hdr">
+                    <span class="sw"><i></i><b>Zoom in and out</b></span
+                    ><button class="link">Reset</button>
+                  </div>
+                  <div class="set">
+                    Off: the picture stands still in the game. 16 s each way · 3% kept for when it's
+                    back on.
+                  </div>
+                </li>
+              </ul>
+              <p class="cap">The picture above stands still.</p>
+            </section>
+          </div>
+          <div class="state">
+            <span class="lbl">Saving (only if it takes more than a moment)</span>
+            <section class="panel" style="max-width: 340px">
+              <div class="hdr">
+                <span class="lbl2">Slow zoom</span><span class="chip">Saving…</span>
+              </div>
+              <ul class="fx">
+                <li>
+                  <div class="hdr">
+                    <span class="sw on"><i></i><b>Zoom in and out</b></span
+                    ><button class="link">Reset</button>
+                  </div>
+                  <div class="sl">
+                    <label>Each way</label
+                    ><input type="range" data-z="q" min="4" max="60" step="1" value="24" /><output
+                      data-unit="s"
+                      >24 s</output
+                    ><label>How far</label
+                    ><input
+                      type="range"
+                      data-z="r"
+                      min="0.5"
+                      max="10"
+                      step="0.5"
+                      value="5"
+                    /><output data-unit="%">5%</output>
+                  </div>
+                </li>
+              </ul>
+            </section>
+          </div>
+          <div class="state">
+            <span class="lbl">The save failed</span>
+            <section class="panel" style="max-width: 340px">
+              <div class="hdr"><span class="lbl2">Slow zoom</span></div>
+              <ul class="fx">
+                <li>
+                  <div class="hdr">
+                    <span class="sw on"><i></i><b>Zoom in and out</b></span
+                    ><button class="link">Reset</button>
+                  </div>
+                  <div class="sl">
+                    <label>Each way</label
+                    ><input type="range" data-z="q" min="4" max="60" step="1" value="24" /><output
+                      data-unit="s"
+                      >24 s</output
+                    ><label>How far</label
+                    ><input
+                      type="range"
+                      data-z="r"
+                      min="0.5"
+                      max="10"
+                      step="0.5"
+                      value="5"
+                    /><output data-unit="%">5%</output>
+                  </div>
+                  <p class="cap err small">
+                    Couldn't save the slow zoom: the image edits file can't be written. Your last
+                    change is still on the picture.
+                  </p>
+                  <button class="btn" style="margin-top: 6px">Try again</button>
+                </li>
+              </ul>
+            </section>
+          </div>
+          <div class="state">
+            <span class="lbl">The renderer did not load</span>
+            <section class="panel" style="max-width: 340px">
+              <div class="hdr">
+                <span class="lbl2">Slow zoom</span><span class="chip ok">Saved</span>
+              </div>
+              <ul class="fx">
+                <li>
+                  <div class="hdr">
+                    <span class="sw on"><i></i><b>Zoom in and out</b></span
+                    ><button class="link">Reset</button>
+                  </div>
+                  <div class="sl">
+                    <label>Each way</label
+                    ><input type="range" data-z="q" min="4" max="60" step="1" value="24" /><output
+                      data-unit="s"
+                      >24 s</output
+                    ><label>How far</label
+                    ><input
+                      type="range"
+                      data-z="r"
+                      min="0.5"
+                      max="10"
+                      step="0.5"
+                      value="5"
+                    /><output data-unit="%">5%</output>
+                  </div>
+                </li>
+              </ul>
+              <p class="cap">
+                The zoom is the studio's own, so it still plays and can still be changed. Effects
+                below say what they say today.
+              </p>
+            </section>
+          </div>
+          <div class="state">
+            <span class="lbl"
+              >The images record cannot be read (amber frame in place of the picture)</span
+            >
+            <section class="panel" style="max-width: 340px">
+              <div class="lbl2">Slow zoom</div>
+              <p class="cap">
+                Saved for the game: 24 s each way, 5%. It can be changed once the images record can
+                be read.
+              </p>
+            </section>
+          </div>
+          <div class="state">
+            <span class="lbl">A saved value outside the game's range (edited by hand)</span>
+            <section class="panel" style="max-width: 340px">
+              <div class="hdr">
+                <span class="lbl2">Slow zoom</span><span class="chip ok">Saved</span>
+              </div>
+              <ul class="fx">
+                <li>
+                  <div class="hdr">
+                    <span class="sw on"><i></i><b>Zoom in and out</b></span
+                    ><button class="link">Reset</button>
+                  </div>
+                  <div class="sl">
+                    <label>Each way</label
+                    ><input type="range" data-z="q" min="4" max="60" step="1" value="60" /><output
+                      data-unit="s"
+                      >60 s</output
+                    ><label>How far</label
+                    ><input
+                      type="range"
+                      data-z="r"
+                      min="0.5"
+                      max="10"
+                      step="0.5"
+                      value="10"
+                    /><output data-unit="%">10%</output>
+                  </div>
+                  <p class="cap small" style="color: var(--att-ink)">
+                    Each way was saved as 90 s; the game goes up to 60, so it plays 60.
+                  </p>
+                </li>
+              </ul>
+            </section>
+          </div>
+        </div>
+        <div class="state">
+          <span class="lbl">Full screen: the same group at the top of the floating panel</span>
+          <div class="fs">
+            <div class="scene-slot"></div>
+            <aside class="fp">
+              <div class="hd">
+                <b>Title page</b><button class="btn">❚❚</button><button class="btn">Hide</button
+                ><button class="btn">✕ Close</button>
+              </div>
+              <div class="side">
+                <div class="hdr">
+                  <span class="lbl2">Slow zoom</span><span class="chip ok">Saved</span>
+                </div>
+                <ul class="fx">
+                  <li>
+                    <div class="hdr">
+                      <span class="sw on"><i></i><b>Zoom in and out</b></span
+                      ><button class="link">Reset</button>
+                    </div>
+                    <div class="sl">
+                      <label>Each way</label
+                      ><input type="range" data-z="q" min="4" max="60" step="1" value="24" /><output
+                        data-unit="s"
+                        >24 s</output
+                      ><label>How far</label
+                      ><input
+                        type="range"
+                        data-z="r"
+                        min="0.5"
+                        max="10"
+                        step="0.5"
+                        value="5"
+                      /><output data-unit="%">5%</output>
+                    </div>
+                  </li>
+                </ul>
+                <div class="lbl2" style="margin-top: 6px">Patches</div>
+                <span class="sw"><i></i>The star on the door</span>
+                <div class="hdr" style="margin-top: 6px">
+                  <span class="lbl2">Effects</span><span class="chip ok">Saved</span>
+                </div>
+                <ul class="fx">
+                  <li>
+                    <span class="sw on"><i></i><b>Fireflies</b></span>
+                    <div class="set">Spot: the whole picture</div>
+                  </li>
+                  <li>
+                    <span class="sw"><i></i><b>Drifting clouds</b></span>
+                  </li>
+                </ul>
+              </div>
+            </aside>
+          </div>
+        </div>
+        <div class="state">
+          <span class="lbl">A narrow window</span>
+          <p class="cap">
+            As today: the side column drops below the picture, Slow zoom first. The sliders take the
+            full width.
+          </p>
+        </div>
+      </main>
+    </div>
+    <script>
+      // Draws a stand-in night picture into every .scene-slot.
+      const SVG = `<svg class="scene" viewBox="0 0 1536 1024" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d1630"/><stop offset=".6" stop-color="#2a3557"/><stop offset="1" stop-color="#3b3a4a"/></linearGradient><radialGradient id="moon"><stop offset="0" stop-color="#fff7d6"/><stop offset=".25" stop-color="#fff2c0"/><stop offset="1" stop-color="#fff2c000"/></radialGradient></defs><rect width="1536" height="1024" fill="url(#sky)"/><circle cx="1050" cy="220" r="220" fill="url(#moon)" opacity=".5"/><circle cx="1050" cy="220" r="60" fill="#fff4cf"/><path d="M0 640 L200 520 L380 600 L560 480 L760 610 L980 500 L1200 590 L1536 470 L1536 1024 L0 1024Z" fill="#141a2a"/><rect x="0" y="760" width="1536" height="264" fill="#1d2840"/><ellipse cx="1050" cy="880" rx="90" ry="10" fill="#fff4cf" opacity=".5"/><rect x="180" y="600" width="140" height="170" fill="#0c0f18"/><polygon points="170,600 250,540 330,600" fill="#0c0f18"/><rect x="230" y="660" width="26" height="34" fill="#ffb24a"/><g fill="#e6ff8a"><circle class="ff" cx="420" cy="720" r="5"/><circle class="ff" cx="520" cy="690" r="4"/><circle class="ff" cx="1300" cy="730" r="5"/><circle class="ff" cx="1380" cy="700" r="4"/><circle class="ff" cx="610" cy="740" r="4"/><circle class="ff" cx="1220" cy="745" r="5"/></g><g class="patch" fill="#c9a24a"><rect x="700" y="700" width="60" height="70" rx="6"/><text x="730" y="745" font-size="22" text-anchor="middle" fill="#3a2a10">★</text></g></svg>`
+      document.querySelectorAll('.scene-slot').forEach((s) => {
+        s.outerHTML = SVG
+      })
+      document.querySelectorAll('.still .scene').forEach((s) => (s.style.animation = 'none'))
+    </script>
+
+    <script>
+      const st = () => {
+        const s = document.querySelector('[data-z=secs]'),
+          p = document.querySelector('[data-z=pct]')
+        document.querySelectorAll('.scene').forEach((e) => {
+          if (s) e.style.setProperty('--secs', s.value + 's')
+          if (p) e.style.setProperty('--scale', 1 + p.value / 100)
+        })
+      }
+      document.querySelectorAll('[data-z]').forEach((r) =>
+        r.addEventListener('input', () => {
+          const o = r.nextElementSibling
+          o.value = r.dataset.z === 'secs' ? r.value + ' s' : r.value + '%'
+          st()
+        }),
+      )
+      st()
+    </script>
+  </body>
+</html>
