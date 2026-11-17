@@ -1,6 +1,6 @@
 import { useId, useRef } from 'react'
 import type { SavedEffects, SavedZoom } from '../../../core/images'
-import type { EffectSetting, EffectType } from '../../../core/motion'
+import type { EffectSetting, EffectType, SpotView } from '../../../core/motion'
 import {
   clampSetting,
   effectDiffers,
@@ -8,6 +8,7 @@ import {
   rangeNote,
   effectPlays,
   settingsLine,
+  spotView,
   tieState,
   type TiePatch,
   valueText,
@@ -108,16 +109,20 @@ export interface MotionControlsProps {
   spot?: SpotControls
 }
 
-/** What an effect's spot line can do on the tab: draw, clear, show the shapes, and why it cannot. */
+/** What an effect's spot line can do on the tab: draw your own, go back to the game's, undo that, show the shapes, and why it cannot. */
 export interface SpotControls {
   /** The type being drawn now, or null. */
   drawing: string | null
   /** Why no spot can be drawn (there is no picture), or false. */
   why: string | false
-  /** Draw a spot / Change presses. */
+  /** Draw your own / Change presses. */
   onDraw: (type: EffectType) => void
-  /** Clear presses. */
-  onClear: (type: EffectType) => void
+  /** Back to the game's / Remove it presses: the shapes and their mark go, with an Undo for a moment. */
+  onBack: (type: EffectType) => void
+  /** Undo presses: the shapes and mark just removed come back. */
+  onUndo: (type: EffectType) => void
+  /** The type whose shapes were just removed and can be brought back, or null. */
+  undo: string | null
   /** Pointer or focus came to or left an effect's row; null when it left. */
   onPeek: (type: string | null) => void
   /** The type whose unclosed shape was just left out. */
@@ -127,21 +132,19 @@ export interface SpotControls {
 /** What an effect's row says of its spot, and the links for it where there are any. */
 function SpotLine({
   type,
-  count,
-  marked,
+  view,
   on,
   props,
 }: {
   type: EffectType
-  count: number
-  marked: boolean
+  view: SpotView
   on: boolean
   props: MotionControlsProps
 }) {
   const spot = props.spot
   if (!on) {
-    return count > 0 ? (
-      <p className="movement-spot muted">{spotLine(count, 'off', marked)}</p>
+    return view.who === 'own' ? (
+      <p className="movement-spot muted">{spotLine(view, 'off')}</p>
     ) : null
   }
   const drawing = spot?.drawing === type.type
@@ -162,15 +165,26 @@ function SpotLine({
       {label}
     </button>
   )
+  const links = spot && !drawing
+  const undone = links && spot.undo === type.type
   return (
     <div className="movement-spot-block">
       <p className="movement-spot muted">
-        {spotLine(count, drawing ? 'drawing' : 'plain', marked)}
-        {spot && !drawing && count === 0 && link(SPOT_WORDS.draw, () => spot.onDraw(type))}
-        {spot && !drawing && count > 0 && link(SPOT_WORDS.change, () => spot.onDraw(type))}
-        {spot && !drawing && count > 0 && link(SPOT_WORDS.clear, () => spot.onClear(type))}
+        {spotLine(view, drawing ? 'drawing' : 'plain')}
+        {links && view.who === 'game' && link(SPOT_WORDS.draw, () => spot.onDraw(type))}
+        {links && view.who === 'own' && link(SPOT_WORDS.change, () => spot.onDraw(type))}
+        {links && view.who === 'own' && link(SPOT_WORDS.back, () => spot.onBack(type))}
+        {view.who === 'fixed' && view.kept && (
+          <span className="movement-spot-note"> {SPOT_WORDS.keptNotUsed}</span>
+        )}
+        {links &&
+          view.who === 'fixed' &&
+          view.kept &&
+          link(SPOT_WORDS.removeIt, () => spot.onBack(type))}
+        {undone && <span className="movement-spot-note"> {SPOT_WORDS.removed}</span>}
+        {undone && link(SPOT_WORDS.undo, () => spot.onUndo(type))}
       </p>
-      {spot && !drawing && why && <p className="movement-spot-why muted">{why}</p>}
+      {links && why && <p className="movement-spot-why muted">{why}</p>}
       {spot?.leftOut === type.type && <p className="movement-spot-why">{SPOT_WORDS.leftOut}</p>}
     </div>
   )
@@ -407,13 +421,7 @@ function EffectRow({
           )}
         </>
       )}
-      <SpotLine
-        type={type}
-        count={saved?.spot?.length ?? 0}
-        marked={(saved?.spot?.length ?? 0) > 0 && saved?.mark !== undefined}
-        on={on}
-        props={props}
-      />
+      <SpotLine type={type} view={spotView(type.placement, saved)} on={on} props={props} />
     </li>
   )
 }

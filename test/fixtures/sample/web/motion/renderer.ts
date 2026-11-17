@@ -16,8 +16,22 @@ const SPEED: Setting = { id: 'speed', title: 'Speed', min: 0, max: 3, step: 0.05
 
 /** Every effect type the sample renderer has. */
 export const EFFECT_TYPES = [
-  { type: 'dust', title: 'Dust', spot: false, settings: [AMOUNT, SPEED] },
-  { type: 'embers', title: 'Embers', spot: false, settings: [AMOUNT, SPEED] },
+  {
+    type: 'dust',
+    title: 'Dust',
+    spot: false,
+    // The game's own place for dust: a band across the lower part of the picture.
+    placement: [
+      [
+        [0.05, 0.6],
+        [0.95, 0.6],
+        [0.95, 0.95],
+        [0.05, 0.95],
+      ],
+    ] as [number, number][][],
+    settings: [AMOUNT, SPEED],
+  },
+  { type: 'embers', title: 'Embers', spot: false, placement: 'whole', settings: [AMOUNT, SPEED] },
 ]
 
 interface Speck {
@@ -25,6 +39,12 @@ interface Speck {
   y: number
   r: number
   v: number
+}
+
+/** Where the game places an effect when no spot is given: its shapes, or none for the whole picture. */
+function defaultSpot(kind: string): [number, number][][] | undefined {
+  const placement = EFFECT_TYPES.find((t) => t.type === kind)?.placement
+  return Array.isArray(placement) ? placement : undefined
 }
 
 /** A scene that drifts specks up the canvas for each effect switched on. */
@@ -40,7 +60,8 @@ export function createMotionScene() {
   const reseed = () => {
     specks = specs.map((spec) => ({
       kind: spec.kind,
-      spot: spec.spot,
+      // Placed where the person drew it, else where the game puts it.
+      spot: spec.spot ?? defaultSpot(spec.kind),
       list: Array.from({ length: Math.round(30 * (spec.settings?.amount ?? 1)) }, () => ({
         x: Math.random() * width,
         y: Math.random() * height,

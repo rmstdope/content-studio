@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SpotShapeSchema, type SpotShape } from './images'
 
 /** One setting an effect takes, as the project's motion renderer reports it. */
 const EffectSettingSchema = z
@@ -28,6 +29,13 @@ const EffectTypeSchema = z.object({
   title: z.string().min(1),
   /** Whether it lives on a spot drawn on the picture rather than floating over the whole of it. */
   spot: z.boolean(),
+  /**
+   * Where the game places the effect by default: its shapes, `"whole"` (the whole picture),
+   * `"fixed"` (it cannot be placed anywhere else), or absent (the game doesn't say).
+   */
+  placement: z
+    .union([z.literal('whole'), z.literal('fixed'), z.array(SpotShapeSchema).min(1)])
+    .optional(),
   settings: z.array(EffectSettingSchema),
 })
 
@@ -190,4 +198,40 @@ export function effectPlays(state: TieState): boolean {
   if (state.kind === 'gone') return false
   if (state.without) return state.kind !== 'laid'
   return state.kind === 'laid'
+}
+
+/** What an effect's renderer says of where the game places it. */
+export type Placement = EffectType['placement']
+
+/** The game's shapes for an effect: its own, the whole picture's edge for `"whole"`, none otherwise. */
+export function gameShapes(placement: Placement): SpotShape[] {
+  if (placement === 'whole') {
+    return [
+      [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+      ],
+    ]
+  }
+  return Array.isArray(placement) ? placement : []
+}
+
+/** Whose shape an effect plays in, as its row on the Movement tab tells it. */
+export type SpotView =
+  | { who: 'game'; shape: 'shapes' | 'whole' | 'unknown' }
+  | { who: 'own'; count: number; marked: boolean }
+  | { who: 'fixed'; kept: boolean }
+
+/** Whose shape the effect plays in, from what the renderer says and what is saved for it. */
+export function spotView(
+  placement: Placement,
+  saved: { spot?: readonly SpotShape[] | undefined; mark?: unknown } | undefined,
+): SpotView {
+  const count = saved?.spot?.length ?? 0
+  if (placement === 'fixed') return { who: 'fixed', kept: count > 0 }
+  if (count > 0) return { who: 'own', count, marked: saved?.mark !== undefined }
+  if (placement === 'whole') return { who: 'game', shape: 'whole' }
+  return { who: 'game', shape: Array.isArray(placement) ? 'shapes' : 'unknown' }
 }

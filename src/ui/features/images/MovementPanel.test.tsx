@@ -1577,7 +1577,7 @@ describe('an effect with a spot, played', () => {
     sizeOverlay()
     const { host } = await render({ effects: { dust: saved({ amount: 1 }) } })
     const before = calls().stepMs.length
-    await click(linkIn(rowOf(host, 'Dust'), 'Draw a spot'))
+    await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
     expect(
       calls()
         .stepMs.slice(before)
@@ -1591,7 +1591,7 @@ describe('an effect with a spot, played', () => {
       effects: { dust: { ...saved({ amount: 1 }), spot: [POND] } },
     })
     expect(host.querySelectorAll('.movement-canvas')).toHaveLength(2)
-    await click(linkIn(rowOf(host, 'Dust'), 'Clear'))
+    await click(linkIn(rowOf(host, 'Dust'), "Back to the game's"))
     expect(
       calls()
         .setEffects.at(-1)!
@@ -1628,28 +1628,32 @@ const SQUARE: [number, number][] = [
 describe('the spot line of an effect', () => {
   it('says the whole picture with Draw a spot while the effect is on and has no spot', async () => {
     const { host } = await render({ effects: { dust: saved({ amount: 1 }) } })
-    expect(spotLineOf(host, 'Dust')).toBe('Spot: the whole picture' + 'Draw a spot')
+    expect(spotLineOf(host, 'Dust')).toBe(
+      "Spot: the game's — the game doesn't say where" + 'Draw your own',
+    )
     expect(spotLineOf(host, 'Mist')).toBeNull()
   })
 
-  it('counts the shapes, with Change and Clear, and Clear saves at once with no question', async () => {
+  it('counts the shapes, with Change and Back to the game’s, which saves at once with no question and offers Undo', async () => {
     const { host, puts } = await render({
       effects: { dust: { ...saved({ amount: 1 }), spot: [POND] } },
     })
-    expect(spotLineOf(host, 'Dust')).toBe('Spot: 1 shapeChangeClear')
-    await click(linkIn(rowOf(host, 'Dust'), 'Clear'))
+    expect(spotLineOf(host, 'Dust')).toBe("Spot: your own, 1 shapeChangeBack to the game's")
+    await click(linkIn(rowOf(host, 'Dust'), "Back to the game's"))
     expect(puts.at(-1)!.effects.dust).toEqual(saved({ amount: 1 }))
-    expect(spotLineOf(host, 'Dust')).toBe('Spot: the whole pictureDraw a spot')
+    expect(spotLineOf(host, 'Dust')).toBe(
+      "Spot: the game's — the game doesn't say whereDraw your own Your shape was removed.Undo",
+    )
   })
 
-  it('Clear leaves keyboard focus on that row’s Draw a spot', async () => {
+  it('Back to the game’s leaves keyboard focus on that row’s Draw your own', async () => {
     const { host } = await render({
       effects: { dust: { ...saved({ amount: 1 }), spot: [POND] } },
     })
-    const clear = linkIn(rowOf(host, 'Dust'), 'Clear')!
+    const clear = linkIn(rowOf(host, 'Dust'), "Back to the game's")!
     await act(async () => clear.focus())
     await click(clear)
-    expect(document.activeElement?.textContent).toBe('Draw a spot')
+    expect(document.activeElement?.textContent).toBe('Draw your own')
     expect(rowOf(host, 'Dust').contains(document.activeElement)).toBe(true)
   })
 
@@ -1657,16 +1661,16 @@ describe('the spot line of an effect', () => {
     const { host } = await render({
       effects: { dust: { ...saved({ amount: 1 }), spot: [POND, SQUARE] } },
     })
-    expect(spotLineOf(host, 'Dust')).toStartWith('Spot: 2 shapes')
+    expect(spotLineOf(host, 'Dust')).toStartWith('Spot: your own, 2 shapes')
   })
 
   it('keeps the spot while the effect is off, said so, with no links', async () => {
     const { host } = await render({
       effects: { dust: { ...saved({ amount: 1 }, false), spot: [POND, SQUARE] } },
     })
-    expect(spotLineOf(host, 'Dust')).toBe('Spot: 2 shapes (kept while off)')
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: your own, 2 shapes (kept while off)')
     await click(switchFor(host, 'Dust'))
-    expect(spotLineOf(host, 'Dust')).toStartWith('Spot: 2 shapesChange')
+    expect(spotLineOf(host, 'Dust')).toStartWith('Spot: your own, 2 shapesChange')
   })
 
   it('keeps the spot when a slider moves or Reset is pressed', async () => {
@@ -1679,7 +1683,7 @@ describe('the spot line of an effect', () => {
 
   it('greys Draw a spot with the reason when there is no picture at all', async () => {
     const { host } = await render({ chosenTake: null, effects: { dust: saved({ amount: 1 }) } })
-    const link = linkIn(rowOf(host, 'Dust'), 'Draw a spot')!
+    const link = linkIn(rowOf(host, 'Dust'), 'Draw your own')!
     expect(link.getAttribute('aria-disabled')).toBe('true')
     expect(text(rowOf(host, 'Dust'))).toContain('Choose a take on Make to draw a spot.')
   })
@@ -1703,7 +1707,10 @@ describe('the spot line of an effect', () => {
     await click(button(host, '⛶ Full screen'))
     const panel = host.querySelector('.movement-float')!
     const lines = [...panel.querySelectorAll('.movement-spot')].map((l) => l.textContent)
-    expect(lines).toEqual(['Spot: 1 shape', 'Spot: the whole picture'])
+    expect(lines).toEqual([
+      'Spot: your own, 1 shape',
+      "Spot: the game's — the game doesn't say where",
+    ])
   })
 })
 
@@ -1753,12 +1760,14 @@ describe('drawing a spot', () => {
   it('goes straight to placing a first shape, with Finish focused, and closes it on the first corner', async () => {
     sizeOverlay()
     const { host, puts } = await render(withDust())
-    await click(linkIn(rowOf(host, 'Dust'), 'Draw a spot'))
+    await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
     expect(barText(host)).toBe(
-      'New shape for Dust. Click to place each corner; click the first corner to close the shape. Esc stops this shape.Finish',
+      'Drawing your own spot for Dust. Click to place each corner; click the first corner to close the shape. Esc stops this shape.Finish',
     )
     expect(document.activeElement?.textContent).toBe('Finish')
-    expect(spotLineOf(host, 'Dust')).toBe('Spot: the whole picture · drawing now')
+    expect(spotLineOf(host, 'Dust')).toBe(
+      "Spot: the game's — the game doesn't say where · drawing now",
+    )
     await tap(host, 0.1, 0.5)
     await tap(host, 0.4, 0.5)
     await tap(host, 0.25, 0.9)
@@ -1771,8 +1780,8 @@ describe('drawing a spot', () => {
         [0.25, 0.9],
       ],
     ])
-    expect(barText(host)).toContain('Drawing the spot for Dust.')
-    expect(spotLineOf(host, 'Dust')).toBe('Spot: 1 shape · drawing now')
+    expect(barText(host)).toContain('Drawing your own spot for Dust.')
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: your own, 1 shape · drawing now')
     expect(button(host, 'Delete this shape')).toBeDefined()
   })
 
@@ -1784,14 +1793,14 @@ describe('drawing a spot', () => {
       onEffectsOn: (n) => counts.push(n),
     })
     expect(counts.at(-1)).toBe(2)
-    await click(linkIn(rowOf(host, 'Dust'), 'Draw a spot'))
+    await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
     expect(counts.at(-1)).toBe(2)
   })
 
   it('does not close a shape with fewer than three corners', async () => {
     sizeOverlay()
     const { host, puts } = await render(withDust())
-    await click(linkIn(rowOf(host, 'Dust'), 'Draw a spot'))
+    await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
     await tap(host, 0.1, 0.5)
     await tap(host, 0.4, 0.5)
     await tap(host, 0.1, 0.5)
@@ -1804,7 +1813,7 @@ describe('drawing a spot', () => {
     const { host } = await render(withDust([POND]))
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
     expect(barText(host)).toBe(
-      'Drawing the spot for Dust. Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it. Drag the ● to where the light comes from, or press Alt and the arrows.＋ Add a shapeLight from the middleFinish',
+      'Drawing your own spot for Dust. Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it. Drag the ● to where the light comes from, or press Alt and the arrows.＋ Add a shapeLight from the middleFinish',
     )
     expect(document.activeElement?.textContent).toBe('＋ Add a shape')
     expect(rowOf(host, 'Dust').className).toContain('movement-effect-drawing')
@@ -1853,13 +1862,15 @@ describe('drawing a spot', () => {
     await click(button(host, 'Delete this shape'))
     expect(barText(host)).toBe('Delete this shape? It has 3 corners.Keep itDelete')
     await click(button(host, 'Keep it'))
-    expect(barText(host)).toContain('Drawing the spot for Dust.')
+    expect(barText(host)).toContain('Drawing your own spot for Dust.')
     expect(puts).toHaveLength(0)
     await click(button(host, 'Delete this shape'))
     await click(button(host, 'Delete'))
     expect(puts.at(-1)!.effects.dust!.spot).toBeUndefined()
-    expect(spotLineOf(host, 'Dust')).toBe('Spot: the whole picture · drawing now')
-    expect(barText(host)).toContain('Drawing the spot for Dust.')
+    expect(spotLineOf(host, 'Dust')).toBe(
+      "Spot: the game's — the game doesn't say where · drawing now",
+    )
+    expect(barText(host)).toContain('Drawing your own spot for Dust.')
   })
 
   it('moves a corner by dragging it, saving once on letting go, and keeps it on the picture', async () => {
@@ -1897,7 +1908,7 @@ describe('drawing a spot', () => {
     for (const [x, y] of SQUARE) await tap(host, x, y)
     await tap(host, SQUARE[0]![0], SQUARE[0]![1])
     expect(puts.at(-1)!.effects.dust!.spot).toEqual([POND, SQUARE])
-    expect(spotLineOf(host, 'Dust')).toBe('Spot: 2 shapes · drawing now')
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: your own, 2 shapes · drawing now')
     expect(host.querySelectorAll('.spot-corner')).toHaveLength(4)
   })
 
@@ -1923,7 +1934,7 @@ describe('drawing a spot', () => {
     await click(button(host, '＋ Add a shape'))
     await tap(host, 0.6, 0.6)
     await press('Escape')
-    expect(barText(host)).toContain('Drawing the spot for Dust.')
+    expect(barText(host)).toContain('Drawing your own spot for Dust.')
     expect(text(rowOf(host, 'Dust'))).not.toContain('left out')
     await press('Escape')
     expect(host.querySelector('.spot-bar')).toBeNull()
@@ -1938,7 +1949,7 @@ describe('drawing a spot', () => {
       },
     })
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
-    const link = linkIn(rowOf(host, 'Mist'), 'Draw a spot')!
+    const link = linkIn(rowOf(host, 'Mist'), 'Draw your own')!
     expect(link.getAttribute('aria-disabled')).toBe('true')
     expect(text(rowOf(host, 'Mist'))).toContain('Finish the Dust spot first.')
     await click(link)
@@ -1953,7 +1964,7 @@ describe('drawing a spot', () => {
         mist: { on: true, settings: {} },
       },
     })
-    await click(linkIn(rowOf(host, 'Mist'), 'Draw a spot'))
+    await click(linkIn(rowOf(host, 'Mist'), 'Draw your own'))
     const kinds = calls()
       .setEffects.at(-1)!
       .map((e) => e.kind)
@@ -1978,7 +1989,7 @@ describe('drawing a spot', () => {
     expect(text(host)).toContain(
       "Couldn't save the spot: the image edits file can't be written. Your shape is still on the picture.",
     )
-    expect(barText(host)).toContain('Drawing the spot for Dust.')
+    expect(barText(host)).toContain('Drawing your own spot for Dust.')
     ok = true
     await click(button(host, 'Try again'))
     expect(text(host)).not.toContain("Couldn't save the spot")
@@ -2024,7 +2035,7 @@ describe('drawing a spot', () => {
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
     await click(switchFor(host, 'Dust'))
     expect(host.querySelector('.spot-bar')).toBeNull()
-    expect(spotLineOf(host, 'Dust')).toBe('Spot: 1 shape (kept while off)')
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: your own, 1 shape (kept while off)')
   })
 
   it('clears the left-out line at the next change of that spot', async () => {
@@ -2035,7 +2046,7 @@ describe('drawing a spot', () => {
     await tap(host, 0.6, 0.6)
     await click(button(host, 'Finish'))
     expect(text(rowOf(host, 'Dust'))).toContain('left out')
-    await click(linkIn(rowOf(host, 'Dust'), 'Clear'))
+    await click(linkIn(rowOf(host, 'Dust'), "Back to the game's"))
     expect(text(rowOf(host, 'Dust'))).not.toContain('left out')
   })
 
@@ -2105,7 +2116,7 @@ describe('the light mark of a spot', () => {
   it('shows at the middle of the shapes once one is closed, with Light from the middle greyed', async () => {
     sizeOverlay()
     const { host } = await render({ effects: { dust: saved({ amount: 1 }) } })
-    await click(linkIn(rowOf(host, 'Dust'), 'Draw a spot'))
+    await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
     expect(host.querySelector('.spot-mark')).toBeNull()
     await tap(host, 0.1, 0.5)
     await tap(host, 0.4, 0.5)
@@ -2114,7 +2125,7 @@ describe('the light mark of a spot', () => {
     expect(markAt(host)).toBe('0.25,0.7')
     expect(host.querySelector('.spot-mark-ring')).not.toBeNull()
     expect(middle(host).getAttribute('aria-disabled')).toBe('true')
-    expect(lineOf(host)).toBe('Spot: 1 shape · drawing now')
+    expect(lineOf(host)).toBe('Spot: your own, 1 shape · drawing now')
   })
 
   it('says its words in the bar, beside Delete this shape', async () => {
@@ -2122,7 +2133,7 @@ describe('the light mark of a spot', () => {
     const { host } = await render(withDust([POND]))
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
     expect(barText(host)).toBe(
-      'Drawing the spot for Dust. Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it. Drag the ● to where the light comes from, or press Alt and the arrows.＋ Add a shapeLight from the middleFinish',
+      'Drawing your own spot for Dust. Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it. Drag the ● to where the light comes from, or press Alt and the arrows.＋ Add a shapeLight from the middleFinish',
     )
     await tap(host, 0.25, 0.6)
     expect(barText(host)).toEndWith('＋ Add a shapeDelete this shapeLight from the middleFinish')
@@ -2141,7 +2152,7 @@ describe('the light mark of a spot', () => {
     expect(puts.at(-1)!.effects.dust!.spot).toEqual([POND])
     expect(markAt(host)).toBe('0.8,0.1')
     expect(middle(host).getAttribute('aria-disabled')).toBeNull()
-    expect(lineOf(host)).toBe('Spot: 1 shape, light from a marked point · drawing now')
+    expect(lineOf(host)).toBe('Spot: your own, 1 shape, light from a marked point · drawing now')
   })
 
   it('stays within the picture’s edges', async () => {
@@ -2202,7 +2213,7 @@ describe('the light mark of a spot', () => {
     const { host } = await render({
       effects: { dust: { ...saved({ amount: 1 }), mark: [0.8, 0.1] as [number, number] } },
     })
-    expect(lineOf(host)).toBe('Spot: the whole pictureDraw a spot')
+    expect(lineOf(host)).toBe("Spot: the game's — the game doesn't say whereDraw your own")
   })
 
   it('goes back to the middle with Light from the middle, saved at once', async () => {
@@ -2262,20 +2273,22 @@ describe('the light mark of a spot', () => {
 
   it('goes with the shapes on Clear', async () => {
     const { host, puts } = await render(withDust([POND], [0.8, 0.1]))
-    await click(linkIn(rowOf(host, 'Dust'), 'Clear'))
+    await click(linkIn(rowOf(host, 'Dust'), "Back to the game's"))
     expect(puts.at(-1)!.effects.dust).toEqual(saved({ amount: 1 }))
   })
 
   it('says on the row whether the mark was moved', async () => {
     const moved = await render(withDust([POND, SQUARE], [0.8, 0.1]))
-    expect(lineOf(moved.host)).toBe('Spot: 2 shapes, light from a marked pointChangeClear')
+    expect(lineOf(moved.host)).toBe(
+      "Spot: your own, 2 shapes, light from a marked pointChangeBack to the game's",
+    )
     const unmoved = await render(withDust([POND]))
-    expect(lineOf(unmoved.host)).toBe('Spot: 1 shapeChangeClear')
+    expect(lineOf(unmoved.host)).toBe("Spot: your own, 1 shapeChangeBack to the game's")
   })
 
   it('is kept while the effect is off, said so', async () => {
     const { host } = await render(withDust([POND], [0.8, 0.1], false))
-    expect(lineOf(host)).toBe('Spot: 1 shape, light from a marked point (kept while off)')
+    expect(lineOf(host)).toBe('Spot: your own, 1 shape, light from a marked point (kept while off)')
   })
 
   it('shows a small dot with no ring when its row is pointed at, only if it was moved', async () => {
@@ -2319,7 +2332,7 @@ describe('the light mark of a spot', () => {
     await drag(host, [0.25, 0.7], [0.8, 0.1])
     expect(text(host)).toContain("Couldn't save the spot")
     expect(markAt(host)).toBe('0.8,0.1')
-    expect(barText(host)).toContain('Drawing the spot for Dust.')
+    expect(barText(host)).toContain('Drawing your own spot for Dust.')
   })
 
   it('is on the line, with no links, in the full-screen panel', async () => {
@@ -2340,7 +2353,7 @@ describe('the light mark of a spot', () => {
     const lines = [...host.querySelectorAll('.movement-float .movement-spot')].map(
       (l) => l.textContent,
     )
-    expect(lines).toEqual(['Spot: 1 shape, light from a marked point'])
+    expect(lines).toEqual(['Spot: your own, 1 shape, light from a marked point'])
   })
 })
 
@@ -2570,5 +2583,239 @@ describe('the slow zoom of an image', () => {
       .querySelector('input')!
     await click(input)
     expect(zoomPuts.at(-1)).toEqual({ zoom: { on: false, seconds: 24, percent: 5 } })
+  })
+})
+
+/** A renderer that says where the game places each effect: dust in a band, mist over the picture, fire nowhere else, water not at all. */
+const BAND: [number, number][][] = [
+  [
+    [0.1, 0.7],
+    [0.9, 0.7],
+    [0.9, 0.9],
+    [0.1, 0.9],
+  ],
+]
+const PLACED = `[
+  { type: 'dust', title: 'Dust', spot: false, placement: ${JSON.stringify(BAND)}, settings: [${setting('amount', 'Amount')}] },
+  { type: 'mist', title: 'Mist', spot: false, placement: 'whole', settings: [${setting('amount', 'Amount')}] },
+  { type: 'fire', title: 'Fire', spot: false, placement: 'fixed', settings: [${setting('amount', 'Amount')}] },
+  { type: 'water', title: 'Running water', spot: false, settings: [${setting('amount', 'Amount')}] },
+]`
+const placed = { named: true as const, ok: true as const, code: RENDERER(PLACED) }
+const named = (_type: string, title: string, shapes?: [number, number][][]) => ({
+  title,
+  on: true,
+  settings: { amount: 1 },
+  ...(shapes && { spot: shapes }),
+})
+/** Points at an effect's row, as a mouse does. */
+async function pointAt(host: HTMLElement, name: string) {
+  await act(async () => {
+    rowOf(host, name).dispatchEvent(new MouseEvent('pointerover', { bubbles: true }))
+  })
+}
+
+describe('the game’s shape of an effect', () => {
+  const everyEffect = () => ({
+    answer: placed,
+    effects: {
+      dust: named('dust', 'Dust'),
+      mist: named('mist', 'Mist'),
+      fire: named('fire', 'Fire'),
+      water: named('water', 'Running water'),
+    },
+  })
+
+  it('says whose shape each row plays in, with Draw your own where the game can be overridden', async () => {
+    const { host } = await render(everyEffect())
+    expect(spotLineOf(host, 'Dust')).toBe("Spot: the game'sDraw your own")
+    expect(spotLineOf(host, 'Mist')).toBe("Spot: the game's — the whole pictureDraw your own")
+    expect(spotLineOf(host, 'Running water')).toBe(
+      "Spot: the game's — the game doesn't say whereDraw your own",
+    )
+    expect(spotLineOf(host, 'Fire')).toBe(
+      "Spot: the game's — this effect can't be moved in the studio",
+    )
+  })
+
+  it('offers only Remove it for an effect the game cannot move that has an earlier shape, and keeps the shape out of the game', async () => {
+    const { host, puts } = await render({
+      answer: placed,
+      effects: { fire: named('fire', 'Fire', [POND]) },
+    })
+    expect(spotLineOf(host, 'Fire')).toBe(
+      "Spot: the game's — this effect can't be moved in the studio A shape drawn earlier is kept but not used.Remove it",
+    )
+    expect(linkIn(rowOf(host, 'Fire'), 'Draw your own')).toBeUndefined()
+    // A save marks it, so the shape stays in the studio's edits but is not exported.
+    await click(switchFor(host, 'Fire'))
+    await click(switchFor(host, 'Fire'))
+    expect(puts.at(-1)!.effects.fire).toMatchObject({ spot: [POND], fixed: true })
+    await click(linkIn(rowOf(host, 'Fire'), 'Remove it'))
+    expect(puts.at(-1)!.effects.fire).toEqual({ ...named('fire', 'Fire'), fixed: true })
+    expect(spotLineOf(host, 'Fire')).toContain('Your shape was removed.Undo')
+  })
+
+  it('hands the renderer no shape for the game’s own, and none for an effect it cannot move', async () => {
+    await render({
+      answer: placed,
+      effects: { dust: named('dust', 'Dust'), fire: named('fire', 'Fire', [POND]) },
+    })
+    const last = calls().setEffects.at(-1)!
+    expect(last.find((e) => e.kind === 'dust')!.spot).toBeUndefined()
+    expect(last.find((e) => e.kind === 'fire')!.spot).toBeUndefined()
+  })
+
+  it('outlines the game’s shape dashed while its row is pointed at, and nothing otherwise', async () => {
+    sizeOverlay()
+    const { host } = await render(everyEffect())
+    expect(polygons(host, 'spot-game')).toHaveLength(0)
+    await pointAt(host, 'Dust')
+    expect(polygons(host, 'spot-game')).toHaveLength(1)
+    expect(polygons(host, 'spot-game-faint')).toHaveLength(0)
+    await pointAt(host, 'Mist')
+    expect(polygons(host, 'spot-game')[0]!.getAttribute('points')).toBe('0,0 640,0 640,400 0,400')
+    await pointAt(host, 'Running water')
+    expect(polygons(host, 'spot-game')).toHaveLength(0)
+    expect(polygons(host, 'spot-peek')).toHaveLength(0)
+  })
+
+  it('outlines your own shape solid with the game’s faint beneath', async () => {
+    sizeOverlay()
+    const { host } = await render({
+      answer: placed,
+      effects: { dust: named('dust', 'Dust', [POND]) },
+    })
+    await pointAt(host, 'Dust')
+    expect(polygons(host, 'spot-peek')).toHaveLength(1)
+    expect(polygons(host, 'spot-game-faint')).toHaveLength(1)
+  })
+
+  it('starts drawing from a copy of the game’s shape, saving nothing until it is changed', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(everyEffect())
+    await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
+    expect(barText(host)).toBe(
+      "Drawing your own spot for Dust. It starts as the game's: drag a corner to move it, double-click a corner to take it out, click the picture to add a shape.＋ Add a shapeLight from the middleFinish",
+    )
+    expect(polygons(host, 'spot-edge')).toHaveLength(1)
+    expect(polygons(host, 'spot-game-faint')).toHaveLength(1)
+    expect(spotLineOf(host, 'Dust')).toBe("Spot: the game's · drawing now")
+    await click(button(host, 'Finish'))
+    expect(puts).toHaveLength(0)
+    expect(spotLineOf(host, 'Dust')).toBe("Spot: the game'sDraw your own")
+  })
+
+  it('makes the copy your own at the first change, saved at once', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(everyEffect())
+    await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
+    await tap(host, 0.5, 0.8)
+    await pointer(host, 'pointerdown', 0.9, 0.7)
+    await pointer(host, 'pointermove', 0.8, 0.6)
+    await pointer(host, 'pointerup', 0.8, 0.6)
+    expect(puts).toHaveLength(1)
+    expect(puts[0]!.effects.dust!.spot).toEqual([
+      [
+        [0.1, 0.7],
+        [0.8, 0.6],
+        [0.9, 0.9],
+        [0.1, 0.9],
+      ],
+    ])
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: your own, 1 shape · drawing now')
+    // The copy is now the shape the renderer is handed.
+    expect(
+      calls()
+        .setEffects.at(-1)!
+        .find((e) => e.kind === 'dust')!.spot,
+    ).toHaveLength(1)
+  })
+
+  it('starts empty where the game does not say, with the lead sentence and the empty-spot help', async () => {
+    sizeOverlay()
+    const { host } = await render(everyEffect())
+    await click(linkIn(rowOf(host, 'Running water'), 'Draw your own'))
+    expect(barText(host)).toBe(
+      'Drawing your own spot for Running water. Click to place each corner; click the first corner to close the shape. Esc stops this shape.Finish',
+    )
+    expect(polygons(host, 'spot-game')).toHaveLength(0)
+  })
+
+  it('moves the light after drawing from the copy, making the copy your own', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(everyEffect())
+    await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowRight', altKey: true, bubbles: true }),
+      )
+    })
+    expect(puts.at(-1)!.effects.dust!.spot).toEqual(BAND)
+    expect(puts.at(-1)!.effects.dust!.mark).toBeDefined()
+  })
+
+  it('goes back to the game’s at once, offers Undo, and Undo brings the shapes and the mark back', async () => {
+    const { host, puts } = await render({
+      answer: placed,
+      effects: { dust: { ...named('dust', 'Dust', [POND, SQUARE]), mark: [0.2, 0.3] } },
+    })
+    expect(spotLineOf(host, 'Dust')).toBe(
+      "Spot: your own, 2 shapes, light from a marked pointChangeBack to the game's",
+    )
+    await click(linkIn(rowOf(host, 'Dust'), "Back to the game's"))
+    expect(puts.at(-1)!.effects.dust).toEqual(named('dust', 'Dust'))
+    expect(spotLineOf(host, 'Dust')).toBe(
+      "Spot: the game'sDraw your own Your shape was removed.Undo",
+    )
+    await click(linkIn(rowOf(host, 'Dust'), 'Undo'))
+    expect(puts.at(-1)!.effects.dust).toEqual({
+      ...named('dust', 'Dust', [POND, SQUARE]),
+      mark: [0.2, 0.3],
+    })
+    expect(spotLineOf(host, 'Dust')).toStartWith(
+      'Spot: your own, 2 shapes, light from a marked point',
+    )
+  })
+
+  it('stops offering Undo at the next action on that row', async () => {
+    const { host } = await render({
+      answer: placed,
+      effects: { dust: named('dust', 'Dust', [POND]) },
+    })
+    await click(linkIn(rowOf(host, 'Dust'), "Back to the game's"))
+    expect(linkIn(rowOf(host, 'Dust'), 'Undo')).toBeDefined()
+    await click(switchFor(host, 'Dust'))
+    await click(switchFor(host, 'Dust'))
+    expect(linkIn(rowOf(host, 'Dust'), 'Undo')).toBeUndefined()
+  })
+
+  it('keeps the row on your own when going back could not be saved, and Try again goes back', async () => {
+    let ok = false
+    const { host, puts } = await render({
+      answer: placed,
+      effects: { dust: named('dust', 'Dust', [POND]) },
+      saved: () =>
+        ok
+          ? Response.json({ ok: true })
+          : Response.json({ ok: false, problems: [] }, { status: 409 }),
+    })
+    await click(linkIn(rowOf(host, 'Dust'), "Back to the game's"))
+    expect(text(host)).toContain(
+      "Couldn't save the spot: the image edits file can't be written. Your shape is still on the picture.",
+    )
+    expect(spotLineOf(host, 'Dust')).toBe("Spot: your own, 1 shapeChangeBack to the game's")
+    ok = true
+    await click(button(host, 'Try again'))
+    expect(puts.at(-1)!.effects.dust!.spot).toBeUndefined()
+    expect(spotLineOf(host, 'Dust')).toStartWith("Spot: the game's")
+  })
+
+  it('shows the line without links in full screen, and keeps the shape while the effect is off', async () => {
+    const { host } = await render({
+      answer: placed,
+      effects: { dust: { ...named('dust', 'Dust', [POND]), on: false } },
+    })
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: your own, 1 shape (kept while off)')
   })
 })

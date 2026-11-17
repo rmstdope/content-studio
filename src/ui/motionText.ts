@@ -1,3 +1,5 @@
+import type { SpotView } from '../core/motion'
+
 /** The words of an image's Movement tab, in one place. */
 export const MOVEMENT_WORDS = {
   tab: 'Movement',
@@ -111,9 +113,13 @@ export function zoomSavedLockUnread(saved: string): string {
 
 /** The words of an effect's spot: its line on the row, the drawing bars and what goes wrong. */
 export const SPOT_WORDS = {
-  draw: 'Draw a spot',
+  draw: 'Draw your own',
   change: 'Change',
-  clear: 'Clear',
+  back: "Back to the game's",
+  removeIt: 'Remove it',
+  undo: 'Undo',
+  removed: 'Your shape was removed.',
+  keptNotUsed: 'A shape drawn earlier is kept but not used.',
   addShape: '＋ Add a shape',
   deleteShape: 'Delete this shape',
   lightFromMiddle: 'Light from the middle',
@@ -127,21 +133,48 @@ export const SPOT_WORDS = {
     "Couldn't save the spot: the image edits file can't be written. Your shape is still on the picture.",
 } as const
 
-/** The spot line of an effect's row: the whole picture, or how many shapes, whether its light's mark was moved, and whether it is being drawn or kept off. */
-export function spotLine(
-  shapes: number,
-  state: 'plain' | 'drawing' | 'off' = 'plain',
-  marked = false,
-): string {
-  const what = shapes === 0 ? 'the whole picture' : `${shapes} ${shapes === 1 ? 'shape' : 'shapes'}`
+/** The spot line of an effect's row: whose shape it plays in, and whether it is being drawn or kept off. */
+export function spotLine(view: SpotView, state: 'plain' | 'drawing' | 'off' = 'plain'): string {
   const tail = state === 'drawing' ? ' · drawing now' : state === 'off' ? ' (kept while off)' : ''
-  return `Spot: ${what}${marked ? ', light from a marked point' : ''}${tail}`
+  if (view.who === 'own') {
+    const what = `${view.count} ${view.count === 1 ? 'shape' : 'shapes'}`
+    return `Spot: your own, ${what}${view.marked ? ', light from a marked point' : ''}${tail}`
+  }
+  if (view.who === 'fixed') {
+    return `Spot: the game's — this effect can't be moved in the studio${tail}`
+  }
+  const what =
+    view.shape === 'whole'
+      ? ' — the whole picture'
+      : view.shape === 'unknown'
+        ? " — the game doesn't say where"
+        : ''
+  return `Spot: the game's${what}${tail}`
 }
 
-/** What the bar above the picture says while a spot is being drawn: its bold lead and the rest. */
-export function drawingBar(name: string): { lead: string; rest: string } {
+/**
+ * What the bar above the picture says while a spot is being drawn: its bold lead and the rest;
+ * `fromGame` while the shape is still the game's copy, `empty` when the game doesn't say where.
+ */
+export function drawingBar(
+  name: string,
+  mode: 'own' | 'fromGame' | 'empty' = 'own',
+): { lead: string; rest: string } {
+  const lead = `Drawing your own spot for ${name}.`
+  if (mode === 'fromGame') {
+    return {
+      lead,
+      rest: " It starts as the game's: drag a corner to move it, double-click a corner to take it out, click the picture to add a shape.",
+    }
+  }
+  if (mode === 'empty') {
+    return {
+      lead,
+      rest: ' Click to place each corner; click the first corner to close the shape. Esc stops this shape.',
+    }
+  }
   return {
-    lead: `Drawing the spot for ${name}.`,
+    lead,
     rest: ' Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it. Drag the ● to where the light comes from, or press Alt and the arrows.',
   }
 }
