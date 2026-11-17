@@ -1913,6 +1913,52 @@ describe('drawing a spot', () => {
     expect(puts).toHaveLength(count)
   })
 
+  it('lets a corner under Pause or Full screen be grabbed: the dots sit above the stage’s buttons and take the press (as-z2qd)', async () => {
+    sizeOverlay()
+    const low: [number, number][] = [
+      [0.02, 0.97],
+      [0.4, 0.5],
+      [0.97, 0.97],
+    ]
+    const { host, puts } = await render(withDust([low]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await tap(host, 0.4, 0.8)
+    expect(host.querySelector('.movement-buttons')).not.toBeNull()
+    const dot = host.querySelectorAll<SVGElement>('.spot-corner')[0]!
+    // happy-dom does no hit testing, so the bug is pinned by the stylesheet: the buttons are a later
+    // sibling of the overlay with no z-index, so a layer of the overlay is painted above them only
+    // with a z-index of its own, and a dot takes a press only if it lets pointer events in.
+    expect(valuesInEveryWindow(host.querySelector('.movement-buttons')!, 'z-index')).toEqual([])
+    const layer = dot.closest('.spot-handles')
+    expect(layer).not.toBeNull()
+    expect(valuesInEveryWindow(layer!, 'z-index').at(-1)).toMatch(/: [1-9]\d*$/)
+    expect(valuesInEveryWindow(dot, 'pointer-events').at(-1)).toMatch(/: auto$/)
+    // Above the buttons a corner is taken as far out as anywhere else (10 px), not only on its dot.
+    const grabs = [...layer!.querySelectorAll('.spot-grab')]
+    expect(grabs).toHaveLength(3)
+    expect(grabs.map((g) => g.getAttribute('r'))).toEqual(['10', '10', '10'])
+    expect(valuesInEveryWindow(grabs[0]!, 'pointer-events').at(-1)).toMatch(/: auto$/)
+    // The light's mark is in the raised layer too, drawn over the corners (it takes a press first).
+    const mark = layer!.querySelector('.spot-mark')
+    expect(mark).not.toBeNull()
+    expect(mark!.compareDocumentPosition(dot) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+    expect(valuesInEveryWindow(mark!, 'pointer-events').at(-1)).toMatch(/: auto$/)
+    // The press itself reaching the overlay is the save path, not the bug: it bubbled before too.
+    await act(async () => {
+      dot.dispatchEvent(
+        new MouseEvent('pointerdown', {
+          clientX: 0.02 * 640,
+          clientY: 0.97 * 400,
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+    })
+    await pointer(host, 'pointermove', 0.2, 0.7)
+    await pointer(host, 'pointerup', 0.2, 0.7)
+    expect(puts.at(-1)!.effects.dust!.spot![0]![0]).toEqual([0.2, 0.7])
+  })
+
   it('adds a second shape and picks it when it closes', async () => {
     sizeOverlay()
     const { host, puts } = await render(withDust([POND]))
