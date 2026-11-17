@@ -1,0 +1,971 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Movement tab, an effect's spot</title>
+    <style>
+      :root {
+        --bg: #06070c;
+        --panel: #10121a;
+        --edge: rgb(255 255 255/8%);
+        --raised: #191c24;
+        --line: rgb(255 255 255/7%);
+        --text: #eceef3;
+        --soft: #c7ccd6;
+        --muted: #a9b0bd;
+        --faint: #8a91a0;
+        --accent: #ff6b2c;
+        --accent-soft-bg: #2a1b12;
+        --accent-soft-ink: #ff9a6b;
+        --ok-bg: #10291f;
+        --ok-ink: #5be3ae;
+        --att-ink: #ffb38f;
+        --att-bg: rgb(255 122 61/10%);
+        --att-line: rgb(255 122 61/25%);
+        --chip: #1a1d26;
+        --bad: #ff8080;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.45 -apple-system,
+          system-ui,
+          sans-serif;
+      }
+      .app {
+        display: flex;
+        min-height: 100vh;
+      }
+      .sidebar {
+        flex: 0 0 212px;
+        padding: 16px 10px;
+        border-right: 1px solid var(--edge);
+        background: rgb(10 11 18/55%);
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .sidebar b {
+        display: block;
+        color: var(--text);
+        margin: 0 0 14px 6px;
+      }
+      .sidebar div {
+        padding: 6px 8px;
+        border-radius: 8px;
+      }
+      .sidebar .on {
+        background: var(--raised);
+        color: var(--text);
+      }
+      .content {
+        flex: 1;
+        min-width: 0;
+        padding: 20px 24px 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .note {
+        background: #1f1936;
+        color: #c4b5ff;
+        border: 1px dashed #5a4a9a;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 13px;
+      }
+      .note b {
+        color: #e2d9ff;
+      }
+      h1 {
+        margin: 0;
+        font-size: 22px;
+      }
+      h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .tabs {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .tab {
+        padding: 7px 14px;
+        border-radius: 9px;
+        background: var(--raised);
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .tab.on {
+        background: var(--accent-soft-bg);
+        color: var(--accent-soft-ink);
+        box-shadow: inset 0 0 0 1px #5a3218;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--edge);
+        border-radius: 14px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .faint {
+        color: var(--faint);
+      }
+      .mono {
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        background: var(--chip);
+        color: var(--soft);
+      }
+      .chip.ok {
+        background: var(--ok-bg);
+        color: var(--ok-ink);
+      }
+      .chip.att {
+        background: var(--att-bg);
+        color: var(--att-ink);
+        box-shadow: inset 0 0 0 1px var(--att-line);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 8px;
+        background: var(--raised);
+        color: var(--text);
+        border: 1px solid var(--line);
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #1a0a02;
+        border-color: var(--accent);
+        font-weight: 600;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+      }
+      .stage {
+        position: relative;
+        width: 100%;
+        max-width: 1100px;
+        aspect-ratio: 3/2;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #111;
+      }
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        animation: zoom 16s ease-in-out infinite alternate;
+        transform-origin: 50% 55%;
+      }
+      @keyframes zoom {
+        from {
+          transform: scale(1);
+        }
+        to {
+          transform: scale(1.04) translate(-0.5%, -0.3%);
+        }
+      }
+      .ff {
+        animation: blink 2.4s ease-in-out infinite;
+      }
+      .ff:nth-child(2n) {
+        animation-delay: 0.8s;
+      }
+      .ff:nth-child(3n) {
+        animation-delay: 1.6s;
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 0;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+      .cap {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 0;
+      }
+      .state {
+        border-top: 1px dashed #5a4a9a;
+        padding-top: 18px;
+        margin-top: 10px;
+      }
+      .state > .lbl {
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #c4b5ff;
+        margin-bottom: 8px;
+        display: block;
+      }
+      .fs {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16/9;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #000;
+        border: 1px solid #333;
+      }
+      .fs .scene {
+        object-fit: cover;
+      }
+      .fx {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .fx li {
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: var(--raised);
+        border: 1px solid var(--line);
+      }
+      .fx .set {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .sw {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+      }
+      .sw i {
+        display: inline-block;
+        width: 26px;
+        height: 15px;
+        border-radius: 9px;
+        background: #333;
+        position: relative;
+      }
+      .sw i:after {
+        content: '';
+        position: absolute;
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #999;
+        top: 2px;
+        left: 2px;
+      }
+      .sw.on i {
+        background: var(--accent);
+      }
+      .sw.on i:after {
+        left: 13px;
+        background: #fff;
+      }
+      .err {
+        color: var(--bad);
+      }
+      .fp {
+        position: absolute;
+        right: 16px;
+        top: 16px;
+        width: 300px;
+        max-height: calc(100% - 32px);
+        overflow: auto;
+        background: rgb(16 18 26/92%);
+        border: 1px solid #2c3040;
+        border-radius: 14px;
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        font-size: 13px;
+      }
+      .fp .hd {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .fp .hd b {
+        flex: 1;
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--accent-soft-ink);
+      }
+      .fp .fx li {
+        padding: 5px 8px;
+      }
+      .lbl2 {
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .cols {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 16px;
+        align-items: start;
+      }
+      .side {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .ovl {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 8px;
+        background: rgb(0 0 0/55%);
+        text-align: center;
+        padding: 20px;
+      }
+      .ctl {
+        position: absolute;
+        left: 10px;
+        bottom: 10px;
+        display: flex;
+        gap: 6px;
+      }
+      .ctl .btn,
+      .fsb {
+        background: rgb(0 0 0/60%);
+      }
+      .fsb {
+        position: absolute;
+        right: 10px;
+        bottom: 10px;
+      }
+    </style>
+    <style>
+      .sl {
+        display: grid;
+        grid-template-columns: auto 1fr 2.6em;
+        gap: 4px 8px;
+        align-items: center;
+        margin-top: 6px;
+      }
+      .sl label {
+        font-size: 12px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .sl input {
+        width: 100%;
+        min-width: 0;
+        accent-color: var(--accent);
+      }
+      .sl output {
+        font-size: 12px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        color: var(--accent-soft-ink);
+      }
+      .link {
+        background: none;
+        border: 0;
+        color: var(--accent-soft-ink);
+        font: inherit;
+        font-size: 12px;
+        padding: 0;
+        cursor: pointer;
+        text-decoration: underline;
+      }
+      .hdr {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: space-between;
+      }
+      .gone {
+        border-color: var(--att-line) !important;
+        background: var(--att-bg) !important;
+      }
+      .small {
+        font-size: 12px;
+        margin: 4px 0 0;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 16px;
+        align-items: start;
+      }
+      @media (max-width: 900px) {
+        .cols {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+
+    <style>
+      .ov {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .drawbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 10px;
+        padding: 8px 12px;
+        border-radius: 10px;
+        background: var(--accent-soft-bg);
+        box-shadow: inset 0 0 0 1px #5a3218;
+        color: var(--accent-soft-ink);
+        font-size: 13px;
+      }
+      .drawbar b {
+        color: var(--text);
+      }
+      .drawbar .sp {
+        flex: 1;
+      }
+      .spotline {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 6px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 10px;
+        align-items: center;
+      }
+      .fx li.editing {
+        box-shadow: inset 0 0 0 1px var(--accent);
+      }
+      .fx li.hov {
+        box-shadow: inset 0 0 0 1px #8fd0ff;
+      }
+      .stage.drawing {
+        cursor: crosshair;
+      }
+      .stage.drawing .scene {
+        animation: none;
+      }
+      .still .scene,
+      .still .ff {
+        animation: none !important;
+      }
+      .mini {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 3/2;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #111;
+      }
+      .alt {
+        background: #1f1936;
+        color: #c4b5ff;
+        border: 1px dashed #5a4a9a;
+        border-radius: 6px;
+        padding: 1px 6px;
+        font-size: 11px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="app">
+      <nav class="sidebar">
+        <b>Content Studio</b>
+        <div>Setup</div>
+        <div>Narration</div>
+        <div>Music</div>
+        <div class="on">Images</div>
+        <div>Sound effects</div>
+        <div>Scenes</div>
+      </nav>
+      <main class="content">
+        <div class="faint" style="font-size: 13px">
+          Images › Act I: The Lantern › The lantern hall
+        </div>
+        <h1>The lantern hall</h1>
+        <div class="tabs">
+          <span class="tab">Make · Take 3 chosen</span><span class="tab">Fine-tune</span
+          ><span class="tab">Patches · 1 of 2</span><span class="tab">Named areas · 4 of 9</span
+          ><span class="tab on">Movement · 2 effects</span>
+        </div>
+        <div class="note">
+          <b>as-r0py.4: drawing an effect's spot.</b> "Draw a spot" (or "Change") on an effect's row
+          opens drawing on the tab's picture: the slow zoom stops and the other effects pause, while
+          the effect being drawn plays only inside its shapes. Click the corners, and click the
+          first corner to close a shape. Drag a corner to move it, double-click one to take it out,
+          and click a shape to pick it. "＋ Add a shape" starts another shape. Every closed shape
+          and moved corner is saved at once, and "Finish" leaves drawing. Pointing at a row outlines
+          its spot. With no spot the effect plays over the whole picture; "Clear" goes back to that.
+          Drawing happens on the tab only; full screen plays the spots.
+        </div>
+        <section class="panel">
+          <div class="row">
+            <h2>Movement</h2>
+            <span class="muted">drawn by the project's renderer</span>
+          </div>
+          <div class="cols">
+            <div>
+              <div class="drawbar">
+                <span
+                  ><b>Drawing the spot for Fireflies.</b> Drag a corner to move it; double-click a
+                  corner to take it out. Click a shape to pick it.</span
+                ><span class="sp"></span><button class="btn">＋ Add a shape</button
+                ><button class="btn">Delete this shape</button
+                ><button class="btn primary">Finish</button>
+              </div>
+              <div class="stage drawing" style="margin-top: 8px">
+                <div class="scene-slot"></div>
+                <svg
+                  class="ov"
+                  id="ov"
+                  viewBox="0 0 1536 1024"
+                  preserveAspectRatio="xMidYMid slice"
+                >
+                  <defs>
+                    <mask id="m4447299044319539287">
+                      <rect width="1536" height="1024" fill="#fff" />
+                      <polygon
+                        points="330,700 520,660 640,720 600,790 420,800 300,770"
+                        fill="#000"
+                      />
+                      <polygon points="1180,690 1420,670 1500,740 1430,800 1230,790" fill="#000" />
+                    </mask>
+                  </defs>
+                  <rect
+                    width="1536"
+                    height="1024"
+                    fill="#000"
+                    opacity=".5"
+                    mask="url(#m4447299044319539287)"
+                  />
+                  <polygon
+                    points="330,700 520,660 640,720 600,790 420,800 300,770"
+                    fill="none"
+                    stroke="#ff9a6b"
+                    stroke-width="2.5"
+                  />
+                  <polygon
+                    points="1180,690 1420,670 1500,740 1430,800 1230,790"
+                    fill="none"
+                    stroke="#ff9a6b"
+                    stroke-width="4"
+                  />
+                  <circle cx="1180" cy="690" r="11" fill="#fff" stroke="#1a0a02" stroke-width="3" />
+                  <circle cx="1420" cy="670" r="11" fill="#fff" stroke="#1a0a02" stroke-width="3" />
+                  <circle cx="1500" cy="740" r="11" fill="#fff" stroke="#1a0a02" stroke-width="3" />
+                  <circle cx="1430" cy="800" r="11" fill="#fff" stroke="#1a0a02" stroke-width="3" />
+                  <circle cx="1230" cy="790" r="11" fill="#fff" stroke="#1a0a02" stroke-width="3" />
+                </svg>
+              </div>
+              <p class="cap" style="margin-top: 8px">
+                Take 3, as the game will show it. Space pauses · F for full screen.
+              </p>
+            </div>
+            <div class="side">
+              <div class="lbl2">Patches</div>
+              <span class="sw"><i></i>The star on the door</span
+              ><span class="sw faint"><i></i>Broken lantern · no take chosen</span>
+              <div class="hdr" style="margin-top: 6px">
+                <span class="lbl2">Effects</span><span class="chip ok">Saved</span>
+              </div>
+              <p class="cap">
+                Switch an effect on to put it in the game. 2 of the renderer's 4 are on.
+              </p>
+              <ul class="fx">
+                <li class="editing">
+                  <div class="hdr">
+                    <span class="sw on"><i></i><b>Fireflies</b></span
+                    ><button class="link">Reset</button>
+                  </div>
+                  <div class="sl">
+                    <label>Amount</label
+                    ><input type="range" min="0" max="3" step="0.05" value="1.25" /><output
+                      >1.25</output
+                    ><label>Size</label
+                    ><input type="range" min="0" max="3" step="0.05" value="1" /><output
+                      >1.00</output
+                    ><label>Speed</label
+                    ><input type="range" min="0" max="3" step="0.05" value="1.6" /><output
+                      >1.60</output
+                    >
+                  </div>
+                  <div class="spotline">Spot: 2 shapes · drawing now</div>
+                </li>
+                <li class="">
+                  <div class="hdr">
+                    <span class="sw on"><i></i><b>Pond ripples</b></span
+                    ><span></span>
+                  </div>
+                  <div class="sl">
+                    <label>Amplitude</label
+                    ><input type="range" min="0" max="4" step="0.05" value="1" /><output
+                      >1.00</output
+                    ><label>Speed</label
+                    ><input type="range" min="0" max="3" step="0.05" value="1" /><output
+                      >1.00</output
+                    ><label>Wave length</label
+                    ><input type="range" min="0" max="3" step="0.05" value="1" /><output
+                      >1.00</output
+                    >
+                  </div>
+                  <div class="spotline">
+                    Spot: the whole picture <button class="link">Draw a spot</button>
+                  </div>
+                </li>
+                <li>
+                  <span class="sw"><i></i><b>Drifting clouds</b></span>
+                  <div class="set">Speed 0–5 (1) · Opacity 0–3 (1) · Size 0–2.5 (1)</div>
+                </li>
+                <li>
+                  <span class="sw"><i></i><b>Lit window flicker</b></span>
+                  <div class="set">Strength 0–3 (1) · Flicker speed 0–3 (1) · Size 0–2.5 (1)</div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <div class="state">
+          <span class="lbl">Not drawing: pointing at the Fireflies row outlines its spot</span>
+          <div class="cols">
+            <div>
+              <div class="stage">
+                <div class="scene-slot"></div>
+                <svg class="ov" viewBox="0 0 1536 1024" preserveAspectRatio="xMidYMid slice">
+                  <polygon
+                    points="330,700 520,660 640,720 600,790 420,800 300,770"
+                    fill="none"
+                    stroke="#8fd0ff"
+                    stroke-width="2.5"
+                  />
+                  <polygon
+                    points="1180,690 1420,670 1500,740 1430,800 1230,790"
+                    fill="none"
+                    stroke="#8fd0ff"
+                    stroke-width="2.5"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div class="side">
+              <ul class="fx">
+                <li class="hov">
+                  <div class="hdr">
+                    <span class="sw on"><i></i><b>Fireflies</b></span
+                    ><button class="link">Reset</button>
+                  </div>
+                  <div class="sl">
+                    <label>Amount</label
+                    ><input type="range" min="0" max="3" step="0.05" value="1.25" /><output
+                      >1.25</output
+                    ><label>Size</label
+                    ><input type="range" min="0" max="3" step="0.05" value="1" /><output
+                      >1.00</output
+                    ><label>Speed</label
+                    ><input type="range" min="0" max="3" step="0.05" value="1.6" /><output
+                      >1.60</output
+                    >
+                  </div>
+                  <div class="spotline">
+                    Spot: 2 shapes <button class="link">Change</button
+                    ><button class="link">Clear</button>
+                  </div>
+                </li>
+                <li class="">
+                  <div class="hdr">
+                    <span class="sw on"><i></i><b>Pond ripples</b></span
+                    ><span></span>
+                  </div>
+                  <div class="sl">
+                    <label>Amplitude</label
+                    ><input type="range" min="0" max="4" step="0.05" value="1" /><output
+                      >1.00</output
+                    ><label>Speed</label
+                    ><input type="range" min="0" max="3" step="0.05" value="1" /><output
+                      >1.00</output
+                    ><label>Wave length</label
+                    ><input type="range" min="0" max="3" step="0.05" value="1" /><output
+                      >1.00</output
+                    >
+                  </div>
+                  <div class="spotline">
+                    Spot: the whole picture <button class="link">Draw a spot</button>
+                  </div>
+                </li>
+                <li>
+                  <span class="sw"><i></i><b>Drifting clouds</b></span>
+                  <div class="set">Speed 0–5 (1) · Opacity 0–3 (1) · Size 0–2.5 (1)</div>
+                </li>
+                <li>
+                  <span class="sw"><i></i><b>Lit window flicker</b></span>
+                  <div class="set">Strength 0–3 (1) · Flicker speed 0–3 (1) · Size 0–2.5 (1)</div>
+                </li>
+              </ul>
+              <p class="cap">
+                The outline shows while the pointer is on the row, or while focus is in it. Nothing
+                else changes.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="state">
+            <span class="lbl">Placing a new shape's corners</span>
+            <section class="panel">
+              <div class="drawbar">
+                <span
+                  ><b>New shape for Fireflies.</b> Click to place each corner; click the first
+                  corner to close the shape. Esc stops this shape.</span
+                ><span class="sp"></span><button class="btn primary">Finish</button>
+              </div>
+              <div class="mini still">
+                <div class="scene-slot"></div>
+                <svg class="ov" viewBox="0 0 1536 1024" preserveAspectRatio="xMidYMid slice">
+                  <polygon
+                    points="330,700 520,660 640,720 600,790 420,800 300,770"
+                    fill="none"
+                    stroke="#ff9a6b"
+                    stroke-width="2.5"
+                  />
+                  <polygon
+                    points="1180,690 1420,670 1500,740 1430,800 1230,790"
+                    fill="none"
+                    stroke="#ff9a6b"
+                    stroke-width="2.5"
+                  />
+                  <polyline
+                    points="760,820 1000,790 1250,800"
+                    fill="none"
+                    stroke="#ff9a6b"
+                    stroke-width="4"
+                  />
+                  <line
+                    x1="1250"
+                    y1="800"
+                    x2="1330"
+                    y2="900"
+                    stroke="#ff9a6b"
+                    stroke-width="2"
+                    stroke-dasharray="10 8"
+                  />
+                  <circle
+                    cx="760"
+                    cy="820"
+                    r="16"
+                    fill="#ff6b2c"
+                    stroke="#1a0a02"
+                    stroke-width="3"
+                  />
+                  <circle cx="1000" cy="790" r="11" fill="#fff" stroke="#1a0a02" stroke-width="3" />
+                  <circle cx="1250" cy="800" r="11" fill="#fff" stroke="#1a0a02" stroke-width="3" />
+                </svg>
+              </div>
+              <p class="cap">
+                The first corner is the larger orange dot; clicking it closes the shape.
+              </p>
+            </section>
+          </div>
+
+          <div class="state">
+            <span class="lbl">The row, with a spot drawn</span>
+            <section class="panel">
+              <ul class="fx">
+                <li>
+                  <div class="hdr">
+                    <span class="sw on"><i></i><b>Fireflies</b></span
+                    ><button class="link">Reset</button>
+                  </div>
+                  <div class="spotline">
+                    Spot: 2 shapes <button class="link">Change</button
+                    ><button class="link">Clear</button>
+                  </div>
+                </li>
+              </ul>
+            </section>
+          </div>
+
+          <div class="state">
+            <span class="lbl">The row, no spot (plays over the whole picture)</span>
+            <section class="panel">
+              <ul class="fx">
+                <li>
+                  <div class="hdr">
+                    <span class="sw on"><i></i><b>Pond ripples</b></span>
+                  </div>
+                  <div class="spotline">
+                    Spot: the whole picture <button class="link">Draw a spot</button>
+                  </div>
+                </li>
+              </ul>
+            </section>
+          </div>
+
+          <div class="state">
+            <span class="lbl">Saving the spot failed</span>
+            <section class="panel">
+              <p class="cap err">
+                Couldn't save the spot: the image edits file can't be written. Your shape is still
+                on the picture.
+              </p>
+              <button class="btn" style="align-self: flex-start">Try again</button>
+            </section>
+          </div>
+
+          <div class="state">
+            <span class="lbl">Leaving with a shape not closed</span>
+            <section class="panel">
+              <p class="cap">
+                A shape with fewer than three corners, or one not closed, is left out when you press
+                Finish or Esc: "The shape you hadn't closed was left out."
+              </p>
+            </section>
+          </div>
+
+          <div class="state">
+            <span class="lbl">Full screen: the floating panel's row (no drawing here)</span>
+            <section class="panel">
+              <ul class="fx">
+                <li style="padding: 5px 8px">
+                  <div class="hdr">
+                    <span class="sw on"><i></i><b>Fireflies</b></span
+                    ><button class="link">Reset</button>
+                  </div>
+                  <div class="spotline">Spot: 2 shapes</div>
+                </li>
+              </ul>
+            </section>
+          </div>
+
+          <div class="state">
+            <span class="lbl">While Fireflies is being drawn, the other rows wait</span>
+            <section class="panel">
+              <ul class="fx">
+                <li>
+                  <div class="hdr">
+                    <span class="sw on"><i></i><b>Pond ripples</b></span>
+                  </div>
+                  <div class="spotline">
+                    Spot: the whole picture
+                    <button class="link" disabled style="opacity: 0.45; cursor: default">
+                      Draw a spot
+                    </button>
+                  </div>
+                  <p class="cap small">Finish the Fireflies spot first.</p>
+                </li>
+              </ul>
+            </section>
+          </div>
+
+          <div class="state">
+            <span class="lbl">No picture to draw on (no take chosen, no game picture)</span>
+            <section class="panel">
+              <ul class="fx">
+                <li>
+                  <div class="hdr">
+                    <span class="sw on"><i></i><b>Pond ripples</b></span>
+                  </div>
+                  <div class="spotline">
+                    Spot: the whole picture
+                    <button class="link" disabled style="opacity: 0.45; cursor: default">
+                      Draw a spot
+                    </button>
+                  </div>
+                  <p class="cap small">Choose a take on Make to draw a spot.</p>
+                </li>
+              </ul>
+            </section>
+          </div>
+
+          <div class="state">
+            <span class="lbl">One shape</span>
+            <section class="panel">
+              <ul class="fx">
+                <li>
+                  <div class="hdr">
+                    <span class="sw on"><i></i><b>Pond ripples</b></span>
+                  </div>
+                  <div class="spotline">
+                    Spot: 1 shape <button class="link">Change</button
+                    ><button class="link">Clear</button>
+                  </div>
+                </li>
+              </ul>
+            </section>
+          </div>
+
+          <div class="state">
+            <span class="lbl"
+              >"Delete this shape" asks first, in the bar (Keep it / Delete; Delete saves, and
+              deleting the last shape puts the effect back on the whole picture)</span
+            >
+            <section class="panel">
+              <div class="drawbar">
+                <span><b>Delete this shape?</b> It has 8 corners.</span><span class="sp"></span
+                ><button class="btn">Keep it</button><button class="btn primary">Delete</button>
+              </div>
+            </section>
+          </div>
+
+          <div class="state">
+            <span class="lbl">Effect switched off: the spot is kept, and its line stays</span>
+            <section class="panel">
+              <ul class="fx">
+                <li>
+                  <span class="sw"><i></i><b>Fireflies</b></span>
+                  <div class="set">Amount 0–3 (1) · Size 0–3 (1) · Speed 0–3 (1)</div>
+                  <div class="spotline">Spot: 2 shapes (kept while off)</div>
+                </li>
+              </ul>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script>
+      // Draws a stand-in night picture into every .scene-slot.
+      const SVG = `<svg class="scene" viewBox="0 0 1536 1024" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d1630"/><stop offset=".6" stop-color="#2a3557"/><stop offset="1" stop-color="#3b3a4a"/></linearGradient><radialGradient id="moon"><stop offset="0" stop-color="#fff7d6"/><stop offset=".25" stop-color="#fff2c0"/><stop offset="1" stop-color="#fff2c000"/></radialGradient></defs><rect width="1536" height="1024" fill="url(#sky)"/><circle cx="1050" cy="220" r="220" fill="url(#moon)" opacity=".5"/><circle cx="1050" cy="220" r="60" fill="#fff4cf"/><path d="M0 640 L200 520 L380 600 L560 480 L760 610 L980 500 L1200 590 L1536 470 L1536 1024 L0 1024Z" fill="#141a2a"/><rect x="0" y="760" width="1536" height="264" fill="#1d2840"/><ellipse cx="1050" cy="880" rx="90" ry="10" fill="#fff4cf" opacity=".5"/><rect x="180" y="600" width="140" height="170" fill="#0c0f18"/><polygon points="170,600 250,540 330,600" fill="#0c0f18"/><rect x="230" y="660" width="26" height="34" fill="#ffb24a"/><g fill="#e6ff8a"><circle class="ff" cx="420" cy="720" r="5"/><circle class="ff" cx="520" cy="690" r="4"/><circle class="ff" cx="1300" cy="730" r="5"/><circle class="ff" cx="1380" cy="700" r="4"/><circle class="ff" cx="610" cy="740" r="4"/><circle class="ff" cx="1220" cy="745" r="5"/></g><g class="patch" fill="#c9a24a"><rect x="700" y="700" width="60" height="70" rx="6"/><text x="730" y="745" font-size="22" text-anchor="middle" fill="#3a2a10">★</text></g></svg>`
+      document.querySelectorAll('.scene-slot').forEach((s) => {
+        s.outerHTML = SVG
+      })
+      document.querySelectorAll('.still .scene').forEach((s) => (s.style.animation = 'none'))
+    </script>
+  </body>
+</html>
