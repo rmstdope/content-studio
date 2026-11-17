@@ -387,7 +387,7 @@ export function MovementPanel({
       const now = latest.current[type.type]
       if (now) set({ ...latest.current, [type.type]: { ...now, spot, ...(mark && { mark }) } })
     })
-    focusSpotLink(type.type)
+    handFocusOn(() => spotLink(type.type))
   }
   /** Undo: the shapes and mark just taken away come back, saved at once. */
   const onUndo = (type: EffectType) => {
