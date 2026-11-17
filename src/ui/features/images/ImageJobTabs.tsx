@@ -34,6 +34,12 @@ const ICONS: Record<ImageJob, ReactNode> = {
       <rect x="9" y="9" width="11" height="11" rx="2" />
     </>
   ),
+  movement: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m10 9 5 3-5 3z" />
+    </>
+  ),
   areas: (
     <>
       <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />

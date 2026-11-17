@@ -2,7 +2,7 @@ import type { ImageRow, PatchRow } from '../core/images'
 import { IMAGE_STATUS_LABEL } from './imagesText'
 
 /** The jobs of an image's page, one tab each. */
-export type ImageJob = 'make' | 'fine-tune' | 'patches' | 'areas'
+export type ImageJob = 'make' | 'fine-tune' | 'patches' | 'areas' | 'movement'
 
 /** One tab of an image's page: its job, its name, its chip and whether work is running in it. */
 export interface JobTab {
@@ -26,7 +26,7 @@ export interface JobTabsInput {
   lockUnread: boolean
 }
 
-/** The tabs an image's page shows, in order; a job the game does not ask for has none. */
+/** The tabs an image's page shows, in order; Make, Fine-tune and Movement are on every image; Patches and Named areas only when the game asks for them. */
 export function imageJobTabs(input: JobTabsInput): JobTab[] {
   const { row } = input
   // The lock cannot be read: which take the game shows is not known, so Make and Patches say so.
@@ -76,6 +76,7 @@ export function imageJobTabs(input: JobTabsInput): JobTab[] {
       making: false,
     })
   }
+  tabs.push({ job: 'movement', title: 'Movement', chip: null, making: false })
   return tabs
 }
 
