@@ -1,0 +1,374 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Option A — fit to the window</title>
+    <style>
+      :root {
+        --bg: #06070c;
+        --panel: #10121a;
+        --edge: rgb(255 255 255/8%);
+        --raised: #191c24;
+        --line: rgb(255 255 255/7%);
+        --text: #eceef3;
+        --soft: #c7ccd6;
+        --muted: #a9b0bd;
+        --faint: #8a91a0;
+        --accent: #ff6b2c;
+        --accent-soft-bg: #2a1b12;
+        --accent-soft-ink: #ff9a6b;
+        --inset: #0b0c12;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.45 -apple-system,
+          system-ui,
+          sans-serif;
+      }
+      .app {
+        display: flex;
+        min-height: 100vh;
+      }
+      .sidebar {
+        flex: 0 0 212px;
+        padding: 16px 10px;
+        border-right: 1px solid var(--edge);
+        background: rgb(10 11 18/55%);
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .sidebar b {
+        display: block;
+        color: var(--text);
+        margin: 0 0 14px 6px;
+      }
+      .sidebar div {
+        padding: 6px 8px;
+        border-radius: 8px;
+      }
+      .sidebar .on {
+        background: var(--raised);
+        color: var(--text);
+      }
+      .content {
+        flex: 1;
+        min-width: 0;
+        padding: 20px 24px 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .note {
+        background: #1f1936;
+        color: #c4b5ff;
+        border: 1px dashed #5a4a9a;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 13px;
+      }
+      .note b {
+        color: #e2d9ff;
+      }
+      h1 {
+        margin: 0;
+        font-size: 22px;
+      }
+      h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+      h3 {
+        margin: 0;
+        font-size: 13px;
+        color: var(--soft);
+      }
+      .tabs {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .tab {
+        padding: 7px 14px;
+        border-radius: 9px;
+        background: var(--raised);
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .tab.on {
+        background: var(--accent-soft-bg);
+        color: var(--accent-soft-ink);
+        box-shadow: inset 0 0 0 1px #5a3218;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--edge);
+        border-radius: 14px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        container: panel/inline-size;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .faint {
+        color: var(--faint);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 8px;
+        background: rgb(16 18 26/80%);
+        color: var(--text);
+        border: 1px solid var(--line);
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .body {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 16px;
+        align-items: start;
+      }
+      @container panel (max-width:800px) {
+        .body {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+      .picture {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+      }
+      .frame {
+        position: relative;
+        width: 100%;
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--inset);
+        display: flex;
+        justify-content: center;
+      }
+      .stage {
+        position: relative;
+        overflow: hidden;
+        background: #111;
+      }
+      .zoom {
+        position: absolute;
+        inset: 0;
+        animation: drift 26s ease-in-out infinite alternate;
+      }
+      @keyframes drift {
+        from {
+          transform: scale(1);
+        }
+        to {
+          transform: scale(1.03) translate(-0.5%, -0.3%);
+        }
+      }
+      .zoom svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      .corner {
+        position: absolute;
+        bottom: 10px;
+      }
+      .corner.l {
+        left: 10px;
+      }
+      .corner.r {
+        right: 10px;
+      }
+      .side {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .sw {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+      }
+      .sw i {
+        width: 28px;
+        height: 16px;
+        border-radius: 9px;
+        background: #2a2e3a;
+        display: inline-block;
+        position: relative;
+      }
+      .sw i:after {
+        content: '';
+        position: absolute;
+        left: 2px;
+        top: 2px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #8a91a0;
+      }
+      .set {
+        font-size: 12px;
+        color: var(--faint);
+        margin: 2px 0 8px 36px;
+      }
+      .toggle {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        font-size: 13px;
+      }
+      .toggle button {
+        background: var(--raised);
+        color: var(--muted);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 4px 10px;
+        cursor: pointer;
+        font: inherit;
+        font-size: 12px;
+      }
+      .toggle button.on {
+        color: var(--accent-soft-ink);
+        background: var(--accent-soft-bg);
+      }
+      /* fit: stage height capped to the window; frame spans the column */
+      body.fit .stage {
+        height: min(var(--h), var(--room));
+        aspect-ratio: var(--ar);
+        max-width: 100%;
+      }
+      /* frame: 3:2 frame, picture fitted inside */
+      body.frame .frame {
+        aspect-ratio: 3/2;
+        align-items: center;
+      }
+      body.frame .stage {
+        height: 100%;
+        aspect-ratio: var(--ar);
+        max-width: 100%;
+      }
+    </style>
+  </head>
+  <body class="fit">
+    <div class="app">
+      <nav class="sidebar">
+        <b>Content Studio</b>
+        <div>Setup</div>
+        <div>Narration</div>
+        <div>Music</div>
+        <div class="on">Images</div>
+        <div>Sound effects</div>
+        <div>Scenes</div>
+      </nav>
+      <main class="content">
+        <div class="note">
+          <b>Option A — fit to the window.</b> The stage is never taller than the window leaves room
+          for. A tall picture shrinks, keeping its shape, and sits in the middle of the picture
+          column on a dark frame. A wide picture is unchanged unless the window is short. Try
+          resizing the window, and the Tall / Wide switch.
+        </div>
+        <div
+          class="row"
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+          "
+        >
+          <h1 id="title">Cellar door</h1>
+          <div class="toggle">
+            <span class="faint">Drawing only:</span
+            ><button id="tall" class="on">Tall picture</button
+            ><button id="wide">Wide picture</button>
+          </div>
+        </div>
+        <div class="tabs">
+          <span class="tab">Make</span><span class="tab">Fine-tune</span
+          ><span class="tab">Patches</span><span class="tab">Named areas</span
+          ><span class="tab on">Movement</span>
+        </div>
+        <section class="panel">
+          <div style="display: flex; gap: 10px; align-items: baseline">
+            <h2>Movement</h2>
+            <span class="muted" style="font-size: 13px">drawn by the project's renderer</span>
+          </div>
+          <div class="body">
+            <div class="picture">
+              <div class="frame">
+                <div class="stage" id="stage">
+                  <div class="zoom" id="pic"></div>
+                  <button class="btn corner l">❚❚ Pause</button
+                  ><button class="btn corner r">⛶ Full screen</button>
+                </div>
+              </div>
+              <div class="muted" style="font-size: 13px">
+                Take 3, as the game will show it. Space pauses · F for full screen.
+              </div>
+            </div>
+            <div class="side">
+              <div>
+                <h3>Patches</h3>
+                <div style="margin-top: 8px">
+                  <div class="sw"><i></i>Door ajar</div>
+                </div>
+              </div>
+              <div>
+                <h3>Effects</h3>
+                <p class="muted" style="font-size: 13px; margin: 6px 0 8px">
+                  The project's renderer has 2. Try them here; nothing is saved yet.
+                </p>
+                <div class="sw"><i></i>Dust</div>
+                <div class="set">Amount 0–3 (1) · Size 0–3 (1) · Speed 0–3 (1)</div>
+                <div class="sw"><i></i>Candle flicker</div>
+                <div class="set">Amount 0–3 (1) · Speed 0–3 (1)</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script>
+      const tall = `<svg viewBox="0 0 160 200" preserveAspectRatio="none"><rect width="160" height="200" fill="#2b2118"/><rect x="0" y="0" width="160" height="200" fill="url(#g)"/><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a2c1f"/><stop offset="1" stop-color="#140e09"/></linearGradient></defs>
+<path d="M40 190 V70 a40 40 0 0 1 80 0 V190Z" fill="#5a3a20" stroke="#1a1008" stroke-width="4"/><path d="M60 190V80M80 190V62M100 190V80" stroke="#3c2614" stroke-width="3"/><circle cx="108" cy="130" r="4" fill="#c9a24a"/><rect x="0" y="188" width="160" height="12" fill="#0d0906"/><circle cx="26" cy="60" r="7" fill="#ffcf70" opacity=".8"/></svg>`
+      const wide = `<svg viewBox="0 0 300 200" preserveAspectRatio="none"><rect width="300" height="200" fill="#1b2530"/><rect y="120" width="300" height="80" fill="#22301f"/><circle cx="230" cy="50" r="18" fill="#f2e3b0" opacity=".85"/><path d="M0 130 L60 80 L120 125 L190 70 L300 128 V200 H0Z" fill="#2c3a2a"/><rect x="120" y="105" width="50" height="40" fill="#4a3424"/><path d="M115 107 L145 82 L175 107Z" fill="#33221a"/></svg>`
+      function set(t) {
+        document.getElementById('pic').innerHTML = t ? tall : wide
+        const s = document.getElementById('stage').style
+        s.setProperty('--ar', t ? '160/200' : '3/2')
+        // natural height = column width / ar (for fit mode)
+        const w = document.querySelector('.frame').clientWidth
+        s.setProperty('--h', (t ? (w * 200) / 160 : (w * 2) / 3) + 'px')
+        const top = document.querySelector('.frame').getBoundingClientRect().top + scrollY
+        s.setProperty('--room', Math.max(240, innerHeight - top - 64) + 'px')
+        document.getElementById('title').textContent = t ? 'Cellar door' : 'Hillside'
+        document.getElementById('tall').classList.toggle('on', t)
+        document.getElementById('wide').classList.toggle('on', !t)
+        window._t = t
+      }
+      document.getElementById('tall').onclick = () => set(true)
+      document.getElementById('wide').onclick = () => set(false)
+      addEventListener('resize', () => set(window._t))
+      set(true)
+    </script>
+  </body>
+</html>
