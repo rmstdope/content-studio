@@ -1682,6 +1682,52 @@ describe('an image’s saved effects', () => {
     })
   })
 
+  describe('with a light mark', () => {
+    const pond = [
+      [0.1, 0.5],
+      [0.4, 0.5],
+      [0.25, 0.9],
+    ] as [number, number][]
+    const marked = {
+      on: true,
+      settings: { amount: 1 },
+      spot: [pond],
+      mark: [0.7, 0.1] as [number, number],
+    }
+
+    it('keep it after the spot, and read it back', () => {
+      const text = formatImageEdits(applyEffects({ images: {} }, 'inn', { dust: marked }))
+      expect(Object.keys(JSON.parse(text).images.inn.effects.dust)).toEqual([
+        'on',
+        'settings',
+        'spot',
+        'mark',
+      ])
+      const read = readImageEditsValue(JSON.parse(text), 'edits.json')
+      expect(read.problems).toEqual([])
+      expect(read.edits.images.inn?.effects?.dust).toEqual(marked)
+    })
+
+    it('drop only that image for a mark off the picture', () => {
+      const read = readImageEditsValue(
+        { images: { inn: { effects: { dust: { ...marked, mark: [1.2, 0.5] } } } } },
+        'edits.json',
+      )
+      expect(read.edits.images).toEqual({})
+      expect(read.problems[0]?.path).toStartWith('images.inn.effects.dust.mark')
+    })
+
+    it('go to the game with the spot, and never without one', () => {
+      expect(effectsForGame({ dust: marked })).toEqual([
+        { kind: 'dust', settings: { amount: 1 }, spot: [pond], mark: [0.7, 0.1] },
+      ])
+      const { spot: _gone, ...noSpot } = marked
+      expect('mark' in effectsForGame({ dust: noSpot })[0]!).toBe(false)
+      const { mark: _m, ...unmoved } = marked
+      expect('mark' in effectsForGame({ dust: unmoved })[0]!).toBe(false)
+    })
+  })
+
   it('set or take away the manifest entry’s effects, keeping its other fields', () => {
     const entry: Record<string, unknown> = {
       file: 'inn.png',

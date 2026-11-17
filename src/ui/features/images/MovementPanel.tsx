@@ -6,7 +6,7 @@ import {
   useState,
   type CSSProperties,
 } from 'react'
-import type { ImageRow, SavedEffects, SpotShape } from '../../../core/images'
+import type { ImageRow, SavedEffects, SpotMark, SpotShape } from '../../../core/images'
 import {
   effectPlays,
   effectValues,
@@ -16,7 +16,7 @@ import {
   type EffectSetting,
   type EffectType,
 } from '../../../core/motion'
-import { addShape, dropShape } from '../../../core/spot'
+import { addShape, dropShape, middleOf, nudgeMark } from '../../../core/spot'
 import { useImagePatches, useMotionRenderer, useSetImageEffects } from '../../api'
 import { IMAGE_TAKE_UNKNOWN } from '../../imagesText'
 import {
@@ -38,6 +38,7 @@ import {
 import { MotionStage, type StageEffect } from './MotionStage'
 import { movementRoom } from './movementRoom'
 import { SpotOverlay } from './SpotOverlay'
+import { off } from '../../off'
 import { useJobOpen } from './ImageJobTabs'
 import { typingIn } from './useWorkbenchKeys'
 
@@ -275,7 +276,7 @@ export function MovementPanel({
     setLeftOut(null)
     const was = latest.current[type.type]
     if (!was) return
-    const { spot: _gone, ...rest } = was
+    const { spot: _gone, mark: _mark, ...rest } = was
     set({ ...latest.current, [type.type]: rest })
     persist(true)
     focusSpotLink(type.type)
@@ -331,8 +332,15 @@ export function MovementPanel({
     setLeftOut((was) => (was === type ? null : was))
     const was = latest.current[type]
     if (!was) return
-    const { spot: _old, ...rest } = was
-    set({ ...latest.current, [type]: spot ? { ...rest, spot } : rest })
+    const { spot: _old, mark, ...rest } = was
+    set({ ...latest.current, [type]: spot ? { ...rest, spot, ...(mark && { mark }) } : rest })
+  }
+  /** Sets where an effect's light comes from (none: the middle of its shapes) in the effects; saving is the caller's. */
+  const setMark = (type: string, mark: SpotMark | undefined) => {
+    const was = latest.current[type]
+    if (!was) return
+    const { mark: _old, ...rest } = was
+    set({ ...latest.current, [type]: mark ? { ...rest, mark } : rest })
   }
   // Leaving the tab finishes drawing.
   useEffect(() => {
@@ -353,6 +361,23 @@ export function MovementPanel({
     document.addEventListener('keydown', listen)
     return () => document.removeEventListener('keydown', listen)
   }, [drawing === null, finish]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Alt with the arrows nudges the light's mark, each press saved.
+  useEffect(() => {
+    if (!drawing) return
+    const listen = (event: KeyboardEvent) => {
+      if (!event.altKey || event.metaKey || event.ctrlKey || typingIn(event.target)) return
+      const now = drawingRef.current
+      const saved = now && latest.current[now.type]
+      if (!now || now.placing || now.confirm || !saved?.spot?.length) return
+      const next = nudgeMark(saved.mark ?? middleOf(saved.spot), event.key)
+      if (!next) return
+      event.preventDefault()
+      setMark(now.type, next)
+      persist(true)
+    }
+    document.addEventListener('keydown', listen)
+    return () => document.removeEventListener('keydown', listen)
+  }, [drawing === null]) // eslint-disable-line react-hooks/exhaustive-deps
   // The bar's first button takes focus whenever the bar changes what it asks.
   const barMode =
     drawing === null ? null : drawing.confirm ? 'ask' : drawing.placing ? 'place' : 'draw'
@@ -430,8 +455,13 @@ export function MovementPanel({
           // In the order the game is given them (by kind), so the layers stack the same.
           .sort((a, b) => (a.type < b.type ? -1 : 1))
           .map((t) => {
-            const { settings, spot } = effects[t.type]!
-            return { kind: t.type, settings: effectValues(t, settings), ...(spot && { spot }) }
+            const { settings, spot, mark } = effects[t.type]!
+            return {
+              kind: t.type,
+              settings: effectValues(t, settings),
+              ...(spot && { spot }),
+              ...(spot && mark && { mark }),
+            }
           })
       : []
   // The count is the renderer's effects that are on, tied to a patch or not, playing now or not.
@@ -569,6 +599,22 @@ export function MovementPanel({
                 {SPOT_WORDS.deleteShape}
               </button>
             )}
+            {!drawing.placing && spotOf(drawing.type).length > 0 && (
+              <button
+                type="button"
+                className="btn"
+                {...off(
+                  latest.current[drawing.type]?.mark === undefined && SPOT_WORDS.alreadyMiddle,
+                )}
+                onClick={() => {
+                  if (latest.current[drawing.type]?.mark === undefined) return
+                  setMark(drawing.type, undefined)
+                  persist(true)
+                }}
+              >
+                {SPOT_WORDS.lightFromMiddle}
+              </button>
+            )}
             <button type="button" className="btn btn-primary" onClick={() => finish(true)}>
               {SPOT_WORDS.finish}
             </button>
@@ -577,6 +623,12 @@ export function MovementPanel({
       </div>
     ) : null
   const peeked = peek && effects[peek]?.on ? effects[peek]?.spot : undefined
+  const peekedMark = peek && effects[peek]?.on && peeked ? (effects[peek]?.mark ?? null) : null
+  const drawnSpot = drawing ? spotOf(drawing.type) : []
+  const drawnMark =
+    !drawing || drawnSpot.length === 0
+      ? null
+      : (latest.current[drawing.type]?.mark ?? middleOf(drawnSpot))
   const overlay =
     drawing || peeked ? (
       <SpotOverlay
@@ -586,6 +638,8 @@ export function MovementPanel({
         placing={drawing?.placing ?? null}
         onPick={(picked) => drawing && draw({ ...drawing, picked })}
         onPlace={(placing) => drawing && draw({ ...drawing, placing })}
+        mark={drawing ? drawnMark : peekedMark}
+        onMark={(mark) => drawing && setMark(drawing.type, mark)}
         onClose={closed}
         onChange={(spot) => drawing && setSpot(drawing.type, spot)}
         onCommit={() => persist(true)}

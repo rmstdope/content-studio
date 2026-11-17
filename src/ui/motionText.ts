@@ -93,6 +93,8 @@ export const SPOT_WORDS = {
   clear: 'Clear',
   addShape: '＋ Add a shape',
   deleteShape: 'Delete this shape',
+  lightFromMiddle: 'Light from the middle',
+  alreadyMiddle: 'The light already comes from the middle of the shapes.',
   finish: 'Finish',
   keep: 'Keep it',
   delete: 'Delete',
@@ -102,18 +104,22 @@ export const SPOT_WORDS = {
     "Couldn't save the spot: the image edits file can't be written. Your shape is still on the picture.",
 } as const
 
-/** The spot line of an effect's row: the whole picture, or how many shapes, and whether it is being drawn or kept off. */
-export function spotLine(shapes: number, state: 'plain' | 'drawing' | 'off' = 'plain'): string {
+/** The spot line of an effect's row: the whole picture, or how many shapes, whether its light's mark was moved, and whether it is being drawn or kept off. */
+export function spotLine(
+  shapes: number,
+  state: 'plain' | 'drawing' | 'off' = 'plain',
+  marked = false,
+): string {
   const what = shapes === 0 ? 'the whole picture' : `${shapes} ${shapes === 1 ? 'shape' : 'shapes'}`
   const tail = state === 'drawing' ? ' · drawing now' : state === 'off' ? ' (kept while off)' : ''
-  return `Spot: ${what}${tail}`
+  return `Spot: ${what}${marked ? ', light from a marked point' : ''}${tail}`
 }
 
 /** What the bar above the picture says while a spot is being drawn: its bold lead and the rest. */
 export function drawingBar(name: string): { lead: string; rest: string } {
   return {
     lead: `Drawing the spot for ${name}.`,
-    rest: ' Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it.',
+    rest: ' Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it. Drag the ● to where the light comes from, or press Alt and the arrows.',
   }
 }
 

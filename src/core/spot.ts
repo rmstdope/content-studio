@@ -1,4 +1,4 @@
-import type { SpotShape } from './images'
+import type { SpotMark, SpotShape } from './images'
 
 /** A number held to the picture (0 to 1) and to four decimals, as a saved corner is. */
 export function clampUnit(n: number): number {
@@ -50,4 +50,29 @@ export function replaceShape(
 export function dropShape(spot: readonly SpotShape[], at: number): SpotShape[] | undefined {
   const rest = spot.filter((_, i) => i !== at)
   return rest.length ? rest : undefined
+}
+
+/** How far an arrow key moves the light's mark, as a fraction of the picture. */
+export const MARK_STEP = 0.01
+
+/** The middle of the box around every corner of every shape: where a mark never moved is drawn. */
+export function middleOf(spot: readonly SpotShape[]): SpotMark {
+  const corners = spot.flat()
+  const xs = corners.map(([x]) => x)
+  const ys = corners.map(([, y]) => y)
+  return [
+    clampUnit((Math.min(...xs) + Math.max(...xs)) / 2),
+    clampUnit((Math.min(...ys) + Math.max(...ys)) / 2),
+  ]
+}
+
+/** The light's mark at the point, which is held to the picture. */
+export function moveMark(x: number, y: number): SpotMark {
+  return [clampUnit(x), clampUnit(y)]
+}
+
+/** The mark moved by `MARK_STEP` for an arrow key, held to the picture; null for any other key. */
+export function nudgeMark(from: SpotMark, key: string): SpotMark | null {
+  const by = { ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowDown: [0, 1], ArrowUp: [0, -1] }[key]
+  return by ? moveMark(from[0] + by[0]! * MARK_STEP, from[1] + by[1]! * MARK_STEP) : null
 }

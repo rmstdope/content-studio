@@ -241,6 +241,23 @@ describe('the images routes', () => {
     expect((await send('PUT', '/api/images/ghost/effects', { effects: {} })).status).toBe(404)
   })
 
+  it('keeps an effect’s light mark through the effects route, refusing one off the picture', async () => {
+    const path = '/api/images/inn/effects'
+    const spot = [
+      [
+        [0.1, 0.1],
+        [0.5, 0.1],
+        [0.3, 0.6],
+      ],
+    ]
+    const dust = { on: true, settings: { amount: 1.5 }, spot, mark: [0.8, 0.05] }
+    expect(await (await send('PUT', path, { effects: { dust } })).json()).toEqual({ ok: true })
+    expect((await summary()).acts[0].rows[0].effects).toEqual({ dust })
+    expect(
+      (await send('PUT', path, { effects: { dust: { ...dust, mark: [1.5, 0] } } })).status,
+    ).toBe(400)
+  })
+
   it('keeps an effect’s tie to a patch through the effects route', async () => {
     const path = '/api/images/inn/effects'
     const dust = { on: true, settings: { amount: 1.5 }, patch: 'star', patchTitle: 'The star' }

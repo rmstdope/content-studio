@@ -1,12 +1,22 @@
 import { useEffect, useId, useRef, useState, type PointerEvent, type MouseEvent } from 'react'
-import type { SpotShape } from '../../../core/images'
-import { clampUnit, moveCorner, removeCorner, replaceShape, shapeAt } from '../../../core/spot'
+import type { SpotMark, SpotShape } from '../../../core/images'
+import {
+  clampUnit,
+  moveCorner,
+  moveMark,
+  removeCorner,
+  replaceShape,
+  shapeAt,
+} from '../../../core/spot'
 
 /** How near, in screen pixels, a press must be to a corner to take it. */
 const GRAB = 10
 /** The radius, in screen pixels, of the picked shape's corner dots and of the first corner of a new shape. */
 const DOT = 6
 const FIRST = 9
+/** The radii, in screen pixels, of the light's mark: its dot and the dashed ring round it. */
+const MARK_DOT = 5
+const MARK_RING = 11
 
 /** What the overlay shows and how a person's presses on it are reported. */
 export interface SpotOverlayProps {
@@ -24,6 +34,10 @@ export interface SpotOverlayProps {
   onPlace: (corners: [number, number][]) => void
   /** The first corner was clicked with three or more placed: the shape is closed. */
   onClose: (shape: SpotShape) => void
+  /** Where the light's mark is drawn (drawing; null: no mark yet) or, when it was moved, the small dot shown (looking). */
+  mark: SpotMark | null
+  /** The mark was dragged to a place. */
+  onMark: (mark: SpotMark) => void
   /** The shapes changed (a corner moved or taken out). */
   onChange: (spot: SpotShape[]) => void
   /** The change is done and should be kept (a corner let go of or taken out). */
@@ -49,6 +63,9 @@ export function SpotOverlay(props: SpotOverlayProps) {
     moved: boolean
     from: [number, number]
   } | null>(null)
+  const markDrag = useRef<{ moved: boolean; from: [number, number]; at: [number, number] } | null>(
+    null,
+  )
 
   useEffect(() => {
     const element = root.current
@@ -91,6 +108,15 @@ export function SpotOverlay(props: SpotOverlayProps) {
       now.onPlace([...now.placing, [clampUnit(x), clampUnit(y)]])
       return
     }
+    if (now.mark && cornerAt([now.mark], [x, y]) === 0) {
+      markDrag.current = { moved: false, from: [event.clientX, event.clientY], at: [x, y] }
+      try {
+        root.current?.setPointerCapture?.(event.pointerId)
+      } catch {
+        // A pointer that is already gone cannot be captured; the drag still follows the events it gets.
+      }
+      return
+    }
     if (now.picked !== null && now.spot[now.picked]) {
       const corner = cornerAt(now.spot[now.picked]!, [x, y])
       if (corner !== null) {
@@ -114,7 +140,16 @@ export function SpotOverlay(props: SpotOverlayProps) {
     const now = latest.current
     const [x, y] = at(event)
     const dragging = drag.current
-    if (dragging) {
+    const marking = markDrag.current
+    if (marking) {
+      if (
+        !marking.moved &&
+        Math.hypot(event.clientX - marking.from[0], event.clientY - marking.from[1]) < 3
+      )
+        return
+      marking.moved = true
+      now.onMark(moveMark(x, y))
+    } else if (dragging) {
       if (
         !dragging.moved &&
         Math.hypot(event.clientX - dragging.from[0], event.clientY - dragging.from[1]) < 3
@@ -134,8 +169,13 @@ export function SpotOverlay(props: SpotOverlayProps) {
   }
   const up = () => {
     const dragging = drag.current
+    const marking = markDrag.current
     drag.current = null
-    if (dragging?.moved) latest.current.onCommit()
+    markDrag.current = null
+    if (dragging?.moved || marking?.moved) latest.current.onCommit()
+    // A press on the mark that goes nowhere is a click on the picture under it.
+    else if (marking)
+      latest.current.onPick(shapeAt(latest.current.spot, marking.at[0], marking.at[1]))
   }
   const twice = (event: MouseEvent<HTMLDivElement>) => {
     const now = latest.current
@@ -189,6 +229,20 @@ export function SpotOverlay(props: SpotOverlayProps) {
           spot[picked]?.map((corner, i) => (
             <circle key={i} className="spot-corner" cx={corner[0] * w} cy={corner[1] * h} r={DOT} />
           ))}
+        {!drawing && props.mark && (
+          <circle className="spot-peek-mark" cx={props.mark[0] * w} cy={props.mark[1] * h} r={4} />
+        )}
+        {drawing && props.mark && (
+          <g data-at={`${props.mark[0]},${props.mark[1]}`} className="spot-mark">
+            <circle
+              className="spot-mark-ring"
+              cx={props.mark[0] * w}
+              cy={props.mark[1] * h}
+              r={MARK_RING}
+            />
+            <circle cx={props.mark[0] * w} cy={props.mark[1] * h} r={MARK_DOT} />
+          </g>
+        )}
         {drawing && placing && placing.length > 0 && (
           <>
             <polyline className="spot-placing" points={points(placing)} />

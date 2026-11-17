@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
-import type { SpotShape } from '../../../core/images'
+import type { SpotMark, SpotShape } from '../../../core/images'
 import type { MotionModule, MotionScene } from '../../motionModule'
 
 /** How far a held scene is moved on to finish a fade at once, in milliseconds. */
@@ -19,6 +19,8 @@ export interface StageEffect {
   settings: Record<string, number>
   /** The shapes it plays inside, as fractions of the picture; none: the whole picture. */
   spot?: SpotShape[]
+  /** Where its light comes from, with a spot; none: the middle of the shapes. */
+  mark?: SpotMark
 }
 
 /**

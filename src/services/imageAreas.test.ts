@@ -185,4 +185,23 @@ describe('syncImageEntries and the effects', () => {
     expect(await run(['inn'])).toEqual({ ok: true })
     expect(read()).toEqual({ inn: entry })
   })
+
+  it('passes an effect’s light mark to the game with its spot', async () => {
+    const spot = [
+      [
+        [0.1, 0.1],
+        [0.5, 0.1],
+        [0.3, 0.6],
+      ],
+    ]
+    const dust = { on: true, settings: { amount: 1 }, spot, mark: [0.8, 0.05] }
+    const { run, read } = repo({
+      [MANIFEST]: { inn: entry },
+      [EDITS]: { images: { inn: { effects: { dust } } } },
+    })
+    expect(await run(['inn'])).toEqual({ ok: true })
+    expect(read().inn.effects).toEqual([
+      { kind: 'dust', settings: { amount: 1 }, spot, mark: [0.8, 0.05] },
+    ])
+  })
 })
