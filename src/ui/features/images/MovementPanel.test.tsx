@@ -1656,7 +1656,7 @@ describe('the spot line of an effect', () => {
     await click(linkIn(rowOf(host, 'Dust'), "Back to the game's"))
     expect(puts.at(-1)!.effects.dust).toEqual(saved({ amount: 1 }))
     expect(spotLineOf(host, 'Dust')).toBe(
-      "Spot: the game's — the game doesn't say whereDraw your own Your shape was removed.Undo",
+      "Spot: the game's — the game doesn't say whereDraw your own · Your shape was removed.Undo",
     )
   })
 
@@ -2724,7 +2724,7 @@ describe('the game’s shape of an effect', () => {
       effects: { fire: named('fire', 'Fire', [POND]) },
     })
     expect(spotLineOf(host, 'Fire')).toBe(
-      "Spot: the game's — this effect can't be moved in the studio A shape drawn earlier is kept but not used.Remove it",
+      "Spot: the game's — this effect can't be moved in the studio. A shape drawn earlier is kept but not used.Remove it",
     )
     expect(linkIn(rowOf(host, 'Fire'), 'Draw your own')).toBeUndefined()
     // A save marks it, so the shape stays in the studio's edits but is not exported.
@@ -2733,7 +2733,7 @@ describe('the game’s shape of an effect', () => {
     expect(puts.at(-1)!.effects.fire).toMatchObject({ spot: [POND], fixed: true })
     await click(linkIn(rowOf(host, 'Fire'), 'Remove it'))
     expect(puts.at(-1)!.effects.fire).toEqual({ ...named('fire', 'Fire'), fixed: true })
-    expect(spotLineOf(host, 'Fire')).toContain('Your shape was removed.Undo')
+    expect(spotLineOf(host, 'Fire')).toContain(' · Your shape was removed.Undo')
   })
 
   it('hands the renderer no shape for the game’s own, and none for an effect it cannot move', async () => {
@@ -2853,7 +2853,7 @@ describe('the game’s shape of an effect', () => {
     await click(linkIn(rowOf(host, 'Dust'), "Back to the game's"))
     expect(puts.at(-1)!.effects.dust).toEqual(named('dust', 'Dust'))
     expect(spotLineOf(host, 'Dust')).toBe(
-      "Spot: the game'sDraw your own Your shape was removed.Undo",
+      "Spot: the game'sDraw your own · Your shape was removed.Undo",
     )
     await click(linkIn(rowOf(host, 'Dust'), 'Undo'))
     expect(puts.at(-1)!.effects.dust).toEqual({
@@ -2937,7 +2937,7 @@ describe('the game’s shape of an effect', () => {
       effects: { fire: { ...named('fire', 'Fire', [POND]), on: false } },
     })
     expect(spotLineOf(host, 'Fire')).toBe(
-      "Spot: the game's — this effect can't be moved in the studio (kept while off) A shape drawn earlier is kept but not used.",
+      "Spot: the game's — this effect can't be moved in the studio (kept while off). A shape drawn earlier is kept but not used.",
     )
   })
 

@@ -147,7 +147,7 @@ function SpotLine({
     return view.who === 'own' || (view.who === 'fixed' && view.kept) ? (
       <p className="movement-spot muted">
         {spotLine(view, 'off')}
-        {view.who === 'fixed' && <span> {SPOT_WORDS.keptNotUsed}</span>}
+        {view.who === 'fixed' && <span>{SPOT_WORDS.keptNotUsed}</span>}
       </p>
     ) : null
   }
@@ -179,13 +179,13 @@ function SpotLine({
         {links && view.who === 'own' && link(SPOT_WORDS.change, () => spot.onDraw(type))}
         {links && view.who === 'own' && link(SPOT_WORDS.back, () => spot.onBack(type))}
         {view.who === 'fixed' && view.kept && (
-          <span className="movement-spot-note"> {SPOT_WORDS.keptNotUsed}</span>
+          <span className="movement-spot-note">{SPOT_WORDS.keptNotUsed}</span>
         )}
         {links &&
           view.who === 'fixed' &&
           view.kept &&
           link(SPOT_WORDS.removeIt, () => spot.onBack(type))}
-        {undone && <span className="movement-spot-note"> {SPOT_WORDS.removed}</span>}
+        {undone && <span className="movement-spot-note">{SPOT_WORDS.removed}</span>}
         {undone && link(SPOT_WORDS.undo, () => spot.onUndo(type))}
       </p>
       {links && why && <p className="movement-spot-why muted">{why}</p>}
