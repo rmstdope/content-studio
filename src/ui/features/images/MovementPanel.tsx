@@ -6,13 +6,7 @@ import {
   useState,
   type CSSProperties,
 } from 'react'
-import type {
-  ImageRow,
-  SavedEffects,
-  SavedZoom,
-  SpotMark,
-  SpotShape,
-} from '../../../core/images'
+import type { ImageRow, SavedEffects, SavedZoom, SpotMark, SpotShape } from '../../../core/images'
 import { zoomLook, zoomValues } from '../../../core/zoom'
 import {
   effectPlays,

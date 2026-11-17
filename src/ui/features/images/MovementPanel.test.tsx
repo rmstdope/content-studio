@@ -1057,7 +1057,9 @@ describe('the effects in full screen', () => {
         },
         onEffectsOn: (c) => counts.push(c),
       })
-      expect(host.querySelector('.movement-side [aria-label="Effects"] h3')!.textContent).toBe('Effects')
+      expect(host.querySelector('.movement-side [aria-label="Effects"] h3')!.textContent).toBe(
+        'Effects',
+      )
       expect(text(host)).toContain(
         'Saved for the game: Fireflies, Pond ripples, Dust. They can be changed once the images lock can be read.',
       )
@@ -1069,7 +1071,9 @@ describe('the effects in full screen', () => {
 
     it('says so when no effects are saved, keeping the Effects heading', async () => {
       const { host } = await render({ lockUnread: true })
-      expect(host.querySelector('.movement-side [aria-label="Effects"] h3')!.textContent).toBe('Effects')
+      expect(host.querySelector('.movement-side [aria-label="Effects"] h3')!.textContent).toBe(
+        'Effects',
+      )
       expect(text(host)).toContain(
         'None are saved for the game. Effects can be put in once the images lock can be read.',
       )
