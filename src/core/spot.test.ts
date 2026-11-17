@@ -54,14 +54,15 @@ describe('a spot’s geometry', () => {
   })
 
   it('takes a corner out, but never leaves fewer than three', () => {
-    expect(removeCorner(sq, 1)).toEqual([sq[0], sq[2], sq[3]])
+    expect(removeCorner(sq, 1)).toEqual([sq[0]!, sq[2]!, sq[3]!])
     expect(removeCorner(tri, 1)).toBe(null)
   })
 
   it('adds, replaces and drops shapes; no shape left is no spot', () => {
     expect(addShape(undefined, tri)).toEqual([tri])
     expect(addShape([tri], sq)).toEqual([tri, sq])
-    expect(replaceShape([tri, sq], 0, removeCorner(sq, 0)!)).toEqual([removeCorner(sq, 0), sq])
+    const three = removeCorner(sq, 0)!
+    expect(replaceShape([tri, sq], 0, three)).toEqual([three, sq])
     expect(dropShape([tri, sq], 0)).toEqual([sq])
     expect(dropShape([tri], 0)).toBeUndefined()
   })
