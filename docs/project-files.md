@@ -204,9 +204,20 @@ effects and scenes are the same in every language, so their paths never do.
 | ------------------- | ------------------------------------------------------------------------------------------------------ | -------- |
 | `from.part`         | Each part's images. An image several parts list is one image.                                          | required |
 | `model`             | The image model takes are made with: `klein`, `z-image-turbo` or `qwen-image`; a take can use another. | `klein`  |
+| `motion`            | The game's motion renderer, a module in the project (see below). Read only.                            | none     |
 | `clips`, `manifest` | Where the chosen pictures go, one `<id>.png` each, and a chosen patch's `<id>.<patch>.png` beside it.  | required |
 
 The look every image shares is the studio's own, in the images edits (below).
+
+**The motion renderer.** `motion` is a path inside the project to a TypeScript or JavaScript module
+that the studio bundles in memory (with what it imports, all inside the project) and runs in the
+browser on an image's Movement tab, so an image moves as the game shows it. The module exports
+`EFFECT_TYPES`, a list of `{ type, title, spot, settings: [{ id, title, min, max, step, default }] }`
+(each `type` once, each `default` between `min` and `max`), and `createMotionScene()`, which returns
+a scene: `resize(width, height, { width, height })` (the canvas, and the picture's own size),
+`setEffects(specs, instant)` with `specs` of `{ kind, settings? }`, `step(ms)`, `draw(ctx)` and
+`isEmpty()`. The studio draws the slow zoom itself. Without `motion` the Movement tab says the
+project names no renderer.
 
 The manifest lists each chosen image as `"cottage": { "file": "cottage.png", "width": 640, "height": 400 }`.
 When a take of one of its patches is chosen, the entry also has `patches`, keyed by patch id and

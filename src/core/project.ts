@@ -252,6 +252,18 @@ const ImagesSchema = z.object({
   }),
   /** The image model new takes are made with unless an image asks for the other; absent is FLUX.2 klein. */
   model: z.enum(IMAGE_MODEL_IDS).optional(),
+  /**
+   * The game's motion renderer: a module in the project (TypeScript or JavaScript) that exports
+   * `EFFECT_TYPES` and `createMotionScene`, which the studio loads to show an image moving. Read
+   * only, with what it imports.
+   */
+  motion: z
+    .string()
+    .min(1)
+    .refine((path) => !path.includes('{part}') && !path.includes('{language}'), {
+      error: 'must not contain {part} or {language}: it is one module for the whole game',
+    })
+    .optional(),
   /** The folder the game's chosen images are written to, one `<id>.png` each. */
   clips: imagesPath,
   /** What the game reads: `{ image: { file, width, height } }`, in the clips folder. */
