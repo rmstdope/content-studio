@@ -46,6 +46,7 @@
     "from": {
       "part": "tts/{part}/images.json"
     },
+    "motion": "web/motion/renderer.ts",
     "clips": "web/public/images/generated",
     "manifest": "web/public/images/generated/manifest.json"
   },

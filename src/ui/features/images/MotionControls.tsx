@@ -2,6 +2,7 @@ import type { EffectType } from '../../../core/motion'
 import { settingsLine } from '../../../core/motion'
 import { MOVEMENT_WORDS, effectsCount, patchNoTake } from '../../motionText'
 import type { MotionState } from '../../api/images'
+import { off } from '../../off'
 
 /** A patch of the image as the controls list it: its title and where its chosen take's picture is, if it has one. */
 export interface MovementPatch {
@@ -23,16 +24,17 @@ export interface MotionControlsProps {
   hasPicture: boolean
 }
 
-/** One switch with its label, which cannot be changed while `disabled`. */
+/** One switch with its label, which cannot be changed while it has a `why`. */
 function Switch({
   label,
   checked,
-  disabled,
+  why,
   onChange,
 }: {
   label: string
   checked: boolean
-  disabled?: boolean
+  /** Why the switch cannot be changed, or false when it can. */
+  why: string | false
   onChange: (on: boolean) => void
 }) {
   return (
@@ -40,8 +42,10 @@ function Switch({
       <input
         type="checkbox"
         checked={checked}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.checked)}
+        {...off(why)}
+        onChange={(event) => {
+          if (!why) onChange(event.target.checked)
+        }}
       />
       <span>{label}</span>
     </label>
@@ -52,17 +56,17 @@ function Switch({
 function EffectRow({
   type,
   on,
-  disabled,
+  why,
   onChange,
 }: {
   type: EffectType
   on: boolean
-  disabled: boolean
+  why: string | false
   onChange: (on: boolean) => void
 }) {
   return (
     <li className="movement-effect">
-      <Switch label={type.title} checked={on} disabled={disabled} onChange={onChange} />
+      <Switch label={type.title} checked={on} why={why} onChange={onChange} />
       {type.settings.length > 0 && <span className="movement-settings">{settingsLine(type)}</span>}
     </li>
   )
@@ -71,6 +75,7 @@ function EffectRow({
 /** The Patches and Effects groups of the Movement tab: the side column and the full-screen panel. */
 export function MotionControls(props: MotionControlsProps) {
   const { patches, motion } = props
+  const waiting = !props.hasPicture && 'Choose a take on Make first: there is no picture to move'
   return (
     <div className="movement-groups">
       {patches !== null && patches.length > 0 && (
@@ -83,7 +88,7 @@ export function MotionControls(props: MotionControlsProps) {
                   <Switch
                     label={patch.title}
                     checked={props.patchesOn.has(patch.id)}
-                    disabled={!props.hasPicture}
+                    why={waiting}
                     onChange={(on) => props.onPatch(patch.id, on)}
                   />
                 ) : (
@@ -112,7 +117,7 @@ export function MotionControls(props: MotionControlsProps) {
                   key={type.type}
                   type={type}
                   on={props.effectsOn.has(type.type)}
-                  disabled={!props.hasPicture}
+                  why={waiting}
                   onChange={(on) => props.onEffect(type.type, on)}
                 />
               ))}
