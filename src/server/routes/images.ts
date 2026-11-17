@@ -7,6 +7,7 @@ import {
   setImageActStyle,
   setImageActStylePick,
   setImageAreaBox,
+  setImageEffects,
   setImagePatchWords,
   setImageWords,
   setStyleField,
@@ -18,7 +19,7 @@ import { readMotionRenderer } from '../../services/motionRenderer'
 import type { RouteContext } from '../context'
 import { makeAllRoutes } from '../makeAllRoutes'
 import { takeListRoutes } from '../takeRoutes'
-import { AreaBoxBody, imageAnswer, fileRoute, notFound } from '../shared'
+import { AreaBoxBody, EffectsBody, imageAnswer, fileRoute, notFound } from '../shared'
 
 /** The images routes. */
 export function imagesRoutes(c: RouteContext) {
@@ -81,6 +82,18 @@ export function imagesRoutes(c: RouteContext) {
         }
         const { id, area } = request.params
         return imageAnswer(await setImageAreaBox(projectFile, id, area, body.data.box))
+      }),
+    },
+    '/api/images/:id/effects': {
+      PUT: fromOwnPage(async (request) => {
+        const body = EffectsBody.safeParse(await request.json().catch(() => null))
+        if (!body.success) {
+          return Response.json(
+            { error: 'expected { effects: { [type]: { on, settings } } }' },
+            { status: 400 },
+          )
+        }
+        return imageAnswer(await setImageEffects(projectFile, request.params.id, body.data.effects))
       }),
     },
     '/api/images/:id/game-patches/:patch/compare': {

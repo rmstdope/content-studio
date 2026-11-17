@@ -66,6 +66,14 @@ export const AreaBoxBody = z.object({
     .nullable(),
 })
 
+/** The effects of an image as the page saves them: the whole set, by effect type; an empty one takes them all away. */
+export const EffectsBody = z.object({
+  effects: z.record(
+    z.string(),
+    z.object({ on: z.boolean(), settings: z.record(z.string(), z.number().finite()) }),
+  ),
+})
+
 /** The answer to a change of the studio's image words: 404 for an unknown image, 409 with the reason. */
 export function imageAnswer(
   result:

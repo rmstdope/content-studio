@@ -127,6 +127,7 @@ describe('the images routes', () => {
       ['PATCH', '/api/images/inn/game-patches/lamp-lit', { words: 'x' }],
       ['POST', '/api/images/inn/game-patches/lamp-lit/compare', { choice: 'keep' }],
       ['PUT', '/api/images/inn/areas/sign', { box: null }],
+      ['PUT', '/api/images/inn/effects', { effects: {} }],
     ] as const) {
       expect((await send(method, path, body, 'https://evil.example')).status).toBe(403)
     }
@@ -202,6 +203,20 @@ describe('the images routes', () => {
     expect((await send('PUT', path, {})).status).toBe(400)
     expect((await send('PUT', '/api/images/inn/areas/ghost', { box })).status).toBe(404)
     expect((await send('PUT', '/api/images/ghost/areas/sign', { box })).status).toBe(404)
+  })
+
+  it('saves an image’s effects as a whole set, refusing what is not one', async () => {
+    const path = '/api/images/inn/effects'
+    const dust = { on: true, settings: { amount: 1.5 } }
+    expect(await (await send('PUT', path, { effects: { dust } })).json()).toEqual({ ok: true })
+    expect((await summary()).acts[0].rows[0].effects).toEqual({ dust })
+    expect(await (await send('PUT', path, { effects: {} })).json()).toEqual({ ok: true })
+    expect((await summary()).acts[0].rows[0].effects).toEqual({})
+    expect(
+      (await send('PUT', path, { effects: { dust: { on: 'yes', settings: {} } } })).status,
+    ).toBe(400)
+    expect((await send('PUT', path, {})).status).toBe(400)
+    expect((await send('PUT', '/api/images/ghost/effects', { effects: {} })).status).toBe(404)
   })
 
   it('saves an image leaving its act’s style out, refuses a bad body and an unknown image', async () => {
