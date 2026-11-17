@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ImageRow, SavedEffects } from '../../../core/images'
+import type { ImageRow, SavedEffects, SpotShape } from '../../../core/images'
 import {
   effectValues,
   startSettings,
   type EffectSetting,
   type EffectType,
 } from '../../../core/motion'
+import { addShape, dropShape } from '../../../core/spot'
 import { useImagePatches, useMotionRenderer, useSetImageEffects } from '../../api'
 import {
   MOVEMENT_WORDS,
   SAVED_FOR_MS,
   SPOT_WORDS,
   SAVING_AFTER_MS,
+  deleteAsk,
+  drawingBar,
+  newShapeBar,
   takeCaption,
 } from '../../motionText'
 import {
@@ -21,12 +25,21 @@ import {
   type SpotControls,
 } from './MotionControls'
 import { MotionStage, type StageEffect } from './MotionStage'
+import { SpotOverlay } from './SpotOverlay'
 import { useJobOpen } from './ImageJobTabs'
 import { typingIn } from './useWorkbenchKeys'
 
 /** Whether this computer asks for reduced motion. */
 function asksForReducedMotion(): boolean {
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+/** A spot being drawn: which effect, the corners of the shape being placed, the picked shape, and whether a delete is being asked. */
+interface Drawing {
+  type: string
+  placing: [number, number][] | null
+  picked: number | null
+  confirm: boolean
 }
 
 /**
@@ -60,6 +73,12 @@ export function MovementPanel({
   const [full, setFull] = useState(false)
   const [folded, setFolded] = useState(false)
   const [missing, setMissing] = useState<string | null>(null)
+  const [drawing, setDrawing] = useState<Drawing | null>(null)
+  const drawingRef = useRef<Drawing | null>(null)
+  const [peek, setPeek] = useState<string | null>(null)
+  const [leftOut, setLeftOut] = useState<string | null>(null)
+  const [failedSpot, setFailedSpot] = useState(false)
+  const bar = useRef<HTMLDivElement>(null)
   const wrap = useRef<HTMLDivElement>(null)
   const fullButton = useRef<HTMLButtonElement>(null)
   const reduced = asksForReducedMotion()
@@ -102,25 +121,29 @@ export function MovementPanel({
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
 
   /** Saves the effects as they are now; the latest save's outcome is the one shown. */
-  const persist = useCallback(() => {
-    const mine = ++saves.current
-    timers.current.forEach(clearTimeout)
-    timers.current = [
-      setTimeout(() => {
-        if (saves.current === mine) setStatus('saving')
-      }, SAVING_AFTER_MS),
-    ]
-    const done = (ok: boolean) => {
-      if (saves.current !== mine) return
+  const persist = useCallback(
+    (spot = false) => {
+      const mine = ++saves.current
       timers.current.forEach(clearTimeout)
-      setStatus(ok ? 'saved' : 'failed')
-      if (ok) timers.current = [setTimeout(() => setStatus('idle'), SAVED_FOR_MS)]
-    }
-    save.mutate(latest.current, {
-      onSuccess: (answer) => done(answer.ok),
-      onError: () => done(false),
-    })
-  }, [save])
+      timers.current = [
+        setTimeout(() => {
+          if (saves.current === mine) setStatus('saving')
+        }, SAVING_AFTER_MS),
+      ]
+      const done = (ok: boolean) => {
+        if (saves.current !== mine) return
+        timers.current.forEach(clearTimeout)
+        setFailedSpot(spot)
+        setStatus(ok ? 'saved' : 'failed')
+        if (ok) timers.current = [setTimeout(() => setStatus('idle'), SAVED_FOR_MS)]
+      }
+      save.mutate(latest.current, {
+        onSuccess: (answer) => done(answer.ok),
+        onError: () => done(false),
+      })
+    },
+    [save],
+  )
 
   /** Sets the effects here (the picture follows at once); saving is `persist`'s. */
   const set = (next: SavedEffects) => {
@@ -128,6 +151,7 @@ export function MovementPanel({
     setEffects(next)
   }
   const onEffect = (type: EffectType, on: boolean) => {
+    if (!on && drawingRef.current?.type === type.type) finish(false)
     const was = latest.current[type.type]
     // Every setting goes to the game: those the renderer has added since take their starting value.
     set({
@@ -166,16 +190,83 @@ export function MovementPanel({
     persist()
   }
   const onClear = (type: EffectType) => {
+    setLeftOut(null)
     const was = latest.current[type.type]
     if (!was) return
     const { spot: _gone, ...rest } = was
     set({ ...latest.current, [type.type]: rest })
-    persist()
+    persist(true)
   }
   const onRemove = (type: string) => {
     const { [type]: _gone, ...rest } = latest.current
     set(rest)
     persist()
+  }
+
+  /** Sets the drawing state (kept in a ref too, for the handlers that outlive a render). */
+  const draw = (next: Drawing | null) => {
+    drawingRef.current = next
+    setDrawing(next)
+  }
+  /** Leaves drawing: a shape not closed is left out, said so; focus goes back to the effect's link when asked. */
+  const finish = useCallback((refocus: boolean) => {
+    const now = drawingRef.current
+    if (!now) return
+    if (now.placing && now.placing.length > 0) setLeftOut(now.type)
+    drawingRef.current = null
+    setDrawing(null)
+    if (refocus) {
+      setTimeout(
+        () =>
+          document
+            .querySelector<HTMLElement>(`.movement-side [data-spot-link="${now.type}"]`)
+            ?.focus(),
+        0,
+      )
+    }
+  }, [])
+  /** Sets an effect's spot (none: the whole picture) in the effects; saving is the caller's. */
+  const setSpot = (type: string, spot: SpotShape[] | undefined) => {
+    setLeftOut((was) => (was === type ? null : was))
+    const was = latest.current[type]
+    if (!was) return
+    const { spot: _old, ...rest } = was
+    set({ ...latest.current, [type]: spot ? { ...rest, spot } : rest })
+  }
+  // Leaving the tab finishes drawing.
+  useEffect(() => {
+    if (!open) finish(false)
+  }, [open, finish])
+  // Esc stops the shape being placed, or otherwise leaves drawing.
+  useEffect(() => {
+    if (!drawing) return
+    const listen = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      const now = drawingRef.current
+      if (!now) return
+      event.preventDefault()
+      if (now.confirm) draw({ ...now, confirm: false })
+      else if (now.placing) draw({ ...now, placing: null })
+      else finish(true)
+    }
+    document.addEventListener('keydown', listen)
+    return () => document.removeEventListener('keydown', listen)
+  }, [drawing === null, finish]) // eslint-disable-line react-hooks/exhaustive-deps
+  // The bar's first button takes focus whenever the bar changes what it asks.
+  const barMode =
+    drawing === null ? null : drawing.confirm ? 'ask' : drawing.placing ? 'place' : 'draw'
+  useEffect(() => {
+    if (barMode) bar.current?.querySelector('button')?.focus()
+  }, [barMode, drawing?.type])
+  const spotOf = (type: string): SpotShape[] => latest.current[type]?.spot ?? []
+  const onDraw = (type: EffectType) => {
+    setLeftOut(null)
+    draw({
+      type: type.type,
+      placing: spotOf(type.type).length === 0 ? [] : null,
+      picked: null,
+      confirm: false,
+    })
   }
 
   const toggle = (set: ReadonlySet<string>, id: string, on: boolean) => {
@@ -186,8 +277,9 @@ export function MovementPanel({
   }
 
   const openFull = useCallback(() => {
+    finish(false)
     void wrap.current?.requestFullscreen?.()?.catch(() => {})
-  }, [])
+  }, [finish])
   const closeFull = useCallback(() => {
     if (document.fullscreenElement) void document.exitFullscreen()
   }, [])
@@ -230,6 +322,8 @@ export function MovementPanel({
     motion.status === 'ready'
       ? motion.module.types
           .filter((t) => effects[t.type]?.on)
+          // A spot being drawn that has no shape yet shows nothing until one is closed.
+          .filter((t) => drawing?.type !== t.type || (effects[t.type]?.spot?.length ?? 0) > 0)
           // In the order the game is given them (by kind), so the layers stack the same.
           .sort((a, b) => (a.type < b.type ? -1 : 1))
           .map((t) => {
@@ -259,12 +353,12 @@ export function MovementPanel({
     (p): p is MovementPatch & { src: string } => p.src !== null && patchesOn.has(p.id),
   )
   const spotControls: SpotControls = {
-    drawing: null,
+    drawing: drawing?.type ?? null,
     why: picture === null && SPOT_WORDS.noPicture,
-    onDraw: () => {},
+    onDraw,
     onClear,
-    onPeek: () => {},
-    leftOut: null,
+    onPeek: setPeek,
+    leftOut,
   }
   /** The groups, with spot links (the tab) or without (full screen, which only shows the lines). */
   const controls = (spot: SpotControls | undefined) => (
@@ -276,11 +370,12 @@ export function MovementPanel({
       effects={effects}
       onEffect={onEffect}
       onSetting={onSetting}
-      onCommit={persist}
+      onCommit={() => persist()}
       onReset={onReset}
       onRemove={onRemove}
       status={status}
-      onRetry={persist}
+      onRetry={() => persist(failedSpot)}
+      failedSpot={failedSpot}
       spot={spot}
     />
   )
@@ -293,6 +388,98 @@ export function MovementPanel({
           {MOVEMENT_WORDS.tryAgain}
         </button>
       </>
+    ) : null
+  const drawName = drawing
+    ? ((motion.status === 'ready'
+        ? motion.module.types.find((t) => t.type === drawing.type)?.title
+        : null) ?? drawing.type)
+    : null
+  const closed = (shape: [number, number][]) => {
+    if (!drawing) return
+    const spot = addShape(spotOf(drawing.type), shape)
+    setSpot(drawing.type, spot)
+    persist(true)
+    draw({ ...drawing, placing: null, picked: spot.length - 1 })
+  }
+  const dropPicked = () => {
+    if (!drawing || drawing.picked === null) return
+    setSpot(drawing.type, dropShape(spotOf(drawing.type), drawing.picked))
+    persist(true)
+    draw({ ...drawing, picked: null, confirm: false })
+  }
+  const drawBar =
+    drawing && drawName ? (
+      <div ref={bar} className="spot-bar">
+        {(() => {
+          const words = drawing.confirm
+            ? deleteAsk(spotOf(drawing.type)[drawing.picked ?? 0]?.length ?? 0)
+            : drawing.placing
+              ? newShapeBar(drawName)
+              : drawingBar(drawName)
+          return (
+            <span className="spot-bar-words">
+              <b>{words.lead}</b>
+              {words.rest}
+            </span>
+          )
+        })()}
+        {drawing.confirm ? (
+          <>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => draw({ ...drawing, confirm: false })}
+            >
+              {SPOT_WORDS.keep}
+            </button>
+            <button type="button" className="btn btn-primary" onClick={dropPicked}>
+              {SPOT_WORDS.delete}
+            </button>
+          </>
+        ) : (
+          <>
+            {!drawing.placing && (
+              <button
+                type="button"
+                className="btn"
+                onClick={() => draw({ ...drawing, placing: [], picked: null })}
+              >
+                {SPOT_WORDS.addShape}
+              </button>
+            )}
+            {!drawing.placing && drawing.picked !== null && (
+              <button
+                type="button"
+                className="btn"
+                onClick={() => draw({ ...drawing, confirm: true })}
+              >
+                {SPOT_WORDS.deleteShape}
+              </button>
+            )}
+            <button type="button" className="btn btn-primary" onClick={() => finish(true)}>
+              {SPOT_WORDS.finish}
+            </button>
+          </>
+        )}
+      </div>
+    ) : null
+  const peeked = peek && effects[peek]?.on ? effects[peek]?.spot : undefined
+  const overlay =
+    drawing || peeked ? (
+      <SpotOverlay
+        spot={drawing ? spotOf(drawing.type) : peeked!}
+        mode={drawing ? 'draw' : 'peek'}
+        picked={drawing?.picked ?? null}
+        placing={drawing?.placing ?? null}
+        onPick={(picked) => drawing && draw({ ...drawing, picked })}
+        onPlace={(placing) => drawing && draw({ ...drawing, placing })}
+        onClose={closed}
+        onChange={(spot, save) => {
+          if (!drawing) return
+          setSpot(drawing.type, spot)
+          if (save) persist(true)
+        }}
+      />
     ) : null
   const playLabel = paused ? MOVEMENT_WORDS.play : MOVEMENT_WORDS.pause
 
@@ -314,6 +501,7 @@ export function MovementPanel({
       )}
       <div className="movement-body">
         <div className="movement-picture">
+          {drawBar}
           <div
             ref={wrap}
             className={full ? 'movement-wrap movement-wrap-full' : 'movement-wrap'}
@@ -344,10 +532,13 @@ export function MovementPanel({
                   effects={playing}
                   paused={paused}
                   running={open}
+                  only={drawing?.type ?? null}
+                  drift={drawing === null}
                   onMissing={() => setMissing(src)}
                 />
               </div>
             )}
+            {ready && picture !== null && !full && overlay}
             {picture !== null && motion.status === 'loading' && (
               <div className="movement-over" role="status">
                 {MOVEMENT_WORDS.loading}

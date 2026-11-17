@@ -52,6 +52,8 @@ export interface MotionControlsProps {
   status: SaveStatus
   /** Try again presses after a save failed. */
   onRetry: () => void
+  /** Whether the failed save was of a spot, which has its own words. */
+  failedSpot?: boolean
   /** Drawing spots, on the tab only: absent (full screen), the spot line has no links. */
   spot?: SpotControls
 }
@@ -90,9 +92,19 @@ function SpotLine({
   }
   const drawing = spot?.drawing === type.type
   const other = spot?.drawing != null && !drawing
-  const why = spot ? (other ? finishFirst(spot.drawing!) : spot.why) : false
+  const why = spot
+    ? other
+      ? finishFirst(props.effects[spot.drawing!]?.title ?? spot.drawing!)
+      : spot.why
+    : false
   const link = (label: string, press: () => void) => (
-    <button type="button" className="link-button" {...off(why)} onClick={() => !why && press()}>
+    <button
+      type="button"
+      className="link-button"
+      data-spot-link={type.type}
+      {...off(why)}
+      onClick={() => !why && press()}
+    >
       {label}
     </button>
   )
@@ -360,7 +372,7 @@ function EffectsGroup(props: MotionControlsProps) {
       )}
       {status === 'failed' && (
         <p role="alert" className="movement-save-failed">
-          {EFFECT_WORDS.saveFailed}{' '}
+          {props.failedSpot ? SPOT_WORDS.saveFailed : EFFECT_WORDS.saveFailed}{' '}
           <button type="button" className="btn" onClick={props.onRetry}>
             {MOVEMENT_WORDS.tryAgain}
           </button>
