@@ -1822,16 +1822,27 @@ describe('drawing a spot', () => {
     expect(barText(host)).toContain('New shape for Dust.')
   })
 
-  it('opens drawing on a spot with its words, Add a shape focused, and nothing to delete yet', async () => {
+  it('opens drawing on a spot with its words, Add a shape focused, and the first shape picked', async () => {
     sizeOverlay()
     const { host } = await render(withDust([POND]))
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
     expect(barText(host)).toBe(
-      'Drawing your own spot for Dust. Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it. Drag the ● to where the light comes from, or press Alt and the arrows.＋ Add a shapeLight from the middleFinish',
+      'Drawing your own spot for Dust. Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it. Drag the ● to where the light comes from, or press Alt and the arrows.＋ Add a shapeDelete this shapeLight from the middleFinish',
     )
     expect(document.activeElement?.textContent).toBe('＋ Add a shape')
     expect(rowOf(host, 'Dust').className).toContain('movement-effect-drawing')
     expect(host.querySelector('.movement-zoom')!.getAttribute('data-still')).toBe('true')
+  })
+
+  it('shows an own shape’s corners at once on Change, and a corner drags without a click first', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(withDust([SQUARE]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    expect(host.querySelectorAll('.spot-corner')).toHaveLength(4)
+    await pointer(host, 'pointerdown', 0.9, 0.6)
+    await pointer(host, 'pointermove', 1, 0.3)
+    await pointer(host, 'pointerup', 1, 0.3)
+    expect(puts.at(-1)!.effects.dust!.spot![0]![1]).toEqual([1, 0.3])
   })
 
   it('hands the renderer the spot again when a shape is added while it plays', async () => {
@@ -2188,15 +2199,15 @@ describe('the light mark of a spot', () => {
     expect(lineOf(host)).toBe('Spot: your own, 1 shape · drawing now')
   })
 
-  it('says its words in the bar, beside Delete this shape', async () => {
+  it('says its words in the bar, and shows Delete this shape only with a shape picked', async () => {
     sizeOverlay()
     const { host } = await render(withDust([POND]))
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
     expect(barText(host)).toBe(
-      'Drawing your own spot for Dust. Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it. Drag the ● to where the light comes from, or press Alt and the arrows.＋ Add a shapeLight from the middleFinish',
+      'Drawing your own spot for Dust. Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it. Drag the ● to where the light comes from, or press Alt and the arrows.＋ Add a shapeDelete this shapeLight from the middleFinish',
     )
-    await tap(host, 0.25, 0.6)
-    expect(barText(host)).toEndWith('＋ Add a shapeDelete this shapeLight from the middleFinish')
+    await tap(host, 0.8, 0.2)
+    expect(barText(host)).toEndWith('＋ Add a shapeLight from the middleFinish')
   })
 
   it('is dragged anywhere on the picture, saved on release, and said on the line', async () => {
@@ -2765,7 +2776,7 @@ describe('the game’s shape of an effect', () => {
     const { host, puts } = await render(everyEffect())
     await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
     expect(barText(host)).toBe(
-      "Drawing your own spot for Dust. It starts as the game's: drag a corner to move it, double-click a corner to take it out, click the picture to add a shape.＋ Add a shapeLight from the middleFinish",
+      "Drawing your own spot for Dust. It starts as the game's: drag a corner to move it, double-click a corner to take it out, click the picture to add a shape.＋ Add a shapeDelete this shapeLight from the middleFinish",
     )
     expect(polygons(host, 'spot-edge')).toHaveLength(1)
     expect(polygons(host, 'spot-game-faint')).toHaveLength(1)
@@ -2775,11 +2786,18 @@ describe('the game’s shape of an effect', () => {
     expect(spotLineOf(host, 'Dust')).toBe("Spot: the game'sDraw your own")
   })
 
+  it('shows the copy’s corners at once, with the shape picked', async () => {
+    sizeOverlay()
+    const { host } = await render(everyEffect())
+    await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
+    expect(host.querySelectorAll('.spot-corner')).toHaveLength(4)
+    expect(polygons(host, 'spot-edge-picked')).toHaveLength(1)
+  })
+
   it('makes the copy your own at the first change, saved at once', async () => {
     sizeOverlay()
     const { host, puts } = await render(everyEffect())
     await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
-    await tap(host, 0.5, 0.8)
     await pointer(host, 'pointerdown', 0.9, 0.7)
     await pointer(host, 'pointermove', 0.8, 0.6)
     await pointer(host, 'pointerup', 0.8, 0.6)
