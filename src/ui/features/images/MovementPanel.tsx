@@ -781,7 +781,7 @@ export function MovementPanel({
                     paused={paused}
                     running={open}
                     only={drawing?.type ?? null}
-                    zoom={drawing === null ? zoomLook(zoomValues(zoom)) : null}
+                    zoom={drawing === null ? zoomLook(zoom ?? zoomValues(undefined)) : null}
                     inside={drawing ? null : overlay}
                     onMissing={() => setMissing(src)}
                   />

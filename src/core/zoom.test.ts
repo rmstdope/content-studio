@@ -48,10 +48,16 @@ describe('zoomRangeNotes', () => {
       'Each way was saved as 90 s; the game goes up to 60, so it plays 60.',
       'How far was saved as 12%; the game goes up to 10, so it plays 10.',
     ])
-    expect(zoomRangeNotes({ on: true, seconds: 2, percent: 0 })).toEqual([
+    expect(zoomRangeNotes({ on: true, seconds: 2, percent: -1 })).toEqual([
       'Each way was saved as 2 s; the game goes down to 4, so it plays 4.',
-      'How far was saved as 0%; the game goes down to 0.5, so it plays 0.5.',
+      'How far was saved as -1%; the game goes down to 0, so it plays 0.',
     ])
+  })
+
+  it('keeps the game’s range (0 to 10%) apart from the slider’s: 0 and 0.25 are the game’s own to play', () => {
+    expect(zoomRangeNotes({ on: true, seconds: 16, percent: 0 })).toEqual([])
+    expect(zoomRangeNotes({ on: true, seconds: 16, percent: 0.25 })).toEqual([])
+    expect(zoomValues({ on: true, seconds: 16, percent: 0 }).percent).toBe(0.5)
   })
 })
 

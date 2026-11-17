@@ -10,6 +10,12 @@ export const ZOOM_RANGE = {
   percent: { min: 0.5, max: 10, step: 0.5 },
 } as const
 
+/** What the game accepts, which is wider than the slider at the low end of how far: it plays 0 as no depth. */
+export const GAME_ZOOM_RANGE = {
+  seconds: { min: 4, max: 60 },
+  percent: { min: 0, max: 10 },
+} as const
+
 /** What the zoom is set to now: nothing saved is the game's own, and a saved value is held to the game's range. */
 export function zoomValues(saved: SavedZoom | undefined): SavedZoom {
   const hold = (n: number, { min, max }: { min: number; max: number }) =>
@@ -54,8 +60,8 @@ function rangeLine(
 export function zoomRangeNotes(saved: SavedZoom | undefined): string[] {
   if (!saved) return []
   return [
-    rangeLine('Each way', saved.seconds, ZOOM_RANGE.seconds, secondsText),
-    rangeLine('How far', saved.percent, ZOOM_RANGE.percent, percentText),
+    rangeLine('Each way', saved.seconds, GAME_ZOOM_RANGE.seconds, secondsText),
+    rangeLine('How far', saved.percent, GAME_ZOOM_RANGE.percent, percentText),
   ].filter((line): line is string => line !== null)
 }
 
@@ -70,10 +76,14 @@ export interface ZoomLook {
 /** The look of a zoom for the stage; null while it is off (the picture stands still). The drift is the old 3% look scaled by how far. */
 export function zoomLook(values: SavedZoom): ZoomLook | null {
   if (!values.on) return null
-  const k = values.percent / GAME_ZOOM.percent
+  const hold = (n: number, { min, max }: { min: number; max: number }) =>
+    Math.min(max, Math.max(min, n))
+  const seconds = hold(values.seconds, GAME_ZOOM_RANGE.seconds)
+  const percent = hold(values.percent, GAME_ZOOM_RANGE.percent)
+  const k = percent / GAME_ZOOM.percent
   return {
-    seconds: values.seconds,
-    scale: Number((1 + values.percent / 100).toFixed(4)),
+    seconds,
+    scale: Number((1 + percent / 100).toFixed(4)),
     x: -0.5 * k,
     y: -0.3 * k,
   }

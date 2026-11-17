@@ -474,12 +474,19 @@ const ZOOM_SLIDERS = [
 function ZoomGroup(props: MotionControlsProps) {
   const { zoom, zoomStatus } = props
   const values = zoomValues(zoom)
+  // The chip marks a state: "Saving…" while a save runs, else "Saved" whenever the image has a zoom saved (nothing saved, or a save that failed: none).
+  const chip =
+    zoomStatus === 'saving'
+      ? ZOOM_WORDS.saving
+      : zoom !== undefined && zoomStatus !== 'failed'
+        ? ZOOM_WORDS.saved
+        : null
   const heading = (
     <div className="movement-group-head">
       <h3>{ZOOM_WORDS.heading}</h3>
-      {!props.lockUnread && (zoomStatus === 'saving' || zoomStatus === 'saved') && (
+      {!props.lockUnread && chip && (
         <span className="movement-save muted" role="status">
-          {zoomStatus === 'saving' ? ZOOM_WORDS.saving : ZOOM_WORDS.saved}
+          {chip}
         </span>
       )}
     </div>
@@ -519,7 +526,10 @@ function ZoomGroup(props: MotionControlsProps) {
       </div>
       {!values.on && (
         <p className="movement-settings">
-          {zoomOffLine(secondsText(values.seconds), percentText(values.percent))}
+          {zoomOffLine(
+            secondsText(zoom?.seconds ?? values.seconds),
+            percentText(zoom?.percent ?? values.percent),
+          )}
         </p>
       )}
       {values.on &&
