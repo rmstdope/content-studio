@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { makeAgainOf, overlappingPatches, tieOf } from '../../../core/imagePatches'
+import { imageLockUnread, makeAgainOf, overlappingPatches, tieOf } from '../../../core/imagePatches'
 import type { ImageRow, PatchRow } from '../../../core/images'
 import { off } from '../../off'
 import { WAIT_FOR_CHANGE } from '../../imagesText'
@@ -197,7 +197,8 @@ export function GamePatchesPanel({ row }: { row: ImageRow }) {
   const [remakePick, setRemakePick] = useState<EditModelId | null>(null)
   const view = query.data && 'patches' in query.data ? query.data : null
   // Nothing is said until the patches are loaded, nor when the lock cannot be read: unread, it gives no take as chosen.
-  const again = new Set(view && !view.lockUnread ? makeAgainOf(row).map((patch) => patch.id) : [])
+  const lockUnread = imageLockUnread(row, view)
+  const again = new Set(view ? makeAgainOf(row, lockUnread).map((patch) => patch.id) : [])
   const [openPick, setOpenId] = useState<string | null>(
     () => row.patches.find((patch) => patch.gameChanged)?.id ?? null,
   )
@@ -212,14 +213,13 @@ export function GamePatchesPanel({ row }: { row: ImageRow }) {
   const patch = row.patches.find((p) => p.id === openPick) ?? row.patches[0]!
   const openId = patch.id
   // Nothing is said until the patches are loaded, nor when the chosen picture or the lock cannot be read.
-  const pairs = view && !view.pictureGone && !view.lockUnread ? overlappingPatches(row.patches) : []
+  const pairs = view && !view.pictureGone && !lockUnread ? overlappingPatches(row.patches) : []
   const overlapsOf = (id: string) =>
     pairs.flatMap(([a, b]) => (a.id === id ? [b.title] : b.id === id ? [a.title] : []))
   const overlapLineOf = (id: string) => {
     const titles = overlapsOf(id)
     return titles.length > 0 ? overlapOpenLine(titles) : null
   }
-  const lockUnread = view?.lockUnread === true
   const heading = patchesHeading(row, lockUnread)
   const list = patchLayoutOf(row) === 'list'
   const workOf = (id: string) => view?.patches.find((p) => p.id === id) ?? null

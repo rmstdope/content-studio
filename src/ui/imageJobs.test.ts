@@ -1,3 +1,4 @@
+import { imageLockUnread } from '../core/imagePatches'
 import { describe, expect, it } from 'bun:test'
 import type { ImageRow, ImageStatus } from '../core/images'
 import type { PatchRow } from '../core/images'
@@ -66,6 +67,7 @@ describe('imageJobTabs', () => {
         areas: [{ id: 'a', placed: true }],
       }),
       ...quiet,
+      lockUnread: imageLockUnread({ status: 'unknown' }),
     })
     const warn = { text: 'not known', tone: 'warn' as const }
     expect(tabs[0]!.chip).toEqual(warn)

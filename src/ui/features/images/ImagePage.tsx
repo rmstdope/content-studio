@@ -5,6 +5,7 @@ import {
   type ImagesAct,
   type ImagesSummary,
 } from '../../../core/images'
+import { imageLockUnread } from '../../../core/imagePatches'
 import { PageHeader } from '../../components/PageHeader'
 import { Problems } from '../../components/Problems'
 import {
@@ -72,9 +73,7 @@ export function ImagePage({
       !!patchesView &&
       'patches' in patchesView &&
       (patchesView.patches.some((p) => p.making.length > 0) || !!patchesView.remake.press?.running),
-    lockUnread:
-      (!!takesView && 'lockUnread' in takesView && takesView.lockUnread) ||
-      (!!patchesView && 'lockUnread' in patchesView && patchesView.lockUnread),
+    lockUnread: imageLockUnread(row, takesView, patchesView),
   })
   const save = useSetImageWords(row.id)
   const compare = useImageCompare(row.id)

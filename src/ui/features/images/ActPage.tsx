@@ -1,4 +1,4 @@
-import { makeAgainOf, overlappingPatches } from '../../../core/imagePatches'
+import { imageLockUnread, makeAgainOf, overlappingPatches } from '../../../core/imagePatches'
 import { imagesDone, type ImagesAct, type ImageRow, type ImagesSummary } from '../../../core/images'
 import { useImageMaking, useRefreshDialog } from '../../api'
 import { shortTitle } from '../../format'
@@ -176,8 +176,7 @@ export function ActPage({
                   )
                 }
                 const row = act.rows.find((r) => r.id === id)
-                // While the images lock cannot be read, no take is known to be chosen.
-                const again = row && row.status !== 'unknown' ? makeAgainOf(row) : []
+                const again = row ? makeAgainOf(row, imageLockUnread(row)) : []
                 const overlaps = row ? overlappingPatches(row.patches) : []
                 return (
                   row && (

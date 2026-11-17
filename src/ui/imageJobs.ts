@@ -27,8 +27,8 @@ export interface JobTabsInput {
 export function imageJobTabs(input: JobTabsInput): JobTab[] {
   const { row } = input
   // The lock cannot be read: which take the game shows is not known, so Make and Patches say so.
-  // The list may be older than the image's own views (kept across the pager), so either says it.
-  const unknown = row.status === 'unknown' || input.lockUnread
+  // `imageLockUnread` answers it, from the list row and the image's own views.
+  const unknown = input.lockUnread
   const notKnown = { text: IMAGE_STATUS_LABEL.unknown, tone: 'warn' } as const
   const tabs: JobTab[] = [
     {

@@ -157,9 +157,9 @@ describe('patches set aside, as the rows say', () => {
     expect(await s.takes.choose(s.file, 'inn', 1)).toEqual({ ok: true })
     const row = await rowOf(s)
     expect(row.chosenTake).toBe(1)
-    expect(makeAgainOf(row).map((p) => p.id)).toEqual(['door'])
+    expect(makeAgainOf(row, false).map((p) => p.id)).toEqual(['door'])
     expect(await s.takes.choose(s.file, 'inn', 2)).toEqual({ ok: true })
-    expect(makeAgainOf(await rowOf(s))).toEqual([])
+    expect(makeAgainOf(await rowOf(s), false)).toEqual([])
   })
   it('gives the area of the chosen patch take, only on the take in the game and while its picture is there', async () => {
     const s = await chosenPatch()

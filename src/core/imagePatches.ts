@@ -819,10 +819,32 @@ export interface SetAsideQuestion {
 }
 
 /**
- * The patches the game still asks for that need making again: one with a take chosen on a take of
- * the image other than the one in the game, and none on that one, in the game's order.
+ * Whether the images lock cannot be read for an image, so no take is known to be chosen: the list
+ * row says its status is unknown, or any of the image's own views (takes, patches; each may be
+ * unloaded, or an error without the field) found the lock unreadable. The list can be older than
+ * the views, so either says it. The one answer every page asks before saying what is chosen.
  */
-export function makeAgainOf(row: Pick<ImageRow, 'chosenTake' | 'patches'>): PatchRow[] {
+export function imageLockUnread(
+  row: Pick<ImageRow, 'status'>,
+  ...views: readonly (object | null | undefined)[]
+): boolean {
+  return (
+    row.status === 'unknown' ||
+    views.some((view) => !!view && 'lockUnread' in view && view.lockUnread === true)
+  )
+}
+
+/**
+ * The patches the game still asks for that need making again: one with a take chosen on a take of
+ * the image other than the one in the game, and none on that one, in the game's order. Nothing
+ * while the lock cannot be read (`imageLockUnread`): no take is known to be chosen then, which is
+ * not the same as none being chosen.
+ */
+export function makeAgainOf(
+  row: Pick<ImageRow, 'chosenTake' | 'patches'>,
+  lockUnread: boolean,
+): PatchRow[] {
+  if (lockUnread) return []
   return row.patches.filter(
     (patch) =>
       !(row.chosenTake !== null && patch.chosenOn.includes(row.chosenTake)) &&
@@ -901,7 +923,8 @@ export function remakeCovered(
   work: readonly Pick<PatchWorkView, 'id' | 'takes' | 'making' | 'failed'>[],
 ): PatchRow[] {
   if (row.chosenTake === null) return []
-  return makeAgainOf(row).filter((patch) => {
+  // A take is chosen, so the lock was read.
+  return makeAgainOf(row, false).filter((patch) => {
     const w = work.find((p) => p.id === patch.id)
     return !w || (w.takes.length === 0 && w.making.length === 0 && w.failed.length === 0)
   })

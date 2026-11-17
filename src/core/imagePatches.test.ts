@@ -14,6 +14,7 @@ import {
   matchToTake,
   PATCH_FEATHER,
   PatchBoardSchema,
+  imageLockUnread,
   makeAgainOf,
   overlappingPatches,
   patchBoxesOverlap,
@@ -706,18 +707,50 @@ describe('patches set aside', () => {
 
   describe('makeAgainOf', () => {
     it('is the patches chosen on another take only, in the game’s order', () => {
-      expect(makeAgainOf(row(4, bread, well, lamp)).map((p) => p.title)).toEqual([
+      expect(makeAgainOf(row(4, bread, well, lamp), false).map((p) => p.title)).toEqual([
         'Bread taken',
         'Lamp lit',
       ])
     })
     it('leaves out a patch chosen on the take in the game too', () => {
-      expect(makeAgainOf(row(2, bread, door, lamp)).map((p) => p.title)).toEqual(['Lamp lit'])
+      expect(makeAgainOf(row(2, bread, door, lamp), false).map((p) => p.title)).toEqual([
+        'Lamp lit',
+      ])
     })
     it('keeps a patch whose only choice is on a dropped take, and with no take chosen', () => {
       const gone = patch('Gone', [], true)
-      expect(makeAgainOf(row(4, gone, well)).map((p) => p.title)).toEqual(['Gone'])
-      expect(makeAgainOf(row(null, bread)).map((p) => p.title)).toEqual(['Bread taken'])
+      expect(makeAgainOf(row(4, gone, well), false).map((p) => p.title)).toEqual(['Gone'])
+      expect(makeAgainOf(row(null, bread), false).map((p) => p.title)).toEqual(['Bread taken'])
+    })
+  })
+
+  describe('imageLockUnread', () => {
+    it('is true when the list row says unknown, whatever the views say', () => {
+      expect(imageLockUnread({ status: 'unknown' })).toBe(true)
+      expect(imageLockUnread({ status: 'unknown' }, { lockUnread: false })).toBe(true)
+    })
+    it('is true when any view found the lock unreadable, though the row is older', () => {
+      expect(
+        imageLockUnread({ status: 'chosen' }, { lockUnread: false }, { lockUnread: true }),
+      ).toBe(true)
+    })
+    it('is false for views not loaded or in error, and for a row and views that read it', () => {
+      expect(imageLockUnread({ status: 'chosen' })).toBe(false)
+      expect(
+        imageLockUnread(
+          { status: 'chosen' },
+          undefined,
+          null,
+          { ok: false },
+          { lockUnread: false },
+        ),
+      ).toBe(false)
+    })
+  })
+
+  describe('makeAgainOf while the lock is unread', () => {
+    it('lists nothing, whatever the patches say', () => {
+      expect(makeAgainOf(row(null, bread), true)).toEqual([])
     })
   })
 
