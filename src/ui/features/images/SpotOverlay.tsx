@@ -24,8 +24,10 @@ export interface SpotOverlayProps {
   onPlace: (corners: [number, number][]) => void
   /** The first corner was clicked with three or more placed: the shape is closed. */
   onClose: (shape: SpotShape) => void
-  /** The shapes changed (a corner moved or taken out); `save` when the change is done and should be kept. */
-  onChange: (spot: SpotShape[], save: boolean) => void
+  /** The shapes changed (a corner moved or taken out). */
+  onChange: (spot: SpotShape[]) => void
+  /** The change is done and should be kept (a corner let go of or taken out). */
+  onCommit: () => void
 }
 
 /**
@@ -41,7 +43,12 @@ export function SpotOverlay(props: SpotOverlayProps) {
   const mask = useId().replace(/:/g, '')
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [mouse, setMouse] = useState<[number, number] | null>(null)
-  const drag = useRef<{ shape: number; corner: number; moved: boolean } | null>(null)
+  const drag = useRef<{
+    shape: number
+    corner: number
+    moved: boolean
+    from: [number, number]
+  } | null>(null)
 
   useEffect(() => {
     const element = root.current
@@ -87,7 +94,12 @@ export function SpotOverlay(props: SpotOverlayProps) {
     if (now.picked !== null && now.spot[now.picked]) {
       const corner = cornerAt(now.spot[now.picked]!, [x, y])
       if (corner !== null) {
-        drag.current = { shape: now.picked, corner, moved: false }
+        drag.current = {
+          shape: now.picked,
+          corner,
+          moved: false,
+          from: [event.clientX, event.clientY],
+        }
         try {
           root.current?.setPointerCapture?.(event.pointerId)
         } catch {
@@ -103,6 +115,11 @@ export function SpotOverlay(props: SpotOverlayProps) {
     const [x, y] = at(event)
     const dragging = drag.current
     if (dragging) {
+      if (
+        !dragging.moved &&
+        Math.hypot(event.clientX - dragging.from[0], event.clientY - dragging.from[1]) < 3
+      )
+        return
       dragging.moved = true
       now.onChange(
         replaceShape(
@@ -110,7 +127,6 @@ export function SpotOverlay(props: SpotOverlayProps) {
           dragging.shape,
           moveCorner(now.spot[dragging.shape]!, dragging.corner, x, y),
         ),
-        false,
       )
     } else if (now.placing) {
       setMouse([x, y])
@@ -119,7 +135,7 @@ export function SpotOverlay(props: SpotOverlayProps) {
   const up = () => {
     const dragging = drag.current
     drag.current = null
-    if (dragging?.moved) latest.current.onChange([...latest.current.spot], true)
+    if (dragging?.moved) latest.current.onCommit()
   }
   const twice = (event: MouseEvent<HTMLDivElement>) => {
     const now = latest.current
@@ -127,7 +143,10 @@ export function SpotOverlay(props: SpotOverlayProps) {
     const corner = cornerAt(now.spot[now.picked]!, at(event))
     if (corner === null) return
     const next = removeCorner(now.spot[now.picked]!, corner)
-    if (next) now.onChange(replaceShape(now.spot, now.picked, next), true)
+    if (next) {
+      now.onChange(replaceShape(now.spot, now.picked, next))
+      now.onCommit()
+    }
   }
 
   const drawing = mode === 'draw'

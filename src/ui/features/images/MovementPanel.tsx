@@ -474,11 +474,8 @@ export function MovementPanel({
         onPick={(picked) => drawing && draw({ ...drawing, picked })}
         onPlace={(placing) => drawing && draw({ ...drawing, placing })}
         onClose={closed}
-        onChange={(spot, save) => {
-          if (!drawing) return
-          setSpot(drawing.type, spot)
-          if (save) persist(true)
-        }}
+        onChange={(spot) => drawing && setSpot(drawing.type, spot)}
+        onCommit={() => persist(true)}
       />
     ) : null
   const playLabel = paused ? MOVEMENT_WORDS.play : MOVEMENT_WORDS.pause
@@ -534,11 +531,12 @@ export function MovementPanel({
                   running={open}
                   only={drawing?.type ?? null}
                   drift={drawing === null}
+                  inside={drawing ? null : overlay}
                   onMissing={() => setMissing(src)}
                 />
               </div>
             )}
-            {ready && picture !== null && !full && overlay}
+            {ready && picture !== null && !full && drawing && overlay}
             {picture !== null && motion.status === 'loading' && (
               <div className="movement-over" role="status">
                 {MOVEMENT_WORDS.loading}

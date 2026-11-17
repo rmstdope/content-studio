@@ -26,6 +26,7 @@ interface Calls {
   sources: unknown[]
   setEffects: { kind: string; settings?: Record<string, number> }[][]
   steps: number
+  stepMs: number[]
   draws: number
   resizes: { width: number; height: number }[]
 }
@@ -41,7 +42,7 @@ export const createMotionScene = () => {
     setSource: (source) => note().sources.push(source),
     resize: (width, height, picture) => note().resizes.push(picture),
     setEffects: (specs) => note().setEffects.push(specs),
-    step: () => note().steps++,
+    step: (ms) => { note().steps++; note().stepMs.push(ms) },
     draw: () => note().draws++,
     isEmpty: () => true,
   }
@@ -77,6 +78,7 @@ async function render(options: Options = {}) {
     sources: [],
     setEffects: [],
     steps: 0,
+    stepMs: [],
     draws: 0,
     resizes: [],
   }
@@ -945,7 +947,34 @@ describe('an effect with a spot, played', () => {
     expect(canvases[1]!.style.clipPath).toContain(`#${clip.id}`)
   })
 
-  it('plays an effect over the whole picture again once its spot is gone, and not while it is off', async () => {
+  it('leaves nothing of a held effect on the shared canvas, by running its fade out at once', async () => {
+    sizeOverlay()
+    const { host } = await render({ effects: { dust: saved({ amount: 1 }) } })
+    const before = calls().stepMs.length
+    await click(linkIn(rowOf(host, 'Dust'), 'Draw a spot'))
+    expect(
+      calls()
+        .stepMs.slice(before)
+        .some((ms) => ms >= 1000),
+    ).toBe(true)
+  })
+
+  it('plays an effect over the whole picture again once its spot is gone', async () => {
+    sizeOverlay()
+    const { host } = await render({
+      effects: { dust: { ...saved({ amount: 1 }), spot: [POND] } },
+    })
+    expect(host.querySelectorAll('.movement-canvas')).toHaveLength(2)
+    await click(linkIn(rowOf(host, 'Dust'), 'Clear'))
+    expect(
+      calls()
+        .setEffects.at(-1)!
+        .map((e) => e.kind),
+    ).toEqual(['dust'])
+    expect(host.querySelectorAll('.movement-canvas')).toHaveLength(1)
+  })
+
+  it('plays no effect over the whole picture while it is off', async () => {
     const { host } = await render({
       effects: { dust: { ...dust({ amount: 1, size: 1, speed: 1 }), on: false, spot: [POND] } },
     })
@@ -1297,6 +1326,55 @@ describe('drawing a spot', () => {
     await act(async () => {
       rowOf(host, 'Dust').dispatchEvent(new MouseEvent('pointerout', { bubbles: true }))
     })
+    expect(polygons(host, 'spot-peek')).toHaveLength(0)
+  })
+
+  it('saves where a fast drag ended even when no render came between the moves and the release', async () => {
+    sizeOverlay()
+    const { host, puts } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await tap(host, 0.25, 0.6)
+    await act(async () => {
+      const send = (type: string, x: number, y: number) =>
+        overlay(host).dispatchEvent(
+          new MouseEvent(type, { clientX: x * 640, clientY: y * 400, bubbles: true }),
+        )
+      send('pointerdown', 0.4, 0.5)
+      send('pointermove', 0.45, 0.45)
+      send('pointermove', 0.5, 0.4)
+      send('pointerup', 0.5, 0.4)
+    })
+    expect(puts.at(-1)!.effects.dust!.spot![0]![1]).toEqual([0.5, 0.4])
+  })
+
+  it('finishes drawing when an effect being drawn is switched off', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await click(switchFor(host, 'Dust'))
+    expect(host.querySelector('.spot-bar')).toBeNull()
+    expect(spotLineOf(host, 'Dust')).toBe('Spot: 1 shape (kept while off)')
+  })
+
+  it('clears the left-out line at the next change of that spot', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await click(button(host, '＋ Add a shape'))
+    await tap(host, 0.6, 0.6)
+    await click(button(host, 'Finish'))
+    expect(text(rowOf(host, 'Dust'))).toContain('left out')
+    await click(linkIn(rowOf(host, 'Dust'), 'Clear'))
+    expect(text(rowOf(host, 'Dust'))).not.toContain('left out')
+  })
+
+  it('outlines the shapes while keyboard focus is in the row', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    const link = linkIn(rowOf(host, 'Dust'), 'Change')!
+    await act(async () => link.focus())
+    expect(polygons(host, 'spot-peek')).toHaveLength(1)
+    await act(async () => link.blur())
     expect(polygons(host, 'spot-peek')).toHaveLength(0)
   })
 

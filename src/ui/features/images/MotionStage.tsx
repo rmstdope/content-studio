@@ -1,6 +1,9 @@
-import { useEffect, useId, useRef, type RefObject } from 'react'
+import { useEffect, useId, useRef, type ReactNode, type RefObject } from 'react'
 import type { SpotShape } from '../../../core/images'
 import type { MotionModule, MotionScene } from '../../motionModule'
+
+/** How far a held scene is moved on to finish a fade at once, in milliseconds. */
+const FINISH_FADE_MS = 2000
 
 /** What a picture is shown with: where it is, and the patches laid over it. */
 export interface StageLayers {
@@ -31,6 +34,7 @@ export function MotionStage({
   running,
   only,
   drift,
+  inside,
   onMissing,
 }: {
   layers: StageLayers
@@ -45,6 +49,8 @@ export function MotionStage({
   only?: string | null
   /** Whether the slow zoom runs; off it holds the picture at its size, so a shape stays under the mouse. */
   drift?: boolean
+  /** Shown over the picture and zooming with it (the outline of a spot pointed at). */
+  inside?: ReactNode
   /** The picture could not be read. */
   onMissing: () => void
 }) {
@@ -87,6 +93,7 @@ export function MotionStage({
             stepping={!frozen || only === effect.kind}
           />
         ))}
+      {inside}
     </div>
   )
 }
@@ -125,6 +132,10 @@ function EffectCanvas({
   const fit = useRef(() => {})
   /** Hands the scene the picture it may redraw, once the picture has loaded. */
   const feed = useRef(() => {})
+  /** Draws the scene's current frame onto the canvas now. */
+  const paintNow = useRef(() => {})
+  const holding = useRef(!stepping)
+  holding.current = !stepping
 
   // One scene per loaded renderer and picture size.
   useEffect(() => {
@@ -139,6 +150,7 @@ function EffectCanvas({
       context.setTransform(ratio, 0, 0, ratio, 0, 0)
       made.draw(context)
     }
+    paintNow.current = paint
     fit.current = () => {
       if (element.clientWidth === 0 || element.clientHeight === 0) return
       const ratio = Math.min(2, globalThis.devicePixelRatio || 1)
@@ -171,6 +183,7 @@ function EffectCanvas({
       img?.removeEventListener('load', loaded)
       scene.current = null
       fit.current = () => {}
+      paintNow.current = () => {}
       feed.current = () => {}
     }
   }, [module, layers.size.width, layers.size.height])
@@ -189,6 +202,12 @@ function EffectCanvas({
     const sameSet = lastKinds.current === kinds
     lastKinds.current = kinds
     scene.current?.setEffects(wanted.current, sameSet)
+    // A canvas held while another effect is drawn gets no frames, so a fade it was just given would
+    // never finish: run it to its end and paint, so nothing of a taken-out effect stays on screen.
+    if (holding.current) {
+      scene.current?.step(FINISH_FADE_MS)
+      paintNow.current()
+    }
   }, [values, kinds])
 
   // The frame loop runs only while the stage is on show and not paused.
