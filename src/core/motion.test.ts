@@ -178,4 +178,31 @@ describe('what an effect tied to a patch does', () => {
       title: 'old',
     })
   })
+
+  it('shows an effect tied to "not laid" only while that patch is not laid', () => {
+    const saved = { unlessPatch: 'star' }
+    const laid = tieState(saved, patches, new Set(['star']))
+    expect(laid).toEqual({
+      kind: 'laid',
+      without: true,
+      patchId: 'star',
+      title: 'The star on the door',
+    })
+    expect(effectPlays(laid)).toBe(false)
+    const not = tieState(saved, patches, none)
+    expect(not).toMatchObject({ kind: 'notLaid', without: true })
+    expect(effectPlays(not)).toBe(true)
+  })
+
+  it('shows a "not laid" effect when its patch has no take to lay', () => {
+    const state = tieState({ unlessPatch: 'lantern' }, patches, new Set(['lantern']))
+    expect(state).toMatchObject({ kind: 'noTake', without: true })
+    expect(effectPlays(state)).toBe(true)
+  })
+
+  it('keeps a "not laid" choice of a patch the game dropped, and does not play it', () => {
+    const state = tieState({ unlessPatch: 'old', patchTitle: 'Old bucket' }, patches, none)
+    expect(state).toEqual({ kind: 'gone', without: true, patchId: 'old', title: 'Old bucket' })
+    expect(effectPlays(state)).toBe(false)
+  })
 })

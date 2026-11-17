@@ -1611,6 +1611,23 @@ describe('an image’s saved effects', () => {
     ])
   })
 
+  it('keep a "not laid" choice, in order, and send its id to the game as unlessPatch', () => {
+    const tied = { ...dust, unlessPatch: 'bucket', patchTitle: 'The water on the fire' }
+    const text = formatImageEdits(applyEffects({ images: {} }, 'inn', { dust: tied }))
+    expect(Object.keys(JSON.parse(text).images.inn.effects.dust)).toEqual([
+      'on',
+      'unlessPatch',
+      'patchTitle',
+      'settings',
+    ])
+    const read = readImageEditsValue(JSON.parse(text), 'edits.json')
+    expect(read.problems).toEqual([])
+    expect(read.edits.images.inn?.effects?.dust).toEqual(tied)
+    expect(effectsForGame({ dust: tied })).toEqual([
+      { kind: 'dust', settings: { speed: 0.5, amount: 1.25 }, unlessPatch: 'bucket' },
+    ])
+  })
+
   describe('with a spot', () => {
     const pond = [
       [0.1, 0.5],

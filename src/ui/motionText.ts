@@ -140,16 +140,27 @@ export const TIE_WORDS = {
   shows: 'Shows',
   always: 'Always',
   lay: 'Lay it',
+  takeOff: 'Take it off',
 } as const
 
-/** A menu choice: the effect shows while this patch is laid. */
-export function tieChoice(title: string, gone = false): string {
-  return `While ${title} is laid${gone ? ' · gone' : ''}`
+/** A menu choice: the effect shows while this patch is laid, or with `without` while it is not. */
+export function tieChoice(title: string, gone = false, without = false): string {
+  return `While ${title} is ${without ? 'not laid' : 'laid'}${gone ? ' · gone' : ''}`
 }
 
 /** The tag beside a tied effect's name. */
-export function tieTag(title: string): string {
-  return `with ${title}`
+export function tieTag(title: string, without = false): string {
+  return `${without ? 'without' : 'with'} ${title}`
+}
+
+/** Why an effect that shows while a patch is not laid is not on the picture: the patch is laid. */
+export function laidLine(title: string): string {
+  return `Not showing: ${title} is laid.`
+}
+
+/** What a "not laid" choice of a patch the game no longer lists means. */
+export function patchGoneWithoutLine(title: string): string {
+  return `The game no longer lists the patch ${title}. Choose Always or another patch.`
 }
 
 /** Why a tied effect is not on the picture: its patch is not laid. */

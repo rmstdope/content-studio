@@ -66,6 +66,7 @@ interface Drawing {
 function tieOf(saved: SavedEffects[string] | undefined) {
   return {
     ...(saved?.patch !== undefined && { patch: saved.patch }),
+    ...(saved?.unlessPatch !== undefined && { unlessPatch: saved.unlessPatch }),
     ...(saved?.patchTitle !== undefined && { patchTitle: saved.patchTitle }),
   }
 }
@@ -279,27 +280,32 @@ export function MovementPanel({
     persist(true)
     focusSpotLink(type.type)
   }
-  /** An effect is tied to a patch, or to none (null): saved, and the patch laid so the effect stays in sight. */
-  const onTie = (type: EffectType, patchId: string | null) => {
+  /** An effect is tied to a patch, or to none (null): saved, and the patch laid (or taken off, for "not laid") so the effect stays in sight. */
+  const onTie = (type: EffectType, choice: { patchId: string; without: boolean } | null) => {
     const was = latest.current[type.type]
     const {
       patch: _p,
+      unlessPatch: _u,
       patchTitle: _t,
       ...rest
     } = was ?? { on: true, settings: startSettings(type) }
-    const patch = ties.find((p) => p.id === patchId)
+    const patch = ties.find((p) => p.id === choice?.patchId)
     set({
       ...latest.current,
       [type.type]: {
         ...rest,
         title: type.title,
-        ...(patch && { patch: patch.id, patchTitle: patch.title }),
+        ...(patch && {
+          [choice!.without ? 'unlessPatch' : 'patch']: patch.id,
+          patchTitle: patch.title,
+        }),
       },
     })
-    if (patch?.hasTake) setPatchesOn((now) => toggle(now, patch.id, true))
+    if (patch?.hasTake) setPatchesOn((now) => toggle(now, patch.id, !choice!.without))
     persist()
   }
   const onLay = (id: string) => setPatchesOn((now) => toggle(now, id, true))
+  const onTakeOff = (id: string) => setPatchesOn((now) => toggle(now, id, false))
   const onRemove = (type: string) => {
     const { [type]: _gone, ...rest } = latest.current
     set(rest)
@@ -478,6 +484,7 @@ export function MovementPanel({
       onRemove={onRemove}
       ties={ties}
       onTie={onTie}
+      onTakeOff={onTakeOff}
       onLay={onLay}
       status={status}
       onRetry={() => persist(failedSpot)}

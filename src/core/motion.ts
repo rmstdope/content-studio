@@ -151,27 +151,43 @@ export interface TiePatch {
   hasTake: boolean
 }
 
-/** Where an effect stands with its tie: untied, tied to a laid patch, to one not laid, to one with no take, or to one the game dropped. */
+/**
+ * Where an effect stands with its tie: untied, or tied (to show while the patch is laid, or with
+ * `without`, while it is not) to a patch that is laid, not laid, has no take, or was dropped by the game.
+ */
 export type TieState =
   | { kind: 'always' }
-  | { kind: 'laid' | 'notLaid' | 'noTake' | 'gone'; patchId: string; title: string }
+  | {
+      kind: 'laid' | 'notLaid' | 'noTake' | 'gone'
+      without?: true
+      patchId: string
+      title: string
+    }
 
 /** An effect's tie as the preview must treat it, given the game's patches and those laid now. */
 export function tieState(
-  saved: { patch?: string | undefined; patchTitle?: string | undefined },
+  saved: {
+    patch?: string | undefined
+    unlessPatch?: string | undefined
+    patchTitle?: string | undefined
+  },
   patches: readonly TiePatch[],
   laid: ReadonlySet<string>,
 ): TieState {
-  const id = saved.patch
+  const id = saved.patch ?? saved.unlessPatch
   if (id === undefined) return { kind: 'always' }
+  const without = saved.patch === undefined ? { without: true as const } : {}
   const patch = patches.find((p) => p.id === id)
-  if (!patch) return { kind: 'gone', patchId: id, title: saved.patchTitle ?? id }
-  const base = { patchId: id, title: patch.title }
+  if (!patch) return { kind: 'gone', ...without, patchId: id, title: saved.patchTitle ?? id }
+  const base = { ...without, patchId: id, title: patch.title }
   if (!patch.hasTake) return { kind: 'noTake', ...base }
   return { kind: laid.has(id) ? 'laid' : 'notLaid', ...base }
 }
 
 /** Whether the picture runs the effect now. */
 export function effectPlays(state: TieState): boolean {
-  return state.kind === 'always' || state.kind === 'laid'
+  if (state.kind === 'always') return true
+  if (state.kind === 'gone') return false
+  if (state.without) return state.kind !== 'laid'
+  return state.kind === 'laid'
 }
