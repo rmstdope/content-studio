@@ -731,42 +731,41 @@ export function MovementPanel({
   // The bar holds, unseen in the one cell with what it says and shows now, the words of every
   // step of drawing and its widest row of buttons: it is as tall as the tallest of them whichever
   // step is shown, so the picture below does not move under the pointer as the steps change.
+  const barSpot = drawing ? spotOf(drawing.type) : []
+  const barWords =
+    drawing && drawName
+      ? drawing.confirm
+        ? deleteAsk(barSpot[drawing.picked ?? 0]?.length ?? 0)
+        : drawing.placing && (drawing.placing.length > 0 || barSpot.length > 0)
+          ? newShapeBar(drawName)
+          : drawingBar(
+              drawName,
+              drawing.draft ? 'fromGame' : barSpot.length === 0 ? 'empty' : 'own',
+            )
+      : null
+  const barSteps = drawName
+    ? [
+        drawingBar(drawName, 'fromGame'),
+        drawingBar(drawName, 'own'),
+        drawingBar(drawName, 'empty'),
+        newShapeBar(drawName),
+        deleteAsk(Math.max(0, ...barSpot.map((shape) => shape.length))),
+      ]
+    : []
   const drawBar =
-    drawing && drawName ? (
+    drawing && barWords ? (
       <div ref={bar} className="spot-bar">
         <span className="spot-bar-words">
-          {(() => {
-            const spot = spotOf(drawing.type)
-            const words = drawing.confirm
-              ? deleteAsk(spot[drawing.picked ?? 0]?.length ?? 0)
-              : drawing.placing && (drawing.placing.length > 0 || spot.length > 0)
-                ? newShapeBar(drawName)
-                : drawingBar(
-                    drawName,
-                    drawing.draft ? 'fromGame' : spot.length === 0 ? 'empty' : 'own',
-                  )
-            const every = [
-              drawingBar(drawName, 'fromGame'),
-              drawingBar(drawName, 'own'),
-              drawingBar(drawName, 'empty'),
-              newShapeBar(drawName),
-              deleteAsk(Math.max(0, ...spot.map((shape) => shape.length))),
-            ]
-            return (
-              <>
-                <span className="spot-bar-now">
-                  <b>{words.lead}</b>
-                  {words.rest}
-                </span>
-                {every.map((step) => (
-                  <span key={step.lead + step.rest} className="spot-bar-room" aria-hidden="true">
-                    <b>{step.lead}</b>
-                    {step.rest}
-                  </span>
-                ))}
-              </>
-            )
-          })()}
+          <span className="spot-bar-now">
+            <b>{barWords.lead}</b>
+            {barWords.rest}
+          </span>
+          {barSteps.map((step) => (
+            <span key={step.lead + step.rest} className="spot-bar-room" aria-hidden="true">
+              <b>{step.lead}</b>
+              {step.rest}
+            </span>
+          ))}
         </span>
         <span className="spot-bar-buttons">
           <span className="spot-bar-now">
@@ -803,7 +802,7 @@ export function MovementPanel({
                     {SPOT_WORDS.deleteShape}
                   </button>
                 )}
-                {!drawing.placing && spotOf(drawing.type).length > 0 && (
+                {!drawing.placing && barSpot.length > 0 && (
                   <button
                     type="button"
                     className="btn"

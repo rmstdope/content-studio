@@ -2926,6 +2926,9 @@ describe('the game’s shape of an effect', () => {
     }
     // …each in the one cell with what the bar says and shows now, so the bar is as tall as the
     // tallest of them whichever step is shown, and the stage under it does not move.
+    for (const cell of ['.spot-bar-words', '.spot-bar-buttons']) {
+      expect(valuesInEveryWindow(bar.querySelector(cell)!, 'display').at(-1)).toEndWith(': grid')
+    }
     const now = [...bar.querySelectorAll('.spot-bar-now')]
     expect(now).toHaveLength(2)
     for (const cell of [...now, ...room]) {
