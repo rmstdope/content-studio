@@ -812,6 +812,20 @@ describe('the effects of an image', () => {
     expect(puts).toEqual([{ effects: { dust: saved({ amount: 1, size: 1, speed: 1 }) } }])
   })
 
+  it('puts focus on that effect’s own switch after Reset, so a keyboard user keeps their place', async () => {
+    const { host } = await render({
+      effects: {
+        dust: dust({ amount: 2, size: 1, speed: 1 }),
+        lamp: { ...saved({ amount: 3 }), title: 'Lamp lit' },
+      },
+    })
+    const reset = button(rowOf(host, 'Dust'), 'Reset')!
+    await act(async () => reset.focus())
+    await click(reset)
+    expect(button(rowOf(host, 'Dust'), 'Reset')).toBeUndefined()
+    expect(document.activeElement).toBe(switchFor(host, 'Dust')!)
+  })
+
   it('keeps an effect’s settings while it is switched off, and brings them back on', async () => {
     const { host, puts } = await render({
       effects: { dust: dust({ amount: 2, size: 1, speed: 1 }) },
