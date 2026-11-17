@@ -1393,9 +1393,6 @@ describe('the spot line of an effect', () => {
     const clear = linkIn(rowOf(host, 'Dust'), 'Clear')!
     await act(async () => clear.focus())
     await click(clear)
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 5))
-    })
     expect(document.activeElement?.textContent).toBe('Draw a spot')
     expect(rowOf(host, 'Dust').contains(document.activeElement)).toBe(true)
   })
