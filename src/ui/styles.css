@@ -6265,8 +6265,12 @@ textarea[aria-disabled='true'][data-why] {
 .movement-unknown {
   /* Fills the stage like the picture (the later .movement-empty rule made it relative). */
   position: absolute;
+  min-height: 0;
   border: 1px dashed var(--warn);
   background: var(--warn-bg);
+}
+.movement-unknown .movement-failure strong {
+  color: var(--danger-ink);
 }
 .movement-unknown-heading {
   color: var(--warn);
