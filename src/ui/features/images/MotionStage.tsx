@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode, type RefObject } from 'react'
+import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
 import type { SpotShape } from '../../../core/images'
 import type { MotionModule, MotionScene } from '../../motionModule'
 
@@ -89,7 +89,6 @@ export function MotionStage({
             key={effect.kind}
             {...shared}
             effects={[effect]}
-            spot={effect.spot}
             stepping={!frozen || only === effect.kind}
           />
         ))}
@@ -99,15 +98,14 @@ export function MotionStage({
 }
 
 /**
- * One canvas with one scene of the renderer on it, playing `effects`; with a `spot` it shows only
- * inside the spot's shapes. Not `stepping`, it holds its frame.
+ * One canvas with one scene of the renderer on it, playing `effects`; the renderer places a spotted
+ * effect from its spot, as the game does. Not `stepping`, it holds its frame.
  */
 function EffectCanvas({
   layers,
   module,
   picture,
   effects,
-  spot,
   paused,
   running,
   stepping,
@@ -117,16 +115,14 @@ function EffectCanvas({
   /** The picture the scene may redraw. */
   picture: RefObject<HTMLImageElement | null>
   effects: StageEffect[]
-  spot?: SpotShape[]
   paused: boolean
   running: boolean
   stepping: boolean
 }) {
-  const clip = useId().replace(/:/g, '')
   const canvas = useRef<HTMLCanvasElement>(null)
   const scene = useRef<MotionScene | null>(null)
   const wanted = useRef(effects)
-  wanted.current = effects.map(({ kind, settings }) => ({ kind, settings }))
+  wanted.current = effects
 
   /** Gives the canvas one pixel per screen pixel (twice at most) and tells the scene its size in screen pixels. */
   const fit = useRef(() => {})
@@ -236,22 +232,5 @@ function EffectCanvas({
     return () => cancelAnimationFrame(frame)
   }, [module, going])
 
-  return (
-    <>
-      <canvas
-        ref={canvas}
-        className="movement-canvas"
-        style={spot ? { clipPath: `url("#${clip}")` } : undefined}
-      />
-      {spot && (
-        <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
-          <clipPath id={clip} clipPathUnits="objectBoundingBox">
-            {spot.map((shape, i) => (
-              <polygon key={i} points={shape.map(([x, y]) => `${x},${y}`).join(' ')} />
-            ))}
-          </clipPath>
-        </svg>
-      )}
-    </>
-  )
+  return <canvas ref={canvas} className="movement-canvas" />
 }

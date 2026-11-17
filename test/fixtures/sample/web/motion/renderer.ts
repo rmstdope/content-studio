@@ -1,6 +1,6 @@
 /**
  * The sample game's motion renderer, small on purpose: two effects that drift specks over the
- * picture. It has what the studio asks of a game's renderer: `EFFECT_TYPES` and `createMotionScene`.
+ * picture, or only inside an effect's spot when it is given one. It has what the studio asks of a game's renderer: `EFFECT_TYPES` and `createMotionScene`.
  */
 interface Setting {
   id: string
@@ -31,11 +31,16 @@ interface Speck {
 export function createMotionScene() {
   let width = 640
   let height = 400
-  let specs: { kind: string; settings?: Record<string, number> }[] = []
-  let specks: { kind: string; list: Speck[] }[] = []
+  let specs: {
+    kind: string
+    settings?: Record<string, number>
+    spot?: [number, number][][]
+  }[] = []
+  let specks: { kind: string; spot?: [number, number][][]; list: Speck[] }[] = []
   const reseed = () => {
     specks = specs.map((spec) => ({
       kind: spec.kind,
+      spot: spec.spot,
       list: Array.from({ length: Math.round(30 * (spec.settings?.amount ?? 1)) }, () => ({
         x: Math.random() * width,
         y: Math.random() * height,
@@ -66,12 +71,25 @@ export function createMotionScene() {
     draw(ctx: CanvasRenderingContext2D) {
       ctx.clearRect(0, 0, width, height)
       for (const layer of specks) {
+        // An effect with a spot is held to its shapes, as a game's renderer places it.
+        if (layer.spot) {
+          ctx.save()
+          ctx.beginPath()
+          for (const shape of layer.spot) {
+            shape.forEach(([x, y], i) =>
+              i === 0 ? ctx.moveTo(x * width, y * height) : ctx.lineTo(x * width, y * height),
+            )
+            ctx.closePath()
+          }
+          ctx.clip()
+        }
         ctx.fillStyle = layer.kind === 'embers' ? '#ff9a3d' : '#fff8'
         for (const speck of layer.list) {
           ctx.beginPath()
           ctx.arc(speck.x, speck.y, speck.r, 0, Math.PI * 2)
           ctx.fill()
         }
+        if (layer.spot) ctx.restore()
       }
     },
     isEmpty: () => specks.every((layer) => layer.list.length === 0),

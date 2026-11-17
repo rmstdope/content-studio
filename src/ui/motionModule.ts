@@ -1,3 +1,4 @@
+import type { SpotShape } from '../core/images'
 import { parseEffectTypes, type EffectType } from '../core/motion'
 
 /** One slow-running picture's moving layer: the part of the renderer's scene the studio drives. */
@@ -6,9 +7,17 @@ export interface MotionScene {
   setSource?(source: { image: CanvasImageSource; width: number; height: number } | null): void
   /** The canvas is `width` × `height` pixels, showing a picture of `picture` size trimmed to fill it. */
   resize(width: number, height: number, picture: { width: number; height: number }): void
-  /** What applies now; with `instant`, a new layer is run ahead and starts at full strength. */
+  /**
+   * What applies now; with `instant`, a new layer is run ahead and starts at full strength. An
+   * effect with a `spot` is placed on its shapes (fractions of the picture) by the renderer, which
+   * decides how far it reaches from them.
+   */
   setEffects(
-    specs: readonly { kind: string; settings?: Record<string, number> }[],
+    specs: readonly {
+      kind: string
+      settings?: Record<string, number>
+      spot?: SpotShape[]
+    }[],
     instant: boolean,
   ): void
   /** Move on `ms` milliseconds. */

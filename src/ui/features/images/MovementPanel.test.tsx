@@ -24,7 +24,11 @@ afterAll(() => GlobalRegistrator.unregister())
 interface Calls {
   made: number
   sources: unknown[]
-  setEffects: { kind: string; settings?: Record<string, number> }[][]
+  setEffects: {
+    kind: string
+    settings?: Record<string, number>
+    spot?: [number, number][][]
+  }[][]
   steps: number
   stepMs: number[]
   draws: number
@@ -1338,7 +1342,7 @@ const POND: [number, number][] = [
 ]
 
 describe('an effect with a spot, played', () => {
-  it('runs on a canvas of its own, clipped to its shapes, the others on the one over the whole picture', async () => {
+  it('runs on a canvas of its own, the others on the one over the whole picture', async () => {
     const { host } = await render({
       effects: {
         dust: { ...dust({ amount: 1, size: 1, speed: 1 }), spot: [POND] },
@@ -1352,11 +1356,21 @@ describe('an effect with a spot, played', () => {
     expect(asked).not.toContain('dust,mist')
     const canvases = host.querySelectorAll<HTMLCanvasElement>('.movement-canvas')
     expect(canvases).toHaveLength(2)
-    expect(canvases[0]!.style.clipPath).toBe('')
-    const clip = host.querySelector('clipPath')!
-    expect(clip.getAttribute('clipPathUnits')).toBe('objectBoundingBox')
-    expect(clip.querySelector('polygon')!.getAttribute('points')).toBe('0.1,0.5 0.4,0.5 0.25,0.9')
-    expect(canvases[1]!.style.clipPath).toContain(`#${clip.id}`)
+  })
+
+  it('hands the renderer the spot, and leaves its canvas unclipped, so the effect is placed as in the game', async () => {
+    const { host } = await render({
+      effects: {
+        dust: { ...dust({ amount: 1, size: 1, speed: 1 }), spot: [POND] },
+        mist: { on: true, settings: { amount: 1 } },
+      },
+    })
+    const handed = calls().setEffects.flat()
+    expect(handed.find((e) => e.kind === 'dust')!.spot).toEqual([POND])
+    expect(handed.find((e) => e.kind === 'mist')!.spot).toBeUndefined()
+    const canvases = host.querySelectorAll<HTMLCanvasElement>('.movement-canvas')
+    expect([...canvases].map((c) => c.style.clipPath)).toEqual(['', ''])
+    expect(host.querySelector('clipPath')).toBeNull()
   })
 
   it('leaves nothing of a held effect on the shared canvas, by running its fade out at once', async () => {
@@ -1595,6 +1609,28 @@ describe('drawing a spot', () => {
     expect(document.activeElement?.textContent).toBe('＋ Add a shape')
     expect(rowOf(host, 'Dust').className).toContain('movement-effect-drawing')
     expect(host.querySelector('.movement-zoom')!.getAttribute('data-still')).toBe('true')
+  })
+
+  it('hands the renderer the spot again when a shape is added while it plays', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await click(button(host, '＋ Add a shape'))
+    await tap(host, 0.6, 0.1)
+    await tap(host, 0.9, 0.1)
+    await tap(host, 0.9, 0.4)
+    await tap(host, 0.6, 0.1)
+    const dustSpot = calls()
+      .setEffects.at(-1)!
+      .find((e) => e.kind === 'dust')!.spot
+    expect(dustSpot).toEqual([
+      POND,
+      [
+        [0.6, 0.1],
+        [0.9, 0.1],
+        [0.9, 0.4],
+      ],
+    ])
   })
 
   it('picks a shape by a click in it and un-picks by a click outside every shape', async () => {
