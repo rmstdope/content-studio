@@ -6513,7 +6513,13 @@ textarea[aria-disabled='true'][data-why] {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
+  align-content: flex-start;
+  align-items: flex-start;
   gap: 8px;
+}
+/* One top edge for the shown buttons, whatever .btn and .btn-primary say about their own place. */
+.spot-bar-buttons .btn {
+  align-self: auto;
 }
 /* What the bar says and shows now shares one cell with the room it holds for its other steps. */
 .spot-bar-now,
