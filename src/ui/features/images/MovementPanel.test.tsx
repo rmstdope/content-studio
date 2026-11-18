@@ -1918,7 +1918,7 @@ describe('drawing a spot', () => {
     await click(button(host, 'Delete this shape'))
     const row = host.querySelector('.spot-bar-buttons > .spot-bar-now')!
     expect(valuesInEveryWindow(row, 'align-items').at(-1)).toEndWith(': flex-start')
-    // …and Keep it and Delete line up in it whatever their own rules say.
+    // Keep it and Delete line up in it whatever their own rules say.
     const shown = [...row.querySelectorAll('button')]
     expect(shown.map((b) => b.textContent)).toEqual(['Keep it', 'Delete'])
     for (const b of shown) {
@@ -1933,13 +1933,11 @@ describe('drawing a spot', () => {
     await tap(host, 0.25, 0.6)
     // The room's buttons wrap in the order Add a shape, Delete this shape, Light from the middle,
     // Finish, so narrow Delete this shape is on its first line and never alone on its last.
+    const order = ['＋ Add a shape', 'Delete this shape', 'Light from the middle', 'Finish']
     const room = host.querySelector('.spot-bar-buttons > .spot-bar-room')!
-    expect([...room.children].map((b) => b.textContent)).toEqual([
-      '＋ Add a shape',
-      'Delete this shape',
-      'Light from the middle',
-      'Finish',
-    ])
+    expect([...room.children].map((b) => b.textContent)).toEqual(order)
+    const shown = host.querySelector('.spot-bar-buttons > .spot-bar-now')!
+    expect([...shown.querySelectorAll('button')].map((b) => b.textContent)).toEqual(order)
     await click(button(host, 'Delete this shape'))
     // Keep it and Delete pack at the bottom of the room, where Light from the middle and Finish
     // were: a quick second press where Delete this shape was lands on neither.
