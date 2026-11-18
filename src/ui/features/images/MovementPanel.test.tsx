@@ -1785,7 +1785,7 @@ describe('drawing a spot', () => {
     const { host, puts } = await render(withDust())
     await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
     expect(barText(host)).toBe(
-      'Drawing your own spot for Dust. Click to place each corner; click the first corner to close the shape. Esc stops this shape.Finish',
+      'Drawing your own spot for Dust. Click to place each corner; click the first corner to close the shape. Esc stops this shape.❚❚ PauseFinish',
     )
     expect(document.activeElement?.textContent).toBe('Finish')
     expect(spotLineOf(host, 'Dust')).toBe(
@@ -1836,7 +1836,7 @@ describe('drawing a spot', () => {
     const { host } = await render(withDust([POND]))
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
     expect(barText(host)).toBe(
-      'Drawing your own spot for Dust. Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it. Drag the ● to where the light comes from, or press Alt and the arrows.＋ Add a shapeDelete this shapeLight from the middleFinish',
+      'Drawing your own spot for Dust. Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it. Drag the ● to where the light comes from, or press Alt and the arrows.❚❚ Pause＋ Add a shapeDelete this shapeLight from the middleFinish',
     )
     expect(document.activeElement?.textContent).toBe('＋ Add a shape')
     expect(rowOf(host, 'Dust').className).toContain('movement-effect-drawing')
@@ -1939,7 +1939,15 @@ describe('drawing a spot', () => {
     const { host } = await render(withDust([POND]))
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
     await tap(host, 0.25, 0.6)
-    const order = ['＋ Add a shape', 'Delete this shape', 'Light from the middle', 'Finish']
+    // The room's buttons wrap in the order Pause, Add a shape, Delete this shape, Light from the middle,
+    // Finish, so Delete this shape is never on the room's last line, where the question packs.
+    const order = [
+      '❚❚ Pause',
+      '＋ Add a shape',
+      'Delete this shape',
+      'Light from the middle',
+      'Finish',
+    ]
     const room = host.querySelector('.spot-bar-buttons > .spot-bar-room')!
     expect([...room.children].map((b) => b.textContent)).toEqual(order)
     const shown = host.querySelector('.spot-bar-buttons > .spot-bar-now')!
@@ -2181,6 +2189,47 @@ describe('drawing a spot', () => {
     expect(kinds(drawn)).toEqual(['mist'])
   })
 
+  it('shows Pause / Play first in the drawing bar, with Space and the caption in step', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    const caption = () => host.querySelector('.movement-caption')!.textContent
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    const first = () => host.querySelector<HTMLButtonElement>('.spot-bar-buttons button')!
+    expect(first().textContent).toBe('❚❚ Pause')
+    expect(caption()).toBe('Take 3, as the game will show it. Space pauses · F for full screen.')
+    first().focus()
+    await click(first())
+    expect(first().textContent).toBe('▶ Play')
+    expect(document.activeElement).toBe(first())
+    expect(caption()).toBe(
+      'Take 3, as the game will show it. Paused · Space plays · F for full screen.',
+    )
+    await press(' ')
+    expect(first().textContent).toBe('❚❚ Pause')
+    await press(' ')
+    expect(first().textContent).toBe('▶ Play')
+    // Finish leaves it paused: the stage's own button says so, and so does the caption.
+    await click(button(host, 'Finish'))
+    expect(button(host, '▶ Play')).toBeDefined()
+    expect(caption()).toContain('Paused · Space plays')
+  })
+
+  it('keeps Pause / Play off the delete question, and on the placing bar', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await click(button(host, '＋ Add a shape'))
+    expect(barText(host)).toContain('❚❚ PauseFinish')
+    await tap(host, 0.1, 0.1)
+    await tap(host, 0.2, 0.1)
+    await tap(host, 0.2, 0.2)
+    await tap(host, 0.1, 0.1)
+    await click(button(host, 'Delete this shape'))
+    expect(barText(host)).toEndWith('Keep itDelete')
+    await press(' ')
+    expect(host.querySelector('.movement-caption')!.textContent).toContain('Paused')
+  })
+
   it('finishes drawing when an effect being drawn is switched off', async () => {
     sizeOverlay()
     const { host } = await render(withDust([POND]))
@@ -2264,7 +2313,7 @@ describe('the light mark of a spot', () => {
     const { host } = await render(withDust([POND]))
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
     expect(barText(host)).toBe(
-      'Drawing your own spot for Dust. Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it. Drag the ● to where the light comes from, or press Alt and the arrows.＋ Add a shapeDelete this shapeLight from the middleFinish',
+      'Drawing your own spot for Dust. Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it. Drag the ● to where the light comes from, or press Alt and the arrows.❚❚ Pause＋ Add a shapeDelete this shapeLight from the middleFinish',
     )
     await tap(host, 0.8, 0.2)
     expect(barText(host)).toEndWith('＋ Add a shapeLight from the middleFinish')
@@ -2838,7 +2887,7 @@ describe('the game’s shape of an effect', () => {
     const { host, puts } = await render(everyEffect())
     await click(linkIn(rowOf(host, 'Dust'), 'Draw your own'))
     expect(barText(host)).toBe(
-      "Drawing your own spot for Dust. It starts as the game's: drag a corner to move it, double-click a corner to take it out, click the picture to add a shape.＋ Add a shapeDelete this shapeLight from the middleFinish",
+      "Drawing your own spot for Dust. It starts as the game's: drag a corner to move it, double-click a corner to take it out, click the picture to add a shape.❚❚ Pause＋ Add a shapeDelete this shapeLight from the middleFinish",
     )
     expect(polygons(host, 'spot-edge')).toHaveLength(1)
     expect(polygons(host, 'spot-game-faint')).toHaveLength(1)
@@ -2908,7 +2957,7 @@ describe('the game’s shape of an effect', () => {
       'Drawing your own spot for Dust. Click to place each corner; click the first corner to close the shape. Esc stops this shape.',
       'New shape for Dust. Click to place each corner; click the first corner to close the shape. Esc stops this shape.',
       'Delete this shape? It has 4 corners.',
-      '＋ Add a shapeDelete this shapeLight from the middleFinish',
+      '❚❚ Pause＋ Add a shapeDelete this shapeLight from the middleFinish',
     ])
     for (const r of room) {
       expect(r.getAttribute('aria-hidden')).toBe('true')
@@ -2932,7 +2981,7 @@ describe('the game’s shape of an effect', () => {
     const { host } = await render(everyEffect())
     await click(linkIn(rowOf(host, 'Running water'), 'Draw your own'))
     expect(barText(host)).toBe(
-      'Drawing your own spot for Running water. Click to place each corner; click the first corner to close the shape. Esc stops this shape.Finish',
+      'Drawing your own spot for Running water. Click to place each corner; click the first corner to close the shape. Esc stops this shape.❚❚ PauseFinish',
     )
     expect(polygons(host, 'spot-game')).toHaveLength(0)
   })

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'bun:test'
-import { drawingBar, foldedDrawing, foldedPlacing, newShapeBar, SPOT_WORDS } from './motionText'
+import {
+  drawingBar,
+  foldedDrawing,
+  foldedPlacing,
+  newShapeBar,
+  SPOT_WORDS,
+  takeCaption,
+} from './motionText'
 
 describe('the drawing words', () => {
   it('say Esc stops the shape on the tab, for an empty spot and a new shape', () => {
@@ -22,5 +29,13 @@ describe('the drawing words', () => {
     expect(foldedDrawing('Rain')).toBe('Drawing Rain')
     expect(foldedPlacing('Rain')).toBe('New shape for Rain')
     expect(SPOT_WORDS.stopShape).toBe('Stop this shape')
+  })
+})
+
+describe('takeCaption paused', () => {
+  it('says Paused and that Space plays', () => {
+    expect(takeCaption(3, true)).toBe(
+      'Take 3, as the game will show it. Paused · Space plays · F for full screen.',
+    )
   })
 })
