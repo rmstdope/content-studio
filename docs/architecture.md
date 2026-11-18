@@ -2435,7 +2435,9 @@ Images' and scenes' routes are described with them:
   tip of its own; a move over another control with a tip, while a tip not held by focus is up (off the
   box onto a control it covered, say), shows that control's tip. Only the pointer
   arriving over a control shows its tip, never a move on it, so a tip closed with Esc stays closed
-  while the pointer rests there, and a move starts the linger but never puts it off.
+  while the pointer rests there, and a move starts the linger but never puts it off. The whole rule is
+  one pure function, `tipReaction` in `src/ui/off.ts` (facts in; show, keep, hide soon or nothing out),
+  tested without a DOM; `WhyTip` gathers the facts and carries out the answer (as-bb3k).
 
 ---
 
