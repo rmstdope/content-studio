@@ -1968,7 +1968,7 @@ describe('drawing a spot', () => {
       [0.4, 0.5],
       [0.97, 0.97],
     ]
-    const { host, puts } = await render(withDust([low]))
+    const { host, puts } = await render(withDust([low, SQUARE]))
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
     // One overlay owns the presses: it takes them over the whole picture, and no second raised layer,
     // catcher or per-element opt-in is left (happy-dom does no hit testing, so the stylesheet is pinned).
@@ -1976,8 +1976,14 @@ describe('drawing a spot', () => {
     expect(host.querySelector('.spot-handles, .spot-catch, .spot-grab')).toBeNull()
     for (const cls of ['.spot-corner', '.spot-mark'])
       expect(valuesInEveryWindow(host.querySelector(cls)!, 'pointer-events')).toEqual([])
-    // Pick (the shape's low edge region), then grab a corner at the foot and drag it.
+    // Pick the other shape near the stage foot, then back; the picked outline moves each time.
+    const pickedIndex = () =>
+      [...polygons(host, 'spot-edge')].findIndex((p) => p.classList.contains('spot-edge-picked'))
+    await tap(host, 0.88, 0.89)
+    expect(pickedIndex()).toBe(1)
     await tap(host, 0.4, 0.8)
+    expect(pickedIndex()).toBe(0)
+    // Grab a corner at the foot and drag it.
     await pointer(host, 'pointerdown', 0.02, 0.97)
     await pointer(host, 'pointermove', 0.2, 0.7)
     await pointer(host, 'pointerup', 0.2, 0.7)
@@ -1997,8 +2003,8 @@ describe('drawing a spot', () => {
       [0.03, 0.97],
     ] as const)
       await tap(host, x, y)
-    expect(puts.at(-1)!.effects.dust!.spot).toHaveLength(2)
-    expect(puts.at(-1)!.effects.dust!.spot![1]).toEqual([
+    expect(puts.at(-1)!.effects.dust!.spot).toHaveLength(3)
+    expect(puts.at(-1)!.effects.dust!.spot![2]).toEqual([
       [0.03, 0.97],
       [0.5, 0.6],
       [0.97, 0.97],
