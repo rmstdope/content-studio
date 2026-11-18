@@ -77,8 +77,11 @@ describe('tipReaction', () => {
     expect(react({ over: 'other', shown: true, held: true })).toBe('show')
   })
 
-  test('a move over the shown control keeps its tip and never reopens one closed with Esc', () => {
+  test('a move over the shown control keeps its tip', () => {
     expect(react({ moved: true, over: 'shown', shown: true, lingering: true })).toBe('keep')
+  })
+
+  test('a move over a control never reopens a tip closed with Esc (nothing is shown then)', () => {
     expect(react({ moved: true, over: 'other' })).toBe('nothing')
   })
 
