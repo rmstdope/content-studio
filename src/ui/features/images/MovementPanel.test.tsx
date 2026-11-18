@@ -1907,42 +1907,44 @@ describe('drawing a spot', () => {
     expect(barText(host)).toContain('Drawing your own spot for Dust.')
   })
 
-  it('keeps the shown buttons on one top edge, at the top of the room held for the widest row', async () => {
+  it('anchors the shown buttons to the top of the bar and the delete question to its bottom, by their layer', async () => {
     sizeOverlay()
     const { host } = await render(withDust([POND]))
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
     await tap(host, 0.25, 0.6)
-    const drawingRow = host.querySelector('.spot-bar-buttons > .spot-bar-now')!
-    // Narrow, the room is two rows tall: the shown row sits at its top, not stretched down it.
-    expect(valuesInEveryWindow(drawingRow, 'align-content').at(-1)).toEndWith(': flex-start')
+    const buttons = host.querySelector('.spot-bar-buttons')!
+    const shown = () => buttons.querySelector('.spot-bar-now')!
+    // Narrow, the room is two lines tall: the shown layer sits at its top, not stretched down it.
+    expect(valuesInEveryWindow(shown(), 'align-self').at(-1)).toEndWith(': start')
+    expect(shown().classList.contains('spot-bar-ask')).toBe(false)
     await click(button(host, 'Delete this shape'))
-    const row = host.querySelector('.spot-bar-buttons > .spot-bar-now')!
-    expect(valuesInEveryWindow(row, 'align-items').at(-1)).toEndWith(': flex-start')
-    // Keep it and Delete line up in it whatever their own rules say.
-    const shown = [...row.querySelectorAll('button')]
-    expect(shown.map((b) => b.textContent)).toEqual(['Keep it', 'Delete'])
-    for (const b of shown) {
-      expect(valuesInEveryWindow(b, 'align-self').at(-1)).toEndWith(': auto')
-    }
+    // Keep it and Delete are the bar's other layer, anchored to its last line, where Light from the
+    // middle and Finish are: a quick second press where Delete this shape was lands on neither.
+    expect([...shown().querySelectorAll('button')].map((b) => b.textContent)).toEqual([
+      'Keep it',
+      'Delete',
+    ])
+    expect(shown().classList.contains('spot-bar-ask')).toBe(true)
+    expect(valuesInEveryWindow(shown(), 'align-self').at(-1)).toEndWith(': end')
+    // No per-step alignment of the layer's lines is left to agree with the layers.
+    expect(valuesInEveryWindow(shown(), 'align-content').at(-1)).toBeUndefined()
+    expect(valuesInEveryWindow(shown(), 'align-items').at(-1)).toBeUndefined()
   })
 
-  it('asks about a delete on the last line of the room, never on the line holding Delete this shape', async () => {
+  it('draws the held room from the same list as the shown buttons, in the same order', async () => {
     sizeOverlay()
     const { host } = await render(withDust([POND]))
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
     await tap(host, 0.25, 0.6)
-    // The room's buttons wrap in the order Add a shape, Delete this shape, Light from the middle,
-    // Finish, so narrow Delete this shape is on its first line and never alone on its last.
     const order = ['＋ Add a shape', 'Delete this shape', 'Light from the middle', 'Finish']
     const room = host.querySelector('.spot-bar-buttons > .spot-bar-room')!
     expect([...room.children].map((b) => b.textContent)).toEqual(order)
     const shown = host.querySelector('.spot-bar-buttons > .spot-bar-now')!
     expect([...shown.querySelectorAll('button')].map((b) => b.textContent)).toEqual(order)
-    await click(button(host, 'Delete this shape'))
-    // Keep it and Delete pack at the bottom of the room, where Light from the middle and Finish
-    // were: a quick second press where Delete this shape was lands on neither.
-    const row = host.querySelector('.spot-bar-buttons > .spot-bar-now')!
-    expect(valuesInEveryWindow(row, 'align-content').at(-1)).toEndWith(': flex-end')
+    // Each held button keeps the look of the one it stands for.
+    expect([...room.children].map((b) => b.className)).toEqual(
+      [...shown.querySelectorAll('button')].map((b) => b.className),
+    )
   })
 
   it('moves a corner by dragging it, saving once on letting go, and keeps it on the picture', async () => {
