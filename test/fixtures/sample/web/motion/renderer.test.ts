@@ -93,10 +93,10 @@ function fillingContext() {
   const ctx = {
     clearRect: () => {},
     beginPath: () => {},
-    moveTo: () => {},
+    moveTo: (x: number, y: number) => fills.push(`moveTo ${Math.round(x)} ${Math.round(y)}`),
     lineTo: () => {},
     closePath: () => {},
-    clip: () => {},
+    clip: () => fills.push('clip'),
     save: () => {},
     restore: () => {},
     arc: () => {},
@@ -126,7 +126,8 @@ describe('the sample’s ripples', () => {
     scene.setEffects([{ kind: 'embers' }, { kind: 'ripples' }])
     const { fills, ctx } = fillingContext()
     scene.draw(ctx)
-    expect(fills[0]).toBe('fill #1d4e6b')
+    // The pond's first corner, then the clip, then the opaque fill: it fills the spot, not the canvas.
+    expect(fills.slice(0, 3)).toEqual(['moveTo 50 55', 'clip', 'fill #1d4e6b'])
     expect(fills).toContain('fill #ff9a3d')
   })
 
