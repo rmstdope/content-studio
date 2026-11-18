@@ -534,7 +534,7 @@ export function MovementPanel({
     drawing === null ? null : drawing.confirm ? 'ask' : drawing.placing ? 'place' : 'draw'
   useEffect(() => {
     if (barMode)
-      bar.current?.querySelector<HTMLButtonElement>('button:not(.spot-bar-pause)')?.focus()
+      bar.current?.querySelector<HTMLButtonElement>('button:not([data-bar-pause])')?.focus()
   }, [barMode, drawing?.type, full])
   /** The shapes of an effect as the picture has them: the person's own, else the game's copy being started from. */
   function spotOf(type: string): SpotShape[] {
@@ -843,7 +843,8 @@ export function MovementPanel({
             <button
               key="pause"
               type="button"
-              className="btn spot-bar-pause"
+              className="btn"
+              data-bar-pause
               onClick={() => setPaused((was) => !was)}
             >
               {playLabel}
