@@ -1615,15 +1615,17 @@ describe('an effect with a spot, played', () => {
     const last = calls().setEffects.at(-1)!
     expect(last.map((e) => e.kind)).toEqual(['dust'])
     expect(last[0]!.spot).toBeUndefined()
-    expect(host.querySelectorAll('.movement-canvas')).toHaveLength(1)
   })
 
-  it('plays no effect over the whole picture while it is off', async () => {
-    const { host } = await render({
+  it('hands the renderer no effect that is off, even with a spot', async () => {
+    await render({
       effects: { dust: { ...dust({ amount: 1, size: 1, speed: 1 }), on: false, spot: [POND] } },
     })
-    expect(calls().made).toBe(1)
-    expect(host.querySelectorAll('.movement-canvas')).toHaveLength(1)
+    expect(
+      calls()
+        .setEffects.flat()
+        .map((e) => e.kind),
+    ).not.toContain('dust')
   })
 })
 

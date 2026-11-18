@@ -116,7 +116,7 @@ function EffectCanvas({
   running,
 }: {
   layers: StageLayers
-  module: MotionModule | null
+  module: MotionModule
   /** The picture the scene may redraw. */
   picture: RefObject<HTMLImageElement | null>
   effects: StageEffect[]
@@ -140,7 +140,7 @@ function EffectCanvas({
   // One scene per loaded renderer and picture size.
   useEffect(() => {
     const element = canvas.current
-    if (!module || !element) return
+    if (!element) return
     const made = module.createScene()
     scene.current = made
     const paint = () => {
@@ -215,7 +215,7 @@ function EffectCanvas({
   goingRef.current = going
   useEffect(() => {
     const element = canvas.current
-    if (!module || !element || !going) return
+    if (!element || !going) return
     const context = element.getContext('2d')
     let last = 0
     let frame = 0
