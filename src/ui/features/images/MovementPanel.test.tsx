@@ -1912,17 +1912,37 @@ describe('drawing a spot', () => {
     const { host } = await render(withDust([POND]))
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
     await tap(host, 0.25, 0.6)
+    const drawingRow = host.querySelector('.spot-bar-buttons > .spot-bar-now')!
+    // Narrow, the room is two rows tall: the shown row sits at its top, not stretched down it.
+    expect(valuesInEveryWindow(drawingRow, 'align-content').at(-1)).toEndWith(': flex-start')
     await click(button(host, 'Delete this shape'))
     const row = host.querySelector('.spot-bar-buttons > .spot-bar-now')!
-    // Narrow, the room is two rows tall: the shown row sits at its top, not stretched down it…
-    expect(valuesInEveryWindow(row, 'align-content').at(-1)).toEndWith(': flex-start')
     expect(valuesInEveryWindow(row, 'align-items').at(-1)).toEndWith(': flex-start')
-    // …and Keep it and Delete line up in it whatever their own rules say.
+    // Keep it and Delete line up in it whatever their own rules say.
     const shown = [...row.querySelectorAll('button')]
     expect(shown.map((b) => b.textContent)).toEqual(['Keep it', 'Delete'])
     for (const b of shown) {
       expect(valuesInEveryWindow(b, 'align-self').at(-1)).toEndWith(': auto')
     }
+  })
+
+  it('asks about a delete on the last line of the room, never on the line holding Delete this shape', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await tap(host, 0.25, 0.6)
+    // The room's buttons wrap in the order Add a shape, Delete this shape, Light from the middle,
+    // Finish, so narrow Delete this shape is on its first line and never alone on its last.
+    const order = ['＋ Add a shape', 'Delete this shape', 'Light from the middle', 'Finish']
+    const room = host.querySelector('.spot-bar-buttons > .spot-bar-room')!
+    expect([...room.children].map((b) => b.textContent)).toEqual(order)
+    const shown = host.querySelector('.spot-bar-buttons > .spot-bar-now')!
+    expect([...shown.querySelectorAll('button')].map((b) => b.textContent)).toEqual(order)
+    await click(button(host, 'Delete this shape'))
+    // Keep it and Delete pack at the bottom of the room, where Light from the middle and Finish
+    // were: a quick second press where Delete this shape was lands on neither.
+    const row = host.querySelector('.spot-bar-buttons > .spot-bar-now')!
+    expect(valuesInEveryWindow(row, 'align-content').at(-1)).toEndWith(': flex-end')
   })
 
   it('moves a corner by dragging it, saving once on letting go, and keeps it on the picture', async () => {
