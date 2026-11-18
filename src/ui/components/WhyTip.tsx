@@ -74,7 +74,6 @@ export function WhyTip() {
       cancel()
       lingering.current = setTimeout(hide, LINGER_MS)
     }
-    const inTip = (t: EventTarget | null) => t instanceof Element && !!t.closest('.why-tip')
     // The tip lets the pointer through to what it covers, so being on it is where the pointer is.
     const onTip = (e: Event) => {
       const box = tipRef.current?.getBoundingClientRect()
@@ -82,13 +81,22 @@ export function WhyTip() {
       if (!box || typeof x !== 'number' || typeof y !== 'number') return false
       return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom
     }
+    // Arriving over a control shows its tip; a move only keeps the tip or lets it go, so a tip
+    // closed with Esc stays closed while the pointer rests on its control.
     const pointed = (e: Event, moved: boolean) => {
+      // The tip being read wins over a control it happens to cover.
+      if (onTip(e)) return cancel()
       const target = tippedIn(e.target)
-      if (target) show(target)
-      else if (inTip(e.target) || onTip(e)) cancel()
+      const now = shownRef.current
       // A control with keyboard focus keeps its tip until focus moves on: the browser also
       // reports the pointer over whatever a page change moves under it while it rests.
-      else if (shownRef.current && !shownRef.current.target.matches(':focus-visible')) {
+      const held = !!now && now.target.matches(':focus-visible')
+      if (target) {
+        if (!moved) show(target)
+        else if (target === now?.target) cancel()
+        // Off the tip onto a control it covered: that control's tip, as if the pointer arrived.
+        else if (now && !held) show(target)
+      } else if (now && !held) {
         // A move only starts the linger; it never puts it off again.
         if (!moved || !lingering.current) hideSoon()
       }
@@ -106,7 +114,7 @@ export function WhyTip() {
         (e) => {
           // A greyed control's press is stopped on `mousedown` and `click`, not here: cancelling
           // `pointerdown` would also drop the mouse events that guard is waiting for.
-          if (!tippedIn(e.target) && !inTip(e.target)) hide()
+          if (!tippedIn(e.target)) hide()
         },
       ],
       ['mousedown', (e) => greyedIn(e.target) && stop(e)],

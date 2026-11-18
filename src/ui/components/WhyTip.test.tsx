@@ -113,6 +113,62 @@ describe('the tip on a greyed control', () => {
     expect(tip()).toBeNull()
   })
 
+  it('keeps a tip closed with Esc closed while the pointer moves on the control', () => {
+    mount('Wait for the takes.')
+    fire(el('make'), 'pointerover')
+    fire(el('make'), 'keydown', { key: 'Escape' })
+    expect(tip()).toBeNull()
+    fire(el('make'), 'pointermove', { clientX: 5, clientY: 5 })
+    expect(tip()).toBeNull()
+  })
+
+  it('keeps the tip being read when it covers another control with a tip', async () => {
+    mount('Wait for the takes.')
+    fire(el('make'), 'pointerover')
+    tipAt({ left: 0, top: 0, width: 120, height: 30 })
+    // The menu is greyed with its own reason (the same one here); the tip shown stays Make's.
+    fire(el('menu'), 'pointerover', { clientX: 10, clientY: 10 })
+    await wait(250)
+    expect(el('make').getAttribute('aria-describedby')).toBe('why-tip')
+    expect(el('menu').hasAttribute('aria-describedby')).toBe(false)
+  })
+
+  it('shows the tip of the covered control once the pointer moves off the tip onto it', () => {
+    mount('Wait for the takes.')
+    fire(el('make'), 'pointerover')
+    tipAt({ left: 0, top: 0, width: 120, height: 30 })
+    fire(el('menu'), 'pointerover', { clientX: 10, clientY: 10 })
+    fire(el('menu'), 'pointermove', { clientX: 10, clientY: 40 })
+    expect(el('menu').getAttribute('aria-describedby')).toBe('why-tip')
+  })
+
+  it('goes a linger after the pointer leaves it, however much the pointer moves after', async () => {
+    mount('Wait for the takes.')
+    fire(el('make'), 'pointerover')
+    tipAt({ left: 0, top: 0, width: 120, height: 30 })
+    fire(el('plain'), 'pointerover', { clientX: 10, clientY: 10 })
+    fire(el('plain'), 'pointermove', { clientX: 10, clientY: 60 })
+    await wait(100)
+    fire(el('plain'), 'pointermove', { clientX: 10, clientY: 61 })
+    await wait(100)
+    fire(el('plain'), 'pointermove', { clientX: 10, clientY: 62 })
+    expect(tip()).toBeNull()
+  })
+
+  it('lets a press on the control under it through, and goes (as-qpps)', () => {
+    mount('Wait for the takes.')
+    let pressed = 0
+    el('plain').addEventListener('click', () => pressed++)
+    fire(el('make'), 'pointerover')
+    tipAt({ left: 0, top: 0, width: 120, height: 30 })
+    fire(el('plain'), 'pointerover', { clientX: 10, clientY: 10 })
+    fire(el('plain'), 'pointerdown', { clientX: 10, clientY: 10 })
+    fire(el('plain'), 'mousedown', { clientX: 10, clientY: 10 })
+    fire(el('plain'), 'click', { clientX: 10, clientY: 10 })
+    expect(pressed).toBe(1)
+    expect(tip()).toBeNull()
+  })
+
   it('lets the pointer through to the controls under it, so a button it covers can be pressed (as-qpps)', () => {
     mount('Wait for the takes.')
     fire(el('make'), 'pointerover')
