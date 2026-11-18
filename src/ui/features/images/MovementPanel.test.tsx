@@ -3205,7 +3205,7 @@ describe('drawing a spot in full screen', () => {
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
     await click(button(host, '＋ Add a shape'))
     await tap(host, 0.6, 0.6)
-    await click(button(host, '⛶ Full screen'))
+    await press('f')
     expect(boxText(host)).toContain('New shape for Dust.')
     expect(host.querySelectorAll('.spot-placed, .spot-first')).toHaveLength(1)
     await click(inFloat(host, '✕ Close'))
@@ -3244,15 +3244,15 @@ describe('drawing a spot in full screen', () => {
     expect(floatRow(host, 'Dust')).toBeDefined()
   })
 
-  it('puts the panel above the layer that takes every press while corners are placed', async () => {
+  it('puts the panel above the overlay that takes every press while a spot is drawn', async () => {
     fakeFullScreen()
     sizeOverlay()
     const { host } = await render(withDust())
     await full(host)
     await click(linkIn(floatRow(host, 'Dust'), 'Draw your own'))
     const z = (el: Element | null) =>
-      Number(valuesInEveryWindow(el!, 'z-index').at(-1)?.split(': ').at(-1))
-    expect(z(float(host))).toBeGreaterThan(z(host.querySelector('.spot-handles')))
+      Number(valuesInEveryWindow(el!, 'z-index').at(-1)?.split(': ').at(-1) ?? 0)
+    expect(z(float(host))).toBeGreaterThan(z(host.querySelector('.spot-overlay')))
   })
 
   it('shows the picture in one box with the overlay and the canvas, so the corners are the picture’s fractions', async () => {
@@ -3296,7 +3296,7 @@ describe('drawing a spot in full screen', () => {
     sizeOverlay()
     const { host } = await render(withDust([POND]))
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
-    await click(button(host, '⛶ Full screen'))
+    await press('f')
     expect(float(host).contains(document.activeElement)).toBe(true)
   })
 
