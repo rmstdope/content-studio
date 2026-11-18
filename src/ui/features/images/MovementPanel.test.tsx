@@ -1939,8 +1939,8 @@ describe('drawing a spot', () => {
     const { host } = await render(withDust([POND]))
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
     await tap(host, 0.25, 0.6)
-    // The room's buttons wrap in the order Add a shape, Delete this shape, Light from the middle,
-    // Finish, so narrow Delete this shape is on its first line and never alone on its last.
+    // The room's buttons wrap in the order Pause, Add a shape, Delete this shape, Light from the middle,
+    // Finish, so Delete this shape is never on the room's last line, where the question packs.
     const order = [
       '❚❚ Pause',
       '＋ Add a shape',
@@ -2214,7 +2214,7 @@ describe('drawing a spot', () => {
     expect(caption()).toContain('Paused · Space plays')
   })
 
-  it('keeps Pause / Play off the delete question and out of the full screen bar, and on the placing bar', async () => {
+  it('keeps Pause / Play off the delete question, and on the placing bar', async () => {
     sizeOverlay()
     const { host } = await render(withDust([POND]))
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
