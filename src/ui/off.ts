@@ -55,3 +55,36 @@ export function tipPlace(
   const left = Math.max(EDGE, Math.min(centred, win.width - tip.width - EDGE))
   return { left, top, side }
 }
+
+/** What a pointer event found, as plain values (see `tipReaction`). */
+export type TipFacts = {
+  /** A move (`pointermove`) rather than an arrival (`pointerover`). */
+  moved: boolean
+  /** The pointer is inside the shown tip's box. */
+  onTip: boolean
+  /** The control with a tip under the pointer: none, the one shown, or another. */
+  over: 'none' | 'shown' | 'other'
+  /** A tip is showing. */
+  shown: boolean
+  /** The shown control holds keyboard focus (`:focus-visible`), which keeps its tip. */
+  held: boolean
+  /** A linger before hiding is running. */
+  lingering: boolean
+}
+
+/**
+ * What the tip does about a pointer event: show the control's tip, keep the one up (end any
+ * linger), hide it soon, or nothing. An arrival shows a tip; a move only keeps or lets one go, so a
+ * tip closed with Esc stays closed while the pointer rests on its control. A tip held by keyboard
+ * focus is not let go for the pointer being elsewhere.
+ */
+export function tipReaction(f: TipFacts): 'show' | 'keep' | 'hide-soon' | 'nothing' {
+  if (f.onTip) return 'keep'
+  if (f.over !== 'none') {
+    if (!f.moved) return 'show'
+    if (f.over === 'shown') return 'keep'
+    return f.shown && !f.held ? 'show' : 'nothing'
+  }
+  if (!f.shown || f.held) return 'nothing'
+  return !f.moved || !f.lingering ? 'hide-soon' : 'nothing'
+}

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { tipPlace } from '../off'
+import { tipPlace, tipReaction } from '../off'
 
 /** What a greyed control carries: `aria-disabled` and its reason (see `off`). */
 const GREYED = '[aria-disabled="true"][data-why]'
@@ -81,26 +81,23 @@ export function WhyTip() {
       if (!box || typeof x !== 'number' || typeof y !== 'number') return false
       return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom
     }
-    // Arriving over a control shows its tip; a move only keeps the tip or lets it go, so a tip
-    // closed with Esc stays closed while the pointer rests on its control.
+    // Gathers what the pointer event found and carries out `tipReaction`'s answer.
     const pointed = (e: Event, moved: boolean) => {
-      // The tip being read wins over a control it happens to cover.
-      if (onTip(e)) return cancel()
       const target = tippedIn(e.target)
       const now = shownRef.current
-      // A control with keyboard focus keeps its tip until focus moves on: the browser also
-      // reports the pointer over whatever a page change moves under it while it rests.
-      const held = !!now && now.target.matches(':focus-visible')
-      if (target) {
-        if (!moved) show(target)
-        else if (target === now?.target) cancel()
-        // A move over another control while a tip not held by focus is up (off the tip onto a
-        // control it covered, say): that control's tip, as a fresh arrival would give.
-        else if (now && !held) show(target)
-      } else if (now && !held) {
-        // A move only starts the linger; it never puts it off again.
-        if (!moved || !lingering.current) hideSoon()
-      }
+      const answer = tipReaction({
+        moved,
+        onTip: onTip(e),
+        over: !target ? 'none' : target === now?.target ? 'shown' : 'other',
+        shown: !!now,
+        // The browser also reports the pointer over whatever a page change moves under it while
+        // a control with keyboard focus rests.
+        held: !!now && now.target.matches(':focus-visible'),
+        lingering: !!lingering.current,
+      })
+      if (answer === 'show' && target) show(target)
+      else if (answer === 'keep') cancel()
+      else if (answer === 'hide-soon') hideSoon()
     }
     const stop = (e: Event) => {
       e.preventDefault()
