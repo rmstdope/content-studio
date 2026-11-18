@@ -6211,8 +6211,15 @@ textarea[aria-disabled='true'][data-why] {
   inset: 0;
   overflow: hidden;
 }
-.movement-wrap:fullscreen .movement-pic {
-  object-fit: cover;
+/* Full screen fills the screen with the picture, cropped: the stage is the picture's own box, at least as big as the screen and centred, so the canvas and the spot overlay share its fractions. */
+.movement-wrap:fullscreen .movement-stage,
+.movement-wrap-full .movement-stage {
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  width: max(100vw, calc(100vh * var(--ar, 1)));
+  aspect-ratio: var(--ar, 1);
+  transform: translate(-50%, -50%);
 }
 .movement-dim {
   opacity: 0.35;
@@ -6426,6 +6433,7 @@ textarea[aria-disabled='true'][data-why] {
 }
 .movement-float {
   position: absolute;
+  z-index: 2;
   top: 16px;
   right: 16px;
   width: 300px;
@@ -6443,8 +6451,25 @@ textarea[aria-disabled='true'][data-why] {
 }
 .movement-float-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+}
+/* The grip: drag it to move the panel anywhere on the screen (mouse only). */
+.movement-float-grip {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  padding: 0 4px;
+  color: var(--muted);
+  letter-spacing: -2px;
+}
+.movement-float-grip:active {
+  cursor: grabbing;
+}
+/* The drawing box in the floating panel: the tab's bar without the room it holds for its steps. */
+.spot-bar-float {
+  margin-bottom: 0;
 }
 .movement-float-head strong {
   flex: 1;

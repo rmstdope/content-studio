@@ -29,6 +29,8 @@ import {
   SAVING_AFTER_MS,
   deleteAsk,
   drawingBar,
+  foldedDrawing,
+  foldedPlacing,
   newShapeBar,
   takeCaption,
 } from '../../motionText'
@@ -40,14 +42,16 @@ import {
 } from './MotionControls'
 import { MotionStage, type StageEffect } from './MotionStage'
 import { movementRoom } from './movementRoom'
+import { clampFloat, readFloat, writeFloat, type FloatPlace } from './floatPlace'
 import { SpotOverlay } from './SpotOverlay'
 import { off } from '../../off'
 import { handFocusOn } from './handFocusOn'
 import { useJobOpen } from './ImageJobTabs'
 import { typingIn } from './useWorkbenchKeys'
 
-/** An effect's spot link, once its row has been drawn. */
+/** An effect's spot link, once its row has been drawn: the full-screen panel's when it is open, else the tab's. */
 const spotLink = (type: string) =>
+  document.querySelector<HTMLElement>(`.movement-float [data-spot-link="${type}"]`) ??
   document.querySelector<HTMLElement>(`.movement-side [data-spot-link="${type}"]`)
 
 /** Whether this computer asks for reduced motion. */
@@ -141,6 +145,9 @@ export function MovementPanel({
   const bar = useRef<HTMLDivElement>(null)
   const wrap = useRef<HTMLDivElement>(null)
   const fullButton = useRef<HTMLButtonElement>(null)
+  const floatBox = useRef<HTMLElement>(null)
+  // Where the person left the full-screen panel (null: the top right), remembered on this computer.
+  const [place, setPlace] = useState<FloatPlace | null>(() => readFloat())
   const column = useRef<HTMLDivElement>(null)
   // The stage's room: what the window leaves below where the frame starts on the page, less the
   // caption and its gap and the panel's bottom padding. Read from the nodes as they are now, so it
@@ -492,6 +499,8 @@ export function MovementPanel({
     if (!drawing) return
     const listen = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
+      // In full screen Esc is the browser's, and leaves full screen: drawing carries on.
+      if (document.fullscreenElement && document.fullscreenElement === wrap.current) return
       const now = drawingRef.current
       if (!now) return
       event.preventDefault()
@@ -525,7 +534,7 @@ export function MovementPanel({
     drawing === null ? null : drawing.confirm ? 'ask' : drawing.placing ? 'place' : 'draw'
   useEffect(() => {
     if (barMode) bar.current?.querySelector('button')?.focus()
-  }, [barMode, drawing?.type])
+  }, [barMode, drawing?.type, full])
   /** The shapes of an effect as the picture has them: the person's own, else the game's copy being started from. */
   function spotOf(type: string): SpotShape[] {
     const now = drawingRef.current
@@ -558,9 +567,8 @@ export function MovementPanel({
   }
 
   const openFull = useCallback(() => {
-    finish(false)
     void wrap.current?.requestFullscreen?.()?.catch(() => {})
-  }, [finish])
+  }, [])
   const closeFull = useCallback(() => {
     if (document.fullscreenElement) void document.exitFullscreen()
   }, [])
@@ -597,6 +605,69 @@ export function MovementPanel({
     document.addEventListener('keydown', listen)
     return () => document.removeEventListener('keydown', listen)
   }, [open, running, openFull])
+
+  // A failed save of a spot opens a folded panel, so the message is seen.
+  const spotFailed = drawing !== null && status === 'failed' && failedSpot
+  useEffect(() => {
+    if (spotFailed) setFolded(false)
+  }, [spotFailed])
+
+  // The panel stays fully inside the screen when the window or the panel changes size.
+  useEffect(() => {
+    const box = floatBox.current
+    if (!full || !place || !box) return
+    const fit = () =>
+      setPlace((now) => {
+        if (!now) return now
+        const next = clampFloat(
+          now,
+          { width: box.offsetWidth, height: box.offsetHeight },
+          { width: window.innerWidth, height: window.innerHeight },
+        )
+        return next.left === now.left && next.top === now.top ? now : next
+      })
+    fit()
+    window.addEventListener('resize', fit)
+    const watch = typeof ResizeObserver === 'function' ? new ResizeObserver(fit) : null
+    watch?.observe(box)
+    return () => {
+      window.removeEventListener('resize', fit)
+      watch?.disconnect()
+    }
+  }, [full, place !== null]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** The grip is pressed: the panel follows the pointer, held inside the screen, and its place is kept when let go. */
+  const grab = (event: React.PointerEvent) => {
+    const box = floatBox.current
+    if (!box) return
+    event.preventDefault()
+    const from = box.getBoundingClientRect()
+    const dx = event.clientX - from.left
+    const dy = event.clientY - from.top
+    let last: FloatPlace | null = null
+    const at = (e: PointerEvent | MouseEvent): FloatPlace =>
+      clampFloat(
+        { left: e.clientX - dx, top: e.clientY - dy },
+        { width: box.offsetWidth, height: box.offsetHeight },
+        { width: window.innerWidth, height: window.innerHeight },
+      )
+    const move = (e: Event) => {
+      last = at(e as PointerEvent)
+      setPlace(last)
+    }
+    const end = (keep: boolean) => {
+      document.removeEventListener('pointermove', move)
+      document.removeEventListener('pointerup', up)
+      document.removeEventListener('pointercancel', cancel)
+      if (keep && last) writeFloat(last)
+    }
+    // A cancelled pointer ends the drag where it is, like a release.
+    const up = () => end(true)
+    const cancel = up
+    document.addEventListener('pointermove', move)
+    document.addEventListener('pointerup', up)
+    document.addEventListener('pointercancel', cancel)
+  }
 
   // What the picture plays: the renderer's effects that are in the game, at their settings.
   const playing: StageEffect[] =
@@ -653,6 +724,14 @@ export function MovementPanel({
   const chosenPatches = (patches ?? []).filter(
     (p): p is MovementPatch & { src: string } => p.src !== null && patchesOn.has(p.id),
   )
+  /** Try again after a failed save: a revert is retried as one, anything else as the latest save. */
+  function retrySave() {
+    const again = failedBack.current
+    const type =
+      motion.status === 'ready' ? motion.module.types.find((t) => t.type === again) : undefined
+    if (type) onBack(type)
+    else persist(failedSpot)
+  }
   const spotControls: SpotControls = {
     drawing: drawing?.type ?? null,
     why: picture === null && SPOT_WORDS.noPicture,
@@ -689,13 +768,7 @@ export function MovementPanel({
       onZoomReset={onZoomReset}
       onZoomRetry={persistZoom}
       status={status}
-      onRetry={() => {
-        const again = failedBack.current
-        const type =
-          motion.status === 'ready' ? motion.module.types.find((t) => t.type === again) : undefined
-        if (type) onBack(type)
-        else persist(failedSpot)
-      }}
+      onRetry={retrySave}
       failedSpot={failedSpot}
       spot={spot}
     />
@@ -737,24 +810,29 @@ export function MovementPanel({
       ? drawing.confirm
         ? deleteAsk(barSpot[drawing.picked ?? 0]?.length ?? 0)
         : drawing.placing && (drawing.placing.length > 0 || barSpot.length > 0)
-          ? newShapeBar(drawName)
+          ? newShapeBar(drawName, { esc: !full })
           : drawingBar(
               drawName,
               drawing.draft ? 'fromGame' : barSpot.length === 0 ? 'empty' : 'own',
+              { esc: !full },
             )
       : null
-  const barSteps = drawName
-    ? [
-        drawingBar(drawName, 'fromGame'),
-        drawingBar(drawName, 'own'),
-        drawingBar(drawName, 'empty'),
-        newShapeBar(drawName),
-        deleteAsk(Math.max(0, ...barSpot.map((shape) => shape.length))),
-      ]
-    : []
-  const drawBar =
+  // The tab's bar keeps one height through every step (full screen's box has no picture to keep still).
+  const barSteps =
+    drawName && !full
+      ? [
+          drawingBar(drawName, 'fromGame'),
+          drawingBar(drawName, 'own'),
+          drawingBar(drawName, 'empty'),
+          newShapeBar(drawName),
+          deleteAsk(Math.max(0, ...barSpot.map((shape) => shape.length))),
+        ]
+      : []
+  const stopShape = () => drawing && draw({ ...drawing, placing: null })
+  /** The drawing words and buttons: above the picture on the tab, in the floating panel in full screen. */
+  const drawBox =
     drawing && barWords ? (
-      <div ref={bar} className="spot-bar">
+      <div ref={bar} className={full ? 'spot-bar spot-bar-float' : 'spot-bar'}>
         <span className="spot-bar-words">
           <span className="spot-bar-now">
             <b>{barWords.lead}</b>
@@ -818,23 +896,38 @@ export function MovementPanel({
                     {SPOT_WORDS.lightFromMiddle}
                   </button>
                 )}
+                {full && drawing.placing && (
+                  <button type="button" className="btn" onClick={stopShape}>
+                    {SPOT_WORDS.stopShape}
+                  </button>
+                )}
                 <button type="button" className="btn btn-primary" onClick={() => finish(true)}>
                   {SPOT_WORDS.finish}
                 </button>
               </>
             )}
           </span>
-          <span className="spot-bar-room" aria-hidden="true">
-            {[SPOT_WORDS.addShape, SPOT_WORDS.deleteShape, SPOT_WORDS.lightFromMiddle].map(
-              (word) => (
-                <span key={word} className="btn">
-                  {word}
-                </span>
-              ),
-            )}
-            <span className="btn btn-primary">{SPOT_WORDS.finish}</span>
-          </span>
+          {!full && (
+            <span className="spot-bar-room" aria-hidden="true">
+              {[SPOT_WORDS.addShape, SPOT_WORDS.deleteShape, SPOT_WORDS.lightFromMiddle].map(
+                (word) => (
+                  <span key={word} className="btn">
+                    {word}
+                  </span>
+                ),
+              )}
+              <span className="btn btn-primary">{SPOT_WORDS.finish}</span>
+            </span>
+          )}
         </span>
+        {full && status === 'failed' && failedSpot && (
+          <p role="alert" className="movement-save-failed">
+            {SPOT_WORDS.saveFailed}{' '}
+            <button type="button" className="btn" onClick={retrySave}>
+              {MOVEMENT_WORDS.tryAgain}
+            </button>
+          </p>
+        )}
       </div>
     ) : null
   const typeOf = (kind: string) =>
@@ -889,14 +982,16 @@ export function MovementPanel({
       )}
       <div className="movement-body">
         <div ref={column} className="movement-picture">
-          {drawBar}
+          {!full && drawBox}
           <div className="movement-frame">
             <div
               ref={wrap}
               className={full ? 'movement-wrap movement-wrap-full' : 'movement-wrap'}
               style={
                 full
-                  ? undefined
+                  ? picture !== null && !lockUnread
+                    ? ({ '--ar': row.width / row.height } as CSSProperties)
+                    : undefined
                   : ({
                       aspectRatio: `${row.width} / ${row.height}`,
                       // Only a picture is fitted to the window; the empty and "not known" stages stay as wide as the column.
@@ -942,7 +1037,7 @@ export function MovementPanel({
                     paused={paused}
                     running={open}
                     zoom={drawing === null ? zoomLook(zoom ?? zoomValues(undefined)) : null}
-                    inside={drawing ? null : overlay}
+                    inside={drawing && !full ? null : overlay}
                     onMissing={() => setMissing(src)}
                   />
                 </div>
@@ -978,25 +1073,58 @@ export function MovementPanel({
                 </div>
               )}
               {running && full && (
-                <aside className="movement-float" aria-label={row.title}>
+                <aside
+                  ref={floatBox}
+                  className="movement-float"
+                  aria-label={row.title}
+                  style={place ? { left: place.left, top: place.top, right: 'auto' } : undefined}
+                >
                   <div className="movement-float-head">
-                    <strong>{row.title}</strong>
-                    <button
-                      type="button"
-                      className="btn"
-                      aria-label={paused ? 'Play' : 'Pause'}
-                      onClick={() => setPaused((was) => !was)}
-                    >
-                      {paused ? '▶' : '❚❚'}
-                    </button>
+                    <span className="movement-float-grip" aria-hidden="true" onPointerDown={grab}>
+                      ⋮⋮
+                    </span>
+                    <strong>
+                      {drawing && folded
+                        ? drawing.placing
+                          ? foldedPlacing(drawName ?? '')
+                          : foldedDrawing(drawName ?? '')
+                        : row.title}
+                    </strong>
+                    {!(drawing?.placing && folded) && (
+                      <button
+                        type="button"
+                        className="btn"
+                        aria-label={paused ? 'Play' : 'Pause'}
+                        onClick={() => setPaused((was) => !was)}
+                      >
+                        {paused ? '▶' : '❚❚'}
+                      </button>
+                    )}
                     <button type="button" className="btn" onClick={() => setFolded((was) => !was)}>
                       {folded ? MOVEMENT_WORDS.show : MOVEMENT_WORDS.hide}
                     </button>
+                    {drawing && folded && drawing.placing && (
+                      <button type="button" className="btn" onClick={stopShape}>
+                        {SPOT_WORDS.stopShape}
+                      </button>
+                    )}
+                    {drawing && folded && (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => {
+                          setFolded(false)
+                          finish(true)
+                        }}
+                      >
+                        {SPOT_WORDS.finish}
+                      </button>
+                    )}
                     <button type="button" className="btn" onClick={closeFull}>
                       {MOVEMENT_WORDS.close}
                     </button>
                   </div>
-                  {!folded && controls(undefined)}
+                  {!folded && (drawBox ?? controls(spotControls))}
                 </aside>
               )}
             </div>
