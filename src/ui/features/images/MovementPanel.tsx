@@ -958,7 +958,7 @@ export function MovementPanel({
                   {failure}
                 </div>
               )}
-              {running && !full && (
+              {running && !full && !drawing && (
                 <div className="movement-buttons">
                   <button
                     type="button"

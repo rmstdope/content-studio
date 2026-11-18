@@ -6538,6 +6538,7 @@ textarea[aria-disabled='true'][data-why] {
   display: block;
 }
 .spot-overlay-draw {
+  /* While a spot is drawn the stage's buttons are gone, so this one element takes every press. */
   pointer-events: auto;
   cursor: crosshair;
   touch-action: none;
@@ -6568,13 +6569,6 @@ textarea[aria-disabled='true'][data-why] {
 .spot-edge-picked {
   stroke-width: 4px;
 }
-.spot-grab {
-  fill: transparent;
-  pointer-events: auto;
-}
-.spot-mark {
-  pointer-events: auto;
-}
 .spot-mark circle {
   fill: var(--warn);
   stroke: var(--accent-ink);
@@ -6591,19 +6585,7 @@ textarea[aria-disabled='true'][data-why] {
   stroke: var(--accent-ink);
   stroke-width: 1px;
 }
-/* Above the stage's buttons, which come later and have no z-index; only the corners and the mark take presses, and the whole of it while a shape is placed. */
-.spot-handles {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-.spot-catch {
-  fill: transparent;
-  pointer-events: auto;
-}
 .spot-corner {
-  pointer-events: auto;
   fill: #fff;
   stroke: var(--accent-ink);
   stroke-width: 3px;

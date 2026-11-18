@@ -1951,96 +1951,63 @@ describe('drawing a spot', () => {
     expect(puts).toHaveLength(count)
   })
 
-  it('lets a corner under Pause or Full screen be grabbed: the dots sit above the stage’s buttons and take the press (as-z2qd)', async () => {
+  it('takes Pause and Full screen off the picture while a spot is drawn, and brings them back after (as-tldl)', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([SQUARE]))
+    expect(host.querySelector('.movement-buttons')).not.toBeNull()
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    expect(host.querySelector('.movement-buttons')).toBeNull()
+    await click(button(host, 'Finish'))
+    expect(host.querySelector('.movement-buttons')).not.toBeNull()
+  })
+
+  it('gives every press on the picture to the drawing, whatever kind: place, close, grab a corner, grab the mark, pick a shape (as-tldl)', async () => {
     sizeOverlay()
     const low: [number, number][] = [
       [0.02, 0.97],
       [0.4, 0.5],
       [0.97, 0.97],
     ]
-    const { host, puts } = await render(withDust([low]))
+    const { host, puts } = await render(withDust([low, SQUARE]))
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    // One overlay owns the presses: it takes them over the whole picture, and no second raised layer,
+    // catcher or per-element opt-in is left (happy-dom does no hit testing, so the stylesheet is pinned).
+    expect(valuesInEveryWindow(overlay(host), 'pointer-events').at(-1)).toMatch(/: auto$/)
+    expect(host.querySelector('.spot-handles, .spot-catch, .spot-grab')).toBeNull()
+    for (const cls of ['.spot-corner', '.spot-mark'])
+      expect(valuesInEveryWindow(host.querySelector(cls)!, 'pointer-events')).toEqual([])
+    // Pick the other shape near the stage foot, then back; the picked outline moves each time.
+    const pickedIndex = () =>
+      [...polygons(host, 'spot-edge')].findIndex((p) => p.classList.contains('spot-edge-picked'))
+    await tap(host, 0.88, 0.89)
+    expect(pickedIndex()).toBe(1)
     await tap(host, 0.4, 0.8)
-    expect(host.querySelector('.movement-buttons')).not.toBeNull()
-    const dot = host.querySelectorAll<SVGElement>('.spot-corner')[0]!
-    // happy-dom does no hit testing, so the bug is pinned by the stylesheet: the buttons are a later
-    // sibling of the overlay with no z-index, so a layer of the overlay is painted above them only
-    // with a z-index of its own, and a dot takes a press only if it lets pointer events in.
-    expect(valuesInEveryWindow(host.querySelector('.movement-buttons')!, 'z-index')).toEqual([])
-    const layer = dot.closest('.spot-handles')
-    expect(layer).not.toBeNull()
-    expect(valuesInEveryWindow(layer!, 'z-index').at(-1)).toMatch(/: [1-9]\d*$/)
-    expect(valuesInEveryWindow(dot, 'pointer-events').at(-1)).toMatch(/: auto$/)
-    // Above the buttons a corner is taken as far out as anywhere else (10 px), not only on its dot.
-    const grabs = [...layer!.querySelectorAll('.spot-grab')]
-    expect(grabs).toHaveLength(3)
-    expect(grabs.map((g) => g.getAttribute('r'))).toEqual(['10', '10', '10'])
-    expect(valuesInEveryWindow(grabs[0]!, 'pointer-events').at(-1)).toMatch(/: auto$/)
-    // The light's mark is in the raised layer too, drawn over the corners (it takes a press first).
-    const mark = layer!.querySelector('.spot-mark')
-    expect(mark).not.toBeNull()
-    expect(mark!.compareDocumentPosition(dot) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
-    expect(valuesInEveryWindow(mark!, 'pointer-events').at(-1)).toMatch(/: auto$/)
-    // The press itself reaching the overlay is the save path, not the bug: it bubbled before too.
-    await act(async () => {
-      dot.dispatchEvent(
-        new MouseEvent('pointerdown', {
-          clientX: 0.02 * 640,
-          clientY: 0.97 * 400,
-          bubbles: true,
-          cancelable: true,
-        }),
-      )
-    })
+    expect(pickedIndex()).toBe(0)
+    // Grab a corner at the foot and drag it.
+    await pointer(host, 'pointerdown', 0.02, 0.97)
     await pointer(host, 'pointermove', 0.2, 0.7)
     await pointer(host, 'pointerup', 0.2, 0.7)
     expect(puts.at(-1)!.effects.dust!.spot![0]![0]).toEqual([0.2, 0.7])
-  })
-
-  it('places a corner, and closes a shape, under Pause or Full screen: a raised layer takes every press while placing (as-f11k)', async () => {
-    sizeOverlay()
-    const { host, puts } = await render(withDust([POND]))
-    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    // Grab the mark (the middle of the shape's box) and drag it.
+    const at = host.querySelector('.spot-mark')!.getAttribute('data-at')!.split(',').map(Number)
+    await pointer(host, 'pointerdown', at[0]!, at[1]!)
+    await pointer(host, 'pointermove', 0.05, 0.95)
+    await pointer(host, 'pointerup', 0.05, 0.95)
+    expect(puts.at(-1)!.effects.dust!.mark).toEqual([0.05, 0.95])
+    // Place and close a second shape low on the picture, where the buttons were.
     await click(button(host, '＋ Add a shape'))
-    expect(host.querySelector('.movement-buttons')).not.toBeNull()
-    // happy-dom does no hit testing, so the bug is pinned by the stylesheet: the buttons come later
-    // with no z-index, so a press where they sit reaches the overlay only through a raised layer
-    // that lets pointer events in over the whole picture.
-    expect(valuesInEveryWindow(host.querySelector('.movement-buttons')!, 'z-index')).toEqual([])
-    const layer = host.querySelector<SVGElement>('.spot-handles')
-    expect(layer).not.toBeNull()
-    expect(valuesInEveryWindow(layer!, 'z-index').at(-1)).toMatch(/: [1-9]\d*$/)
-    const catcher = layer!.querySelector<SVGElement>('.spot-catch')
-    expect(catcher).not.toBeNull()
-    expect(catcher!.getAttribute('width')).toBe('640')
-    expect(catcher!.getAttribute('height')).toBe('400')
-    expect(valuesInEveryWindow(catcher!, 'pointer-events').at(-1)).toMatch(/: auto$/)
-    /** A click on the raised layer, low on the picture where the buttons sit. */
-    const press = async (x: number, y: number) => {
-      const target = host.querySelector('.spot-catch')!
-      for (const type of ['pointerdown', 'pointerup'])
-        await act(async () => {
-          target.dispatchEvent(
-            new MouseEvent(type, {
-              clientX: x * 640,
-              clientY: y * 400,
-              bubbles: true,
-              cancelable: true,
-            }),
-          )
-        })
-    }
-    await press(0.03, 0.97)
-    await press(0.5, 0.6)
-    await press(0.97, 0.97)
-    await press(0.03, 0.97)
-    expect(puts.at(-1)!.effects.dust!.spot).toEqual([
-      POND,
-      [
-        [0.03, 0.97],
-        [0.5, 0.6],
-        [0.97, 0.97],
-      ],
+    for (const [x, y] of [
+      [0.03, 0.97],
+      [0.5, 0.6],
+      [0.97, 0.97],
+      [0.03, 0.97],
+    ] as const)
+      await tap(host, x, y)
+    expect(puts.at(-1)!.effects.dust!.spot).toHaveLength(3)
+    expect(puts.at(-1)!.effects.dust!.spot![2]).toEqual([
+      [0.03, 0.97],
+      [0.5, 0.6],
+      [0.97, 0.97],
     ])
   })
 
@@ -2229,7 +2196,7 @@ describe('drawing a spot', () => {
     expect(host.querySelector('.spot-bar')).toBeNull()
   })
 
-  it('finishes drawing when full screen opens', async () => {
+  it('finishes drawing when full screen opens (the F key: its button is off the stage while drawing)', async () => {
     sizeOverlay()
     let current: Element | null = null
     Object.defineProperty(document, 'fullscreenElement', { get: () => current, configurable: true })
@@ -2245,7 +2212,7 @@ describe('drawing a spot', () => {
     })
     const { host } = await render(withDust([POND]))
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
-    await click(button(host, '⛶ Full screen'))
+    await press('f')
     expect(host.querySelector('.spot-bar')).toBeNull()
     expect(host.querySelector('.movement-float')).not.toBeNull()
   })
