@@ -125,6 +125,7 @@ export const SPOT_WORDS = {
   lightFromMiddle: 'Light from the middle',
   alreadyMiddle: 'The light already comes from the middle of the shapes.',
   finish: 'Finish',
+  stopShape: 'Stop this shape',
   keep: 'Keep it',
   delete: 'Delete',
   leftOut: "The shape you hadn't closed was left out.",
@@ -154,11 +155,13 @@ export function spotLine(view: SpotView, state: 'plain' | 'drawing' | 'off' = 'p
 
 /**
  * What the bar above the picture says while a spot is being drawn: its bold lead and the rest;
- * `fromGame` while the shape is still the game's copy, `empty` when the game doesn't say where.
+ * `fromGame` while the shape is still the game's copy, `empty` when the game doesn't say where;
+ * `esc: false` (full screen) leaves out the sentence about Esc.
  */
 export function drawingBar(
   name: string,
   mode: 'own' | 'fromGame' | 'empty' = 'own',
+  { esc = true }: { esc?: boolean } = {},
 ): { lead: string; rest: string } {
   const lead = `Drawing your own spot for ${name}.`
   if (mode === 'fromGame') {
@@ -170,7 +173,7 @@ export function drawingBar(
   if (mode === 'empty') {
     return {
       lead,
-      rest: ' Click to place each corner; click the first corner to close the shape. Esc stops this shape.',
+      rest: placeWords(esc),
     }
   }
   return {
@@ -180,11 +183,26 @@ export function drawingBar(
 }
 
 /** What the bar says while the corners of a new shape are being placed. */
-export function newShapeBar(name: string): { lead: string; rest: string } {
-  return {
-    lead: `New shape for ${name}.`,
-    rest: ' Click to place each corner; click the first corner to close the shape. Esc stops this shape.',
-  }
+export function newShapeBar(
+  name: string,
+  { esc = true }: { esc?: boolean } = {},
+): { lead: string; rest: string } {
+  return { lead: `New shape for ${name}.`, rest: placeWords(esc) }
+}
+
+/** The words for placing corners; full screen has no Esc to stop a shape (its button does it). */
+function placeWords(esc: boolean): string {
+  return ` Click to place each corner; click the first corner to close the shape.${esc ? ' Esc stops this shape.' : ''}`
+}
+
+/** The folded panel's words while a spot is drawn in full screen. */
+export function foldedDrawing(name: string): string {
+  return `Drawing ${name}`
+}
+
+/** The folded panel's words while the corners of a new shape are placed in full screen. */
+export function foldedPlacing(name: string): string {
+  return `New shape for ${name}`
 }
 
 /** What the bar asks before a shape is deleted. */

@@ -1706,7 +1706,7 @@ describe('the spot line of an effect', () => {
     expect(text(rowOf(host, 'Dust'))).toContain('Choose a take on Make to draw a spot.')
   })
 
-  it('is just the line, with no links, in the full-screen panel', async () => {
+  it('has the same spot links in the full-screen panel', async () => {
     let current: Element | null = null
     Object.defineProperty(document, 'fullscreenElement', { get: () => current, configurable: true })
     ;(
@@ -1726,8 +1726,8 @@ describe('the spot line of an effect', () => {
     const panel = host.querySelector('.movement-float')!
     const lines = [...panel.querySelectorAll('.movement-spot')].map((l) => l.textContent)
     expect(lines).toEqual([
-      'Spot: your own, 1 shape',
-      "Spot: the game's — the game doesn't say where",
+      "Spot: your own, 1 shapeChangeBack to the game's",
+      "Spot: the game's — the game doesn't say whereDraw your own",
     ])
   })
 })
@@ -2195,27 +2195,6 @@ describe('drawing a spot', () => {
     await setOpen(true)
     expect(host.querySelector('.spot-bar')).toBeNull()
   })
-
-  it('finishes drawing when full screen opens (the F key: its button is off the stage while drawing)', async () => {
-    sizeOverlay()
-    let current: Element | null = null
-    Object.defineProperty(document, 'fullscreenElement', { get: () => current, configurable: true })
-    ;(
-      HTMLElement.prototype as unknown as { requestFullscreen: () => Promise<void> }
-    ).requestFullscreen = async function (this: Element) {
-      current = this
-      document.dispatchEvent(new Event('fullscreenchange'))
-    }
-    cleanups.push(() => {
-      current = null
-      delete (HTMLElement.prototype as unknown as { requestFullscreen?: unknown }).requestFullscreen
-    })
-    const { host } = await render(withDust([POND]))
-    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
-    await press('f')
-    expect(host.querySelector('.spot-bar')).toBeNull()
-    expect(host.querySelector('.movement-float')).not.toBeNull()
-  })
 })
 
 describe('the light mark of a spot', () => {
@@ -2480,7 +2459,9 @@ describe('the light mark of a spot', () => {
     const lines = [...host.querySelectorAll('.movement-float .movement-spot')].map(
       (l) => l.textContent,
     )
-    expect(lines).toEqual(['Spot: your own, 1 shape, light from a marked point'])
+    expect(lines).toEqual([
+      "Spot: your own, 1 shape, light from a marked pointChangeBack to the game's",
+    ])
   })
 })
 
@@ -3056,5 +3037,377 @@ describe('the game’s shape of an effect', () => {
       effects: { dust: { ...named('dust', 'Dust', [POND]), on: false } },
     })
     expect(spotLineOf(host, 'Dust')).toBe('Spot: your own, 1 shape (kept while off)')
+  })
+})
+
+describe('drawing a spot in full screen', () => {
+  const withDust = (spot?: [number, number][][]) => ({
+    effects: {
+      dust: { ...saved({ amount: 1 }), ...(spot && { spot }) },
+      mist: saved({ amount: 1 }),
+    },
+  })
+  let current: Element | null = null
+  function fakeFullScreen() {
+    current = null
+    Object.defineProperty(document, 'fullscreenElement', { get: () => current, configurable: true })
+    ;(
+      HTMLElement.prototype as unknown as { requestFullscreen: () => Promise<void> }
+    ).requestFullscreen = async function (this: Element) {
+      current = this
+      document.dispatchEvent(new Event('fullscreenchange'))
+    }
+    ;(document as unknown as { exitFullscreen: () => Promise<void> }).exitFullscreen = async () => {
+      current = null
+      document.dispatchEvent(new Event('fullscreenchange'))
+    }
+    cleanups.push(() => {
+      current = null
+      delete (HTMLElement.prototype as unknown as { requestFullscreen?: unknown }).requestFullscreen
+      delete (document as unknown as { exitFullscreen?: unknown }).exitFullscreen
+    })
+  }
+  const float = (host: HTMLElement) => host.querySelector<HTMLElement>('.movement-float')!
+  const floatRow = (host: HTMLElement, name: string) =>
+    [...float(host).querySelectorAll('.movement-effect')].find(
+      (r) => r.querySelector('.movement-switch')?.textContent === name,
+    ) as HTMLElement
+  const boxText = (host: HTMLElement) => {
+    const box = float(host).querySelector('.spot-bar')?.cloneNode(true) as HTMLElement | undefined
+    box?.querySelectorAll('.spot-bar-room').forEach((r) => r.remove())
+    return box?.textContent ?? null
+  }
+  const full = async (host: HTMLElement) => click(button(host, '⛶ Full screen'))
+  const inFloat = (host: HTMLElement, label: string) =>
+    [...float(host).querySelectorAll<HTMLButtonElement>('button')].find(
+      (b) => b.textContent === label,
+    )
+
+  it('turns the panel into the drawing box, and Finish brings the rows back with focus on the link', async () => {
+    fakeFullScreen()
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await full(host)
+    await click(linkIn(floatRow(host, 'Dust'), 'Change'))
+    expect(float(host).querySelector('.movement-effect')).toBeNull()
+    expect(float(host).querySelector('.movement-float-head')).not.toBeNull()
+    expect(boxText(host)).toBe(
+      'Drawing your own spot for Dust. Drag a corner to move it; double-click a corner to take it out. Click a shape to pick it. Drag the ● to where the light comes from, or press Alt and the arrows.＋ Add a shapeDelete this shapeLight from the middleFinish',
+    )
+    expect(host.querySelector('.spot-bar')!.closest('.movement-float')).not.toBeNull()
+    expect(host.querySelectorAll('.spot-bar')).toHaveLength(1)
+    expect(document.activeElement?.textContent).toBe('＋ Add a shape')
+    await click(inFloat(host, 'Finish'))
+    expect(floatRow(host, 'Dust')).toBeDefined()
+    expect(document.activeElement).toBe(linkIn(floatRow(host, 'Dust'), 'Change') ?? null)
+  })
+
+  it('says nothing of Esc, and offers Stop this shape while placing corners', async () => {
+    fakeFullScreen()
+    sizeOverlay()
+    const { host } = await render(withDust())
+    await full(host)
+    await click(linkIn(floatRow(host, 'Dust'), 'Draw your own'))
+    expect(boxText(host)).toContain(
+      'Drawing your own spot for Dust. Click to place each corner; click the first corner to close the shape.',
+    )
+    expect(boxText(host)).not.toContain('Esc')
+    await tap(host, 0.2, 0.2)
+    await click(inFloat(host, 'Stop this shape'))
+    expect(inFloat(host, 'Stop this shape')).toBeUndefined()
+    expect(inFloat(host, 'Finish')).toBeDefined()
+    await click(inFloat(host, '＋ Add a shape'))
+    expect(boxText(host)).not.toContain('Esc')
+    expect(inFloat(host, 'Stop this shape')).toBeDefined()
+  })
+
+  it('says New shape for … without the Esc sentence when a spot already has a shape', async () => {
+    fakeFullScreen()
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await full(host)
+    await click(linkIn(floatRow(host, 'Dust'), 'Change'))
+    await click(inFloat(host, '＋ Add a shape'))
+    expect(boxText(host)).toBe(
+      'New shape for Dust. Click to place each corner; click the first corner to close the shape.Stop this shapeFinish',
+    )
+  })
+
+  it('keeps Esc on the tab as it was: no Stop this shape button there', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await click(button(host, '＋ Add a shape'))
+    expect(button(host, 'Stop this shape')).toBeUndefined()
+    expect(barText(host)).toContain('Esc stops this shape.')
+  })
+
+  it('places a corner, drags one and closes a shape in full screen, saved as it goes', async () => {
+    fakeFullScreen()
+    sizeOverlay()
+    const { host, puts } = await render(withDust([POND]))
+    await full(host)
+    await click(linkIn(floatRow(host, 'Dust'), 'Change'))
+    await pointer(host, 'pointerdown', 0.25, 0.9)
+    await pointer(host, 'pointermove', 0.5, 0.4)
+    await pointer(host, 'pointerup', 0.5, 0.4)
+    expect(puts.at(-1)!.effects.dust!.spot![0]![2]).toEqual([0.5, 0.4])
+    await click(inFloat(host, '＋ Add a shape'))
+    await tap(host, 0.6, 0.6)
+    await tap(host, 0.9, 0.6)
+    await tap(host, 0.9, 0.9)
+    await tap(host, 0.6, 0.6)
+    expect(puts.at(-1)!.effects.dust!.spot).toHaveLength(2)
+  })
+
+  it('deletes a shape after asking, and moves the light with Alt and the arrows', async () => {
+    fakeFullScreen()
+    sizeOverlay()
+    const { host, puts } = await render(withDust([POND, SQUARE]))
+    await full(host)
+    await click(linkIn(floatRow(host, 'Dust'), 'Change'))
+    await click(inFloat(host, 'Delete this shape'))
+    expect(boxText(host)).toBe('Delete this shape? It has 3 corners.Keep itDelete')
+    await click(inFloat(host, 'Keep it'))
+    await click(inFloat(host, 'Delete this shape'))
+    await click(inFloat(host, 'Delete'))
+    expect(puts.at(-1)!.effects.dust!.spot).toEqual([SQUARE])
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'ArrowRight',
+          altKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+    })
+    await settle()
+    expect(puts.at(-1)!.effects.dust!.mark).toBeDefined()
+    await click(inFloat(host, 'Light from the middle'))
+    expect(puts.at(-1)!.effects.dust!.mark).toBeUndefined()
+  })
+
+  it('has Back to the game’s and Undo in the rows', async () => {
+    fakeFullScreen()
+    const { host, puts } = await render(withDust([POND]))
+    await full(host)
+    await click(linkIn(floatRow(host, 'Dust'), "Back to the game's"))
+    expect(puts.at(-1)!.effects.dust!.spot).toBeUndefined()
+    await click(linkIn(floatRow(host, 'Dust'), 'Undo'))
+    expect(puts.at(-1)!.effects.dust!.spot).toEqual([POND])
+  })
+
+  it('carries drawing into full screen and back, with the shape picked and corners placed', async () => {
+    fakeFullScreen()
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await click(button(host, '＋ Add a shape'))
+    await tap(host, 0.6, 0.6)
+    await click(button(host, '⛶ Full screen'))
+    expect(boxText(host)).toContain('New shape for Dust.')
+    expect(host.querySelectorAll('.spot-placed, .spot-first')).toHaveLength(1)
+    await click(inFloat(host, '✕ Close'))
+    expect(host.querySelector('.movement-float')).toBeNull()
+    expect(barText(host)).toContain('New shape for Dust.')
+    expect(host.querySelectorAll('.spot-placed, .spot-first')).toHaveLength(1)
+  })
+
+  it('does not end drawing when the browser’s Esc reaches the page in full screen', async () => {
+    fakeFullScreen()
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await full(host)
+    await click(linkIn(floatRow(host, 'Dust'), 'Change'))
+    await press('Escape')
+    expect(host.querySelector('.spot-bar')).not.toBeNull()
+  })
+
+  it('folds to a strip that keeps Finish, and says what is being drawn', async () => {
+    fakeFullScreen()
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await full(host)
+    await click(linkIn(floatRow(host, 'Dust'), 'Change'))
+    await click(inFloat(host, 'Hide'))
+    expect(float(host).textContent).toContain('Drawing Dust')
+    expect(inFloat(host, 'Show')).toBeDefined()
+    expect(inFloat(host, 'Finish')).toBeDefined()
+    expect(inFloat(host, 'Stop this shape')).toBeUndefined()
+    await click(inFloat(host, 'Show'))
+    await click(inFloat(host, '＋ Add a shape'))
+    await click(inFloat(host, 'Hide'))
+    expect(float(host).textContent).toContain('New shape for Dust')
+    expect(inFloat(host, 'Stop this shape')).toBeDefined()
+    await click(inFloat(host, 'Finish'))
+    expect(floatRow(host, 'Dust')).toBeDefined()
+  })
+
+  it('puts the panel above the layer that takes every press while corners are placed', async () => {
+    fakeFullScreen()
+    sizeOverlay()
+    const { host } = await render(withDust())
+    await full(host)
+    await click(linkIn(floatRow(host, 'Dust'), 'Draw your own'))
+    const z = (el: Element | null) =>
+      Number(valuesInEveryWindow(el!, 'z-index').at(-1)?.split(': ').at(-1))
+    expect(z(float(host))).toBeGreaterThan(z(host.querySelector('.spot-handles')))
+  })
+
+  it('shows the picture in one box with the overlay and the canvas, so the corners are the picture’s fractions', async () => {
+    fakeFullScreen()
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await full(host)
+    await click(linkIn(floatRow(host, 'Dust'), 'Change'))
+    const stage = host.querySelector('.movement-stage')!
+    expect(stage.querySelector('.spot-overlay')).not.toBeNull()
+    expect(host.querySelector<HTMLElement>('.movement-wrap')!.style.getPropertyValue('--ar')).toBe(
+      '1.6',
+    )
+  })
+
+  it('returns Finish from the folded strip to the spot link, with the panel open', async () => {
+    fakeFullScreen()
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await full(host)
+    await click(linkIn(floatRow(host, 'Dust'), 'Change'))
+    await click(inFloat(host, 'Hide'))
+    await click(inFloat(host, 'Finish'))
+    expect(inFloat(host, 'Hide')).toBeDefined()
+    expect(document.activeElement).toBe(linkIn(floatRow(host, 'Dust'), 'Change') ?? null)
+  })
+
+  it('has no Pause on the folded strip while corners are placed', async () => {
+    fakeFullScreen()
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await full(host)
+    await click(linkIn(floatRow(host, 'Dust'), 'Change'))
+    await click(inFloat(host, '＋ Add a shape'))
+    await click(inFloat(host, 'Hide'))
+    expect(float(host).querySelector('[aria-label="Pause"]')).toBeNull()
+  })
+
+  it('puts focus in the box when full screen opens while drawing', async () => {
+    fakeFullScreen()
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await click(button(host, '⛶ Full screen'))
+    expect(float(host).contains(document.activeElement)).toBe(true)
+  })
+
+  it('opens a folded panel to show a failed save, with Try again', async () => {
+    fakeFullScreen()
+    sizeOverlay()
+    const { host } = await render({
+      ...withDust([POND]),
+      saved: () => Response.json({ ok: false, problems: [] }, { status: 409 }),
+    })
+    await full(host)
+    await click(linkIn(floatRow(host, 'Dust'), 'Change'))
+    await click(inFloat(host, 'Hide'))
+    await pointer(host, 'pointerdown', 0.25, 0.9)
+    await pointer(host, 'pointermove', 0.5, 0.4)
+    await pointer(host, 'pointerup', 0.5, 0.4)
+    await settle()
+    expect(float(host).textContent).toContain(
+      "Couldn't save the spot: the image edits file can't be written. Your shape is still on the picture.",
+    )
+    expect(inFloat(host, 'Hide')).toBeDefined()
+    expect(inFloat(host, 'Try again')).toBeDefined()
+  })
+
+  it('finishes drawing when the tab is left', async () => {
+    fakeFullScreen()
+    sizeOverlay()
+    const { host, setOpen } = await render(withDust([POND]))
+    await full(host)
+    await click(linkIn(floatRow(host, 'Dust'), 'Change'))
+    await setOpen(false)
+    await setOpen(true)
+    expect(host.querySelector('.spot-bar')).toBeNull()
+  })
+})
+
+describe('the full-screen panel’s place', () => {
+  const store = new Map<string, string>()
+  function fakeStorage() {
+    store.clear()
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => void store.set(k, v),
+      },
+    })
+  }
+  function fakeFull() {
+    let current: Element | null = null
+    Object.defineProperty(document, 'fullscreenElement', { get: () => current, configurable: true })
+    ;(
+      HTMLElement.prototype as unknown as { requestFullscreen: () => Promise<void> }
+    ).requestFullscreen = async function (this: Element) {
+      current = this
+      document.dispatchEvent(new Event('fullscreenchange'))
+    }
+    cleanups.push(() => {
+      delete (HTMLElement.prototype as unknown as { requestFullscreen?: unknown }).requestFullscreen
+    })
+  }
+  const grip = (host: HTMLElement) => host.querySelector<HTMLElement>('.movement-float-grip')!
+  const move = async (el: Element, type: string, x: number, y: number) =>
+    act(async () => {
+      el.dispatchEvent(
+        new MouseEvent(type, { clientX: x, clientY: y, bubbles: true, cancelable: true }),
+      )
+    })
+
+  it('starts at the top right with nothing remembered, and has a grip', async () => {
+    fakeStorage()
+    fakeFull()
+    const { host } = await render({ effects: { dust: saved({ amount: 1 }) } })
+    await click(button(host, '⛶ Full screen'))
+    const panel = host.querySelector<HTMLElement>('.movement-float')!
+    expect(panel.style.left).toBe('')
+    expect(grip(host).textContent).toBe('⋮⋮')
+  })
+
+  it('moves with the grip, stays inside the screen, and is remembered', async () => {
+    fakeStorage()
+    fakeFull()
+    Object.defineProperty(window, 'innerWidth', { value: 1000, configurable: true })
+    Object.defineProperty(window, 'innerHeight', { value: 600, configurable: true })
+    const { host } = await render({ effects: { dust: saved({ amount: 1 }) } })
+    await click(button(host, '⛶ Full screen'))
+    const panel = host.querySelector<HTMLElement>('.movement-float')!
+    await move(grip(host), 'pointerdown', 10, 10)
+    await move(grip(host), 'pointermove', 110, 60)
+    await move(grip(host), 'pointerup', 110, 60)
+    expect(panel.style.left).not.toBe('')
+    expect(JSON.parse(store.get('content-studio.movement-float')!)).toEqual({
+      left: parseFloat(panel.style.left),
+      top: parseFloat(panel.style.top),
+    })
+    // Dragged far off the screen, it is held inside.
+    await move(grip(host), 'pointerdown', 10, 10)
+    await move(grip(host), 'pointermove', -5000, -5000)
+    await move(grip(host), 'pointerup', -5000, -5000)
+    expect(parseFloat(panel.style.left)).toBe(0)
+    expect(parseFloat(panel.style.top)).toBe(0)
+  })
+
+  it('starts where it was left, on another image or after a reload', async () => {
+    fakeStorage()
+    fakeFull()
+    store.set('content-studio.movement-float', JSON.stringify({ left: 40, top: 30 }))
+    const { host } = await render({ effects: { dust: saved({ amount: 1 }) } })
+    await click(button(host, '⛶ Full screen'))
+    const panel = host.querySelector<HTMLElement>('.movement-float')!
+    expect(panel.style.left).toBe('40px')
+    expect(panel.style.top).toBe('30px')
   })
 })

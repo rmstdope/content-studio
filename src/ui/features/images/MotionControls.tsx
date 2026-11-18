@@ -106,7 +106,7 @@ export interface MotionControlsProps {
   onZoomReset: () => void
   /** Try again presses after the zoom could not be saved. */
   onZoomRetry: () => void
-  /** Drawing spots, on the tab only: absent (full screen), the spot line has no links. */
+  /** Drawing spots, on the tab and in full screen: absent, the spot line has no links. */
   spot?: SpotControls
 }
 
