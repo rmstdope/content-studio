@@ -7,6 +7,7 @@ const { act, createElement } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { WhyTip } = await import('./WhyTip')
 const { off, tipOnly } = await import('../off')
+const { valuesInEveryWindow } = await import('../../../test/stylesheet')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -62,6 +63,17 @@ const fire = (target: Element, type: string, init: Record<string, unknown> = {})
     Object.assign(event, init)
     target.dispatchEvent(event)
   })
+/** Puts the shown tip at `box` on the page, as the browser would after placing it. */
+const tipAt = (box: { left: number; top: number; width: number; height: number }) => {
+  const rect = {
+    ...box,
+    right: box.left + box.width,
+    bottom: box.top + box.height,
+    x: box.left,
+    y: box.top,
+  }
+  ;(tip() as HTMLElement).getBoundingClientRect = () => ({ ...rect, toJSON: () => rect }) as DOMRect
+}
 const wait = (ms: number) => act(() => new Promise<void>((r) => setTimeout(r, ms)))
 
 describe('the tip on a greyed control', () => {
@@ -84,9 +96,27 @@ describe('the tip on a greyed control', () => {
   it('stays when the pointer moves onto the tip to read it', async () => {
     mount('Wait for the takes.')
     fire(el('make'), 'pointerover')
-    fire(tip()!, 'pointerover')
+    // The tip lets the pointer through, so the browser reports it over what lies under the tip.
+    tipAt({ left: 0, top: 0, width: 120, height: 30 })
+    fire(el('plain'), 'pointerover', { clientX: 10, clientY: 10 })
     await wait(250)
     expect(tip()?.textContent).toBe('Wait for the takes.')
+  })
+
+  it('goes when the pointer moves off the tip, though it stays over the same control', async () => {
+    mount('Wait for the takes.')
+    fire(el('make'), 'pointerover')
+    tipAt({ left: 0, top: 0, width: 120, height: 30 })
+    fire(el('plain'), 'pointerover', { clientX: 10, clientY: 10 })
+    fire(el('plain'), 'pointermove', { clientX: 10, clientY: 60 })
+    await wait(250)
+    expect(tip()).toBeNull()
+  })
+
+  it('lets the pointer through to the controls under it, so a button it covers can be pressed (as-qpps)', () => {
+    mount('Wait for the takes.')
+    fire(el('make'), 'pointerover')
+    expect(valuesInEveryWindow(tip()!, 'pointer-events')).toEqual(['.why-tip: none'])
   })
 
   it('shows while the control has focus and goes when focus moves on', () => {
