@@ -533,7 +533,8 @@ export function MovementPanel({
   const barMode =
     drawing === null ? null : drawing.confirm ? 'ask' : drawing.placing ? 'place' : 'draw'
   useEffect(() => {
-    if (barMode) bar.current?.querySelector('button')?.focus()
+    if (barMode)
+      bar.current?.querySelector<HTMLButtonElement>('button:not(.spot-bar-pause)')?.focus()
   }, [barMode, drawing?.type, full])
   /** The shapes of an effect as the picture has them: the person's own, else the game's copy being started from. */
   function spotOf(type: string): SpotShape[] {
@@ -831,8 +832,24 @@ export function MovementPanel({
   const stopShape = () => drawing && draw({ ...drawing, placing: null })
   // The buttons of the bar's ordinary steps, in the one order they sit in: the shown row is the
   // ones the step shows, and the room held for them (the tab only) is every one, unseen.
+  const playLabel = paused ? MOVEMENT_WORDS.play : MOVEMENT_WORDS.pause
   const slots = drawing
     ? [
+        {
+          key: 'pause',
+          word: MOVEMENT_WORDS.pause,
+          shown: !full,
+          button: (
+            <button
+              key="pause"
+              type="button"
+              className="btn spot-bar-pause"
+              onClick={() => setPaused((was) => !was)}
+            >
+              {playLabel}
+            </button>
+          ),
+        },
         {
           key: 'add',
           word: SPOT_WORDS.addShape,
@@ -1001,12 +1018,11 @@ export function MovementPanel({
         onCommit={() => persist(true)}
       />
     ) : null
-  const playLabel = paused ? MOVEMENT_WORDS.play : MOVEMENT_WORDS.pause
 
   let caption: string | null = null
   if (picture !== null) {
     if (motion.status === 'failed') caption = MOVEMENT_WORDS.failedCaption
-    else if (row.chosenTake !== null) caption = takeCaption(row.chosenTake)
+    else if (row.chosenTake !== null) caption = takeCaption(row.chosenTake, paused)
     else caption = MOVEMENT_WORDS.gameOwn
   }
 

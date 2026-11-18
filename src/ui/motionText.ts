@@ -34,8 +34,9 @@ export const MOVEMENT_WORDS = {
 } as const
 
 /** The caption under the picture of the chosen take. */
-export function takeCaption(take: number): string {
-  return `Take ${take}, as the game will show it. Space pauses · F for full screen.`
+export function takeCaption(take: number, paused = false): string {
+  const keys = paused ? 'Paused · Space plays' : 'Space pauses'
+  return `Take ${take}, as the game will show it. ${keys} · F for full screen.`
 }
 
 /** A patch the game lists that has no chosen take to lay over the picture. */
