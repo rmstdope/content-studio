@@ -3,20 +3,20 @@
 # Policy:
 # - Minor and patch updates arrive together, once a week, in one grouped pull
 #   request per ecosystem. CI is the safety net.
-# - Each major update arrives in its own pull request. Read its changelog or
-#   migration guide before merging; a major that needs code changes becomes a
-#   bead.
+# - Each major update arrives in its own pull request.
 # - A release must be at least a few days old before Dependabot proposes it,
 #   so a broken release has time to be pulled.
 # - Security updates ignore the schedule and the cooldown. Turn them on under
 #   Settings → Code security → Dependabot security updates.
 #
-# Not covered: the Python workers in worker/ declare their dependencies inline
-# (PEP 723 script metadata, run with uv), which Dependabot does not read; bump
-# those by hand. Bun itself is pinned in ci.yml (bun-version), also by hand.
+# Not covered, bumped by hand: the Python workers in worker/ (their
+# dependencies are inline PEP 723 script metadata, run with uv, which
+# Dependabot does not read), the .cerebro/cerebro submodule, and Bun itself,
+# pinned in ci.yml (bun-version) together with @types/bun.
 #
-# Nothing here merges on its own: every Dependabot pull request goes through
-# the same review and checks as any other change.
+# Merging: Cerebro's dependabot-sweep (.cerebro/cerebro/scripts) merges a
+# Dependabot pull request once CI is green, majors included and without a
+# review; a red one becomes a bugfix bead. CI is the only gate.
 version: 2
 updates:
   # The studio: its dependencies and dev tools in package.json and bun.lock.
@@ -30,6 +30,9 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: chore(deps)
+    # The Bun types follow the Bun that CI pins, bumped together by hand.
+    ignore:
+      - dependency-name: '@types/bun'
     groups:
       minor-and-patch:
         update-types:
