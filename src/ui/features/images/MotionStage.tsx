@@ -55,9 +55,6 @@ export function MotionStage({
   onMissing: () => void
 }) {
   const picture = useRef<HTMLImageElement>(null)
-  const whole = effects.filter((effect) => !effect.spot)
-  const spotted = effects.filter((effect) => effect.spot)
-  const shared = { layers, module, picture, paused, running }
   return (
     <div
       className="movement-zoom"
@@ -91,17 +88,24 @@ export function MotionStage({
           draggable={false}
         />
       ))}
-      {module && <EffectCanvas {...shared} effects={whole} />}
-      {module &&
-        spotted.map((effect) => <EffectCanvas key={effect.kind} {...shared} effects={[effect]} />)}
+      {module && (
+        <EffectCanvas
+          layers={layers}
+          module={module}
+          picture={picture}
+          effects={effects}
+          paused={paused}
+          running={running}
+        />
+      )}
       {inside}
     </div>
   )
 }
 
 /**
- * One canvas with one scene of the renderer on it, playing `effects`; the renderer places a spotted
- * effect from its spot, as the game does.
+ * The one canvas with the one scene of the renderer on it, playing every effect, as the game does:
+ * the renderer places a spotted effect from its spot and decides which effect lies over which.
  */
 function EffectCanvas({
   layers,
@@ -112,7 +116,7 @@ function EffectCanvas({
   running,
 }: {
   layers: StageLayers
-  module: MotionModule | null
+  module: MotionModule
   /** The picture the scene may redraw. */
   picture: RefObject<HTMLImageElement | null>
   effects: StageEffect[]
@@ -136,7 +140,7 @@ function EffectCanvas({
   // One scene per loaded renderer and picture size.
   useEffect(() => {
     const element = canvas.current
-    if (!module || !element) return
+    if (!element) return
     const made = module.createScene()
     scene.current = made
     const paint = () => {
@@ -211,7 +215,7 @@ function EffectCanvas({
   goingRef.current = going
   useEffect(() => {
     const element = canvas.current
-    if (!module || !element || !going) return
+    if (!element || !going) return
     const context = element.getContext('2d')
     let last = 0
     let frame = 0

@@ -1556,20 +1556,23 @@ const POND: [number, number][] = [
 ]
 
 describe('an effect with a spot, played', () => {
-  it('runs on a canvas of its own, the others on the one over the whole picture', async () => {
+  it('plays every effect in one scene, spotted or not, so the renderer decides what lies on top, as in the game', async () => {
+    // Two spotted effects whose shapes overlap: the renderer draws one under the other in its own
+    // order (RetroQuest's ripples redraw the painting under the glints); on canvases of their own,
+    // the later one would cover the earlier, whatever the renderer says.
     const { host } = await render({
       effects: {
-        dust: { ...dust({ amount: 1, size: 1, speed: 1 }), spot: [POND] },
+        fire: { on: true, settings: {}, spot: [POND] },
+        water: { on: true, settings: {}, spot: [POND] },
         mist: { on: true, settings: { amount: 1 } },
       },
     })
-    expect(calls().made).toBe(2)
-    const asked = calls().setEffects.map((s) => s.map((e) => e.kind).join())
-    expect(asked).toContain('mist')
-    expect(asked).toContain('dust')
-    expect(asked).not.toContain('dust,mist')
-    const canvases = host.querySelectorAll<HTMLCanvasElement>('.movement-canvas')
-    expect(canvases).toHaveLength(2)
+    expect(calls().made).toBe(1)
+    expect(host.querySelectorAll('.movement-canvas')).toHaveLength(1)
+    const handed = calls().setEffects[0]!
+    expect(handed.map((e) => e.kind).sort()).toEqual(['fire', 'mist', 'water'])
+    expect(handed.find((e) => e.kind === 'fire')!.spot).toEqual([POND])
+    expect(handed.find((e) => e.kind === 'water')!.spot).toEqual([POND])
   })
 
   it('hands the renderer the spot, and leaves its canvas unclipped, so the effect is placed as in the game', async () => {
@@ -1583,7 +1586,7 @@ describe('an effect with a spot, played', () => {
     expect(handed.find((e) => e.kind === 'dust')!.spot).toEqual([POND])
     expect(handed.find((e) => e.kind === 'mist')!.spot).toBeUndefined()
     const canvases = host.querySelectorAll<HTMLCanvasElement>('.movement-canvas')
-    expect([...canvases].map((c) => c.style.clipPath)).toEqual(['', ''])
+    expect([...canvases].map((c) => c.style.clipPath)).toEqual([''])
     expect(host.querySelector('clipPath')).toBeNull()
   })
 
@@ -1608,22 +1611,21 @@ describe('an effect with a spot, played', () => {
     const { host } = await render({
       effects: { dust: { ...saved({ amount: 1 }), spot: [POND] } },
     })
-    expect(host.querySelectorAll('.movement-canvas')).toHaveLength(2)
     await click(linkIn(rowOf(host, 'Dust'), "Back to the game's"))
-    expect(
-      calls()
-        .setEffects.at(-1)!
-        .map((e) => e.kind),
-    ).toEqual(['dust'])
-    expect(host.querySelectorAll('.movement-canvas')).toHaveLength(1)
+    const last = calls().setEffects.at(-1)!
+    expect(last.map((e) => e.kind)).toEqual(['dust'])
+    expect(last[0]!.spot).toBeUndefined()
   })
 
-  it('plays no effect over the whole picture while it is off', async () => {
-    const { host } = await render({
+  it('hands the renderer no effect that is off, even with a spot', async () => {
+    await render({
       effects: { dust: { ...dust({ amount: 1, size: 1, speed: 1 }), on: false, spot: [POND] } },
     })
-    expect(calls().made).toBe(1)
-    expect(host.querySelectorAll('.movement-canvas')).toHaveLength(1)
+    expect(
+      calls()
+        .setEffects.flat()
+        .map((e) => e.kind),
+    ).not.toContain('dust')
   })
 })
 
@@ -2176,17 +2178,17 @@ describe('drawing a spot', () => {
     const { host } = await render({
       effects: { dust: { ...saved({ amount: 1 }), spot: [POND] }, mist: saved({}) },
     })
-    // Dust plays on a canvas of its own, Mist on the one over the whole picture; each scene is told its set.
+    // Both play in the one scene, which is told the whole set.
     const kinds = (from: number) =>
       calls()
         .setEffects.slice(from)
         .map((set) => set.map((e) => e.kind).join())
     const before = calls().setEffects.length
     await click(linkIn(rowOf(host, 'Dust'), 'Change'))
-    expect(kinds(before)).toEqual([''])
+    expect(kinds(before)).toEqual(['dust'])
     const drawn = calls().setEffects.length
     await click(button(host, 'Finish'))
-    expect(kinds(drawn)).toEqual(['mist'])
+    expect(kinds(drawn)).toEqual(['dust,mist'])
   })
 
   it('shows Pause / Play first in the drawing bar, with Space and the caption in step', async () => {
