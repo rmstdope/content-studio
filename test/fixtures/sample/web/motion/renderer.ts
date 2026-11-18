@@ -1,6 +1,6 @@
 /**
- * The sample game's motion renderer, small on purpose: two effects that drift specks over the
- * picture, or only inside an effect's spot when it is given one. It has what the studio asks of a game's renderer: `EFFECT_TYPES` and `createMotionScene`.
+ * The sample game's motion renderer, small on purpose: three effects that drift specks over the
+ * picture, or only inside an effect's spot when it is given one. The ripples paint their spot opaque, as a game's water redraws the painting, and are drawn under the others. It has what the studio asks of a game's renderer: `EFFECT_TYPES` and `createMotionScene`.
  */
 interface Setting {
   id: string
@@ -27,6 +27,21 @@ export const EFFECT_TYPES = [
         [0.95, 0.6],
         [0.95, 0.95],
         [0.05, 0.95],
+      ],
+    ] as [number, number][][],
+    settings: [AMOUNT, SPEED],
+  },
+  {
+    type: 'ripples',
+    title: 'Ripples',
+    spot: false,
+    // Water: a pond in the lower middle of the picture.
+    placement: [
+      [
+        [0.25, 0.55],
+        [0.75, 0.55],
+        [0.75, 0.85],
+        [0.25, 0.85],
       ],
     ] as [number, number][][],
     settings: [AMOUNT, SPEED],
@@ -91,7 +106,11 @@ export function createMotionScene() {
     },
     draw(ctx: CanvasRenderingContext2D) {
       ctx.clearRect(0, 0, width, height)
-      for (const layer of specks) {
+      // The ripples first, so the effects over them show whatever the order they were switched on in.
+      const ordered = [...specks].sort(
+        (a, b) => Number(b.kind === 'ripples') - Number(a.kind === 'ripples'),
+      )
+      for (const layer of ordered) {
         // An effect with a spot is held to its shapes, as a game's renderer places it.
         if (layer.spot) {
           ctx.save()
@@ -103,6 +122,12 @@ export function createMotionScene() {
             ctx.closePath()
           }
           ctx.clip()
+        }
+        // Ripples redraw the painting inside their spot, as RetroQuest's do, so they cover whatever
+        // was drawn there before: they are drawn under the others (above), or they would hide them.
+        if (layer.kind === 'ripples') {
+          ctx.fillStyle = '#1d4e6b'
+          ctx.fill()
         }
         ctx.fillStyle = layer.kind === 'embers' ? '#ff9a3d' : '#fff8'
         for (const speck of layer.list) {
