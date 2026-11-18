@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { createMotionScene } from './renderer'
+import { EFFECT_TYPES, createMotionScene } from './renderer'
 
 describe('the sample motion renderer', () => {
   it('ignores an effect kind it does not have', () => {
@@ -83,5 +83,57 @@ describe('the sample motion renderer with a spot', () => {
     const { calls, ctx } = notingContext()
     scene.draw(ctx)
     expect(calls).not.toContain('clip')
+  })
+})
+
+/** A drawing context that notes each fill's colour and kind, to see what is painted and in what order. */
+function fillingContext() {
+  const fills: string[] = []
+  const state = { fillStyle: '' }
+  const ctx = {
+    clearRect: () => {},
+    beginPath: () => {},
+    moveTo: (x: number, y: number) => fills.push(`moveTo ${Math.round(x)} ${Math.round(y)}`),
+    lineTo: () => {},
+    closePath: () => {},
+    clip: () => fills.push('clip'),
+    save: () => {},
+    restore: () => {},
+    arc: () => {},
+    stroke: () => {},
+    fillRect: () => fills.push(`rect ${state.fillStyle}`),
+    fill: () => fills.push(`fill ${state.fillStyle}`),
+    set fillStyle(value: string) {
+      state.fillStyle = value
+    },
+    get fillStyle() {
+      return state.fillStyle
+    },
+    strokeStyle: '',
+    lineWidth: 1,
+  }
+  return { fills, ctx: ctx as unknown as CanvasRenderingContext2D }
+}
+
+describe('the sample’s ripples', () => {
+  it('is an effect the renderer offers', () => {
+    expect(EFFECT_TYPES.map((t) => t.type)).toContain('ripples')
+  })
+
+  it('paints its spot opaque, and first, even when listed after the others', () => {
+    const scene = createMotionScene()
+    scene.resize(200, 100)
+    scene.setEffects([{ kind: 'embers' }, { kind: 'ripples' }])
+    const { fills, ctx } = fillingContext()
+    scene.draw(ctx)
+    // The pond's first corner, then the clip, then the opaque fill: it fills the spot, not the canvas.
+    expect(fills.slice(0, 3)).toEqual(['moveTo 50 55', 'clip', 'fill #1d4e6b'])
+    expect(fills).toContain('fill #ff9a3d')
+  })
+
+  it('is not empty when switched on', () => {
+    const scene = createMotionScene()
+    scene.setEffects([{ kind: 'ripples' }])
+    expect(scene.isEmpty()).toBe(false)
   })
 })
