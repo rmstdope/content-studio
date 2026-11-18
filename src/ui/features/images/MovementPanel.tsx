@@ -829,6 +829,89 @@ export function MovementPanel({
         ]
       : []
   const stopShape = () => drawing && draw({ ...drawing, placing: null })
+  // The buttons of the bar's ordinary steps, in the one order they sit in: the shown row is the
+  // ones the step shows, and the room held for them (the tab only) is every one, unseen.
+  const slots = drawing
+    ? [
+        {
+          key: 'add',
+          word: SPOT_WORDS.addShape,
+          shown: !drawing.placing,
+          button: (
+            <button
+              key="add"
+              type="button"
+              className="btn"
+              onClick={() => draw({ ...drawing, placing: [], picked: null })}
+            >
+              {SPOT_WORDS.addShape}
+            </button>
+          ),
+        },
+        {
+          key: 'deleteShape',
+          word: SPOT_WORDS.deleteShape,
+          shown: !drawing.placing && drawing.picked !== null,
+          button: (
+            <button
+              key="deleteShape"
+              type="button"
+              className="btn"
+              onClick={() => draw({ ...drawing, confirm: true })}
+            >
+              {SPOT_WORDS.deleteShape}
+            </button>
+          ),
+        },
+        {
+          key: 'light',
+          word: SPOT_WORDS.lightFromMiddle,
+          shown: !drawing.placing && barSpot.length > 0,
+          button: (
+            <button
+              key="light"
+              type="button"
+              className="btn"
+              {...off(latest.current[drawing.type]?.mark === undefined && SPOT_WORDS.alreadyMiddle)}
+              onClick={() => {
+                if (latest.current[drawing.type]?.mark === undefined) return
+                setMark(drawing.type, undefined)
+                persist(true)
+              }}
+            >
+              {SPOT_WORDS.lightFromMiddle}
+            </button>
+          ),
+        },
+        {
+          key: 'stop',
+          word: SPOT_WORDS.stopShape,
+          fullOnly: true,
+          shown: full && drawing.placing !== null,
+          button: (
+            <button key="stop" type="button" className="btn" onClick={stopShape}>
+              {SPOT_WORDS.stopShape}
+            </button>
+          ),
+        },
+        {
+          key: 'finish',
+          word: SPOT_WORDS.finish,
+          primary: true,
+          shown: true,
+          button: (
+            <button
+              key="finish"
+              type="button"
+              className="btn btn-primary"
+              onClick={() => finish(true)}
+            >
+              {SPOT_WORDS.finish}
+            </button>
+          ),
+        },
+      ]
+    : []
   /** The drawing words and buttons: above the picture on the tab, in the floating panel in full screen. */
   const drawBox =
     drawing && barWords ? (
@@ -861,62 +944,18 @@ export function MovementPanel({
                 </button>
               </>
             ) : (
-              <>
-                {!drawing.placing && (
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => draw({ ...drawing, placing: [], picked: null })}
-                  >
-                    {SPOT_WORDS.addShape}
-                  </button>
-                )}
-                {!drawing.placing && drawing.picked !== null && (
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => draw({ ...drawing, confirm: true })}
-                  >
-                    {SPOT_WORDS.deleteShape}
-                  </button>
-                )}
-                {!drawing.placing && barSpot.length > 0 && (
-                  <button
-                    type="button"
-                    className="btn"
-                    {...off(
-                      latest.current[drawing.type]?.mark === undefined && SPOT_WORDS.alreadyMiddle,
-                    )}
-                    onClick={() => {
-                      if (latest.current[drawing.type]?.mark === undefined) return
-                      setMark(drawing.type, undefined)
-                      persist(true)
-                    }}
-                  >
-                    {SPOT_WORDS.lightFromMiddle}
-                  </button>
-                )}
-                {full && drawing.placing && (
-                  <button type="button" className="btn" onClick={stopShape}>
-                    {SPOT_WORDS.stopShape}
-                  </button>
-                )}
-                <button type="button" className="btn btn-primary" onClick={() => finish(true)}>
-                  {SPOT_WORDS.finish}
-                </button>
-              </>
+              <>{slots.filter((slot) => slot.shown).map((slot) => slot.button)}</>
             )}
           </span>
           {!full && (
             <span className="spot-bar-room" aria-hidden="true">
-              {[SPOT_WORDS.addShape, SPOT_WORDS.deleteShape, SPOT_WORDS.lightFromMiddle].map(
-                (word) => (
-                  <span key={word} className="btn">
-                    {word}
+              {slots
+                .filter((slot) => !slot.fullOnly)
+                .map((slot) => (
+                  <span key={slot.key} className={slot.primary ? 'btn btn-primary' : 'btn'}>
+                    {slot.word}
                   </span>
-                ),
-              )}
-              <span className="btn btn-primary">{SPOT_WORDS.finish}</span>
+                ))}
             </span>
           )}
         </span>

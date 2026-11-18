@@ -6538,17 +6538,17 @@ textarea[aria-disabled='true'][data-why] {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  align-content: flex-start;
-  align-items: flex-start;
   gap: 8px;
 }
-/* The delete question packs on the room's last line, away from the Delete this shape it follows. */
-.spot-bar-buttons > .spot-bar-ask {
-  align-content: flex-end;
+/* Two layers in the cell. The buttons of the steps sit at its top; the delete question's Keep it and
+   Delete sit at its bottom, so they never come up where Delete this shape was pressed. The lines are
+   not stretched down the cell, so a .btn and a .btn-primary on one line share their height: a
+   button taller than the others needs its own thought here. */
+.spot-bar-buttons > .spot-bar-now {
+  align-self: start;
 }
-/* One top edge for the shown buttons, whatever .btn and .btn-primary say about their own place. */
-.spot-bar-buttons .btn {
-  align-self: auto;
+.spot-bar-buttons > .spot-bar-ask {
+  align-self: end;
 }
 /* What the bar says and shows now shares one cell with the room it holds for its other steps. */
 .spot-bar-now,
