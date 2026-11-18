@@ -846,7 +846,7 @@ export function MovementPanel({
           ))}
         </span>
         <span className="spot-bar-buttons">
-          <span className="spot-bar-now">
+          <span className={drawing.confirm ? 'spot-bar-now spot-bar-ask' : 'spot-bar-now'}>
             {drawing.confirm ? (
               <>
                 <button

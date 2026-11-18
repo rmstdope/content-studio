@@ -6542,6 +6542,10 @@ textarea[aria-disabled='true'][data-why] {
   align-items: flex-start;
   gap: 8px;
 }
+/* The delete question packs on the room's last line, away from the Delete this shape it follows. */
+.spot-bar-buttons > .spot-bar-ask {
+  align-content: flex-end;
+}
 /* One top edge for the shown buttons, whatever .btn and .btn-primary say about their own place. */
 .spot-bar-buttons .btn {
   align-self: auto;
