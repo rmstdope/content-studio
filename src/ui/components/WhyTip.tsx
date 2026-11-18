@@ -94,7 +94,8 @@ export function WhyTip() {
       if (target) {
         if (!moved) show(target)
         else if (target === now?.target) cancel()
-        // Off the tip onto a control it covered: that control's tip, as if the pointer arrived.
+        // A move over another control while a tip not held by focus is up (off the tip onto a
+        // control it covered, say): that control's tip, as a fresh arrival would give.
         else if (now && !held) show(target)
       } else if (now && !held) {
         // A move only starts the linger; it never puts it off again.
