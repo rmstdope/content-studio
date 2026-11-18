@@ -2428,6 +2428,14 @@ Images' and scenes' routes are described with them:
   moves on or Esc, since the browser also reports the pointer over whatever a page change moves under it
   while it rests (arrowing onto a dimmed language tab switches the page, as-4ywm); a tip on a control the
   mouse focused goes with the pointer as before.
+  The tip lets the pointer through (`pointer-events: none`), so a control it happens to cover, as in a
+  bar that wraps in a narrow window, can still be pressed (as-qpps): a press there hides the tip and
+  goes to that control. `WhyTip` keeps the tip while the pointer is inside the tip's box, measured on
+  `pointerover` and `pointermove`, so it can still be moved onto and read, even over a control with a
+  tip of its own; a move over another control with a tip, while a tip not held by focus is up (off the
+  box onto a control it covered, say), shows that control's tip. Only the pointer
+  arriving over a control shows its tip, never a move on it, so a tip closed with Esc stays closed
+  while the pointer rests there, and a move starts the linger but never puts it off.
 
 ---
 

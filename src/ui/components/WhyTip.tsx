@@ -74,31 +74,48 @@ export function WhyTip() {
       cancel()
       lingering.current = setTimeout(hide, LINGER_MS)
     }
-    const inTip = (t: EventTarget | null) => t instanceof Element && !!t.closest('.why-tip')
+    // The tip lets the pointer through to what it covers, so being on it is where the pointer is.
+    const onTip = (e: Event) => {
+      const box = tipRef.current?.getBoundingClientRect()
+      const { clientX: x, clientY: y } = e as Partial<MouseEvent>
+      if (!box || typeof x !== 'number' || typeof y !== 'number') return false
+      return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom
+    }
+    // Arriving over a control shows its tip; a move only keeps the tip or lets it go, so a tip
+    // closed with Esc stays closed while the pointer rests on its control.
+    const pointed = (e: Event, moved: boolean) => {
+      // The tip being read wins over a control it happens to cover.
+      if (onTip(e)) return cancel()
+      const target = tippedIn(e.target)
+      const now = shownRef.current
+      // A control with keyboard focus keeps its tip until focus moves on: the browser also
+      // reports the pointer over whatever a page change moves under it while it rests.
+      const held = !!now && now.target.matches(':focus-visible')
+      if (target) {
+        if (!moved) show(target)
+        else if (target === now?.target) cancel()
+        // A move over another control while a tip not held by focus is up (off the tip onto a
+        // control it covered, say): that control's tip, as a fresh arrival would give.
+        else if (now && !held) show(target)
+      } else if (now && !held) {
+        // A move only starts the linger; it never puts it off again.
+        if (!moved || !lingering.current) hideSoon()
+      }
+    }
     const stop = (e: Event) => {
       e.preventDefault()
       e.stopPropagation()
     }
 
     const on: [string, (e: Event) => void][] = [
-      [
-        'pointerover',
-        (e) => {
-          const target = tippedIn(e.target)
-          if (target) show(target)
-          else if (inTip(e.target)) cancel()
-          // A control with keyboard focus keeps its tip until focus moves on: the browser also
-          // reports the pointer over whatever a page change moves under it while it rests.
-          else if (shownRef.current && !shownRef.current.target.matches(':focus-visible'))
-            hideSoon()
-        },
-      ],
+      ['pointerover', (e) => pointed(e, false)],
+      ['pointermove', (e) => pointed(e, true)],
       [
         'pointerdown',
         (e) => {
           // A greyed control's press is stopped on `mousedown` and `click`, not here: cancelling
           // `pointerdown` would also drop the mouse events that guard is waiting for.
-          if (!tippedIn(e.target) && !inTip(e.target)) hide()
+          if (!tippedIn(e.target)) hide()
         },
       ],
       ['mousedown', (e) => greyedIn(e.target) && stop(e)],
