@@ -1907,6 +1907,24 @@ describe('drawing a spot', () => {
     expect(barText(host)).toContain('Drawing your own spot for Dust.')
   })
 
+  it('keeps the shown buttons on one top edge, at the top of the room held for the widest row', async () => {
+    sizeOverlay()
+    const { host } = await render(withDust([POND]))
+    await click(linkIn(rowOf(host, 'Dust'), 'Change'))
+    await tap(host, 0.25, 0.6)
+    await click(button(host, 'Delete this shape'))
+    const row = host.querySelector('.spot-bar-buttons > .spot-bar-now')!
+    // Narrow, the room is two rows tall: the shown row sits at its top, not stretched down it…
+    expect(valuesInEveryWindow(row, 'align-content').at(-1)).toEndWith(': flex-start')
+    expect(valuesInEveryWindow(row, 'align-items').at(-1)).toEndWith(': flex-start')
+    // …and Keep it and Delete line up in it whatever their own rules say.
+    const shown = [...row.querySelectorAll('button')]
+    expect(shown.map((b) => b.textContent)).toEqual(['Keep it', 'Delete'])
+    for (const b of shown) {
+      expect(valuesInEveryWindow(b, 'align-self').at(-1)).toEndWith(': auto')
+    }
+  })
+
   it('moves a corner by dragging it, saving once on letting go, and keeps it on the picture', async () => {
     sizeOverlay()
     const { host, puts } = await render(withDust([POND]))
