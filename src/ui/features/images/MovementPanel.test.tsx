@@ -1917,6 +1917,9 @@ describe('drawing a spot', () => {
     // Narrow, the room is two lines tall: the shown layer sits at its top, not stretched down it.
     expect(valuesInEveryWindow(shown(), 'align-self').at(-1)).toEndWith(': start')
     expect(shown().classList.contains('spot-bar-ask')).toBe(false)
+    // The words' own layer is not one of the buttons' layers.
+    const words = host.querySelector('.spot-bar-words > .spot-bar-now')!
+    expect(valuesInEveryWindow(words, 'align-self')).toEqual([])
     await click(button(host, 'Delete this shape'))
     // Keep it and Delete are the bar's other layer, anchored to its last line, where Light from the
     // middle and Finish are: a quick second press where Delete this shape was lands on neither.
