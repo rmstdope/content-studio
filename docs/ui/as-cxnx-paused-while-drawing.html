@@ -1,0 +1,489 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Paused while drawing</title>
+    <style>
+      :root {
+        --bg: #06070c;
+        --panel: #10121a;
+        --raised: #191c24;
+        --line: rgb(255 255 255/12%);
+        --text: #eceef3;
+        --muted: #a9b0bd;
+        --faint: #8a91a0;
+        --accent: #ff6b2c;
+        --mark: #ffd84a;
+        --ok: #5be3ae;
+        --bad: #ff8080;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.45 -apple-system,
+          system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 20px 16px 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0;
+      }
+      .note {
+        background: #1f1936;
+        color: #c4b5ff;
+        border: 1px dashed #5a4a9a;
+        border-radius: 10px;
+        padding: 10px 14px;
+      }
+      .lbl {
+        display: block;
+        font-size: 12px;
+        color: var(--faint);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 6px;
+      }
+      .screen {
+        position: relative;
+        aspect-ratio: 16/9;
+        width: 100%;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        background:
+          radial-gradient(ellipse at 30% 70%, #3a2a18 0, transparent 45%),
+          radial-gradient(ellipse at 75% 30%, #1c2a44 0, transparent 50%),
+          linear-gradient(#141a2a, #0b0e16);
+      }
+      .screen svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .btn {
+        display: inline-block;
+        background: var(--raised);
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 4px 10px;
+        font: inherit;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      .btn.pri {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #1a0d05;
+        font-weight: 600;
+      }
+      .fp {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 300px;
+        max-height: calc(100% - 32px);
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        background: rgb(16 18 26/92%);
+        border: 1px solid rgb(255 255 255/18%);
+        font-size: 13px;
+      }
+      .hd {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .hd b {
+        flex: 1;
+      }
+      .cap {
+        color: var(--muted);
+        font-size: 12px;
+        margin: 0;
+      }
+      .l2 {
+        font-size: 11px;
+        text-transform: uppercase;
+        color: var(--faint);
+        letter-spacing: 0.06em;
+      }
+      .row {
+        border-top: 1px solid var(--line);
+        padding-top: 6px;
+      }
+      .row b {
+        display: block;
+      }
+      .sw {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .sw i {
+        width: 24px;
+        height: 14px;
+        border-radius: 7px;
+        background: #333a48;
+        position: relative;
+      }
+      .sw.on i {
+        background: var(--accent);
+      }
+      .sw i:after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 10px;
+        height: 10px;
+        border-radius: 5px;
+        background: #fff;
+      }
+      .sw.on i:after {
+        left: 12px;
+      }
+      .spot {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .spot a {
+        color: var(--accent);
+        text-decoration: underline;
+        margin-left: 4px;
+      }
+      .set {
+        font-size: 12px;
+        color: var(--faint);
+      }
+      .dbar {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .dbar .btns {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .topbar {
+        position: absolute;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(760px, calc(100% - 24px));
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+        padding: 8px 12px;
+        border-radius: 12px;
+        background: rgb(16 18 26/92%);
+        border: 1px solid rgb(255 255 255/18%);
+        font-size: 13px;
+      }
+      .topbar span {
+        flex: 1;
+        min-width: 240px;
+      }
+      .page {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 14px;
+        background: var(--panel);
+        border-radius: 12px;
+        padding: 14px;
+        border: 1px solid var(--line);
+      }
+      .tabbar {
+        background: var(--raised);
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 13px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .tabbar span {
+        flex: 1;
+        min-width: 220px;
+      }
+      .side {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        font-size: 13px;
+      }
+      .why {
+        font-size: 13px;
+        color: var(--soft, #c7ccd6);
+      }
+      .toast {
+        position: absolute;
+        left: 16px;
+        bottom: 16px;
+        background: rgb(16 18 26/92%);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 6px 10px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .grip {
+        cursor: grab;
+        color: var(--faint);
+        letter-spacing: -2px;
+      }
+      @media (max-width: 760px) {
+        .page {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .tab {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .bar {
+        background: var(--raised);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 13px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .bar p {
+        margin: 0;
+        flex: 1 1 320px;
+      }
+      .cap {
+        margin: 0;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .cap b {
+        color: var(--text);
+      }
+      .badge {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgb(16 18 26/85%);
+        border: 1px solid rgb(255 255 255/18%);
+        border-radius: 8px;
+        padding: 3px 9px;
+        font-size: 13px;
+        pointer-events: none;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+      .narrow {
+        max-width: 380px;
+      }
+      @media (max-width: 900px) {
+        .row {
+          grid-template-columns: 1fr;
+        }
+      }
+      .shape {
+        fill: rgb(255 216 74/14%);
+        stroke: var(--mark);
+        stroke-width: 0.4;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Paused while drawing a spot — Pause / Play in the drawing bar, and the caption</h1>
+      <div class="note">
+        The drawing bar gets the same Pause / Play button full screen’s panel already has while
+        drawing. Space and the button do the same thing; the caption says it too. One more button in
+        the bar.<br />The picture is the Movement tab with a spot being drawn. Full screen is
+        unchanged: its panel already has ❚❚ / ▶.
+      </div>
+      <div class="row">
+        <div>
+          <span class="lbl">Drawing, moving</span>
+          <div class="tab">
+            <div class="bar">
+              <p>
+                <b>Drawing your own spot for Lantern glow.</b> Drag a corner to move it;
+                double-click a corner to take it out. Click a shape to pick it. Drag the ● to where
+                the light comes from, or press Alt and the arrows.
+              </p>
+              <button class="btn">❚❚ Pause</button><button class="btn">＋ Add a shape</button
+              ><button class="btn">Delete this shape</button
+              ><button class="btn">Light from the middle</button
+              ><button class="btn pri">Finish</button>
+            </div>
+            <div class="screen">
+              <svg viewBox="0 0 100 56.25" preserveAspectRatio="none">
+                <polygon class="shape" points="18,30 40,24 46,44 22,48" />
+                <circle cx="31" cy="36" r="1.4" fill="var(--mark)" />
+              </svg>
+            </div>
+            <p class="cap">Take 3, as the game will show it. Space pauses · F for full screen.</p>
+          </div>
+        </div>
+        <div>
+          <span class="lbl">Drawing, after Space: paused</span>
+          <div class="tab">
+            <div class="bar">
+              <p>
+                <b>Drawing your own spot for Lantern glow.</b> Drag a corner to move it;
+                double-click a corner to take it out. Click a shape to pick it. Drag the ● to where
+                the light comes from, or press Alt and the arrows.
+              </p>
+              <button class="btn">▶ Play</button><button class="btn">＋ Add a shape</button
+              ><button class="btn">Delete this shape</button
+              ><button class="btn">Light from the middle</button
+              ><button class="btn pri">Finish</button>
+            </div>
+            <div class="screen">
+              <svg viewBox="0 0 100 56.25" preserveAspectRatio="none">
+                <polygon class="shape" points="18,30 40,24 46,44 22,48" />
+                <circle cx="31" cy="36" r="1.4" fill="var(--mark)" />
+              </svg>
+            </div>
+            <p class="cap">
+              Take 3, as the game will show it. <b>Paused</b> · Space plays · F for full screen.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="narrow">
+        <div>
+          <span class="lbl">Narrow window, paused</span>
+          <div class="tab">
+            <div class="bar">
+              <p>
+                <b>Drawing your own spot for Lantern glow.</b> Drag a corner to move it;
+                double-click a corner to take it out. Click a shape to pick it. Drag the ● to where
+                the light comes from, or press Alt and the arrows.
+              </p>
+              <button class="btn">▶ Play</button><button class="btn">＋ Add a shape</button
+              ><button class="btn">Delete this shape</button
+              ><button class="btn">Light from the middle</button
+              ><button class="btn pri">Finish</button>
+            </div>
+            <div class="screen">
+              <svg viewBox="0 0 100 56.25" preserveAspectRatio="none">
+                <polygon class="shape" points="18,30 40,24 46,44 22,48" />
+                <circle cx="31" cy="36" r="1.4" fill="var(--mark)" />
+              </svg>
+            </div>
+            <p class="cap">
+              Take 3, as the game will show it. <b>Paused</b> · Space plays · F for full screen.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <h1>The other steps of drawing, while paused</h1>
+      <div class="note">
+        Agreed: Pause / Play shows in every step except “Delete this shape?” (Y); after Finish the
+        movement stays paused.
+      </div>
+      <div class="row">
+        <div>
+          <span class="lbl">Placing a new shape, paused </span>
+          <div class="tab">
+            <div class="bar">
+              <p>
+                <b>New shape for Lantern glow.</b> Click to place each corner; click the first
+                corner to close the shape. Esc stops this shape.
+              </p>
+              <button class="btn">▶ Play</button><button class="btn pri">Finish</button>
+            </div>
+            <div class="screen">
+              <svg viewBox="0 0 100 56.25" preserveAspectRatio="none">
+                <polygon class="shape" points="18,30 40,24 46,44 22,48" />
+                <circle cx="31" cy="36" r="1.4" fill="var(--mark)" />
+              </svg>
+            </div>
+            <p class="cap">
+              Take 3, as the game will show it. <b>Paused</b> · Space plays · F for full screen.
+            </p>
+          </div>
+        </div>
+        <div>
+          <span class="lbl">Delete this shape? — no Pause / Play</span>
+          <div class="tab">
+            <div class="bar">
+              <p><b>Delete this shape?</b> It has 4 corners.</p>
+              <button class="btn">Keep it</button><button class="btn pri">Delete</button>
+            </div>
+            <div class="screen">
+              <svg viewBox="0 0 100 56.25" preserveAspectRatio="none">
+                <polygon class="shape" points="18,30 40,24 46,44 22,48" />
+                <circle cx="31" cy="36" r="1.4" fill="var(--mark)" />
+              </svg>
+            </div>
+            <p class="cap">
+              Take 3, as the game will show it. <b>Paused</b> · Space plays · F for full screen.
+            </p>
+          </div>
+        </div>
+        <div>
+          <span class="lbl">After Finish — stays paused</span>
+          <div class="tab">
+            <div class="screen">
+              <svg viewBox="0 0 100 56.25" preserveAspectRatio="none">
+                <polygon class="shape" points="18,30 40,24 46,44 22,48" />
+                <circle cx="31" cy="36" r="1.4" fill="var(--mark)" />
+              </svg>
+              <div
+                style="
+                  position: absolute;
+                  left: 10px;
+                  right: 10px;
+                  bottom: 10px;
+                  display: flex;
+                  justify-content: space-between;
+                "
+              >
+                <button class="btn">▶ Play</button><button class="btn">⛶ Full screen</button>
+              </div>
+            </div>
+            <p class="cap">
+              Take 3, as the game will show it. <b>Paused</b> · Space plays · F for full screen.
+            </p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>
