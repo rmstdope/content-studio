@@ -456,7 +456,7 @@ describe('folding the sidebar', () => {
         text: 'Act 1',
         href: '#/images/parts/act1',
         current: true,
-        title: 'Act I: The Lantern · 2/5 done',
+        title: 'Act I: The Lantern · 2/5 finished',
         dot: 'some',
       },
       {
