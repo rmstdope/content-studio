@@ -241,6 +241,7 @@ describe('a character per language', () => {
       speed: 0.95,
       phrase: null,
       clean: false,
+      level: 100,
       appearances: [{ part: 'act1', lines: 2 }],
       totalLines: 2,
       longest: 'en längre rad',

@@ -66,6 +66,8 @@ export interface CharacterLanguage {
   phrase: string | null
   /** Whether new lines in the language are cleaned of background noise. */
   clean: boolean
+  /** How loud the voice plays in the language, in percent. */
+  level: number
   appearances: Appearance[]
   totalLines: number
   /** The character's longest line in the language (first on a tie); null without lines. */

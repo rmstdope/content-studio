@@ -103,6 +103,7 @@ describe('a character per language', () => {
       speed: 0.9,
       phrase: 'Come in.',
       clean: false,
+      level: 100,
     })
   })
 
@@ -133,6 +134,7 @@ describe('a character per language', () => {
       speed: 0.95,
       phrase: 'Kom in.',
       clean: false,
+      level: 100,
     })
     expect(voiceOf(cast.speakers.mira!, 'sv', 'en')).toEqual({
       voice: null,
@@ -140,6 +142,7 @@ describe('a character per language', () => {
       speed: null,
       phrase: null,
       clean: false,
+      level: 100,
     })
   })
 
