@@ -80,7 +80,7 @@ describe('clean jobs', () => {
     expect(jobs.get('narrator', undefined)).toMatchObject({
       status: 'done',
       done: 3,
-      failed: [{ part: 'act1', key: 'k2', message: 'ffmpeg could not clean the voice' }],
+      failed: [{ part: 'act1', key: 'k2', message: 'Line k2: ffmpeg could not clean the voice' }],
     })
     expect(clip(root, 'k2')).toBe('k2 as recorded')
     expect(clip(root, 'k3')).toBe('K3 AS RECORDED')

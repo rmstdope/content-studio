@@ -21,3 +21,18 @@ export function lineLevel(entry: { level?: number } | undefined): number {
 
 /** What setting a level says while the voice's lines are being cleaned or put back; the page waits on it. */
 export const LEVEL_WAIT = 'Wait for the lines to finish being cleaned.'
+
+/**
+ * What is said of a line whose clip could not be set or cleaned: the line, then a plain reason. A
+ * tool's words about a hidden temporary file (a path) are never shown, only that the clip could not
+ * be read; a clip that is gone is "missing from the clips folder".
+ */
+export function lineFailure(key: string, error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error)
+  const code = (error as { code?: unknown } | null)?.code
+  if (code === 'ENOENT') return `Line ${key}: the clip is missing from the clips folder.`
+  if (/\.(mp3|wav|ogg)\b/.test(message) || /[\\/]/.test(message)) {
+    return `Line ${key}: the clip could not be read.`
+  }
+  return `Line ${key}: ${message}`
+}

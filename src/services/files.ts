@@ -4,6 +4,7 @@ import { dirname } from 'node:path'
 import type { z } from 'zod'
 import { resolveInRoot } from '../core/paths'
 import { problemsFrom, type Problem } from '../core/project'
+import { orderLockEntry } from '../core/resources'
 
 /** What reading a JSON file gave. */
 export type JsonRead =
@@ -170,6 +171,13 @@ export function formatEntriesPerLine(record: Record<string, unknown>): string {
   if (!keys.length) return '{}\n'
   const lines = keys.map((key) => ` ${JSON.stringify(key)}: ${JSON.stringify(record[key])}`)
   return `{\n${lines.join(',\n')}\n}\n`
+}
+
+/** A part's narration lock as text: `formatEntriesPerLine`, each entry's fields in one fixed order. */
+export function formatLock(lock: Record<string, Record<string, unknown>>): string {
+  return formatEntriesPerLine(
+    Object.fromEntries(Object.entries(lock).map(([key, entry]) => [key, orderLockEntry(entry)])),
+  )
 }
 
 /**

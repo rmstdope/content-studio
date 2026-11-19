@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import { CharacterSchema, LockEntrySchema, projectCast, voiceOf } from './resources'
-import { LEVEL, isLevel, levelDb, lineLevel } from './level'
+import { CharacterSchema, LockEntrySchema, orderLockEntry, projectCast, voiceOf } from './resources'
+import { LEVEL, isLevel, levelDb, lineFailure, lineLevel } from './level'
 
 describe('a voice level', () => {
   it('is a gain in dB relative to 100%', () => {
@@ -49,5 +49,44 @@ describe('a voice level', () => {
     expect(
       projectCast({ speakers: { x: { voice: 'a' } }, pronounce: {} }, 'sv', 'en').speakers.x?.level,
     ).toBeUndefined()
+  })
+})
+
+describe('lineFailure', () => {
+  it('names the line and drops the hidden temporary file from the tool’s words', () => {
+    const error = new Error(
+      'ffprobe could not level the clip: /r/audio/act1/.k100.1b2c-3d.mp3: Invalid data found when processing input',
+    )
+    const text = lineFailure('k100', error)
+    expect(text).toBe('Line k100: the clip could not be read.')
+    expect(text).not.toContain('.mp3')
+  })
+
+  it('says a missing clip is missing from the clips folder', () => {
+    const error = Object.assign(new Error("ENOENT: no such file, copyfile '/r/a/k1.mp3'"), {
+      code: 'ENOENT',
+    })
+    expect(lineFailure('k1', error)).toBe('Line k1: the clip is missing from the clips folder.')
+  })
+
+  it('keeps a plain sentence of the studio’s own', () => {
+    expect(lineFailure('k1', new Error('ffmpeg is needed to level clips: install it'))).toBe(
+      'Line k1: ffmpeg is needed to level clips: install it',
+    )
+  })
+})
+
+describe('orderLockEntry', () => {
+  it('puts the fields in one order, level between takes and adopted, unknown ones last', () => {
+    const entry = { at: 'T', adopted: true, level: 50, extra: 1, takes: 2, fp: 'f', heard: 0.9 }
+    expect(Object.keys(orderLockEntry(entry))).toEqual([
+      'fp',
+      'heard',
+      'takes',
+      'level',
+      'adopted',
+      'at',
+      'extra',
+    ])
   })
 })

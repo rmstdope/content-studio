@@ -6927,9 +6927,21 @@ textarea[aria-disabled='true'][data-why] {
   flex-wrap: wrap;
   gap: 8px;
 }
+.level .adopt-error,
+.level .clean-hint {
+  overflow-wrap: anywhere;
+}
 @container panel (max-width: 520px) {
-  .level-row .label,
+  /* The value stays beside the label; the slider takes the row under them. */
+  .level-row .label {
+    order: 1;
+  }
+  .level-pct {
+    order: 2;
+    margin-left: auto;
+  }
   .level-slider {
+    order: 3;
     flex-basis: 100%;
   }
   .level-unset .level-buttons {

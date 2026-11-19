@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import { copyFile, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { LEVEL, levelDb, lineLevel } from '../core/level'
+import { LEVEL, levelDb, lineFailure, lineLevel } from '../core/level'
 import { resolveInRoot } from '../core/paths'
 import type { Problem } from '../core/project'
 import { LockSchema } from '../core/resources'
 import { gainClip } from './audio'
-import { formatEntriesPerLine, readResource, writeAtomic } from './files'
+import { formatLock, readResource, writeAtomic } from './files'
 import type { LineResult } from './cleanLines'
 import { inPartTurn } from './partFiles'
 import { readPart } from './workspace'
@@ -15,8 +15,6 @@ import { readPart } from './workspace'
 export interface LevelDeps {
   gain?: typeof gainClip
 }
-
-const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
 /**
  * Sets one line's clip in the game to `level` percent (§8.4): the clip is raised or lowered by the
@@ -59,18 +57,18 @@ export async function levelLine(
       lock[key] = level === LEVEL.default ? rest : { ...rest, level }
       // The lock first: if the clip cannot then be put in place, the lock is put back, so the
       // next run never raises a clip that already has the gain.
-      await writeAtomic(root, read.paths.lockPath, formatEntriesPerLine(lock))
+      await writeAtomic(root, read.paths.lockPath, formatLock(lock))
       try {
         await rename(temporary, clip)
       } catch (error) {
         lock[key] = entry
-        await writeAtomic(root, read.paths.lockPath, formatEntriesPerLine(lock)).catch(() => {})
+        await writeAtomic(root, read.paths.lockPath, formatLock(lock)).catch(() => {})
         throw error
       }
       return { ok: true }
     } catch (error) {
       await rm(temporary, { force: true }).catch(() => {})
-      return { ok: false, message: messageOf(error) }
+      return { ok: false, message: lineFailure(key, error) }
     }
   })
 }

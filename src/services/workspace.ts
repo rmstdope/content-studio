@@ -47,14 +47,7 @@ import {
   type ProjectSummary,
   type Recorded,
 } from '../core/summary'
-import {
-  formatEntriesPerLine,
-  listFiles,
-  readCached,
-  readJson,
-  readResource,
-  writeAtomic,
-} from './files'
+import { formatLock, listFiles, readCached, readJson, readResource, writeAtomic } from './files'
 import { readImages } from './imageLists'
 import { readScenes } from './scenes'
 import { readEffects } from './effectsLists'
@@ -381,7 +374,7 @@ export async function adoptPart(
     if (read.problems.length) return { ok: false, problems: read.problems }
     const { lock, adopted } = adoptUntracked(read.input, now.toISOString())
     const { lockPath } = read.paths
-    if (adopted) await writeAtomic(dirname(projectFile), lockPath, formatEntriesPerLine(lock))
+    if (adopted) await writeAtomic(dirname(projectFile), lockPath, formatLock(lock))
     return { ok: true, adopted, lockPath }
   })
 }

@@ -85,7 +85,7 @@ describe('cleaning a line already in the game', () => {
       encode: failing,
       decode,
     })
-    expect(result).toEqual({ ok: false, message: 'ffmpeg could not clean the voice' })
+    expect(result).toEqual({ ok: false, message: 'Line k1: ffmpeg could not clean the voice' })
     expect(readFileSync(join(root, 'audio/act1/k1.mp3'), 'utf8')).toBe('one as recorded')
     expect(existsSync(join(root, 'content-studio/narration/originals'))).toBe(false)
     expect(existsSync(join(root, 'content-studio/narration/act1.cleaned.json'))).toBe(false)
