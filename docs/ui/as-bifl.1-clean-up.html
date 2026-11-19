@@ -1,0 +1,854 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Clean up the voice</title>
+    <style>
+      :root {
+        --bg: #06070c;
+        --panel: #10121a;
+        --glass: rgb(255 255 255/3.5%);
+        --edge: rgb(255 255 255/8%);
+        --raised: #191c24;
+        --inset: #0d0f14;
+        --line: rgb(255 255 255/7%);
+        --text: #eceef3;
+        --soft: #c7ccd6;
+        --muted: #a9b0bd;
+        --faint: #8a91a0;
+        --accent: #ff6b2c;
+        --accent-soft-bg: #2a1b12;
+        --accent-soft-ink: #ff9a6b;
+        --ok: #3ddc97;
+        --ok-bg: #10291f;
+        --ok-ink: #5be3ae;
+        --warn: #ffc24b;
+        --warn-bg: #2d2412;
+        --danger-bg: #2e1720;
+        --danger-ink: #ff94a8;
+        --info: #7aa7ff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.45 -apple-system,
+          system-ui,
+          sans-serif;
+        padding: 24px 16px 60px;
+      }
+      .wrap {
+        max-width: 1240px;
+        margin: 0 auto;
+      }
+      h1.doc {
+        font-size: 20px;
+        margin: 0 0 4px;
+      }
+      .lede {
+        color: var(--muted);
+        margin: 0 0 28px;
+        max-width: 820px;
+      }
+      .state {
+        margin: 0 0 36px;
+      }
+      .state > h2 {
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent-soft-ink);
+        margin: 0 0 4px;
+      }
+      .state > p.note {
+        color: var(--muted);
+        margin: 0 0 12px;
+        max-width: 820px;
+      }
+      .page {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 24px;
+      }
+      .panel {
+        background: var(--glass);
+        border: 1px solid var(--edge);
+        border-radius: 16px;
+        padding: 20px 22px;
+        margin-bottom: 20px;
+      }
+      .label {
+        font-size: 11px;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .chip {
+        display: inline-block;
+        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #1a1d26;
+        color: var(--soft);
+      }
+      .chip-ok {
+        background: var(--ok-bg);
+        color: var(--ok-ink);
+      }
+      .chip-warn {
+        background: var(--warn-bg);
+        color: var(--warn);
+      }
+      .section-head {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .vname {
+        font-size: 20px;
+        font-weight: 700;
+        margin: 4px 0 6px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .faint {
+        color: var(--faint);
+      }
+      .listen {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
+      .box {
+        flex: 1 1 240px;
+        border: 1px solid var(--edge);
+        border-radius: 12px;
+        padding: 12px 14px;
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+      }
+      .box strong {
+        display: block;
+      }
+      .box .muted {
+        display: block;
+        font-size: 13px;
+      }
+      .play {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 1px solid var(--edge);
+        background: var(--raised);
+        color: var(--text);
+        display: inline-grid;
+        place-items: center;
+        flex: none;
+        font-size: 11px;
+      }
+      .play.on {
+        background: var(--accent);
+        color: #1a0a02;
+        border-color: transparent;
+      }
+      .btn {
+        background: var(--raised);
+        border: 1px solid var(--edge);
+        color: var(--text);
+        border-radius: 10px;
+        padding: 7px 12px;
+        font: inherit;
+        font-size: 13px;
+      }
+      .btn[disabled] {
+        opacity: 0.45;
+      }
+      .foot {
+        display: flex;
+        justify-content: space-between;
+        border-top: 1px solid var(--line);
+        padding-top: 12px;
+        margin-top: 6px;
+        font-size: 12px;
+      }
+      .mono {
+        font-family: ui-monospace, Menlo, monospace;
+      }
+      .clean {
+        border-top: 1px solid var(--line);
+        padding-top: 14px;
+        margin-top: 14px;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .switch {
+        width: 38px;
+        height: 22px;
+        border-radius: 999px;
+        background: #2a2e3a;
+        position: relative;
+        flex: none;
+        border: 1px solid var(--edge);
+      }
+      .switch::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #c7ccd6;
+      }
+      .switch.on {
+        background: var(--ok);
+      }
+      .switch.on::after {
+        left: 18px;
+        background: #fff;
+      }
+      .switch.focus {
+        outline: 2px solid var(--info);
+        outline-offset: 2px;
+      }
+      .ab {
+        display: inline-flex;
+        border: 1px solid var(--edge);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .ab span {
+        padding: 6px 12px;
+        font-size: 13px;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        border-right: 1px solid var(--edge);
+      }
+      .ab span:last-child {
+        border-right: 0;
+      }
+      .ab span.on {
+        background: var(--accent-soft-bg);
+        color: var(--accent-soft-ink);
+      }
+      select {
+        background: var(--inset);
+        color: var(--text);
+        border: 1px solid var(--edge);
+        border-radius: 8px;
+        padding: 6px 8px;
+        font: inherit;
+        font-size: 13px;
+        max-width: 100%;
+      }
+      .hint {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 8px 0 0;
+      }
+      .err {
+        font-size: 13px;
+        color: var(--danger-ink);
+        margin: 8px 0 0;
+      }
+      .field {
+        margin: 12px 0;
+      }
+      .field .label {
+        display: block;
+        margin-bottom: 6px;
+      }
+      .input {
+        background: var(--inset);
+        border: 1px solid var(--edge);
+        border-radius: 8px;
+        padding: 7px 10px;
+        width: 100%;
+        color: var(--soft);
+      }
+      .dim {
+        opacity: 0.5;
+      }
+      .callout {
+        border-left: 3px solid var(--accent);
+        padding: 2px 0 2px 12px;
+        color: var(--soft);
+        font-size: 13px;
+        margin: 6px 0 14px;
+      }
+      @media (max-width: 860px) {
+        .page {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1 class="doc">Clean up the voice — agreed</h1>
+      <p class="lede">
+        Every state of the clean-up in Malakar’s Voice panel. Play loops the chosen line until you
+        stop it. Clicking either half of “As recorded | Cleaned” flips it, and the sound switches
+        over at the same moment in the line. Every word here is as it would ship.
+      </p>
+      <div class="state">
+        <h2>1 · Off, with lines recorded</h2>
+        <p class="note">
+          How every voice starts. The menu opens on the character’s first recorded line, set to As
+          recorded.
+        </p>
+        <div class="page">
+          <div>
+            <section class="panel">
+              <div class="section-head">
+                <span class="label">Voice · English</span><span class="chip chip-ok">Cast</span>
+              </div>
+              <div class="vname">Old Temple Priest</div>
+              <div class="muted">by someone · 12k uses · 340 likes</div>
+              <div class="listen">
+                <div class="box">
+                  <span class="play">▶</span
+                  ><span
+                    ><strong>Take</strong
+                    ><span class="muted">The audition phrase, in Malakar’s style</span></span
+                  >
+                </div>
+                <div class="box">
+                  <span class="play">▶</span
+                  ><span
+                    ><strong>Fish sample</strong
+                    ><span class="muted">“Kneel, and be heard.”</span></span
+                  >
+                </div>
+              </div>
+              <div class="clean">
+                <div class="row">
+                  <span class="switch"></span><strong>Clean up the voice</strong>
+                </div>
+                <p class="hint">
+                  Lowers the background noise in the pauses of every line recorded from now on.
+                  Lines already recorded stay as they are.
+                </p>
+                <div class="row" style="margin-top: 12px">
+                  <span class="muted" style="font-size: 13px">Hear it on</span
+                  ><select style="flex: 1 1 260px">
+                    <option>Act I · “You climbed all those stairs for this?”</option>
+                  </select>
+                </div>
+                <div class="row" style="margin-top: 10px">
+                  <span class="play">▶</span
+                  ><span class="ab"
+                    ><span class="on">As recorded</span><span class="">Cleaned</span></span
+                  >
+                </div>
+              </div>
+              <div class="foot">
+                <span class="mono faint">e48a228e21a443d6a4302dc6238c8128</span
+                ><a class="muted">Open on Fish Audio ↗</a>
+              </div>
+            </section>
+          </div>
+          <aside></aside>
+        </div>
+      </div>
+      <div class="state">
+        <h2>2 · Playing in a loop, flipped to Cleaned</h2>
+        <p class="note">
+          The play button becomes a stop button. The line repeats until stopped. Flipping back and
+          forth doesn’t restart it.
+        </p>
+        <div class="page">
+          <div>
+            <section class="panel">
+              <div class="section-head">
+                <span class="label">Voice · English</span><span class="chip chip-ok">Cast</span>
+              </div>
+              <div class="vname">Old Temple Priest</div>
+              <div class="muted">by someone · 12k uses · 340 likes</div>
+              <div class="listen">
+                <div class="box">
+                  <span class="play">▶</span
+                  ><span
+                    ><strong>Take</strong
+                    ><span class="muted">The audition phrase, in Malakar’s style</span></span
+                  >
+                </div>
+                <div class="box">
+                  <span class="play">▶</span
+                  ><span
+                    ><strong>Fish sample</strong
+                    ><span class="muted">“Kneel, and be heard.”</span></span
+                  >
+                </div>
+              </div>
+              <div class="clean">
+                <div class="row">
+                  <span class="switch"></span><strong>Clean up the voice</strong>
+                </div>
+                <p class="hint">
+                  Lowers the background noise in the pauses of every line recorded from now on.
+                  Lines already recorded stay as they are.
+                </p>
+                <div class="row" style="margin-top: 12px">
+                  <span class="muted" style="font-size: 13px">Hear it on</span
+                  ><select style="flex: 1 1 260px">
+                    <option>Act I · “You climbed all those stairs for this?”</option>
+                  </select>
+                </div>
+                <div class="row" style="margin-top: 10px">
+                  <span class="play on">■</span
+                  ><span class="ab"
+                    ><span class="">As recorded</span><span class="on">Cleaned</span></span
+                  ><span class="muted mono" style="font-size: 12px">0:03 / 0:07 · looping</span>
+                </div>
+              </div>
+              <div class="foot">
+                <span class="mono faint">e48a228e21a443d6a4302dc6238c8128</span
+                ><a class="muted">Open on Fish Audio ↗</a>
+              </div>
+            </section>
+          </div>
+          <aside></aside>
+        </div>
+      </div>
+      <div class="state">
+        <h2>3 · Making the cleaned version</h2>
+        <p class="note">
+          The first time a line is played, the cleaned copy takes a moment. The line plays as
+          recorded meanwhile; Cleaned can’t be chosen until it’s ready.
+        </p>
+        <div class="page">
+          <div>
+            <section class="panel">
+              <div class="section-head">
+                <span class="label">Voice · English</span><span class="chip chip-ok">Cast</span>
+              </div>
+              <div class="vname">Old Temple Priest</div>
+              <div class="muted">by someone · 12k uses · 340 likes</div>
+              <div class="listen">
+                <div class="box">
+                  <span class="play">▶</span
+                  ><span
+                    ><strong>Take</strong
+                    ><span class="muted">The audition phrase, in Malakar’s style</span></span
+                  >
+                </div>
+                <div class="box">
+                  <span class="play">▶</span
+                  ><span
+                    ><strong>Fish sample</strong
+                    ><span class="muted">“Kneel, and be heard.”</span></span
+                  >
+                </div>
+              </div>
+              <div class="clean">
+                <div class="row">
+                  <span class="switch"></span><strong>Clean up the voice</strong>
+                </div>
+                <p class="hint">
+                  Lowers the background noise in the pauses of every line recorded from now on.
+                  Lines already recorded stay as they are.
+                </p>
+                <div class="row" style="margin-top: 12px">
+                  <span class="muted" style="font-size: 13px">Hear it on</span
+                  ><select style="flex: 1 1 260px">
+                    <option>Act I · “You climbed all those stairs for this?”</option>
+                  </select>
+                </div>
+                <div class="row" style="margin-top: 10px">
+                  <span class="play on">■</span
+                  ><span class="ab dim"
+                    ><span class="on">As recorded</span><span class="">Cleaned</span></span
+                  ><span class="muted" style="font-size: 13px">Cleaning…</span>
+                </div>
+              </div>
+              <div class="foot">
+                <span class="mono faint">e48a228e21a443d6a4302dc6238c8128</span
+                ><a class="muted">Open on Fish Audio ↗</a>
+              </div>
+            </section>
+          </div>
+          <aside></aside>
+        </div>
+      </div>
+      <div class="state">
+        <h2>4 · The cleaned version couldn’t be made</h2>
+        <p class="note">The line still plays as recorded. The switch can still be flipped.</p>
+        <div class="page">
+          <div>
+            <section class="panel">
+              <div class="section-head">
+                <span class="label">Voice · English</span><span class="chip chip-ok">Cast</span>
+              </div>
+              <div class="vname">Old Temple Priest</div>
+              <div class="muted">by someone · 12k uses · 340 likes</div>
+              <div class="listen">
+                <div class="box">
+                  <span class="play">▶</span
+                  ><span
+                    ><strong>Take</strong
+                    ><span class="muted">The audition phrase, in Malakar’s style</span></span
+                  >
+                </div>
+                <div class="box">
+                  <span class="play">▶</span
+                  ><span
+                    ><strong>Fish sample</strong
+                    ><span class="muted">“Kneel, and be heard.”</span></span
+                  >
+                </div>
+              </div>
+              <div class="clean">
+                <div class="row">
+                  <span class="switch"></span><strong>Clean up the voice</strong>
+                </div>
+                <p class="hint">
+                  Lowers the background noise in the pauses of every line recorded from now on.
+                  Lines already recorded stay as they are.
+                </p>
+                <div class="row" style="margin-top: 12px">
+                  <span class="muted" style="font-size: 13px">Hear it on</span
+                  ><select style="flex: 1 1 260px">
+                    <option>Act I · “You climbed all those stairs for this?”</option>
+                  </select>
+                </div>
+                <div class="row" style="margin-top: 10px">
+                  <span class="play">▶</span
+                  ><span class="ab dim"
+                    ><span class="on">As recorded</span><span class="">Cleaned</span></span
+                  >
+                </div>
+                <p class="err">
+                  The cleaned version couldn’t be made: the recorded clip could not be read.
+                  <span class="faint">(the reason, as given)</span>
+                </p>
+              </div>
+              <div class="foot">
+                <span class="mono faint">e48a228e21a443d6a4302dc6238c8128</span
+                ><a class="muted">Open on Fish Audio ↗</a>
+              </div>
+            </section>
+          </div>
+          <aside></aside>
+        </div>
+      </div>
+      <div class="state">
+        <h2>5 · On</h2>
+        <p class="note">“Cleaned” appears beside “Cast”. You can still compare.</p>
+        <div class="page">
+          <div>
+            <section class="panel">
+              <div class="section-head">
+                <span class="label">Voice · English</span><span class="chip chip-ok">Cast</span
+                ><span class="chip chip-ok">Cleaned</span>
+              </div>
+              <div class="vname">Old Temple Priest</div>
+              <div class="muted">by someone · 12k uses · 340 likes</div>
+              <div class="listen">
+                <div class="box">
+                  <span class="play">▶</span
+                  ><span
+                    ><strong>Take</strong
+                    ><span class="muted">The audition phrase, in Malakar’s style</span></span
+                  >
+                </div>
+                <div class="box">
+                  <span class="play">▶</span
+                  ><span
+                    ><strong>Fish sample</strong
+                    ><span class="muted">“Kneel, and be heard.”</span></span
+                  >
+                </div>
+              </div>
+              <div class="clean">
+                <div class="row">
+                  <span class="switch on"></span><strong>Clean up the voice</strong>
+                </div>
+                <p class="hint">
+                  Every line recorded from now on has the background noise in its pauses lowered.
+                  Lines already recorded stay as they are.
+                </p>
+                <div class="row" style="margin-top: 12px">
+                  <span class="muted" style="font-size: 13px">Hear it on</span
+                  ><select style="flex: 1 1 260px">
+                    <option>Act I · “You climbed all those stairs for this?”</option>
+                  </select>
+                </div>
+                <div class="row" style="margin-top: 10px">
+                  <span class="play">▶</span
+                  ><span class="ab"
+                    ><span class="on">As recorded</span><span class="">Cleaned</span></span
+                  >
+                </div>
+              </div>
+              <div class="foot">
+                <span class="mono faint">e48a228e21a443d6a4302dc6238c8128</span
+                ><a class="muted">Open on Fish Audio ↗</a>
+              </div>
+            </section>
+          </div>
+          <aside></aside>
+        </div>
+      </div>
+      <div class="state">
+        <h2>6 · Couldn’t save the switch</h2>
+        <p class="note">The switch goes back to where it was.</p>
+        <div class="page">
+          <div>
+            <section class="panel">
+              <div class="section-head">
+                <span class="label">Voice · English</span><span class="chip chip-ok">Cast</span>
+              </div>
+              <div class="vname">Old Temple Priest</div>
+              <div class="muted">by someone · 12k uses · 340 likes</div>
+              <div class="listen">
+                <div class="box">
+                  <span class="play">▶</span
+                  ><span
+                    ><strong>Take</strong
+                    ><span class="muted">The audition phrase, in Malakar’s style</span></span
+                  >
+                </div>
+                <div class="box">
+                  <span class="play">▶</span
+                  ><span
+                    ><strong>Fish sample</strong
+                    ><span class="muted">“Kneel, and be heard.”</span></span
+                  >
+                </div>
+              </div>
+              <div class="clean">
+                <div class="row">
+                  <span class="switch"></span><strong>Clean up the voice</strong>
+                </div>
+                <p class="hint">
+                  Lowers the background noise in the pauses of every line recorded from now on.
+                  Lines already recorded stay as they are.
+                </p>
+                <p class="err">
+                  Couldn’t save the clean-up: the cast file could not be written.
+                  <span class="faint">(the reason, as given)</span>
+                </p>
+                <div class="row" style="margin-top: 12px">
+                  <span class="muted" style="font-size: 13px">Hear it on</span
+                  ><select style="flex: 1 1 260px">
+                    <option>Act I · “You climbed all those stairs for this?”</option>
+                  </select>
+                </div>
+                <div class="row" style="margin-top: 10px">
+                  <span class="play">▶</span
+                  ><span class="ab"
+                    ><span class="on">As recorded</span><span class="">Cleaned</span></span
+                  >
+                </div>
+              </div>
+              <div class="foot">
+                <span class="mono faint">e48a228e21a443d6a4302dc6238c8128</span
+                ><a class="muted">Open on Fish Audio ↗</a>
+              </div>
+            </section>
+          </div>
+          <aside></aside>
+        </div>
+      </div>
+      <div class="state">
+        <h2>7 · No lines recorded yet</h2>
+        <p class="note">The take is the only choice in the menu.</p>
+        <div class="page">
+          <div>
+            <section class="panel">
+              <div class="section-head">
+                <span class="label">Voice · English</span><span class="chip chip-ok">Cast</span>
+              </div>
+              <div class="vname">Old Temple Priest</div>
+              <div class="muted">by someone · 12k uses · 340 likes</div>
+              <div class="listen">
+                <div class="box">
+                  <span class="play">▶</span
+                  ><span
+                    ><strong>Take</strong
+                    ><span class="muted">The audition phrase, in Malakar’s style</span></span
+                  >
+                </div>
+                <div class="box">
+                  <span class="play">▶</span
+                  ><span
+                    ><strong>Fish sample</strong
+                    ><span class="muted">“Kneel, and be heard.”</span></span
+                  >
+                </div>
+              </div>
+              <div class="clean">
+                <div class="row">
+                  <span class="switch"></span><strong>Clean up the voice</strong>
+                </div>
+                <p class="hint">
+                  Lowers the background noise in the pauses of every line recorded from now on.
+                  Lines already recorded stay as they are.
+                </p>
+                <div class="row" style="margin-top: 12px">
+                  <span class="muted" style="font-size: 13px">Hear it on</span
+                  ><select style="flex: 1 1 260px">
+                    <option>The take (the audition phrase)</option>
+                  </select>
+                </div>
+                <div class="row" style="margin-top: 10px">
+                  <span class="play">▶</span
+                  ><span class="ab"
+                    ><span class="on">As recorded</span><span class="">Cleaned</span></span
+                  >
+                </div>
+              </div>
+              <div class="foot">
+                <span class="mono faint">e48a228e21a443d6a4302dc6238c8128</span
+                ><a class="muted">Open on Fish Audio ↗</a>
+              </div>
+            </section>
+          </div>
+          <aside></aside>
+        </div>
+      </div>
+      <div class="state">
+        <h2>8 · No lines and the take isn’t made yet</h2>
+        <p class="note">Nothing to hear yet. The switch already works.</p>
+        <div class="page">
+          <div>
+            <section class="panel">
+              <div class="section-head">
+                <span class="label">Voice · English</span><span class="chip chip-ok">Cast</span>
+              </div>
+              <div class="vname">Old Temple Priest</div>
+              <div class="muted">by someone · 12k uses · 340 likes</div>
+              <div class="listen">
+                <div class="box">
+                  <span class="play">▶</span
+                  ><span
+                    ><strong>Take</strong
+                    ><span class="muted">The audition phrase, in Malakar’s style</span></span
+                  >
+                </div>
+                <div class="box">
+                  <span class="play">▶</span
+                  ><span
+                    ><strong>Fish sample</strong
+                    ><span class="muted">“Kneel, and be heard.”</span></span
+                  >
+                </div>
+              </div>
+              <div class="clean">
+                <div class="row">
+                  <span class="switch"></span><strong>Clean up the voice</strong>
+                </div>
+                <p class="hint">
+                  Lowers the background noise in the pauses of every line recorded from now on.
+                  Lines already recorded stay as they are.
+                </p>
+                <div class="row" style="margin-top: 12px">
+                  <span class="muted" style="font-size: 13px">Hear it on</span
+                  ><select style="flex: 1 1 260px">
+                    <option>The take (the audition phrase)</option>
+                  </select>
+                </div>
+                <div class="row" style="margin-top: 10px">
+                  <span class="play dim">▶</span
+                  ><span class="ab dim"
+                    ><span class="on">As recorded</span><span class="">Cleaned</span></span
+                  ><span class="muted" style="font-size: 13px">Wait for the take to be made.</span>
+                </div>
+              </div>
+              <div class="foot">
+                <span class="mono faint">e48a228e21a443d6a4302dc6238c8128</span
+                ><a class="muted">Open on Fish Audio ↗</a>
+              </div>
+            </section>
+          </div>
+          <aside></aside>
+        </div>
+      </div>
+      <div class="state">
+        <h2>9 · The menu, opened</h2>
+        <p class="note">
+          The take first, then every recorded line in the order the game plays them. A long line is
+          cut short with “…”, and the whole line shows when you point at it.
+        </p>
+        <section class="panel" style="max-width: 560px; font-size: 13px; line-height: 2">
+          The take (the audition phrase)<br /><b>Act I · “You climbed all those stairs for this?”</b
+          ><br />Act I · “The light must never go out.”<br />Act II · “I warned your father, too, on
+          a night very much like this one, when the…”
+        </section>
+      </div>
+      <div class="state">
+        <h2>10 · A narrow window</h2>
+        <p class="note">The menu takes the whole width; play and the flip go beneath it.</p>
+        <div style="max-width: 380px">
+          <section class="panel">
+            <div class="section-head">
+              <span class="label">Voice · English</span><span class="chip chip-ok">Cast</span>
+            </div>
+            <div class="vname">Old Temple Priest</div>
+            <div class="muted">by someone · 12k uses · 340 likes</div>
+            <div class="listen">
+              <div class="box">
+                <span class="play">▶</span
+                ><span
+                  ><strong>Take</strong
+                  ><span class="muted">The audition phrase, in Malakar’s style</span></span
+                >
+              </div>
+              <div class="box">
+                <span class="play">▶</span
+                ><span
+                  ><strong>Fish sample</strong
+                  ><span class="muted">“Kneel, and be heard.”</span></span
+                >
+              </div>
+            </div>
+            <div class="clean">
+              <div class="row"><span class="switch"></span><strong>Clean up the voice</strong></div>
+              <p class="hint">
+                Lowers the background noise in the pauses of every line recorded from now on. Lines
+                already recorded stay as they are.
+              </p>
+              <div class="row" style="margin-top: 12px">
+                <span class="muted" style="font-size: 13px">Hear it on</span
+                ><select style="flex: 1 1 260px">
+                  <option>Act I · “You climbed all those stairs for this?”</option>
+                </select>
+              </div>
+              <div class="row" style="margin-top: 10px">
+                <span class="play">▶</span
+                ><span class="ab"
+                  ><span class="on">As recorded</span><span class="">Cleaned</span></span
+                >
+              </div>
+            </div>
+            <div class="foot">
+              <span class="mono faint">e48a228e21a443d6a4302dc6238c8128</span
+              ><a class="muted">Open on Fish Audio ↗</a>
+            </div>
+          </section>
+        </div>
+      </div>
+      <div class="state">
+        <h2>No voice cast</h2>
+        <p class="note">
+          There is no Voice panel to put the switch in, so it isn’t shown until a voice is cast.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
