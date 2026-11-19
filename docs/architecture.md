@@ -356,7 +356,7 @@ for another language (absent is off), says that lines recorded from now on in th
 background noise in their pauses lowered. It is the voice's, so it is per language like the voice;
 `voiceOf` gives it as `clean`, `projectCast` carries it to the speaker, `CharacterLanguage.clean`
 shows it. The fingerprint never reads it, so flipping it makes no clip stale and records nothing
-again: lines already recorded stay as they are (cleaning those is a later piece). The clean-up is
+again: lines already recorded stay as they are until the user cleans them (below). The clean-up is
 one fixed chain (`core/cleanup.ts`, chosen by listening in as-bifl): a high-pass at 80 Hz,
 `afftdn` at 20 dB with its noise print learned from the take's own quietest 0.4 s, and an `agate`
 that opens 12 dB above that floor and lowers the pauses by 10 dB. `cleanWav` (`services/audio.ts`)
@@ -365,6 +365,8 @@ runs it on the take's WAV (a copy of the quiet stretch is put in front so the no
 a recording, a retake, and a take chosen as the line's clip; the audition, the character's take and
 a line's cached takes stay as recorded. The switch is saved by `PATCH /api/characters/:id` with
 `{ clean }` (`setClean`, one field per request, in the language asked for).
+
+**Cleaning the lines already in the game** (as-bifl.2): while the switch is on, the Voice panel counts the speaker's lines in the game in the language shown (`cleanedLinesOf`: a manifest entry, its clip in the clips folder and a lock entry) and offers **Clean n lines…**, which asks first. A line is _cleaned_ when `content-studio/narration/<part>[.<lang>].cleaned.json` (`CleanedSchema`) holds `{ at, original }` for its key and `at` is still the lock entry's `at`: recording the line again moves the lock's time on, so a line recorded again is never counted cleaned and a stale record is only forgotten. The original is kept as `content-studio/narration/originals/<part>[.<lang>]/<key>.mp3` (committed, not cache: it is shared with the project like the switch). `cleanLine` (`services/cleanLines.ts`), in the part's turn, decodes the clip, encodes it with `clean: true` into a hidden temporary file in the clips folder, copies the original, writes the record, and only then renames the cleaned file over the clip, so a failure part-way never loses the original; the lock and manifest are untouched (the clean-up does not change the length). `putBackLine` copies the original over the clip and forgets the record and the copy, and is safe to repeat. `commitClip` keeps the original of a line cleaned as it is recorded (it is encoded once more without the clean-up) and writes its record, and forgets the record of a line recorded without. The work is a job per voice and language (`services/cleanJobs.ts`, in memory, one line at a time, a failed line noted and the rest go on): `POST /api/characters/:id/cleaned-lines/clean`, `/put-back` and `/stop` (a clean-up stops after the line in hand; a put back cannot be stopped), `GET /api/characters/:id/cleaned-lines` for the count, the cleaned clips and the job (the page asks again every second while one runs, so leaving the page and coming back shows where it is). Switching the switch off while any line is cleaned asks first, saves the switch, then puts back **every** cleaned line of the voice; for a cleaned line, hearing "As recorded" plays the kept original (`GET /api/parts/:part/originals/:file`) and "Cleaned" the game's clip.
 
 **Hearing it** (`services/cleanedCopy.ts`): the Voice panel's _Hear it on_ menu plays one recorded
 line, or the take, in a loop, as recorded and cleaned. `POST /api/cleaned` with `{ part, file }` or
@@ -2266,6 +2268,9 @@ POST   /api/parts/:part/jobs                     run a plan ({ kind: record | me
 GET    /api/parts/:part/jobs/latest              the part's latest job in the language asked for
 GET    /api/jobs/:id                             a job's progress (polled while it runs)
 DELETE /api/jobs/:id                             cancel
+POST   /api/characters/:id/cleaned-lines/(clean|put-back|stop)  clean a voice's lines in the game, put them back, or stop cleaning
+GET    /api/characters/:id/cleaned-lines         how many of a voice's lines in the game are cleaned, which, and the job
+GET    /api/parts/:part/originals/:file          the original kept for a cleaned line (`?language=`)
 PATCH  /api/characters/:id                       style, speed, keywords, phrase or clean (one per request)
 POST   /api/cleaned                              make a cleaned copy to hear ({ part, file } or { take }): { ok, name } or { ok: false, message }
 GET    /api/cleaned/:file                        a cleaned copy (`<key>.mp3`)
