@@ -13,6 +13,8 @@ export interface EncodeOptions {
   lufs?: number | null
   /** Clean the voice's background noise (`cleanWav`) before encoding; off when absent. */
   clean?: boolean
+  /** A gain in dB applied last, after the levelling (a voice's level, as-ohm7); none when absent or 0. */
+  gainDb?: number
 }
 
 /** Encodes a WAV into an MP3 file. Behind a type, so tests need no ffmpeg. */
@@ -36,7 +38,7 @@ export class FileNotWritten extends Error {
  * and are killed after it (ffmpeg ignores a polite stop while it waits for input).
  */
 export function createFfmpegEncoder({ timeoutMs }: { timeoutMs: number }): Encoder {
-  return async (wav, file, { bitrate, channels, lufs = null, clean = false }) => {
+  return async (wav, file, { bitrate, channels, lufs = null, clean = false, gainDb = 0 }) => {
     try {
       await mkdir(dirname(file), { recursive: true })
       await access(dirname(file), constants.W_OK)
@@ -93,6 +95,14 @@ export function createFfmpegEncoder({ timeoutMs }: { timeoutMs: number }): Encod
     if (lufs !== null) {
       try {
         await levelClip(file, lufs, { timeoutMs })
+      } catch (error) {
+        await rm(file, { force: true })
+        throw error
+      }
+    }
+    if (gainDb !== 0) {
+      try {
+        await gainClip(file, gainDb, { timeoutMs })
       } catch (error) {
         await rm(file, { force: true })
         throw error
@@ -251,6 +261,31 @@ export async function levelClip(
     }
     await rename(out, file)
     return reached
+  } finally {
+    await rm(out, { force: true })
+  }
+}
+
+/**
+ * Raises or lowers a clip by `gainDb` in place, keeping its rate, channels and bit rate (a voice's
+ * level, as-ohm7): the constant gain and peak limiter of `levelClip`, with no measuring. The result is
+ * written next to the clip (a hidden sibling) and renamed over it; a failure leaves the clip as it was.
+ */
+export async function gainClip(
+  file: string,
+  gainDb: number,
+  { timeoutMs = 120_000 }: { timeoutMs?: number } = {},
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  const left = () => Math.max(1, deadline - Date.now())
+  const stream = await probe(file, left())
+  const out = join(dirname(file), `.${basename(file, '.mp3')}.gain.mp3`)
+  try {
+    const args = ['-loglevel', 'error', '-y', '-i', file, '-af', gainFilter(gainDb)]
+    args.push('-ar', stream.sample_rate, '-ac', String(stream.channels))
+    if (stream.bit_rate) args.push('-b:a', stream.bit_rate)
+    await ffmpeg([...args, out], left())
+    await rename(out, file)
   } finally {
     await rm(out, { force: true })
   }
