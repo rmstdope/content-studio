@@ -11,12 +11,12 @@ export function askLevelTitle(level: number): string {
   return `Set this voice to ${level}%?`
 }
 
-/** The three notes of the question: what is rewritten, what is new, how to undo. */
+/** The notes of the question: what is rewritten, what is new, and how to undo (not when setting 100%). */
 export function askLevelNotes(level: number, total: number): string[] {
   return [
     `The ${total} ${lines(total)} in the game ${total === 1 ? 'is' : 'are'} rewritten at ${level}%.`,
     `New lines are recorded at ${level}%.`,
-    'Setting it back to 100% puts them back as they are now.',
+    ...(level === 100 ? [] : ['Setting it back to 100% puts them back as they are now.']),
   ]
 }
 

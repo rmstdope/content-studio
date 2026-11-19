@@ -24,6 +24,10 @@ describe('the words of the voice level', () => {
       'New lines are recorded at 60%.',
       'Setting it back to 100% puts them back as they are now.',
     ])
+    expect(askLevelNotes(100, 38)).toEqual([
+      'The 38 lines in the game are rewritten at 100%.',
+      'New lines are recorded at 100%.',
+    ])
     expect(askLevelNotes(60, 1)[0]).toBe('The 1 line in the game is rewritten at 60%.')
     expect(behindText(3, 100)).toBe('3 lines in the game are still at 100%.')
     expect(behindText(1, 100)).toBe('1 line in the game is still at 100%.')

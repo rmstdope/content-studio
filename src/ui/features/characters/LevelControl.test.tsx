@@ -173,6 +173,15 @@ describe('LevelControl', () => {
     expect(document.activeElement).toBe(page.slider())
   })
 
+  it('does not say "setting it back to 100%" when the level being set is 100%', async () => {
+    const page = await show({ saved: 60 })
+    await page.move(100)
+    await act(() => page.button('Set 100%…')!.click())
+    expect(page.text()).toContain('Set this voice to 100%?')
+    expect(page.text()).toContain('New lines are recorded at 100%.')
+    expect(page.text()).not.toContain('Setting it back to 100%')
+  })
+
   it('asks before rewriting the lines in the game, and Cancel writes nothing', async () => {
     const page = await show()
     await page.move(60)
