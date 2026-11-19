@@ -1,0 +1,812 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Cleaning the lines already in the game — every state</title>
+    <style>
+      :root {
+        --bg: #06070c;
+        --panel: #10121a;
+        --glass: rgb(255 255 255/3.5%);
+        --edge: rgb(255 255 255/8%);
+        --raised: #191c24;
+        --inset: #0d0f14;
+        --line: rgb(255 255 255/7%);
+        --text: #eceef3;
+        --soft: #c7ccd6;
+        --muted: #a9b0bd;
+        --faint: #8a91a0;
+        --accent: #ff6b2c;
+        --accent-soft-bg: #2a1b12;
+        --accent-soft-ink: #ff9a6b;
+        --ok: #3ddc97;
+        --ok-bg: #10291f;
+        --ok-ink: #5be3ae;
+        --warn: #ffc24b;
+        --warn-bg: #2d2412;
+        --danger-bg: #2e1720;
+        --danger-ink: #ff94a8;
+        --info: #7aa7ff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.45 -apple-system,
+          system-ui,
+          sans-serif;
+        padding: 24px 16px 60px;
+      }
+      .wrap {
+        max-width: 1240px;
+        margin: 0 auto;
+      }
+      h1.doc {
+        font-size: 20px;
+        margin: 0 0 4px;
+      }
+      .lede {
+        color: var(--muted);
+        margin: 0 0 28px;
+        max-width: 820px;
+      }
+      .state {
+        margin: 0 0 36px;
+      }
+      .state > h2 {
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent-soft-ink);
+        margin: 0 0 4px;
+      }
+      .state > p.note {
+        color: var(--muted);
+        margin: 0 0 12px;
+        max-width: 820px;
+      }
+      .page {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 24px;
+      }
+      .panel {
+        background: var(--glass);
+        border: 1px solid var(--edge);
+        border-radius: 16px;
+        padding: 20px 22px;
+        margin-bottom: 20px;
+      }
+      .label {
+        font-size: 11px;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .chip {
+        display: inline-block;
+        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #1a1d26;
+        color: var(--soft);
+      }
+      .chip-ok {
+        background: var(--ok-bg);
+        color: var(--ok-ink);
+      }
+      .chip-warn {
+        background: var(--warn-bg);
+        color: var(--warn);
+      }
+      .section-head {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .vname {
+        font-size: 20px;
+        font-weight: 700;
+        margin: 4px 0 6px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .faint {
+        color: var(--faint);
+      }
+      .listen {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
+      .box {
+        flex: 1 1 240px;
+        border: 1px solid var(--edge);
+        border-radius: 12px;
+        padding: 12px 14px;
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+      }
+      .box strong {
+        display: block;
+      }
+      .box .muted {
+        display: block;
+        font-size: 13px;
+      }
+      .play {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 1px solid var(--edge);
+        background: var(--raised);
+        color: var(--text);
+        display: inline-grid;
+        place-items: center;
+        flex: none;
+        font-size: 11px;
+      }
+      .play.on {
+        background: var(--accent);
+        color: #1a0a02;
+        border-color: transparent;
+      }
+      .btn {
+        background: var(--raised);
+        border: 1px solid var(--edge);
+        color: var(--text);
+        border-radius: 10px;
+        padding: 7px 12px;
+        font: inherit;
+        font-size: 13px;
+      }
+      .btn[disabled] {
+        opacity: 0.45;
+      }
+      .foot {
+        display: flex;
+        justify-content: space-between;
+        border-top: 1px solid var(--line);
+        padding-top: 12px;
+        margin-top: 6px;
+        font-size: 12px;
+      }
+      .mono {
+        font-family: ui-monospace, Menlo, monospace;
+      }
+      .clean {
+        border-top: 1px solid var(--line);
+        padding-top: 14px;
+        margin-top: 14px;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .switch {
+        width: 38px;
+        height: 22px;
+        border-radius: 999px;
+        background: #2a2e3a;
+        position: relative;
+        flex: none;
+        border: 1px solid var(--edge);
+      }
+      .switch::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #c7ccd6;
+      }
+      .switch.on {
+        background: var(--ok);
+      }
+      .switch.on::after {
+        left: 18px;
+        background: #fff;
+      }
+      .switch.focus {
+        outline: 2px solid var(--info);
+        outline-offset: 2px;
+      }
+      .ab {
+        display: inline-flex;
+        border: 1px solid var(--edge);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .ab span {
+        padding: 6px 12px;
+        font-size: 13px;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        border-right: 1px solid var(--edge);
+      }
+      .ab span:last-child {
+        border-right: 0;
+      }
+      .ab span.on {
+        background: var(--accent-soft-bg);
+        color: var(--accent-soft-ink);
+      }
+      select {
+        background: var(--inset);
+        color: var(--text);
+        border: 1px solid var(--edge);
+        border-radius: 8px;
+        padding: 6px 8px;
+        font: inherit;
+        font-size: 13px;
+        max-width: 100%;
+      }
+      .hint {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 8px 0 0;
+      }
+      .err {
+        font-size: 13px;
+        color: var(--danger-ink);
+        margin: 8px 0 0;
+      }
+      .field {
+        margin: 12px 0;
+      }
+      .field .label {
+        display: block;
+        margin-bottom: 6px;
+      }
+      .input {
+        background: var(--inset);
+        border: 1px solid var(--edge);
+        border-radius: 8px;
+        padding: 7px 10px;
+        width: 100%;
+        color: var(--soft);
+      }
+      .dim {
+        opacity: 0.5;
+      }
+      .callout {
+        border-left: 3px solid var(--accent);
+        padding: 2px 0 2px 12px;
+        color: var(--soft);
+        font-size: 13px;
+        margin: 6px 0 14px;
+      }
+      @media (max-width: 860px) {
+        .page {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .ask {
+        border: 1px solid var(--edge);
+        background: var(--raised);
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin-top: 12px;
+      }
+      .ask h3 {
+        margin: 0 0 6px;
+        font-size: 14px;
+      }
+      .ask ul {
+        margin: 6px 0 10px;
+        padding-left: 18px;
+        color: var(--soft);
+        font-size: 13px;
+      }
+      .acts {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #1a0a02;
+        border-color: transparent;
+        font-weight: 600;
+      }
+      .count {
+        font-size: 13px;
+        color: var(--soft);
+        margin-top: 10px;
+      }
+      .bar {
+        height: 6px;
+        background: var(--inset);
+        border-radius: 99px;
+        overflow: hidden;
+        margin-top: 6px;
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+        background: var(--ok);
+        width: 32%;
+      }
+      .ann {
+        font-size: 12px;
+        color: var(--warn);
+        margin: 0 0 8px;
+      }
+      @media (max-width: 520px) {
+        .count .btn {
+          display: block;
+          margin: 8px 0 0 !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1 class="doc">Cleaning the lines already in the game — every state</h1>
+      <p class="lede">
+        Option B as chosen, with the question on switching off. Every word is as it would ship. The
+        hints lose “Lines already recorded stay as they are.”, since that’s no longer true.
+      </p>
+      <div class="state">
+        <h2>1 · On, some lines in the game not cleaned</h2>
+        <p class="note">
+          Under the hint while the switch is on and at least one line in the game isn’t cleaned.
+          Counted per language tab.
+        </p>
+        <div class="page">
+          <div>
+            <section class="panel">
+              <div class="section-head">
+                <span class="label">Voice · English</span><span class="chip chip-ok">Cast</span>
+                <span class="chip">Cleaned</span>
+              </div>
+              <div class="vname">Old Temple Priest</div>
+              <div class="muted">by someone · 12k uses · 340 likes</div>
+              <div class="clean">
+                <div class="row">
+                  <span class="switch on"></span><strong>Clean up the voice</strong>
+                </div>
+                <p class="hint">
+                  Every line recorded from now on has the background noise in its pauses lowered.
+                </p>
+                <div class="count">
+                  26 of 38 lines in the game aren’t cleaned yet.
+                  <button class="btn" style="margin-left: 6px">Clean 26 lines…</button>
+                </div>
+                <div class="row" style="margin-top: 12px">
+                  <span class="muted" style="font-size: 13px">Hear it on</span
+                  ><select style="flex: 1 1 260px">
+                    <option>Act I · “You climbed all those stairs for this?”</option>
+                  </select>
+                </div>
+                <div class="row" style="margin-top: 10px">
+                  <span class="play">▶</span
+                  ><span class="ab"><span class="on">As recorded</span><span>Cleaned</span></span>
+                </div>
+              </div>
+              <div class="foot">
+                <span class="mono faint">e48a228e21a443d6a4302dc6238c8128</span
+                ><a class="muted">Open on Fish Audio ↗</a>
+              </div>
+            </section>
+          </div>
+          <aside></aside>
+        </div>
+      </div>
+      <div class="state">
+        <h2>2 · Asked before cleaning</h2>
+        <p class="note">
+          The question takes the count line’s place. Focus moves to “Clean 26 lines”; Cancel or
+          Escape brings the count back and nothing is written.
+        </p>
+        <div class="page">
+          <div>
+            <section class="panel">
+              <div class="section-head">
+                <span class="label">Voice · English</span><span class="chip chip-ok">Cast</span>
+                <span class="chip">Cleaned</span>
+              </div>
+              <div class="vname">Old Temple Priest</div>
+              <div class="muted">by someone · 12k uses · 340 likes</div>
+              <div class="clean">
+                <div class="row">
+                  <span class="switch on"></span><strong>Clean up the voice</strong>
+                </div>
+                <p class="hint">
+                  Every line recorded from now on has the background noise in its pauses lowered.
+                </p>
+                <div class="ask">
+                  <h3>Clean 26 lines already in the game?</h3>
+                  <ul>
+                    <li>Their pauses get the same clean-up as new lines.</li>
+                    <li>The originals are kept. Switching the clean-up off puts them back.</li>
+                  </ul>
+                  <div class="acts">
+                    <button class="btn">Cancel</button
+                    ><button class="btn primary">Clean 26 lines</button>
+                  </div>
+                </div>
+                <div class="row" style="margin-top: 12px">
+                  <span class="muted" style="font-size: 13px">Hear it on</span
+                  ><select style="flex: 1 1 260px">
+                    <option>Act I · “You climbed all those stairs for this?”</option>
+                  </select>
+                </div>
+                <div class="row" style="margin-top: 10px">
+                  <span class="play">▶</span
+                  ><span class="ab"><span class="on">As recorded</span><span>Cleaned</span></span>
+                </div>
+              </div>
+              <div class="foot">
+                <span class="mono faint">e48a228e21a443d6a4302dc6238c8128</span
+                ><a class="muted">Open on Fish Audio ↗</a>
+              </div>
+            </section>
+          </div>
+          <aside></aside>
+        </div>
+      </div>
+      <div class="state">
+        <h2>3 · Cleaning</h2>
+        <p class="note">
+          Keeps going if you leave the page; coming back shows where it is. Stop ends it after the
+          line being cleaned: lines already done stay cleaned, the rest are counted again.
+        </p>
+        <div class="page">
+          <div>
+            <section class="panel">
+              <div class="section-head">
+                <span class="label">Voice · English</span><span class="chip chip-ok">Cast</span>
+                <span class="chip">Cleaned</span>
+              </div>
+              <div class="vname">Old Temple Priest</div>
+              <div class="muted">by someone · 12k uses · 340 likes</div>
+              <div class="clean">
+                <div class="row">
+                  <span class="switch on"></span><strong>Clean up the voice</strong>
+                </div>
+                <p class="hint">
+                  Every line recorded from now on has the background noise in its pauses lowered.
+                </p>
+                <div class="count">
+                  Cleaning lines in the game… 12 of 26
+                  <button class="btn" style="margin-left: 6px">Stop</button>
+                </div>
+                <div class="bar"><i style="width: 32%"></i></div>
+                <div class="row" style="margin-top: 12px">
+                  <span class="muted" style="font-size: 13px">Hear it on</span
+                  ><select style="flex: 1 1 260px">
+                    <option>Act I · “You climbed all those stairs for this?”</option>
+                  </select>
+                </div>
+                <div class="row" style="margin-top: 10px">
+                  <span class="play">▶</span
+                  ><span class="ab"><span class="on">As recorded</span><span>Cleaned</span></span>
+                </div>
+              </div>
+              <div class="foot">
+                <span class="mono faint">e48a228e21a443d6a4302dc6238c8128</span
+                ><a class="muted">Open on Fish Audio ↗</a>
+              </div>
+            </section>
+          </div>
+          <aside></aside>
+        </div>
+      </div>
+      <div class="state">
+        <h2>4 · Some lines couldn’t be cleaned</h2>
+        <p class="note">The others are cleaned. The count line offers the rest again.</p>
+        <div class="page">
+          <div>
+            <section class="panel">
+              <div class="section-head">
+                <span class="label">Voice · English</span><span class="chip chip-ok">Cast</span>
+                <span class="chip">Cleaned</span>
+              </div>
+              <div class="vname">Old Temple Priest</div>
+              <div class="muted">by someone · 12k uses · 340 likes</div>
+              <div class="clean">
+                <div class="row">
+                  <span class="switch on"></span><strong>Clean up the voice</strong>
+                </div>
+                <p class="hint">
+                  Every line recorded from now on has the background noise in its pauses lowered.
+                </p>
+                <div class="count">
+                  3 of 38 lines in the game aren’t cleaned yet.
+                  <button class="btn" style="margin-left: 6px">Clean 3 lines…</button>
+                </div>
+                <p class="err">3 lines couldn’t be cleaned: &lt;the reason, as given&gt;</p>
+                <div class="row" style="margin-top: 12px">
+                  <span class="muted" style="font-size: 13px">Hear it on</span
+                  ><select style="flex: 1 1 260px">
+                    <option>Act I · “You climbed all those stairs for this?”</option>
+                  </select>
+                </div>
+                <div class="row" style="margin-top: 10px">
+                  <span class="play">▶</span
+                  ><span class="ab"><span class="on">As recorded</span><span>Cleaned</span></span>
+                </div>
+              </div>
+              <div class="foot">
+                <span class="mono faint">e48a228e21a443d6a4302dc6238c8128</span
+                ><a class="muted">Open on Fish Audio ↗</a>
+              </div>
+            </section>
+          </div>
+          <aside></aside>
+        </div>
+      </div>
+      <div class="state">
+        <h2>5 · Every line cleaned</h2>
+        <p class="note">No button.</p>
+        <div class="page">
+          <div>
+            <section class="panel">
+              <div class="section-head">
+                <span class="label">Voice · English</span><span class="chip chip-ok">Cast</span>
+                <span class="chip">Cleaned</span>
+              </div>
+              <div class="vname">Old Temple Priest</div>
+              <div class="muted">by someone · 12k uses · 340 likes</div>
+              <div class="clean">
+                <div class="row">
+                  <span class="switch on"></span><strong>Clean up the voice</strong>
+                </div>
+                <p class="hint">
+                  Every line recorded from now on has the background noise in its pauses lowered.
+                </p>
+                <div class="count">All 38 lines in the game are cleaned.</div>
+                <div class="row" style="margin-top: 12px">
+                  <span class="muted" style="font-size: 13px">Hear it on</span
+                  ><select style="flex: 1 1 260px">
+                    <option>Act I · “You climbed all those stairs for this?”</option>
+                  </select>
+                </div>
+                <div class="row" style="margin-top: 10px">
+                  <span class="play">▶</span
+                  ><span class="ab"><span class="on">As recorded</span><span>Cleaned</span></span>
+                </div>
+              </div>
+              <div class="foot">
+                <span class="mono faint">e48a228e21a443d6a4302dc6238c8128</span
+                ><a class="muted">Open on Fish Audio ↗</a>
+              </div>
+            </section>
+          </div>
+          <aside></aside>
+        </div>
+      </div>
+      <div class="state">
+        <h2>6 · On, no lines in the game yet</h2>
+        <p class="note">No count line at all.</p>
+        <div class="page">
+          <div>
+            <section class="panel">
+              <div class="section-head">
+                <span class="label">Voice · English</span><span class="chip chip-ok">Cast</span>
+                <span class="chip">Cleaned</span>
+              </div>
+              <div class="vname">Old Temple Priest</div>
+              <div class="muted">by someone · 12k uses · 340 likes</div>
+              <div class="clean">
+                <div class="row">
+                  <span class="switch on"></span><strong>Clean up the voice</strong>
+                </div>
+                <p class="hint">
+                  Every line recorded from now on has the background noise in its pauses lowered.
+                </p>
+                <div class="row" style="margin-top: 12px">
+                  <span class="muted" style="font-size: 13px">Hear it on</span
+                  ><select style="flex: 1 1 260px">
+                    <option>Act I · “You climbed all those stairs for this?”</option>
+                  </select>
+                </div>
+                <div class="row" style="margin-top: 10px">
+                  <span class="play">▶</span
+                  ><span class="ab"><span class="on">As recorded</span><span>Cleaned</span></span>
+                </div>
+              </div>
+              <div class="foot">
+                <span class="mono faint">e48a228e21a443d6a4302dc6238c8128</span
+                ><a class="muted">Open on Fish Audio ↗</a>
+              </div>
+            </section>
+          </div>
+          <aside></aside>
+        </div>
+      </div>
+      <div class="state">
+        <h2>7 · Switching off, with cleaned lines in the game</h2>
+        <p class="note">
+          The switch shows the move but nothing is saved yet. Focus moves to “Switch off and put
+          back”. “Keep it on” or Escape puts the switch back on.
+        </p>
+        <div class="page">
+          <div>
+            <section class="panel">
+              <div class="section-head">
+                <span class="label">Voice · English</span><span class="chip chip-ok">Cast</span>
+              </div>
+              <div class="vname">Old Temple Priest</div>
+              <div class="muted">by someone · 12k uses · 340 likes</div>
+              <div class="clean">
+                <div class="row">
+                  <span class="switch"></span><strong>Clean up the voice</strong>
+                </div>
+                <p class="hint">
+                  Lowers the background noise in the pauses of every line recorded from now on.
+                </p>
+                <div class="ask">
+                  <h3>Put back 38 lines as recorded?</h3>
+                  <ul>
+                    <li>Every line of this voice in the game goes back to how it was recorded.</li>
+                    <li>New lines are recorded without the clean-up.</li>
+                  </ul>
+                  <div class="acts">
+                    <button class="btn">Keep it on</button
+                    ><button class="btn primary">Switch off and put back</button>
+                  </div>
+                </div>
+                <div class="row" style="margin-top: 12px">
+                  <span class="muted" style="font-size: 13px">Hear it on</span
+                  ><select style="flex: 1 1 260px">
+                    <option>Act I · “You climbed all those stairs for this?”</option>
+                  </select>
+                </div>
+                <div class="row" style="margin-top: 10px">
+                  <span class="play">▶</span
+                  ><span class="ab"><span class="on">As recorded</span><span>Cleaned</span></span>
+                </div>
+              </div>
+              <div class="foot">
+                <span class="mono faint">e48a228e21a443d6a4302dc6238c8128</span
+                ><a class="muted">Open on Fish Audio ↗</a>
+              </div>
+            </section>
+          </div>
+          <aside></aside>
+        </div>
+      </div>
+      <div class="state">
+        <h2>8 · Putting back</h2>
+        <p class="note">
+          Keeps going if you leave the page. No Stop: it ends with every line as recorded.
+        </p>
+        <div class="page">
+          <div>
+            <section class="panel">
+              <div class="section-head">
+                <span class="label">Voice · English</span><span class="chip chip-ok">Cast</span>
+              </div>
+              <div class="vname">Old Temple Priest</div>
+              <div class="muted">by someone · 12k uses · 340 likes</div>
+              <div class="clean">
+                <div class="row">
+                  <span class="switch"></span><strong>Clean up the voice</strong>
+                </div>
+                <p class="hint">
+                  Lowers the background noise in the pauses of every line recorded from now on.
+                </p>
+                <div class="count">Putting back lines as recorded… 20 of 38</div>
+                <div class="bar"><i style="width: 52%"></i></div>
+                <div class="row" style="margin-top: 12px">
+                  <span class="muted" style="font-size: 13px">Hear it on</span
+                  ><select style="flex: 1 1 260px">
+                    <option>Act I · “You climbed all those stairs for this?”</option>
+                  </select>
+                </div>
+                <div class="row" style="margin-top: 10px">
+                  <span class="play">▶</span
+                  ><span class="ab"><span class="on">As recorded</span><span>Cleaned</span></span>
+                </div>
+              </div>
+              <div class="foot">
+                <span class="mono faint">e48a228e21a443d6a4302dc6238c8128</span
+                ><a class="muted">Open on Fish Audio ↗</a>
+              </div>
+            </section>
+          </div>
+          <aside></aside>
+        </div>
+      </div>
+      <div class="state">
+        <h2>9 · Some lines couldn’t be put back</h2>
+        <p class="note">The switch stays off and new lines are recorded without the clean-up.</p>
+        <div class="page">
+          <div>
+            <section class="panel">
+              <div class="section-head">
+                <span class="label">Voice · English</span><span class="chip chip-ok">Cast</span>
+              </div>
+              <div class="vname">Old Temple Priest</div>
+              <div class="muted">by someone · 12k uses · 340 likes</div>
+              <div class="clean">
+                <div class="row">
+                  <span class="switch"></span><strong>Clean up the voice</strong>
+                </div>
+                <p class="hint">
+                  Lowers the background noise in the pauses of every line recorded from now on.
+                </p>
+                <div class="count">
+                  3 lines in the game are still cleaned.
+                  <button class="btn" style="margin-left: 6px">Put them back</button>
+                </div>
+                <p class="err">3 lines couldn’t be put back: &lt;the reason, as given&gt;</p>
+                <div class="row" style="margin-top: 12px">
+                  <span class="muted" style="font-size: 13px">Hear it on</span
+                  ><select style="flex: 1 1 260px">
+                    <option>Act I · “You climbed all those stairs for this?”</option>
+                  </select>
+                </div>
+                <div class="row" style="margin-top: 10px">
+                  <span class="play">▶</span
+                  ><span class="ab"><span class="on">As recorded</span><span>Cleaned</span></span>
+                </div>
+              </div>
+              <div class="foot">
+                <span class="mono faint">e48a228e21a443d6a4302dc6238c8128</span
+                ><a class="muted">Open on Fish Audio ↗</a>
+              </div>
+            </section>
+          </div>
+          <aside></aside>
+        </div>
+      </div>
+      <div class="state">
+        <h2>10 · Switching off with nothing cleaned in the game</h2>
+        <p class="note">Saves at once with no question, as agreed for the switch.</p>
+        <div class="page">
+          <div>
+            <section class="panel">
+              <div class="section-head">
+                <span class="label">Voice · English</span><span class="chip chip-ok">Cast</span>
+              </div>
+              <div class="vname">Old Temple Priest</div>
+              <div class="muted">by someone · 12k uses · 340 likes</div>
+              <div class="clean">
+                <div class="row">
+                  <span class="switch"></span><strong>Clean up the voice</strong>
+                </div>
+                <p class="hint">
+                  Lowers the background noise in the pauses of every line recorded from now on.
+                </p>
+                <div class="row" style="margin-top: 12px">
+                  <span class="muted" style="font-size: 13px">Hear it on</span
+                  ><select style="flex: 1 1 260px">
+                    <option>Act I · “You climbed all those stairs for this?”</option>
+                  </select>
+                </div>
+                <div class="row" style="margin-top: 10px">
+                  <span class="play">▶</span
+                  ><span class="ab"><span class="on">As recorded</span><span>Cleaned</span></span>
+                </div>
+              </div>
+              <div class="foot">
+                <span class="mono faint">e48a228e21a443d6a4302dc6238c8128</span
+                ><a class="muted">Open on Fish Audio ↗</a>
+              </div>
+            </section>
+          </div>
+          <aside></aside>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
