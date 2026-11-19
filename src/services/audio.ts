@@ -2,6 +2,7 @@ import { constants } from 'node:fs'
 import { access, mkdir, rename, rm } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { pyFixed } from '../core/pyformat'
+import { cleanupFilter, CLEANUP, quietestStretch } from '../core/cleanup'
 import { readWav } from '../core/wav'
 
 /** How clips are encoded (the project's `output`). */
@@ -10,6 +11,8 @@ export interface EncodeOptions {
   channels: number
   /** Loudness to level the clip to (integrated LUFS), as RetroQuest's level.py; none: as encoded. */
   lufs?: number | null
+  /** Clean the voice's background noise (`cleanWav`) before encoding; off when absent. */
+  clean?: boolean
 }
 
 /** Encodes a WAV into an MP3 file. Behind a type, so tests need no ffmpeg. */
@@ -33,13 +36,14 @@ export class FileNotWritten extends Error {
  * and are killed after it (ffmpeg ignores a polite stop while it waits for input).
  */
 export function createFfmpegEncoder({ timeoutMs }: { timeoutMs: number }): Encoder {
-  return async (wav, file, { bitrate, channels, lufs = null }) => {
+  return async (wav, file, { bitrate, channels, lufs = null, clean = false }) => {
     try {
       await mkdir(dirname(file), { recursive: true })
       await access(dirname(file), constants.W_OK)
     } catch {
       throw new FileNotWritten()
     }
+    if (clean) wav = await cleanWav(wav, { timeoutMs })
     let child
     try {
       child = Bun.spawn(
@@ -95,6 +99,65 @@ export function createFfmpegEncoder({ timeoutMs }: { timeoutMs: number }): Encod
       }
     }
   }
+}
+
+/**
+ * The take cleaned of its background noise, as a WAV of the same format and length: the fixed
+ * chain of `core/cleanup.ts`, its noise print and gate set from the take's own quietest stretch.
+ * A take too short or not 16-bit PCM to find that stretch in is given back as it was.
+ */
+export async function cleanWav(
+  wav: Uint8Array,
+  { timeoutMs = 120_000 }: { timeoutMs?: number } = {},
+): Promise<Uint8Array> {
+  const floor = quietestStretch(readWav(wav), CLEANUP.noiseSeconds)
+  if (!floor) return wav
+  let child
+  try {
+    child = Bun.spawn(
+      [
+        'ffmpeg',
+        '-loglevel',
+        'error',
+        '-f',
+        'wav',
+        '-i',
+        '-',
+        '-af',
+        cleanupFilter(floor),
+        '-c:a',
+        'pcm_s16le',
+        '-f',
+        'wav',
+        '-',
+      ],
+      {
+        stdin: 'pipe',
+        stdout: 'pipe',
+        stderr: 'pipe',
+        timeout: timeoutMs,
+        killSignal: 'SIGKILL',
+      },
+    )
+  } catch {
+    throw new Error('ffmpeg is needed to clean the voice: install it (e.g. brew install ffmpeg)')
+  }
+  const out = new Response(child.stdout).arrayBuffer()
+  const stderr = new Response(child.stderr).text()
+  try {
+    child.stdin.write(wav)
+    await child.stdin.end()
+  } catch {
+    // ffmpeg stopped reading: its exit says why.
+  }
+  const [bytes, message, code] = await Promise.all([out, stderr, child.exited])
+  if (child.signalCode === 'SIGKILL') {
+    throw new Error(`ffmpeg took longer than ${timeoutMs / 1000} s to clean the voice, and was stopped`)
+  }
+  if (code !== 0) {
+    throw new Error(`ffmpeg could not clean the voice: ${message.trim() || `exit code ${code}`}`)
+  }
+  return new Uint8Array(bytes)
 }
 
 /** The encoder the studio uses: ffmpeg, stopped after two minutes to encode and two to level. */

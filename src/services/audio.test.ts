@@ -3,7 +3,15 @@ import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'nod
 import { join } from 'node:path'
 import { tempRepo } from '../../test/helpers'
 import { readWav, writeWav } from '../core/wav'
-import { createFfmpegEncoder, decodeClip, ffmpegEncoder, FileNotWritten, levelClip } from './audio'
+import {
+  cleanWav,
+  createFfmpegEncoder,
+  decodeClip,
+  ffmpegEncoder,
+  FileNotWritten,
+  levelClip,
+} from './audio'
+import { quietestStretch } from '../core/cleanup'
 
 const hasFfmpeg = Bun.which('ffmpeg') !== null
 
@@ -238,4 +246,70 @@ describe.skipIf(!hasFfmpeg || !Bun.which('ffprobe'))('levelClip', () => {
     },
     SLOW,
   )
+})
+
+/**
+ * Three seconds at 16 kHz: a voice-like burst (600 Hz and 1.8 kHz) from 0.5 s to 1.5 s, and a 150 Hz
+ * rumble with a little noise under all of it, so the pauses before and after are only rumble.
+ */
+function rumbling(): Uint8Array {
+  const rate = 16000
+  const data = new Uint8Array(rate * 3 * 2)
+  const view = new DataView(data.buffer)
+  let seed = 7
+  for (let i = 0; i < rate * 3; i++) {
+    const t = i / rate
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff
+    const noise = (seed / 0x7fffffff - 0.5) * 0.004
+    let v = 0.02 * Math.sin(2 * Math.PI * 150 * t) + noise
+    if (t > 0.5 && t < 1.5) {
+      v += 0.3 * Math.sin(2 * Math.PI * 600 * t) + 0.15 * Math.sin(2 * Math.PI * 1800 * t)
+    }
+    view.setInt16(i * 2, Math.round(v * 32767), true)
+  }
+  return writeWav({ format: { channels: 1, sampleRate: rate, bitsPerSample: 16 }, data })
+}
+
+describe.skipIf(!hasFfmpeg)('cleanWav', () => {
+  it('lowers the noise in the pauses and keeps the length and the voice', async () => {
+    const before = rumbling()
+    const after = await cleanWav(before)
+    const a = readWav(before)
+    const b = readWav(after)
+    expect(b.format).toEqual(a.format)
+    expect(b.data.length).toBe(a.data.length)
+    const floorBefore = quietestStretch(a, 0.4)!.db
+    const floorAfter = quietestStretch(b, 0.4)!.db
+    expect(floorAfter).toBeLessThan(floorBefore - 10)
+    // The voiced stretch is still there, within 3 dB of what it was.
+    const loud = (wav: typeof a) => {
+      const view = new DataView(wav.data.buffer, wav.data.byteOffset, wav.data.byteLength)
+      let sum = 0
+      for (let i = 8000 * 1; i < 16000 + 8000; i++) sum += (view.getInt16(i * 2, true) / 32768) ** 2
+      return 10 * Math.log10(sum / 16000)
+    }
+    expect(Math.abs(loud(b) - loud(a))).toBeLessThan(3)
+  })
+
+  it('is what the encoder does first when asked to clean', async () => {
+    const root = tempRepo({})
+    const options = { bitrate: '64k', channels: 1 }
+    await ffmpegEncoder(rumbling(), join(root, 'plain.mp3'), options)
+    await ffmpegEncoder(rumbling(), join(root, 'clean.mp3'), { ...options, clean: true })
+    const floorOf = async (name: string) =>
+      quietestStretch(readWav((await decodeClip(join(root, name))).wav), 0.4)!.db
+    expect(await floorOf('clean.mp3')).toBeLessThan((await floorOf('plain.mp3')) - 10)
+  })
+
+  it('gives a take too short to learn from back as it was', async () => {
+    const short = writeWav({
+      format: { channels: 1, sampleRate: 16000, bitsPerSample: 16 },
+      data: new Uint8Array(1000),
+    })
+    expect(await cleanWav(short)).toEqual(short)
+  })
+
+  it('says ffmpeg’s reason when it cannot clean', async () => {
+    await expect(cleanWav(rumbling(), { timeoutMs: 1 })).rejects.toThrow('took longer than')
+  })
 })
