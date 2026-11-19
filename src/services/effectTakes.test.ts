@@ -1190,6 +1190,12 @@ describe('level of a sound effect take', () => {
     expect(after.takes[1]!.level).toBe(1)
   })
 
+  it('tells the loudest sample of each take, so the page can say how high a level stays clean', async () => {
+    const { view } = await withTake()
+    // The fake tone peaks at 8000 of 32768.
+    expect(view.takes[0]!.peak).toBeCloseTo(8000 / 32768, 2)
+  })
+
   it('removes the level from the board when it goes back to 100%', async () => {
     const { root, file, takes, take } = await withTake()
     await takes.setLevel(file, 'door-creak', take.file, 1.4)
@@ -1210,7 +1216,7 @@ describe('level of a sound effect take', () => {
     )
   })
 
-  it('cuts what goes past the top flat', async () => {
+  it('doubles the sound at 200%', async () => {
     const { root, file, takes, take } = await withTake()
     await takes.setLevel(file, 'door-creak', take.file, 2)
     await takes.choose(file, 'door-creak', take.file)

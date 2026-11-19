@@ -6,7 +6,9 @@ import {
   cleanLevel,
   levelFailedChosenLine,
   levelFailedOtherLine,
+  levelFailedGameChangedLine,
   levelGameLine,
+  peakOfWav,
   levelPercent,
   levelTooLoud,
   levelWritingLine,
@@ -46,18 +48,32 @@ describe('effect level', () => {
   })
 
   it('finds the highest level that stays clean, in steps of 5%, never below 100%', () => {
-    expect(cleanLevel([0.1, 0.8])).toBe(1.25)
-    expect(cleanLevel([1])).toBe(1)
-    expect(cleanLevel([0.1])).toBe(2)
-    expect(cleanLevel([0])).toBe(2)
-    expect(cleanLevel([1.0, 0.5])).toBe(1)
+    expect(cleanLevel(0.8)).toBe(1.25)
+    expect(cleanLevel(1)).toBe(1)
+    expect(cleanLevel(0.1)).toBe(2)
+    expect(cleanLevel(0)).toBe(2)
+    expect(cleanLevel(1)).toBe(1)
+  })
+
+  it('measures the loudest sample of a sound', () => {
+    expect(peakOfWav(mono([100, -16384, 50]))).toBe(0.5)
+    expect(peakOfWav(mono([-32768]))).toBe(1)
+    expect(peakOfWav(mono([]))).toBe(0)
+  })
+
+  it('does not say what the game plays when it could not be put back', () => {
+    expect(
+      levelFailedGameChangedLine(2, 'it broke, and the game’s file could not be put back.'),
+    ).toBe(
+      'The level of Take 2 could not be changed: it broke, and the game’s file could not be put back.',
+    )
   })
 
   it('warns only above 100%, when the loudest part goes past the top', () => {
-    expect(levelTooLoud([0.8], 1.25)).toBe(false)
-    expect(levelTooLoud([0.8], 1.3)).toBe(true)
-    expect(levelTooLoud([1], 0.5)).toBe(false)
-    expect(levelTooLoud([1], 1)).toBe(false)
+    expect(levelTooLoud(0.8, 1.25)).toBe(false)
+    expect(levelTooLoud(0.8, 1.3)).toBe(true)
+    expect(levelTooLoud(1, 0.5)).toBe(false)
+    expect(levelTooLoud(1, 1)).toBe(false)
   })
 
   it('words the level as the acceptance does', () => {
@@ -71,10 +87,10 @@ describe('effect level', () => {
     expect(levelFailedOtherLine(3, 'disk full')).toBe(
       'The level of Take 3 could not be saved: disk full.',
     )
-    expect(tooLoudLine(1.8, [0.8])).toBe(
+    expect(tooLoudLine(1.8, 0.8)).toBe(
       'At 180% the loudest parts are cut flat and may sound harsh. Up to 125% stays clean.',
     )
-    expect(tooLoudLine(1.5, [1])).toBe(
+    expect(tooLoudLine(1.5, 1)).toBe(
       'At 150% the loudest parts are cut flat and may sound harsh. Up to 100% stays clean.',
     )
   })

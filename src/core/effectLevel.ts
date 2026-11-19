@@ -41,12 +41,9 @@ export function applyLevel(wav: Wav, level: number): Wav {
   }
 }
 
-/** The take's peak, 0 to 1: the highest of its waveform's bars. */
-const peakOf = (peaks: number[]) => peaks.reduce((high, bar) => Math.max(high, bar), 0)
-
 /** The highest level, in steps of 5% and never below 100%, at which the loudest part stays under the top. */
-export function cleanLevel(peaks: number[]): number {
-  const peak = peakOf(peaks)
+/** `peak` is the loudest sample of the sound, 0 to 1 of the top. */
+export function cleanLevel(peak: number): number {
   if (peak <= 0) return EFFECT_LEVEL.max
   // A hair of slack so 0.8 (1.25 exactly) is not lost to rounding.
   const steps = Math.floor((1 / peak) * 20 + 1e-9)
@@ -54,13 +51,13 @@ export function cleanLevel(peaks: number[]): number {
 }
 
 /** Whether the level makes the loudest parts go past the top; never below 100%. */
-export function levelTooLoud(peaks: number[], level: number): boolean {
-  return level > 1 && peakOf(peaks) * level > 1 + 1e-9
+export function levelTooLoud(peak: number, level: number): boolean {
+  return level > 1 && peak * level > 1 + 1e-9
 }
 
 /** The warning under the slider when the level is too loud: how high it can go and stay clean. */
-export function tooLoudLine(level: number, peaks: number[]): string {
-  return `At ${levelPercent(level)} the loudest parts are cut flat and may sound harsh. Up to ${levelPercent(cleanLevel(peaks))} stays clean.`
+export function tooLoudLine(level: number, peak: number): string {
+  return `At ${levelPercent(level)} the loudest parts are cut flat and may sound harsh. Up to ${levelPercent(cleanLevel(peak))} stays clean.`
 }
 
 /** The line under the chosen take's slider when its level is not 100%. */
@@ -84,4 +81,20 @@ export function levelFailedChosenLine(n: number, reason: string, gameLevel: numb
 /** The red line when the level of a take that is not in the game could not be saved. */
 export function levelFailedOtherLine(n: number, reason: string): string {
   return `The level of Take ${n} could not be saved: ${reasonOf(reason)}.`
+}
+
+/** The red line when the level could not be changed and the game's sound could not be put back: what the game plays is not known. */
+export function levelFailedGameChangedLine(n: number, reason: string): string {
+  return `The level of Take ${n} could not be changed: ${reasonOf(reason)}.`
+}
+
+/** The loudest sample of a sound, 0 to 1 of the top (16-bit audio). */
+export function peakOfWav(wav: Wav): number {
+  const { data } = wav
+  const samples = new Int16Array(
+    data.buffer.slice(data.byteOffset, data.byteOffset + data.length - (data.length % 2)),
+  )
+  let top = 0
+  for (const sample of samples) top = Math.max(top, Math.abs(sample))
+  return Math.min(1, top / 32768)
 }

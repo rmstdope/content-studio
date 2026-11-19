@@ -368,6 +368,7 @@ export function Playback({
           loop={take.loops}
           quiet={quiet}
           level={level}
+          peak={take.peak}
           cut={cutShares(take)}
           position={playing ? wavePosition(take, player.position) : undefined}
           fades={

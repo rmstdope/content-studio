@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   EFFECT_LEVEL,
   levelFailedChosenLine,
+  levelFailedGameChangedLine,
   levelFailedOtherLine,
   levelGameLine,
   levelPercent,
@@ -56,6 +57,8 @@ export function useEffectLevel({
   }
   // What the latest press saves, which the key timer calls.
   const saveLatest = useRef<(level: number) => void>(() => {})
+  // The level shown now, for a press that ends away from the slider.
+  const latest = useRef(1)
   // The slider follows what is saved when that changes (another take shown, a reload), except while
   // it is being moved; a save's own answer needs no follow, and a failed one puts it back.
   useEffect(() => {
@@ -99,6 +102,12 @@ export function useEffectLevel({
     hear(1)
     save(1)
   }
+  /** The mouse is let go, or the press ended some other way: the level shown is saved. */
+  const finish = (next: number) => {
+    dragging.current = false
+    save(next)
+  }
+  latest.current = value
   const percent = Math.round(value * 100)
   const failed = set.variables?.file === take.file && actions.shows(`level:${take.n}`)
   const reason = !failed
@@ -122,29 +131,36 @@ export function useEffectLevel({
     row: (
       <div className="effect-level">
         <div className="effect-level-row">
-          <span className="small">Level</span>
-          <input
-            type="range"
-            min={EFFECT_LEVEL.min * 100}
-            max={EFFECT_LEVEL.max * 100}
-            step={EFFECT_LEVEL.step * 100}
-            value={percent}
-            aria-label={`Level of take ${take.n}`}
-            aria-valuetext={levelPercent(value)}
-            {...off(why)}
-            onChange={(event) => move(Number(event.target.value))}
-            onPointerDown={() => {
-              if (!locked) dragging.current = true
-            }}
-            onPointerUp={(event) => {
-              dragging.current = false
-              save(Number(event.currentTarget.value) / 100)
-            }}
-            onPointerCancel={() => {
-              dragging.current = false
-            }}
-          />
-          <b className="scene-level">{levelPercent(value)}</b>
+          <span className="effect-level-unit">
+            <span className="small">Level</span>
+            <input
+              type="range"
+              min={EFFECT_LEVEL.min * 100}
+              max={EFFECT_LEVEL.max * 100}
+              step={EFFECT_LEVEL.step * 100}
+              value={percent}
+              aria-label={`Level of take ${take.n}`}
+              aria-valuetext={levelPercent(value)}
+              {...off(why)}
+              onChange={(event) => move(Number(event.target.value))}
+              onPointerDown={() => {
+                if (locked) return
+                dragging.current = true
+                // Let go away from the slider (outside it or the window): saved all the same.
+                const end = () => {
+                  if (dragging.current) finish(latest.current)
+                }
+                window.addEventListener('pointerup', end, { once: true })
+                window.addEventListener('pointercancel', end, { once: true })
+              }}
+              onPointerUp={(event) => finish(Number(event.currentTarget.value) / 100)}
+              onPointerCancel={() => finish(latest.current)}
+              onBlur={() => {
+                if (dragging.current || timer.current !== null) finish(latest.current)
+              }}
+            />
+            <b className="scene-level">{levelPercent(value)}</b>
+          </span>
           {percent !== 100 && (
             <button
               type="button"
@@ -157,14 +173,16 @@ export function useEffectLevel({
           )}
         </div>
         {line && <span className="faint small">{line}</span>}
-        {levelTooLoud(take.peaks, value) && (
-          <span className="take-quiet">{tooLoudLine(value, take.peaks)}</span>
+        {levelTooLoud(take.peak, value) && (
+          <span className="take-quiet">{tooLoudLine(value, take.peak)}</span>
         )}
         {reason !== null && (
           <span className="adopt-error" role="alert">
-            {inGame
-              ? levelFailedChosenLine(take.n, reason, saved)
-              : levelFailedOtherLine(take.n, reason)}
+            {set.data && !set.data.ok && 'gameChanged' in set.data
+              ? levelFailedGameChangedLine(take.n, reason)
+              : inGame
+                ? levelFailedChosenLine(take.n, reason, saved)
+                : levelFailedOtherLine(take.n, reason)}
           </span>
         )}
       </div>

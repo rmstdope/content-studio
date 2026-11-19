@@ -35,7 +35,7 @@ import { shapeEffectLoop, loopRequestSeconds } from '../core/effectLoop'
 import { peaks, wavSeconds } from '../core/musicTake'
 import { readWav, writeWav } from '../core/wav'
 import { applyFades, fadesProblem, hasFades, type Fades } from '../core/fades'
-import { LevelSchema, applyLevel } from '../core/effectLevel'
+import { LevelSchema, applyLevel, peakOfWav } from '../core/effectLevel'
 import { ffmpegEncoder, type Encoder } from './audio'
 import { EFFECT_BOARD_DIR, EFFECT_TAKES_DIR, boardFile, readEffectBoard } from './effectBoards'
 import {
@@ -269,6 +269,24 @@ export function createEffectTakes({
   let pressing = false
   // What a take has to cut, by its file's path, size and time, so a poll reads no WAV again.
   const scans = new Map<string, NonNullable<EffectTakeView['trimmable']>>()
+
+  // The loudest sample of each take's WAV, by its file's path, size and time.
+  const loudest = new Map<string, number>()
+
+  /** The loudest sample of the WAV at `path`, 0 to 1; 1 when it cannot be read (the warning then asks for none). */
+  async function peakOf(path: string): Promise<number> {
+    try {
+      const { size, mtimeMs, ctimeMs } = await stat(path)
+      const key = `${path}\0${size}\0${mtimeMs}\0${ctimeMs}`
+      const known = loudest.get(key)
+      if (known !== undefined) return known
+      const found = peakOfWav(readWav(new Uint8Array(await Bun.file(path).arrayBuffer())))
+      loudest.set(key, found)
+      return found
+    } catch {
+      return 1
+    }
+  }
 
   /** What the WAV at `path` has to cut; null when it cannot be read. */
   async function scan(path: string): Promise<NonNullable<EffectTakeView['trimmable']> | null> {
@@ -566,6 +584,7 @@ export function createEffectTakes({
           loops,
           quietAt: take.quietAt ?? null,
           level: take.level ?? 1,
+          peak: await peakOf(path),
           ...(take.fades && { fades: take.fades }),
           ...(take.trim && {
             trim: { ...take.trim, seconds: trimmedSeconds(take.seconds, take.trim) },

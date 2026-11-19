@@ -35,6 +35,7 @@ const take = (n: number, over: Partial<EffectTakeView> = {}): EffectTakeView => 
   loops: false,
   quietAt: null,
   level: 1,
+  peak: 0.5,
   ...over,
 })
 const view = (over: Partial<EffectTakesView> = {}): EffectTakesView => ({

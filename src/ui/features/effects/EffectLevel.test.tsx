@@ -33,6 +33,7 @@ const take = (n: number, over: Partial<EffectTakeView> = {}): EffectTakeView => 
   loops: false,
   quietAt: null,
   level: 1,
+  peak: 0.5,
   ...over,
 })
 const view = (over: Partial<EffectTakesView> = {}): EffectTakesView => ({
@@ -255,7 +256,7 @@ describe('the level slider', () => {
   })
 
   it('warns when the level makes the loudest parts go past the top, and only above 100%', async () => {
-    const { move, text, container } = render(row(), view({ takes: [card(1)] }))
+    const { move, text, container } = render(row(), view({ takes: [card(1, { peak: 0.8 })] }))
     await move(1, 125)
     expect(text()).not.toContain('cut flat')
     await move(1, 180)
@@ -269,8 +270,59 @@ describe('the level slider', () => {
     expect(container.querySelectorAll('.wave i.over')).toHaveLength(0)
   })
 
+  it('does not warn about a quiet take, whose bars are relative to its own loudest part', async () => {
+    const { move, text, container } = render(row(), view({ takes: [card(1, { peak: 0.2 })] }))
+    await move(1, 200)
+    expect(text()).not.toContain('cut flat')
+    expect(container.querySelectorAll('.wave i.over')).toHaveLength(0)
+  })
+
+  it('saves when the mouse is let go away from the slider, and on blur', async () => {
+    const lost = render(row(), view({ takes: [card(1)] }))
+    await act(async () =>
+      lost.slider(1)!.dispatchEvent(new window.Event('pointerdown', { bubbles: true })),
+    )
+    await lost.move(1, 150)
+    await act(async () => {
+      window.dispatchEvent(new window.Event('pointerup'))
+      await new Promise((r) => setTimeout(r, 5))
+    })
+    expect(JSON.parse(lost.levelCalls()[0]!.body!)).toEqual({ level: 1.5 })
+    const blurred = render(row(), view({ takes: [card(1)] }))
+    await blurred.move(1, 120)
+    await act(async () => {
+      blurred.slider(1)!.dispatchEvent(new window.Event('focusout', { bubbles: true }))
+      await new Promise((r) => setTimeout(r, 5))
+    })
+    expect(JSON.parse(blurred.levelCalls()[0]!.body!)).toEqual({ level: 1.2 })
+  })
+
+  it('does not say what the game plays when its file could not be put back', async () => {
+    const { move, release, text } = render(
+      chosenRow(),
+      view({ takes: [card(2, { chosen: true, level: 1.2 })] }),
+      (call) =>
+        call.url.endsWith('/level')
+          ? Response.json(
+              {
+                ok: false,
+                message: 'It broke, and the game’s file could not be put back.',
+                gameChanged: true,
+              },
+              { status: 409 },
+            )
+          : Response.json({ ok: true }),
+    )
+    await move(2, 150)
+    await release(2)
+    expect(text()).toContain(
+      'The level of Take 2 could not be changed: It broke, and the game’s file could not be put back.',
+    )
+    expect(text()).not.toContain('The game still plays it')
+  })
+
   it('says up to 100% when even 100% reaches the top', async () => {
-    const { move, text } = render(row(), view({ takes: [card(1, { peaks: [1, 0.3] })] }))
+    const { move, text } = render(row(), view({ takes: [card(1, { peak: 1 })] }))
     await move(1, 150)
     expect(text()).toContain('Up to 100% stays clean.')
   })

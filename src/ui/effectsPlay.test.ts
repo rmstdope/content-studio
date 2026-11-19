@@ -12,6 +12,7 @@ const take = (n: number, loops: boolean): EffectTakeView => ({
   loops,
   quietAt: null,
   level: 1,
+  peak: 0.5,
 })
 
 describe('compareClips', () => {

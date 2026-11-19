@@ -300,6 +300,8 @@ export interface EffectTakeView {
   quietAt: number | null
   /** The take's level, 1 for as made. */
   level: number
+  /** The loudest sample of its sound, 0 to 1 of the top (the waveform's bars are relative to it). */
+  peak: number
   /** The fades saved with a take made to play once; absent when it has none. */
   fades?: Fades
   /** A take trimmed: what is cut from each end, and the length that is left. */

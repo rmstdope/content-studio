@@ -6858,11 +6858,17 @@ textarea[aria-disabled='true'][data-why] {
   align-items: center;
   gap: 8px;
 }
-.effect-level-row input {
-  flex: 1 1 120px;
+.effect-level-unit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 220px;
+}
+.effect-level-unit input {
+  flex: 1 1 auto;
   min-width: 100px;
 }
-.effect-level-row input[aria-disabled='true'] {
+.effect-level-unit input[aria-disabled='true'] {
   opacity: 0.55;
 }
 .wave i.over {
