@@ -5469,6 +5469,9 @@ textarea[aria-disabled='true'][data-why] {
 .named-area-clear {
   flex: none;
 }
+.images-missing {
+  color: var(--warn);
+}
 .images-areas {
   white-space: normal;
   margin-top: 4px;
