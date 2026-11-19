@@ -351,6 +351,29 @@ keys (`"10"`) first when it reads the file, so the studio applies those first, w
 Python tooling keeps file order. The studio refuses to rewrite a cast where this would change the
 order (an integer-like key among others); a longer key such as `"Act 10"` keeps its place.
 
+**Clean up the voice** (as-bifl.1): `clean: true` on a character, or on its entry under `languages`
+for another language (absent is off), says that lines recorded from now on in that voice have the
+background noise in their pauses lowered. It is the voice's, so it is per language like the voice;
+`voiceOf` gives it as `clean`, `projectCast` carries it to the speaker, `CharacterLanguage.clean`
+shows it. The fingerprint never reads it, so flipping it makes no clip stale and records nothing
+again: lines already recorded stay as they are (cleaning those is a later piece). The clean-up is
+one fixed chain (`core/cleanup.ts`, chosen by listening in as-bifl): a high-pass at 80 Hz,
+`afftdn` at 20 dB with its noise print learned from the take's own quietest 0.4 s, and an `agate`
+that opens 12 dB above that floor and lowers the pauses by 10 dB. `cleanWav` (`services/audio.ts`)
+runs it on the take's WAV and the encoder does so before encoding when `EncodeOptions.clean` is set
+(levelling follows as for any clip). `commitClip` sets it from the line's speaker, so it applies to
+a recording, a retake, and a take chosen as the line's clip; the audition, the character's take and
+a line's cached takes stay as recorded. The switch is saved by `PATCH /api/characters/:id` with
+`{ clean }` (`setClean`, one field per request, in the language asked for).
+
+**Hearing it** (`services/cleanedCopy.ts`): the Voice panel's _Hear it on_ menu plays one recorded
+line, or the take, in a loop, as recorded and cleaned. `POST /api/cleaned` with `{ part, file }` or
+`{ take }` makes the cleaned copy (the clip decoded, cleaned and encoded with the project's output
+settings) into `content-studio/cache/cleaned/<key>.mp3`, named by the clip's place, size and time
+and the chain's version, so it is made once and again only when the clip or the chain changes;
+`GET /api/cleaned/:file` serves it. The game's clip is never written. The page plays both at once,
+one muted, so flipping As recorded / Cleaned does not restart the line.
+
 **Cues** (`content-studio/narration/<part>[.<lang>].edits.json`, read and written): `cues` holds
 `{ id: cue }`, replacing a character's style for one line, and `scenes` a cue per scene. The studio
 reads both into one cue table, a scene's cue under the key `scene:<name>` (a line key never holds a
@@ -413,7 +436,8 @@ of each kept take heard below full (`content-studio/cache/heard/<part>-<hash>.js
 entry's time, the text it was checked against, Whisper's words and the shown words it missed). Deleting it loses nothing the game
 needs; it forgets paused auditions, ruled-out voices, notes and what was heard. Notes, what was
 heard and a line's extra takes are kept per language: the source language's under the part's own
-name, another's under the part's name with the language (`partCacheName`).
+name, another's under the part's name with the language (`partCacheName`). The cleaned copies made for
+hearing (`cache/cleaned/`) are in the cache too.
 
 All JSON is written with stable key order and the same layout the file already has, through a
 temporary file and a rename, so diffs stay small and a crash never leaves a half-written file.
@@ -488,7 +512,7 @@ the truth.
 
 Every character has a **character page** (`#/characters/<id>`), the one place about it: its
 cast voice (Fish's details, its take and Fish's sample, its id and a link to Fish; the take
-records by itself when missing; a note when another character has the same voice), its lines per part, its delivery (the style cue and its own speed) and casting
+records by itself when missing; a note when another character has the same voice), its lines per part, its delivery (the style cue and its own speed), **Clean up the voice** under its take and sample (a switch that saves at once, a "Cleaned" tag beside "Cast" while on, and _Hear it on_: a looping line to flip between as recorded and cleaned) and casting
 brief (search keywords and audition phrase), the voices ruled out for it, the audition in
 progress, if there is one, and **Hear it in the game**: its recorded lines with their part, cue
 and status, as the game plays them, one by one or all in turn (the first five shown until asked
@@ -2242,7 +2266,9 @@ POST   /api/parts/:part/jobs                     run a plan ({ kind: record | me
 GET    /api/parts/:part/jobs/latest              the part's latest job in the language asked for
 GET    /api/jobs/:id                             a job's progress (polled while it runs)
 DELETE /api/jobs/:id                             cancel
-PATCH  /api/characters/:id                       style, speed, keywords or phrase (one per request)
+PATCH  /api/characters/:id                       style, speed, keywords, phrase or clean (one per request)
+POST   /api/cleaned                              make a cleaned copy to hear ({ part, file } or { take }): { ok, name } or { ok: false, message }
+GET    /api/cleaned/:file                        a cleaned copy (`<key>.mp3`)
 GET    /api/characters/:id/voice                 the cast voice from Fish, its take, the phrase (one lookup, no search)
 POST   /api/characters/:id/takes                 record a take ({ voice, board? })
 GET    /api/takes/:file                          a recorded take (`<key>.mp3`; an ElevenLabs take is served as WAV)

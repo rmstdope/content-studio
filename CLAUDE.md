@@ -122,7 +122,8 @@ bundle breaks.
   file and in the studio folder `content-studio/` beside the project file (a fixed name): its
   `.gitignore`, written at start when missing, keeps out `content-studio/cache/`, which holds the
   rest (the sound effects' takes in `content-studio/cache/effect-boards/` and
-  `content-studio/cache/effect-takes/`, and the person's own settings, the Fish
+  `content-studio/cache/effect-takes/`, the cleaned copies made for hearing a voice's clean-up in
+  `content-studio/cache/cleaned/`, and the person's own settings, the Fish
   tier and the take fade, in `content-studio/cache/settings.json`, never in the project file, and how long
   image takes took on this computer in `content-studio/cache/take-times.json`).
 - Write JSON with stable key order and small diffs (`formatEntriesPerLine` for narration's and the
