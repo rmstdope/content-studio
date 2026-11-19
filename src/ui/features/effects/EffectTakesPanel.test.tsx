@@ -34,6 +34,8 @@ const take = (n: number, over: Partial<EffectTakeView> = {}): EffectTakeView => 
   model: MODEL,
   loops: false,
   quietAt: null,
+  level: 1,
+  peak: 0.5,
   ...over,
 })
 const view = (over: Partial<EffectTakesView> = {}): EffectTakesView => ({
@@ -499,7 +501,7 @@ describe('the lock cannot be read', () => {
     expect(text()).toContain('The sound effects lock could not be read')
     expect(text()).toContain('Which take the game plays is not known.')
     expect(text()).toContain(
-      'Choosing, dropping and fading wait until the sound effects lock can be read. You can still listen and make more takes.',
+      'Choosing, dropping, fading and setting levels wait until the sound effects lock can be read. You can still listen and make more takes.',
     )
     expect(buttons('Choose').every(isOff)).toBe(true)
     expect(buttons('Drop').every(isOff)).toBe(true)
@@ -935,7 +937,7 @@ describe('Trim silence', () => {
     expect(isOff(buttons('Trim silence')[0]!)).toBe(true)
     expect(isOff(buttons('Undo trim')[0]!)).toBe(true)
     expect(text()).toContain(
-      'Choosing, dropping and fading wait until the sound effects lock can be read.',
+      'Choosing, dropping, fading and setting levels wait until the sound effects lock can be read.',
     )
   })
 

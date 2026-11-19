@@ -28,6 +28,8 @@ export type TakeService<Make, Fades> = TakeListService<Make> & {
   setFades(projectFile: string, id: string, name: string, fades: Fades | null): Promise<Answer>
   choose(projectFile: string, id: string, name: string): Promise<Answer>
   trim(projectFile: string, id: string, name: string, undo: boolean): Promise<Answer>
+  /** Saves a take's level; only a medium whose takes have one (sound effects) offers it. */
+  setLevel?(projectFile: string, id: string, name: string, level: number): Promise<Answer>
 }
 
 /** One medium's take routes: where they live, its service, and the bodies it accepts. */
@@ -40,6 +42,8 @@ export type TakeRoutesMedium<Make, Fades> = {
     fades: ZodType<Fades>
     choose: ZodType<{ file: string }>
     trim: ZodType<{ file: string; undo?: boolean | undefined }>
+    /** The body of a save of a take's level; with `service.setLevel`, adds the level route. */
+    level?: ZodType<{ level: number }>
   }
 }
 
@@ -96,6 +100,26 @@ export function takeListRoutes<Make>(
   }
 }
 
+/** The route that saves a take's level, for a medium whose takes have one. */
+function levelRoute(
+  { fromOwnPage, projectFile }: Pick<RouteContext, 'fromOwnPage' | 'projectFile'>,
+  base: string,
+  save: NonNullable<TakeService<unknown, unknown>['setLevel']>,
+  body: ZodType<{ level: number }>,
+) {
+  return {
+    [`${base}/:id/takes/:file/level`]: {
+      PUT: fromOwnPage(async (request: RouteRequest) => {
+        const parsed = body.safeParse(await request.json().catch(() => null))
+        if (!parsed.success) return expected('{ level }')
+        return resultResponse(
+          await save(projectFile, request.params.id, request.params.file, parsed.data.level),
+        )
+      }),
+    },
+  }
+}
+
 /**
  * The routes for takes (list, make, serve, drop, fades, choose, trim, un-choose, accept, stop) of a
  * medium whose takes are files, declared once and instantiated per medium. A new take action is one route here.
@@ -135,6 +159,9 @@ export function takeRoutes<Make, Fades>(
         resultResponse(await fades(request, null)),
       ),
     },
+    ...(service.setLevel &&
+      bodies.level &&
+      levelRoute(c, base, service.setLevel.bind(service), bodies.level)),
     [`${base}/:id/choose`]: {
       POST: fromOwnPage(async (request: RouteRequest) => {
         const body = bodies.choose.safeParse(await json(request))

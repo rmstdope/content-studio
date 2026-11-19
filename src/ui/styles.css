@@ -6846,3 +6846,31 @@ textarea[aria-disabled='true'][data-why] {
   justify-content: flex-end;
   gap: 8px;
 }
+/* Sound effects: a take's level slider, on its own row under the waveform */
+.effect-level {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.effect-level-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.effect-level-unit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 220px;
+}
+.effect-level-unit input {
+  flex: 1 1 auto;
+  min-width: 100px;
+}
+.effect-level-unit input[aria-disabled='true'] {
+  opacity: 0.55;
+}
+.wave i.over {
+  background: var(--danger-ink);
+}

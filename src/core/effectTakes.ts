@@ -3,6 +3,7 @@ import { FadesSchema, hasFades, type Fades } from './fades'
 import { EFFECT_MODEL_IDS, type EffectModelId } from './effectModels'
 import type { ImageDownload } from './imageModels'
 import { TrimSchema } from './musicTrim'
+import { LevelSchema } from './effectLevel'
 
 /** What a sound-effect take is made from: the description in use and the length the game asks. */
 export const EffectInputsSchema = z.object({
@@ -80,6 +81,8 @@ export const EffectBoardTakeSchema = z.object({
   fades: FadesSchema.optional(),
   /** Set when a one-shot take was trimmed: what is cut from each end. Its WAV stays as generated. */
   trim: TrimSchema.optional(),
+  /** The take's level, 0.1 to 2, applied last when it goes into the game; absent when it is 100%. */
+  level: LevelSchema.optional(),
 })
 
 /** An effect's board: the takes kept, and the number the next take gets (numbers are never reused). */
@@ -295,6 +298,10 @@ export interface EffectTakeView {
   loops: boolean
   /** For a loop whose sound ended early: where it goes quiet, in seconds. */
   quietAt: number | null
+  /** The take's level, 1 for as made. */
+  level: number
+  /** The loudest sample of its sound, 0 to 1 of the top (the waveform's bars are relative to it). */
+  peak: number
   /** The fades saved with a take made to play once; absent when it has none. */
   fades?: Fades
   /** A take trimmed: what is cut from each end, and the length that is left. */

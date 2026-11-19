@@ -37,6 +37,8 @@ export function Wave({
   quiet,
   cut,
   fades,
+  level = 1,
+  peak: peakOfSound = 1,
 }: {
   peaks: number[]
   loop: boolean
@@ -47,6 +49,10 @@ export function Wave({
   cut?: { start: number; end: number } | null
   /** A stinger take's fades, of the sound that plays (the part between the cuts): the fade line is drawn over it. */
   fades?: { fades: Fades; seconds: number }
+  /** A sound effect take's level: the bars grow and shrink with it, and a bar past the top turns red. */
+  level?: number
+  /** The loudest sample of the sound, 0 to 1 of the top: the bars are relative to it, so a bar passes the top when `bar × peak × level` does. */
+  peak?: number
 }) {
   const head = useRef<HTMLSpanElement>(null)
   useEffect(() => {
@@ -66,11 +72,16 @@ export function Wave({
         <i
           key={i}
           className={
-            cut && (i < cut.start * peaks.length || i >= (1 - cut.end) * peaks.length)
-              ? 'cut'
-              : undefined
+            [
+              cut && (i < cut.start * peaks.length || i >= (1 - cut.end) * peaks.length)
+                ? 'cut'
+                : '',
+              peak * peakOfSound * level > 1 + 1e-9 ? 'over' : '',
+            ]
+              .filter(Boolean)
+              .join(' ') || undefined
           }
-          style={{ height: `${Math.max(4, peak * 100)}%` }}
+          style={{ height: `${Math.min(100, Math.max(4, peak * level * 100))}%` }}
         />
       ))}
       {cut && cut.start > 0 && (

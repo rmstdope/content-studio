@@ -10,6 +10,8 @@ export interface Clip {
   rounds?: number
   /** In a list: seconds of quiet after it ends on its own, before the next clip. */
   after?: number
+  /** How loud it plays against the file, 1 as it is (a sound effect take's level); heard at once when changed with `setLevel`. */
+  level?: number
 }
 
 /** The part of an audio element the player uses, so tests can give a fake one. */
@@ -17,6 +19,8 @@ export interface AudioLike {
   src: string
   currentTime: number
   volume?: number
+  /** How loud against the file, 1 as it is; above 1 needs Web Audio. */
+  level?: number
   duration?: number
   loop?: boolean
   /** How many rounds a loop plays before it ends; none: until stopped. */
@@ -150,6 +154,7 @@ export function createPlayer(
     element.loop = clip.loop ?? false
     element.rounds = clip.loop ? clip.rounds : undefined
     element.currentTime = 0
+    element.level = clip.level ?? 1
     current = clip.id
     fadeMs = lengthMs()
     if (options.fadeSeconds !== undefined) {
@@ -227,10 +232,14 @@ export function createPlayer(
 
   return {
     /** Plays a clip on its own, or stops it if it is the one playing. */
-    toggle(id: string, url: string, how: { fade?: boolean; loop?: boolean } = {}) {
+    toggle(id: string, url: string, how: { fade?: boolean; loop?: boolean; level?: number } = {}) {
       if (current === id) return stop()
       queue = []
       start({ id, url, ...how })
+    },
+    /** Sets the level of the clip `id` if it is the one playing: heard at once. */
+    setLevel(id: string, level: number) {
+      if (current === id) element.level = level
     },
     /** Plays the clips one after another. */
     playInTurn(clips: Clip[]) {

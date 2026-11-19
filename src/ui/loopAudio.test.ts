@@ -68,6 +68,11 @@ function fakeContext() {
       gains.push(gain)
       return gain
     },
+    mediaSources: 0,
+    createMediaElementSource() {
+      context.mediaSources++
+      return { connect: (node: unknown) => node }
+    },
   }
   return { context, started, gains }
 }
@@ -231,5 +236,48 @@ describe('createClipAudio, a loop of a number of rounds', () => {
     audio.pause()
     started[0]!.end()
     expect(ended()).toBe(0)
+  })
+})
+
+describe('createClipAudio, a level', () => {
+  it('lowers a clip on the element through its volume, with no Web Audio', async () => {
+    const { audio, element, context } = setUp()
+    audio.src = '/a.mp3'
+    audio.volume = 0.5
+    audio.level = 0.5
+    await audio.play()
+    expect(element.volume).toBe(0.25)
+    audio.level = 0.2
+    expect(element.volume).toBeCloseTo(0.1)
+    expect(context.mediaSources).toBe(0)
+  })
+
+  it('raises a clip above 100% with a gain on Web Audio, made once for the element', async () => {
+    const { audio, element, context, gains } = setUp()
+    audio.src = '/a.mp3'
+    audio.level = 1.5
+    await audio.play()
+    expect(context.mediaSources).toBe(1)
+    expect(gains.at(-1)!.gain.value).toBe(1.5)
+    expect(element.volume).toBe(1)
+    audio.level = 2
+    expect(gains.at(-1)!.gain.value).toBe(2)
+    audio.level = 0.5
+    expect(gains.at(-1)!.gain.value).toBe(0.5)
+    expect(element.volume).toBe(1)
+    await audio.play()
+    expect(context.mediaSources).toBe(1)
+  })
+
+  it('applies a level to a loop on its gain, with the volume', async () => {
+    const { audio, gains } = setUp()
+    audio.src = '/loop.wav'
+    audio.loop = true
+    audio.volume = 0.5
+    audio.level = 1.5
+    await audio.play()
+    expect(gains.at(-1)!.gain.value).toBe(0.75)
+    audio.level = 2
+    expect(gains.at(-1)!.gain.value).toBe(1)
   })
 })

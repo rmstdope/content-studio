@@ -1158,6 +1158,169 @@ describe('fades of a sound effect take', () => {
   })
 })
 
+describe('level of a sound effect take', () => {
+  const lockFile = 'content-studio/effects/lock.json'
+  const manifestFile = 'audio/effects/manifest.json'
+  const keeping: Encoder = async (wav, out) => {
+    mkdirSync(dirname(out), { recursive: true })
+    writeFileSync(out, wav)
+  }
+  async function withTake(
+    options: Parameters<typeof setup>[4] = {},
+    list?: unknown,
+    id = 'door-creak',
+  ) {
+    const made = setup(undefined, list, {}, 1.4, { encode: keeping, ...options })
+    await made.takes.make(made.file, id, { count: 2 })
+    const view = await made.settled(id)
+    return { ...made, view, take: view.takes[0]! }
+  }
+  const clip = (root: string, id = 'door-creak') =>
+    readWav(new Uint8Array(readFileSync(join(root, `audio/effects/${id}.mp3`))))
+  const sampleAt = (wav: ReturnType<typeof readWav>, frame: number) =>
+    new Int16Array(wav.data.buffer, wav.data.byteOffset, wav.data.length / 2)[frame]!
+  const made = (frame: number) => Math.round(8000 * Math.sin(frame / 20))
+
+  it('shows 100% on a take never touched, and keeps a saved level with the take', async () => {
+    const { file, takes, take, settled, view } = await withTake()
+    expect(view.takes.map((t) => t.level)).toEqual([1, 1])
+    expect(await takes.setLevel(file, 'door-creak', take.file, 1.4)).toEqual({ ok: true })
+    const after = await settled('door-creak')
+    expect(after.takes[0]!.level).toBe(1.4)
+    expect(after.takes[1]!.level).toBe(1)
+  })
+
+  it('tells the loudest sample of each take, so the page can say how high a level stays clean', async () => {
+    const { view } = await withTake()
+    // The fake tone peaks at 8000 of 32768.
+    expect(view.takes[0]!.peak).toBeCloseTo(8000 / 32768, 2)
+  })
+
+  it('removes the level from the board when it goes back to 100%', async () => {
+    const { root, file, takes, take } = await withTake()
+    await takes.setLevel(file, 'door-creak', take.file, 1.4)
+    await takes.setLevel(file, 'door-creak', take.file, 1)
+    expect(
+      readFileSync(join(root, 'content-studio/cache/effect-boards/door-creak.json'), 'utf8'),
+    ).not.toContain('level')
+  })
+
+  it('writes the take at its level when it is chosen, and exactly as made at 100%', async () => {
+    const { root, file, takes, view } = await withTake()
+    await takes.setLevel(file, 'door-creak', view.takes[0]!.file, 1.5)
+    expect(await takes.choose(file, 'door-creak', view.takes[0]!.file)).toEqual({ ok: true })
+    expect(sampleAt(clip(root), 700)).toBe(Math.round(made(700) * 1.5))
+    expect(await takes.choose(file, 'door-creak', view.takes[1]!.file)).toEqual({ ok: true })
+    expect(readFileSync(join(root, 'audio/effects/door-creak.mp3'))).toEqual(
+      readFileSync(join(root, 'content-studio/cache/effect-takes/door-creak', view.takes[1]!.file)),
+    )
+  })
+
+  it('doubles the sound at 200%', async () => {
+    const { root, file, takes, take } = await withTake()
+    await takes.setLevel(file, 'door-creak', take.file, 2)
+    await takes.choose(file, 'door-creak', take.file)
+    const peak = Math.max(
+      ...Array.from({ length: 1400 }, (_, i) => Math.abs(sampleAt(clip(root), i))),
+    )
+    expect(peak).toBe(16000)
+  })
+
+  it('rewrites only the game’s sound for the chosen take: the manifest and the lock stay byte for byte', async () => {
+    const { root, file, takes, take } = await withTake()
+    await takes.choose(file, 'door-creak', take.file)
+    const lock = readFileSync(join(root, lockFile), 'utf8')
+    const manifest = readFileSync(join(root, manifestFile), 'utf8')
+    expect(await takes.setLevel(file, 'door-creak', take.file, 0.5)).toEqual({ ok: true })
+    expect(sampleAt(clip(root), 700)).toBe(Math.round(made(700) * 0.5))
+    expect(readFileSync(join(root, lockFile), 'utf8')).toBe(lock)
+    expect(readFileSync(join(root, manifestFile), 'utf8')).toBe(manifest)
+  })
+
+  it('does not touch the game’s file for a take that is not the chosen one', async () => {
+    const { root, file, takes, view } = await withTake()
+    await takes.choose(file, 'door-creak', view.takes[0]!.file)
+    const before = readFileSync(join(root, 'audio/effects/door-creak.mp3'))
+    await takes.setLevel(file, 'door-creak', view.takes[1]!.file, 1.5)
+    expect(readFileSync(join(root, 'audio/effects/door-creak.mp3'))).toEqual(before)
+  })
+
+  it('keeps the level through Un-choose and Choose again, and through a trim and fades', async () => {
+    const { root, file, takes, take, settled } = await withTake()
+    await takes.setLevel(file, 'door-creak', take.file, 1.5)
+    await takes.choose(file, 'door-creak', take.file)
+    await takes.unchoose(file, 'door-creak')
+    expect((await settled('door-creak')).takes[0]!.level).toBe(1.5)
+    await takes.setFades(file, 'door-creak', take.file, { in: 0.1, out: 0, shape: 'smooth' })
+    await takes.choose(file, 'door-creak', take.file)
+    expect((await settled('door-creak')).takes[0]!.level).toBe(1.5)
+    expect(sampleAt(clip(root), 700)).toBe(Math.round(made(700) * 1.5))
+  })
+
+  it('gives a take made to loop a level too', async () => {
+    const rain = { id: 'rain', text: 'Steady rain on a tin roof', seconds: 10, loops: true }
+    const loop = await withTake({}, [rain], 'rain')
+    expect(await loop.takes.setLevel(loop.file, 'rain', loop.take.file, 0.5)).toEqual({ ok: true })
+    expect((await loop.settled('rain')).takes[0]!.level).toBe(0.5)
+  })
+
+  it('refuses a level out of range or off the steps, a take not on the board, and an effect not listed', async () => {
+    const { file, takes, take, settled } = await withTake()
+    for (const level of [0.05, 2.5, 1.02, Number.NaN]) {
+      expect(await takes.setLevel(file, 'door-creak', take.file, level)).toMatchObject({
+        ok: false,
+      })
+    }
+    expect((await settled('door-creak')).takes[0]!.level).toBe(1)
+    expect(await takes.setLevel(file, 'door-creak', '0123456789abcdef.9.wav', 1.5)).toEqual({
+      ok: false,
+      message: 'That take is not on the board.',
+    })
+    expect(await takes.setLevel(file, 'no-such', 'x', 1.5)).toBeNull()
+  })
+
+  it('refuses while the lock cannot be read, changing nothing', async () => {
+    const { root, file, takes, take, settled } = await withTake()
+    mkdirSync(join(root, 'content-studio/effects'), { recursive: true })
+    writeFileSync(join(root, lockFile), '{ not json')
+    expect(await takes.setLevel(file, 'door-creak', take.file, 1.5)).toMatchObject({ ok: false })
+    expect((await settled('door-creak')).takes[0]!.level).toBe(1)
+  })
+
+  it('leaves the board and the game as they were when the sound cannot be encoded', async () => {
+    let failing = false
+    const flaky: Encoder = async (wav, out) => {
+      if (failing) throw new Error('The disk is full.')
+      return keeping(wav, out, { bitrate: '160k', channels: 2 })
+    }
+    const { root, file, takes, take, settled } = await withTake({ encode: flaky })
+    await takes.choose(file, 'door-creak', take.file)
+    const game = readFileSync(join(root, 'audio/effects/door-creak.mp3'))
+    failing = true
+    expect(await takes.setLevel(file, 'door-creak', take.file, 1.5)).toEqual({
+      ok: false,
+      message: 'The disk is full.',
+    })
+    expect((await settled('door-creak')).takes[0]!.level).toBe(1)
+    expect(readFileSync(join(root, 'audio/effects/door-creak.mp3'))).toEqual(game)
+  })
+
+  it('puts the game’s file back when the board cannot be written', async () => {
+    const { root, file, takes, take } = await withTake()
+    await takes.choose(file, 'door-creak', take.file)
+    const game = readFileSync(join(root, 'audio/effects/door-creak.mp3'))
+    const folder = join(root, 'content-studio/cache/effect-boards')
+    chmodSync(folder, 0o555)
+    const answer = await takes.setLevel(file, 'door-creak', take.file, 1.5)
+    chmodSync(folder, 0o755)
+    expect(answer).toEqual({
+      ok: false,
+      message: 'content-studio/cache/effect-boards/door-creak.json could not be written.',
+    })
+    expect(readFileSync(join(root, 'audio/effects/door-creak.mp3'))).toEqual(game)
+  })
+})
+
 describe('Trim silence on an effect take', () => {
   const quiet = { silence: { lead: 0.1, tail: 0.05 } }
   const door = (silence?: { lead: number; tail: number }) =>

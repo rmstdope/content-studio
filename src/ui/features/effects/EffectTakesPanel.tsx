@@ -49,6 +49,7 @@ import { compareClips, takePlayId } from '../../effectsPlay'
 import type { SaveWordsNow } from '../images/WordsField'
 import { TrackActionsContext, useTrackActions, useTrackActionsState } from '../../trackActions'
 import { EffectFadesEditor } from './EffectFadesEditor'
+import { useEffectLevel } from './EffectLevel'
 import { EffectTrimmedTag, useEffectTrimControl } from './effectTrim'
 import { EffectInTheGame, HearTheSeam, KindChip, Playback, type Player } from './EffectInTheGame'
 
@@ -281,8 +282,8 @@ export function EffectTakesPanel({
         )}
         {view.lockUnread && (
           <span className="takes-missing small">
-            Choosing, dropping and fading wait until the sound effects lock can be read. You can
-            still listen and make more takes.
+            Choosing, dropping, fading and setting levels wait until the sound effects lock can be
+            read. You can still listen and make more takes.
           </span>
         )}
         {none ? (
@@ -388,6 +389,7 @@ function TakeCard({
     actions.shows(`choose:${take.n}`) && (choose.isError || (choose.data && !choose.data.ok))
   const failedDrop =
     actions.shows(`drop:${take.n}`) && (drop.isError || (drop.data && !drop.data.ok))
+  const levelControl = useEffectLevel({ effect, take, inGame: false, locked, player })
   const editing = fading === take.n
   const otherOpen = fading !== null && !editing
   const fades = effectFadesOf(take, effectLoops)
@@ -419,7 +421,9 @@ function TakeCard({
             take={take}
             player={player}
             note={trim.note}
+            level={levelControl.level}
           />
+          {levelControl.row}
           {fades && <span className="faint small">{fadesLine(fades)}</span>}
           {(take.loops || canCompare) && (
             <div className="take-row">
