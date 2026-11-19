@@ -4,7 +4,7 @@ import { readFile, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { CleanedSchema, isCleaned, originalFile, type Cleaned } from '../core/cleanedLines'
 import { resolveInRoot } from '../core/paths'
-import { narrationFile, type Problem } from '../core/project'
+import type { Problem } from '../core/project'
 import { LockSchema } from '../core/resources'
 import { decodeClip, ffmpegEncoder, type Encoder } from './audio'
 import { formatEntriesPerLine, readResource, writeAtomic } from './files'
@@ -77,14 +77,9 @@ async function cleanedNow(
   read: PartRead,
   problems: Problem[],
 ): Promise<Cleaned | null> {
-  const path = cleanedPath(read)
+  const path = read.paths.cleanedPath
   const found = await readResource(root, path, CleanedSchema, problems)
   return found === 'invalid' ? null : found === 'missing' ? {} : found
-}
-
-/** The path of the part's record of cleaned lines, beside its lock. */
-function cleanedPath(read: PartRead): string {
-  return narrationFile(read.project, read.part.id, read.language, 'cleaned')
 }
 
 /**
@@ -123,7 +118,7 @@ export async function cleanLine(
       const kept = originalFile(read.project, partId, read.language, key)
       await writeAtomic(root, kept, original)
       cleaned[key] = { at: entry.at, original: `${key}.mp3` }
-      await writeAtomic(root, cleanedPath(read), formatEntriesPerLine(cleaned))
+      await writeAtomic(root, read.paths.cleanedPath, formatEntriesPerLine(cleaned))
       await rename(temporary, clip)
       return { ok: true }
     } catch (error) {
@@ -185,7 +180,7 @@ export async function putBackLine(
         }
       }
       delete cleaned[key]
-      await writeAtomic(root, cleanedPath(read), formatEntriesPerLine(cleaned))
+      await writeAtomic(root, read.paths.cleanedPath, formatEntriesPerLine(cleaned))
       await rm(kept, { force: true })
       return { ok: true }
     } catch (error) {

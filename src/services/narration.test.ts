@@ -83,6 +83,45 @@ function record(root: string, key: string, fish: FishClient, encode: Encoder = k
 }
 
 describe('recordLine', () => {
+  it('keeps the original of a line cleaned as it is recorded, and forgets it when recorded again without', async () => {
+    const root = tempRepo({
+      ...files,
+      'content-studio/narration/cast.json': {
+        speakers: { narrator: { voice: 'v-n', style: '[warm]', clean: true } },
+        pronounce: { en: { Elior: 'El-ee-or' } },
+      },
+    })
+    const { fish } = fakeFish()
+    const marked: Encoder = async (_wav, file, options) =>
+      writeFileSync(file, options.clean ? 'cleaned' : 'as recorded')
+    await record(root, 'k1', fish, marked)
+    const record1 = JSON.parse(
+      readFileSync(join(root, 'content-studio/narration/act1.cleaned.json'), 'utf8'),
+    )
+    const lock = JSON.parse(
+      readFileSync(join(root, 'content-studio/narration/act1.lock.json'), 'utf8'),
+    )
+    expect(record1).toEqual({ k1: { at: lock.k1.at, original: 'k1.mp3' } })
+    expect(readFileSync(join(root, 'audio/act1/k1.mp3'), 'utf8')).toBe('cleaned')
+    expect(readFileSync(join(root, 'content-studio/narration/originals/act1/k1.mp3'), 'utf8')).toBe(
+      'as recorded',
+    )
+    // Recorded again with the switch off: the old original is no longer anything's.
+    writeFileSync(
+      join(root, 'content-studio/narration/cast.json'),
+      JSON.stringify({
+        speakers: { narrator: { voice: 'v-n', style: '[warm]' } },
+        pronounce: { en: { Elior: 'El-ee-or' } },
+      }),
+    )
+    await record(root, 'k1', fish, marked)
+    expect(
+      JSON.parse(readFileSync(join(root, 'content-studio/narration/act1.cleaned.json'), 'utf8')),
+    ).toEqual({})
+    expect(existsSync(join(root, 'content-studio/narration/originals/act1/k1.mp3'))).toBe(false)
+    expect(readFileSync(join(root, 'audio/act1/k1.mp3'), 'utf8')).toBe('as recorded')
+  })
+
   it('has a switched-on voice’s lines cleaned as they are encoded, and leaves the others alone', async () => {
     const root = tempRepo({
       ...files,
@@ -102,7 +141,8 @@ describe('recordLine', () => {
     }
     await record(root, 'k1', fish, watching)
     await record(root, 'k4', fish, watching)
-    expect(asked).toEqual([true, false])
+    // A cleaned line is encoded once more as recorded, to keep its original.
+    expect(asked).toEqual([true, false, false])
     // Nothing is stale for it: the switch is not part of what a clip is made from.
     const part = await loadPart(join(root, 'content-studio.json'), 'act1')
     expect(part?.ok && part.part.lines.find((l) => l.key === 'k1')?.status).toBe('ok')

@@ -1,3 +1,4 @@
+import { originalsDir } from '../core/cleanedLines'
 import { mergeCues } from '../core/cued'
 import { finalStepFor, stageWords, voicesOf } from '../core/elevenSpeech'
 import { providerOf } from '../core/voices'
@@ -470,6 +471,9 @@ export interface PartRead {
     clipsPath: string
     lockPath: string
     manifestPath: string
+    /** The part's record of cleaned lines, and the folder of the originals kept for them. */
+    cleanedPath: string
+    originalsPath: string
   }
   problems: Problem[]
 }
@@ -573,6 +577,8 @@ export async function readPart(
       clipsPath: at(narration.clips),
       lockPath,
       manifestPath: at(narration.manifest),
+      cleanedPath: narrationFile(project, part.id, language, 'cleaned'),
+      originalsPath: originalsDir(project, part.id, language),
     },
     problems,
   }
