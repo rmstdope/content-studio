@@ -18,6 +18,7 @@ import { figuresOf, TIME_KEYS, type Figures } from '../../core/takeTimes'
 import type { RefreshResult } from '../../services/refresh'
 import { useCallback, useState } from 'react'
 import type { CharacterChange, CharacterVoiceResult } from '../../services/auditions'
+import type { CleanedCopy, CleanSource } from '../../services/cleanedCopy'
 import type { GenerationPlan } from '../../core/generation'
 import type { ElevenTts, Problem } from '../../core/project'
 import type { SpendingAnswer } from '../../core/spending'
@@ -534,6 +535,61 @@ export function useSetSpeed(characterId: string, language?: string) {
         client.invalidateQueries({ queryKey: ['project'] }),
         refreshAudition(client, characterId),
       ])
+    },
+  })
+}
+
+/**
+ * Switches the clean-up of a character's voice in a language on or off. It saves at once and
+ * changes nothing recorded, so only the project (for the switch it shows) is reloaded.
+ */
+export function useSetClean(characterId: string, language?: string) {
+  const client = useQueryClient()
+  return useMutation({
+    scope: { id: `clean-${characterId}-${language ?? ''}` },
+    mutationFn: async (clean: boolean) => {
+      const response = await fetch(
+        inLanguage(`/api/characters/${encodeURIComponent(characterId)}`, language),
+        {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ clean }),
+        },
+      )
+      if (!response.ok && response.status !== 409) {
+        throw new Error(`saving the clean-up answered ${response.status}`)
+      }
+      return (await response.json()) as NonNullable<CharacterChange>
+    },
+    onSuccess: (saved) => {
+      if (saved.ok) void client.invalidateQueries({ queryKey: ['project'] })
+    },
+  })
+}
+
+/** The URL of a cleaned copy the server made. */
+export function cleanedUrl(name: string): string {
+  return `/api/cleaned/${encodeURIComponent(name)}`
+}
+
+/**
+ * The cleaned copy of a clip or take, made by the server when asked (and kept by it): only asked
+ * for while `wanted`, which is when the person has pressed play. Null source: nothing to clean.
+ */
+export function useCleanedCopy(source: CleanSource | null, wanted: boolean, language?: string) {
+  return useQuery({
+    queryKey: ['cleaned', language ?? null, source],
+    enabled: wanted && source !== null,
+    retry: false,
+    gcTime: 0,
+    queryFn: async () => {
+      const response = await fetch(inLanguage('/api/cleaned', language), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(source),
+      })
+      if (!response.ok) throw new Error(`making the cleaned version answered ${response.status}`)
+      return (await response.json()) as NonNullable<CleanedCopy>
     },
   })
 }

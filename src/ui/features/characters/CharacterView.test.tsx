@@ -216,7 +216,7 @@ describe('CharacterView', () => {
     const panel = () => container.querySelector('[aria-label="Voice"]')?.textContent ?? ''
     await until(() => panel().includes('Warm storyteller'))
     expect(panel()).toContain('ElevenLabs voice')
-    expect(panel()).not.toContain('uses')
+    expect(panel()).not.toContain(' uses')
     expect(panel()).toContain('Recorded with Flash v2.5, without asking first: about 4 credits.')
     expect(panel()).toContain('Flash v2.5 speaks cues aloud, so the take is without the style.')
     expect(panel()).not.toContain('free model')

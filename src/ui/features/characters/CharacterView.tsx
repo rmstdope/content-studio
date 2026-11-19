@@ -65,6 +65,7 @@ import { PageHeader } from '../../components/PageHeader'
 import { off } from '../../off'
 import { pagerFor } from '../../pager'
 import { CHANGING } from '../../voiceOffText'
+import { CleanUp } from './CleanUp'
 import { CloneVoice } from './CloneVoice'
 import { KeywordsEditor, PhraseEditor, SpeedEditor, StyleEditor } from './BriefEditors'
 
@@ -598,6 +599,7 @@ function VoicePanel({
       <div className="section-head">
         <span className="label">Voice{language ? ` · ${language.name}` : ''}</span>
         <span className="chip chip-ok">Cast</span>
+        {casting?.clean && <span className="chip chip-ok">Cleaned</span>}
       </div>
       <div className="voice-name">
         <strong>
@@ -730,6 +732,15 @@ function VoicePanel({
         {clone}
       </div>
       {recorder.errors[id] && <span className="adopt-error">{recorder.errors[id]}</span>}
+      <CleanUp
+        key={language?.id ?? ''}
+        characterId={character.id}
+        language={language?.id}
+        clean={casting?.clean ?? false}
+        takeKey={take}
+        parts={parts}
+        speaker={character.id}
+      />
       <div className="voice-foot">
         <span className="mono muted voice-id">{id}</span>
         {page && (
