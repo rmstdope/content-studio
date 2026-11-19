@@ -389,7 +389,7 @@ function railActs(
         return {
           key: act.id,
           label: actPillLabel(i),
-          tip: pillTip(act.title, done ? `${done.done}/${done.total} done` : undefined),
+          tip: pillTip(act.title, done ? `${done.done}/${done.total} finished` : undefined),
           href: routeHref({ view: 'images', page: 'act', part: act.id }),
           current: route.view === 'images' && currentAct(images, route) === act.id,
           dot: done ? railDot(done.done, done.total) : undefined,
