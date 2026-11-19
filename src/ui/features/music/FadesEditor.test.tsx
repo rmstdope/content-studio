@@ -48,6 +48,7 @@ const player = {
   },
   position: () => null,
   playInTurn() {},
+  setLevel() {},
   stop() {},
 }
 
