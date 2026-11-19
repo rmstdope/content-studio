@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { readFileSync } from 'node:fs'
+import { chmodSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { elevenVoiceOf, fakeEleven, projectJson, tempRepo } from '../../test/helpers'
 import type { Voice } from '../core/voiceSearch'
@@ -931,5 +931,37 @@ describe('casting per language', () => {
       )
       expect(refused).toMatchObject({ ok: false, reason: 'no-phrase' })
     })
+  })
+})
+
+describe('a cast that cannot be written', () => {
+  const refused = {
+    ok: false,
+    problems: [
+      { file: 'content-studio/narration/cast.json', path: '', message: 'permission denied' },
+    ],
+  }
+  /** Runs `save` with the cast's folder read-only, and puts the permission back after. */
+  async function readOnly<T>(save: (projectFile: string) => Promise<T>): Promise<T> {
+    const root = tempRepo(files)
+    const folder = join(root, 'content-studio/narration')
+    chmodSync(folder, 0o555)
+    try {
+      return await save(join(root, 'content-studio.json'))
+    } finally {
+      chmodSync(folder, 0o755)
+    }
+  }
+
+  it.skipIf(process.getuid?.() === 0)('says why when casting a voice fails', async () => {
+    expect(await readOnly((p) => setVoice(p, 'grandmother', { id: 'v', name: 'New' }))).toEqual(
+      refused,
+    )
+  })
+
+  it.skipIf(process.getuid?.() === 0)('says why when saving pronunciations fails', async () => {
+    expect(await readOnly((p) => setPronunciations(p, [['Eldoria', 'Eld-or-ia']], []))).toEqual(
+      refused,
+    )
   })
 })
