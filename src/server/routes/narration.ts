@@ -414,7 +414,7 @@ export function narrationRoutes(c: RouteContext) {
           return Response.json(
             {
               error:
-                'expected { keywords: string[] }, { phrase: string | null }, { style: string } or { speed: number | null }',
+                'expected { keywords: string[] }, { phrase: string | null }, { style: string }, { speed: number | null } or { clean: boolean }',
             },
             { status: 400 },
           )

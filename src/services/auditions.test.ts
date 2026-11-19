@@ -9,6 +9,7 @@ import {
   setKeywords,
   setPhrase,
   setPronunciations,
+  setClean,
   setSpeed,
   setStyle,
   setVoice,
@@ -505,6 +506,29 @@ describe('setSpeed', () => {
   })
 })
 
+describe('setClean', () => {
+  it('switches the clean-up on for a voice, and removes the key when switched off', async () => {
+    const root = tempRepo(files)
+    const projectFile = join(root, 'content-studio.json')
+    expect(await setClean(projectFile, 'grandmother', true)).toEqual({ ok: true })
+    let saved = JSON.parse(readFileSync(join(root, 'content-studio/narration/cast.json'), 'utf8'))
+    expect(saved.speakers.grandmother).toEqual({
+      voice: 'cur',
+      style: '[warm]',
+      audition: { keywords: ['warm'] },
+      clean: true,
+    })
+    expect(await setClean(projectFile, 'grandmother', false)).toEqual({ ok: true })
+    saved = JSON.parse(readFileSync(join(root, 'content-studio/narration/cast.json'), 'utf8'))
+    expect(saved.speakers.grandmother.clean).toBeUndefined()
+  })
+
+  it('knows no character it was not told of', async () => {
+    const root = tempRepo(files)
+    expect(await setClean(join(root, 'content-studio.json'), 'nobody', true)).toBeNull()
+  })
+})
+
 describe('setStyle', () => {
   it('saves a character’s style cue, trimmed, keeping the rest of the entry', async () => {
     const root = tempRepo(files)
@@ -767,6 +791,16 @@ describe('casting per language', () => {
     expect(cast(root).speakers.grandmother.speed).toBeUndefined()
     await setSpeed(projectFile, 'grandmother', null, 'sv')
     await setPhrase(projectFile, 'grandmother', null, 'sv')
+    expect(cast(root).speakers.grandmother.languages).toBeUndefined()
+  })
+
+  it('switches the clean-up on for one language only', async () => {
+    const root = tempRepo(several())
+    const projectFile = join(root, 'content-studio.json')
+    await setClean(projectFile, 'grandmother', true, 'sv')
+    expect(cast(root).speakers.grandmother.languages).toEqual({ sv: { clean: true } })
+    expect(cast(root).speakers.grandmother.clean).toBeUndefined()
+    await setClean(projectFile, 'grandmother', false, 'sv')
     expect(cast(root).speakers.grandmother.languages).toBeUndefined()
   })
 

@@ -118,7 +118,9 @@ describe('a character per language', () => {
     expect(voiceOf(switched.speakers.mira!, 'en', 'en').clean).toBe(false)
     expect(voiceOf(switched.speakers.mira!, 'sv', 'en').clean).toBe(false)
     // One language's switch is not the other's.
-    const only = CastSchema.parse({ speakers: { nyx: { voice: 'a', languages: { sv: { clean: true } } } } })
+    const only = CastSchema.parse({
+      speakers: { nyx: { voice: 'a', languages: { sv: { clean: true } } } },
+    })
     expect(voiceOf(only.speakers.nyx!, 'en', 'en').clean).toBe(false)
     expect(projectCast(only, 'sv', 'en').speakers.nyx?.clean).toBe(true)
     expect(projectCast(only, 'en', 'en').speakers.nyx?.clean).toBeUndefined()

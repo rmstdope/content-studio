@@ -28,7 +28,9 @@ describe('quietestStretch', () => {
   it('has no floor for a take shorter than the stretch, or not 16-bit', () => {
     expect(quietestStretch(take([100, 100]), 0.4)).toBeNull()
     const wav = take([100, 100, 100, 100, 100])
-    expect(quietestStretch({ ...wav, format: { ...wav.format, bitsPerSample: 24 } }, 0.4)).toBeNull()
+    expect(
+      quietestStretch({ ...wav, format: { ...wav.format, bitsPerSample: 24 } }, 0.4),
+    ).toBeNull()
   })
 })
 

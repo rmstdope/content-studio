@@ -159,6 +159,17 @@ describe('server, a character per language', () => {
     expect((await call('GET', '/api/characters/narrator/ruled-out')).voices).toHaveLength(0)
   })
 
+  it('saves the clean-up switch for the language it is flipped in, and refuses anything but a boolean', async () => {
+    await call('PATCH', '/api/characters/narrator?language=sv', { clean: true })
+    const saved = JSON.parse(
+      readFileSync(join(languageRoot, 'content-studio/narration/cast.json'), 'utf8'),
+    )
+    expect(saved.speakers.narrator.languages.sv).toMatchObject({ clean: true })
+    expect(saved.speakers.narrator.clean).toBeUndefined()
+    const refused = await call('PATCH', '/api/characters/narrator', { clean: 'yes' })
+    expect(refused.error).toContain('{ clean: boolean }')
+  })
+
   it('changes a character’s speed and casts a voice for the language only', async () => {
     await call('PATCH', '/api/characters/narrator?language=sv', { speed: 0.95 })
     await call('POST', '/api/auditions/narrator/move?language=sv', {

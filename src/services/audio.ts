@@ -152,7 +152,9 @@ export async function cleanWav(
   }
   const [bytes, message, code] = await Promise.all([out, stderr, child.exited])
   if (child.signalCode === 'SIGKILL') {
-    throw new Error(`ffmpeg took longer than ${timeoutMs / 1000} s to clean the voice, and was stopped`)
+    throw new Error(
+      `ffmpeg took longer than ${timeoutMs / 1000} s to clean the voice, and was stopped`,
+    )
   }
   if (code !== 0) {
     throw new Error(`ffmpeg could not clean the voice: ${message.trim() || `exit code ${code}`}`)

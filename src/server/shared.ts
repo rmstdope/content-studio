@@ -16,13 +16,14 @@ import { type ImageMakeAllAnswer, type ImageTakesAnswer } from '../services/imag
 
 /**
  * A change to a character: its keywords, its own audition phrase (null for the standard one), its
- * style, or its own speed (null for the project's).
+ * style, its own speed (null for the project's), or whether its voice is cleaned of noise.
  */
 export const CharacterBody = z.union([
   z.object({ keywords: z.array(z.string()).max(20) }).strict(),
   z.object({ phrase: z.string().max(10_000).nullable() }).strict(),
   z.object({ style: z.string().max(1_000) }).strict(),
   z.object({ speed: z.number().min(SPEED.min).max(SPEED.max).nullable() }).strict(),
+  z.object({ clean: z.boolean() }).strict(),
 ])
 
 /** The whole pronunciation table, and the one the page showed (to refuse a stale page). */

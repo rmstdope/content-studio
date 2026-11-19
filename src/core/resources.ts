@@ -186,7 +186,15 @@ export function projectCast(cast: Cast, language: string, source: string): Spoke
   const speakers = Object.fromEntries(
     Object.entries(cast.speakers).map(([id, entry]) => {
       const { voice, voiceName, speed, phrase, clean } = voiceOf(entry, language, source)
-      const { voice: _v, voiceName: _n, speed: _s, clean: _c, languages: _l, audition, ...rest } = entry
+      const {
+        voice: _v,
+        voiceName: _n,
+        speed: _s,
+        clean: _c,
+        languages: _l,
+        audition,
+        ...rest
+      } = entry
       const projected: Character = { ...rest }
       if (voice) projected.voice = voice
       if (voiceName) projected.voiceName = voiceName
