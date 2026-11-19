@@ -154,7 +154,7 @@ describe('CleanUp', () => {
     expect(page.button('As recorded').getAttribute('aria-pressed')).toBe('true')
     expect(page.text()).toContain('Hear it on')
     expect(page.text()).toContain(
-      'Lowers the background noise in the pauses of every line recorded from now on. Lines already recorded stay as they are.',
+      'Lowers the background noise in the pauses of every line recorded from now on.',
     )
   })
 

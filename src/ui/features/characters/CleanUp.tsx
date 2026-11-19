@@ -1,16 +1,26 @@
-import { useState } from 'react'
-import { cleanedUrl, clipUrl, takeUrl, useCleanedCopy, useParts, useSetClean } from '../../api'
+import { useRef, useState } from 'react'
+import {
+  cleanedUrl,
+  clipUrl,
+  originalUrl,
+  takeUrl,
+  useCleanedCopy,
+  useCleanedLines,
+  useCleaningLines,
+  useParts,
+  useSetClean,
+} from '../../api'
 import { firstEntry, hearEntries, loopingText } from '../../cleanup'
 import { recordedLinesOf } from '../../inGame'
 import { PauseIcon, PlayIcon } from '../../components/icons'
 import { off } from '../../off'
+import { CLEANING_BUSY } from '../../../core/cleanedLines'
+import { CleanLines } from './CleanLines'
 import { useCompareLoop, type Side } from './useCompareLoop'
 
 /** The words of the panel, as agreed. */
-const HINT_OFF =
-  'Lowers the background noise in the pauses of every line recorded from now on. Lines already recorded stay as they are.'
-const HINT_ON =
-  'Every line recorded from now on has the background noise in its pauses lowered. Lines already recorded stay as they are.'
+const HINT_OFF = 'Lowers the background noise in the pauses of every line recorded from now on.'
+const HINT_ON = 'Every line recorded from now on has the background noise in its pauses lowered.'
 
 /**
  * The Voice panel's clean-up: the switch for the voice in the language shown (saved the moment it
@@ -39,7 +49,14 @@ export function CleanUp({
   speaker: string
 }) {
   const save = useSetClean(characterId, language)
-  const shown = save.isPending ? save.variables : clean
+  const cleaned = useCleanedLines(characterId, language)
+  const cleaning = useCleaningLines(characterId, language)
+  const switchRef = useRef<HTMLInputElement>(null)
+  // The switch was moved off while lines in the game are cleaned: nothing is saved until the question is answered.
+  const [askOff, setAskOff] = useState(false)
+  const [putBackError, setPutBackError] = useState<string | null>(null)
+  const saved = save.isPending ? save.variables : clean
+  const shown = askOff ? false : saved
   const reason = save.isError
     ? save.error.message
     : save.data && !save.data.ok
@@ -66,16 +83,30 @@ export function CleanUp({
   const selected = entries.find((e) => e.id === chosen) ?? firstEntry(entries)
   const [side, setSide] = useState<Side>('recorded')
 
+  // A line already cleaned in the game is heard from its kept original and from the game's clip.
+  const inGame =
+    'part' in selected.source &&
+    cleaned.data?.cleanedFiles.some(
+      (f) =>
+        'part' in selected.source &&
+        f.part === selected.source.part &&
+        f.file === selected.source.file,
+    ) === true
   const [wanted, setWanted] = useState(false)
-  const copy = useCleanedCopy(selected.missing ? null : selected.source, wanted, language)
-  const ready = copy.data?.ok === true
+  const copy = useCleanedCopy(selected.missing || inGame ? null : selected.source, wanted, language)
+  const ready = inGame || copy.data?.ok === true
   const failure =
     copy.data && !copy.data.ok ? copy.data.message : copy.isError ? copy.error.message : null
-  const cleaning = wanted && !ready && !failure && !selected.missing
+  const making = wanted && !ready && !failure && !selected.missing
   const heard: Side = ready ? side : 'recorded'
+  const recordedUrl =
+    inGame && 'part' in selected.source
+      ? originalUrl(selected.source.part, selected.source.file, language)
+      : selected.url
+  const cleanedSide = inGame ? selected.url : copy.data?.ok ? cleanedUrl(copy.data.name) : null
   const loop = useCompareLoop(
-    selected.missing ? null : selected.url,
-    ready && copy.data?.ok ? cleanedUrl(copy.data.name) : null,
+    selected.missing ? null : recordedUrl,
+    ready ? cleanedSide : null,
     side,
   )
   // The copy is asked for from the first press of play until the loop is stopped.
@@ -85,8 +116,32 @@ export function CleanUp({
   const loading = loaded.some((part) => part.isPending)
   const waitForTake = selected.missing ? 'Wait for the take to be made.' : false
   const playWhy = waitForTake || (loading && !loop.playing && 'The recorded lines are loading.')
-  const flipWhy = waitForTake || (cleaning && 'The cleaned version is being made.') || failure
+  const flipWhy = waitForTake || (making && 'The cleaned version is being made.') || failure
   const flipDisabled = Boolean(flipWhy)
+
+  /** Saves the switch off, then puts every cleaned line back (a cleaning still going on is stopped first). */
+  async function switchOffAndPutBack() {
+    setAskOff(false)
+    setPutBackError(null)
+    save.reset()
+    try {
+      const job = cleaned.data?.job
+      if (job?.kind === 'clean' && (job.status === 'running' || job.status === 'stopping')) {
+        await cleaning.stop.mutateAsync()
+      }
+      if (!(await save.mutateAsync(false)).ok) return
+      // The cleaning in hand finishes its line first: asked again until the studio takes it.
+      for (let tries = 0; tries < 40; tries++) {
+        const answer = await cleaning.putBack.mutateAsync()
+        if (!('error' in answer)) return
+        if (answer.error !== CLEANING_BUSY) return setPutBackError(answer.error)
+        await new Promise((resolve) => setTimeout(resolve, 500))
+      }
+      setPutBackError('The cleaning did not stop in time. Press Put them back.')
+    } catch {
+      // The save's own error is shown under the switch; a put back that failed shows in the panel.
+    }
+  }
 
   return (
     <div className="clean-up">
@@ -96,7 +151,11 @@ export function CleanUp({
             type="checkbox"
             role="switch"
             checked={shown}
+            ref={switchRef}
             onChange={() => {
+              // Moving the switch back on while the question is open is "Keep it on".
+              if (askOff) return setAskOff(false)
+              if (shown && (cleaned.data?.cleaned ?? 0) > 0) return setAskOff(true)
               save.reset()
               save.mutate(!shown)
             }}
@@ -106,6 +165,19 @@ export function CleanUp({
         </label>
       </div>
       <p className="clean-hint">{shown ? HINT_ON : HINT_OFF}</p>
+      <CleanLines
+        cleaning={cleaning}
+        on={shown}
+        askOff={askOff}
+        data={cleaned.data}
+        onKeepOn={() => {
+          setAskOff(false)
+          switchRef.current?.focus()
+        }}
+        onSwitchOff={() => void switchOffAndPutBack()}
+        switchRef={switchRef}
+      />
+      {putBackError && <p className="adopt-error">{putBackError}</p>}
       {reason && <p className="adopt-error">Couldn’t save the clean-up: {reason}</p>}
 
       <div className="clean-hear">
@@ -159,7 +231,7 @@ export function CleanUp({
           <span className="muted clean-time">
             {selected.missing
               ? 'Wait for the take to be made.'
-              : cleaning
+              : making
                 ? 'Cleaning…'
                 : loop.playing
                   ? loopingText(loop.position, loop.length)

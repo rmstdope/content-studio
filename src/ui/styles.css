@@ -6803,3 +6803,46 @@ textarea[aria-disabled='true'][data-why] {
 .clean-time {
   font-size: 13px;
 }
+
+/* The Voice panel's lines already in the game: the count, the questions, the progress (as-bifl.2) */
+.clean-count {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+.clean-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+.clean-ask {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: var(--raised);
+}
+.clean-ask h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+.clean-ask ul {
+  margin: 6px 0 10px;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+}
+.clean-ask-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}

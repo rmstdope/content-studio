@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { rename, rm, writeFile } from 'node:fs/promises'
+import { readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import {
@@ -11,6 +11,7 @@ import {
   type HeardSegment,
   type TimedWord,
 } from '../core/align'
+import { CleanedSchema, type Cleaned } from '../core/cleanedLines'
 import { clipInputs, fingerprint, type ClipInputs } from '../core/fingerprint'
 import { languageName } from '../core/languages'
 import { planPart } from '../core/planner'
@@ -532,7 +533,13 @@ export async function commitClip({
   partId: string
   line: Line
   inputs: ClipInputs
-  paths: { clipsPath: string; manifestPath: string; lockPath: string }
+  paths: {
+    clipsPath: string
+    manifestPath: string
+    lockPath: string
+    cleanedPath: string
+    originalsPath: string
+  }
   /** What names the part's own files in the tool cache: the part's id, with the language besides the source. */
   cacheName?: string
   narration: Project['narration']
@@ -549,10 +556,17 @@ export async function commitClip({
   const file = `${key}.mp3`
   const target = resolveInRoot(root, join(paths.clipsPath, file))
   const temporary = resolveInRoot(root, join(paths.clipsPath, `.${key}.${randomUUID()}.mp3`))
+  // A cleaned line keeps how it was recorded, encoded the same way, to put back (§8.4).
+  const temporaryOriginal = resolveInRoot(
+    root,
+    join(paths.clipsPath, `.${key}.${randomUUID()}.original.mp3`),
+  )
   try {
     await encode(clip.wav, temporary, { ...narration.output, clean })
+    if (clean) await encode(clip.wav, temporaryOriginal, { ...narration.output, clean: false })
   } catch (error) {
     await rm(temporary, { force: true }).catch(() => {})
+    await rm(temporaryOriginal, { force: true }).catch(() => {})
     return { ok: false, reason: 'encode', message: messageOf(error) }
   }
 
@@ -586,6 +600,8 @@ export async function commitClip({
           ...(take.heard === null ? {} : { heard: take.heard }),
           at,
         }
+        // The original and its record first: a cleaned clip is never in the game without them.
+        await keepOriginal(root, paths, key, clean ? temporaryOriginal : null, at)
         await rename(temporary, target)
         await writeAtomic(root, paths.manifestPath, `${pythonJson(sorted(manifest))}\n`)
         await writeAtomic(root, paths.lockPath, formatEntriesPerLine(lock))
@@ -603,7 +619,41 @@ export async function commitClip({
   } finally {
     // Gone already once renamed; otherwise never left behind.
     await rm(temporary, { force: true }).catch(() => {})
+    await rm(temporaryOriginal, { force: true }).catch(() => {})
   }
+}
+
+/**
+ * Keeps the original of a line recorded cleaned (`original`, its unfiltered encoding) and records
+ * the line as cleaned from the clip's lock time `at`; throws if it cannot, so the recording is not
+ * committed with a cleaned clip nobody can put back. With no `original` (recorded without the
+ * clean-up) it forgets any earlier record and original of the line, as far as it can.
+ */
+async function keepOriginal(
+  root: string,
+  paths: { cleanedPath: string; originalsPath: string },
+  key: string,
+  original: string | null,
+  at: string,
+): Promise<void> {
+  const found: Problem[] = []
+  const read = await readResource(root, paths.cleanedPath, CleanedSchema, found)
+  if (read === 'invalid') {
+    if (original) throw new Error(`${found[0]?.file}: ${found[0]?.message}`)
+    return
+  }
+  const cleaned: Cleaned = read === 'missing' ? {} : read
+  const kept = `${paths.originalsPath}/${key}.mp3`
+  if (original) {
+    await writeAtomic(root, kept, new Uint8Array(await readFile(original)))
+    cleaned[key] = { at, original: `${key}.mp3` }
+  } else if (cleaned[key]) {
+    delete cleaned[key]
+  } else {
+    return
+  }
+  await writeAtomic(root, paths.cleanedPath, formatEntriesPerLine(cleaned))
+  if (!original) await rm(resolveInRoot(root, kept), { force: true }).catch(() => {})
 }
 
 /** The part's manifest as it is now: empty if there is none, null (with the problem added) if broken. */
@@ -707,6 +757,8 @@ export async function removeOrphans(
         await rm(resolveInRoot(root, join(read.paths.clipsPath, entry.file)), { force: true })
       }
       delete lock[key]
+      // What was kept of a cleaned line goes with it.
+      await keepOriginal(root, read.paths, key, null, '').catch(() => {})
       removed++
     }
     if (removed) {

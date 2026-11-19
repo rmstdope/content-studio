@@ -212,7 +212,8 @@ describe('useLineTake', () => {
         await keepWav(wav, file, options)
       },
     })
-    expect(asked).toEqual([true])
+    // The clean one, then the original kept beside it.
+    expect(asked).toEqual([true, false])
     // The take kept in the cache is as it was recorded.
     const kept = await lineTakeFile(projectFileOf(root), 'act1', 'k1', made.take.id)
     expect(readWav(readFileSync(kept!)).data.length).toBe(2000)

@@ -43,6 +43,7 @@ import {
 } from '../core/spend'
 import { planPart } from '../core/planner'
 import { sentPieces } from '../core/spoken'
+import { createCleanJobs } from '../services/cleanJobs'
 import { createJobs } from '../services/jobs'
 import { appendMusic, createSpendLog } from '../services/spending'
 import { type ModelsChange } from '../services/models'
@@ -235,6 +236,8 @@ export function createContext({
   const elevenWork = createLimiter()
   /** Generation jobs, one per part at a time. */
   const jobs = createJobs()
+  /** Jobs that clean a voice's lines in the game, or put them back, one per voice and language. */
+  const cleanJobs = createCleanJobs()
 
   /** What is asking Fish now outside a job: a part's line being recorded or tried, a character's audition. */
   const going = new Map<string, number>()
@@ -877,6 +880,7 @@ export function createContext({
     elevenAccountOf,
     elevenFor,
     elevenHeld,
+    cleanJobs,
     elevenWork,
     encode,
     endGiven,

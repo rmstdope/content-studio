@@ -73,12 +73,12 @@ bundle breaks.
 ## Rules for the consumer repository
 
 - Read and write only the files the project file names and the studio's own files in
-  `content-studio/` (narration's cast, edits and locks in `content-studio/narration/`, music's
+  `content-studio/` (narration's cast, edits and locks, the record of the lines cleaned in the game and the originals kept for them in `content-studio/narration/`, music's
   edits and lock in `content-studio/music/`, images' edits, which hold the image style, the
   studio's own and never a game file, and lock in `content-studio/images/`, sound effects' edits
   and lock in `content-studio/effects/`, and the scenes' locks, one per part with the loudness each
   scene was last measured at, in `content-studio/scenes/`), through
-  `resolveInRoot` and `writeAtomic`; nothing outside the project root. Clips are the one exception to `writeAtomic`: the encoder
+  `resolveInRoot` and `writeAtomic`; nothing outside the project root. Clips are the one exception to `writeAtomic` (and, when the user confirms cleaning a voice's lines in the game or putting them back, a clip is replaced the same way, through a hidden temporary file in the clips folder and a rename): the encoder
   writes a hidden temporary file in the clips folder (through `resolveInRoot`), renamed into place
   only together with the manifest and lock update.
 - Another exception, to reading and writing only the named files: the project's own

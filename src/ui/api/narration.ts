@@ -19,6 +19,7 @@ import type { RefreshResult } from '../../services/refresh'
 import { useCallback, useState } from 'react'
 import type { CharacterChange, CharacterVoiceResult } from '../../services/auditions'
 import type { CleanedCopy, CleanSource } from '../../services/cleanedCopy'
+import type { CleanJobState } from '../../services/cleanJobs'
 import type { GenerationPlan } from '../../core/generation'
 import type { ElevenTts, Problem } from '../../core/project'
 import type { SpendingAnswer } from '../../core/spending'
@@ -567,6 +568,87 @@ export function useSetClean(characterId: string, language?: string) {
     },
   })
 }
+
+/** The URL of the original kept for a cleaned line of the game. */
+export function originalUrl(partId: string, file: string, language?: string): string {
+  const query = language ? `?language=${encodeURIComponent(language)}` : ''
+  return `/api/parts/${encodeURIComponent(partId)}/originals/${encodeURIComponent(file)}${query}`
+}
+
+/** A voice's lines in the game: how many are cleaned, which, and the job running or last run. */
+export interface CleanedLines {
+  total: number
+  cleaned: number
+  /** The cleaned lines' clips, to hear their originals. */
+  cleanedFiles: { part: string; file: string }[]
+  /** Why the record of cleaned lines cannot be read, when it cannot. */
+  problem: string | null
+  job: CleanJobState | null
+}
+
+/**
+ * A voice's lines in the game and how many are cleaned (§8.4), in the language shown. Asked again
+ * every second while a job runs, so leaving the page and coming back shows where it has got to.
+ */
+export function useCleanedLines(characterId: string, language?: string) {
+  return useQuery({
+    queryKey: ['cleaned-lines', characterId, language ?? null],
+    retry: false,
+    refetchInterval: (query) => {
+      const status = query.state.data?.job?.status
+      return status === 'running' || status === 'stopping' ? 1000 : false
+    },
+    queryFn: async (): Promise<CleanedLines | null> => {
+      const response = await fetch(
+        inLanguage(`/api/characters/${encodeURIComponent(characterId)}/cleaned-lines`, language),
+      )
+      return response.ok ? ((await response.json()) as CleanedLines) : null
+    },
+  })
+}
+
+/** What starting or stopping a job answered: the job, or why it could not be. */
+export type CleanJobAnswer = CleanJobState | { error: string }
+
+/** Asks for one thing of a voice's lines in the game: `clean`, `put-back` or `stop`. */
+async function askCleaning(
+  characterId: string,
+  action: 'clean' | 'put-back' | 'stop',
+  language?: string,
+): Promise<CleanJobAnswer> {
+  const response = await fetch(
+    inLanguage(
+      `/api/characters/${encodeURIComponent(characterId)}/cleaned-lines/${action}`,
+      language,
+    ),
+    { method: 'POST' },
+  )
+  if (!response.ok && response.status !== 409) {
+    throw new Error(`the studio answered ${response.status}`)
+  }
+  return (await response.json()) as CleanJobAnswer
+}
+
+/**
+ * Cleans a voice's lines in the game, puts them back, or stops the cleaning. Each answers at once
+ * (the work goes on in the studio), and the count is asked for again.
+ */
+export function useCleaningLines(characterId: string, language?: string) {
+  const client = useQueryClient()
+  const again = () =>
+    client.invalidateQueries({ queryKey: ['cleaned-lines', characterId, language ?? null] })
+  const options = (action: 'clean' | 'put-back' | 'stop') => ({
+    mutationFn: () => askCleaning(characterId, action, language),
+    onSettled: again,
+  })
+  const clean = useMutation(options('clean'))
+  const putBack = useMutation(options('put-back'))
+  const stop = useMutation(options('stop'))
+  return { clean, putBack, stop }
+}
+
+/** The three mutations of `useCleaningLines`. */
+export type CleaningLines = ReturnType<typeof useCleaningLines>
 
 /** The URL of a cleaned copy the server made. */
 export function cleanedUrl(name: string): string {
