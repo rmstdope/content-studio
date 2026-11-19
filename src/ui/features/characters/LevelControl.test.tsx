@@ -152,6 +152,17 @@ describe('LevelControl', () => {
     expect(document.activeElement).toBe(page.slider())
   })
 
+  it('moves focus to the slider after Undo while lines are still behind', async () => {
+    const levels = [{ part: 'act1', file: 'a.mp3', level: 100 }]
+    const page = await show({ saved: 60, data: data({ levels }) })
+    await page.move(80)
+    const undo = page.button('Undo')!
+    undo.focus()
+    await act(() => undo.click())
+    expect(page.button('Undo')).toBeUndefined()
+    expect(document.activeElement).toBe(page.slider())
+  })
+
   it('moves focus to the slider when an instant Set takes the buttons away', async () => {
     const page = await show({ data: data({ total: 0 }) })
     await page.move(60)

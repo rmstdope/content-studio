@@ -66,8 +66,8 @@ export function LevelControl({
   }, [returning, asking])
 
   const behind = (data?.levels ?? []).filter((line) => line.level !== saved)
-  // A button that had focus is gone when the rewriting ends, or when Undo or Set takes the row of
-  // buttons away: focus goes to the slider, never to the page.
+  // A button that had focus is gone when the rewriting ends, or when an instant Set takes the row of
+  // buttons away: focus goes to the slider, never to the page (Undo moves it itself).
   const buttons = rewriting || differs || behind.length > 0
   const hadButtons = useRef(false)
   useEffect(() => {
@@ -126,6 +126,8 @@ export function LevelControl({
               onClick={() => {
                 set.reset()
                 onTrial(null)
+                // Undo goes away whatever else the row shows (a "set them" button may take its place).
+                slider.current?.focus({ preventScroll: true })
               }}
             >
               Undo
