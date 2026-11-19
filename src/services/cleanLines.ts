@@ -2,11 +2,12 @@ import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { readFile, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
+import { levelDb, lineLevel } from '../core/level'
 import { CleanedSchema, isCleaned, originalFile, type Cleaned } from '../core/cleanedLines'
 import { resolveInRoot } from '../core/paths'
 import type { Problem } from '../core/project'
 import { LockSchema } from '../core/resources'
-import { decodeClip, ffmpegEncoder, type Encoder } from './audio'
+import { decodeClip, ffmpegEncoder, gainClip, type Encoder } from './audio'
 import { saveCleaned } from './cleanedRecord'
 import { formatEntriesPerLine, readResource, writeAtomic } from './files'
 import { inPartTurn } from './partFiles'
@@ -19,6 +20,8 @@ export type LineResult = { ok: true } | { ok: false; message: string }
 export interface CleanDeps {
   encode?: Encoder
   decode?: typeof decodeClip
+  /** Raises or lowers a clip in place (a voice's level). */
+  gain?: typeof gainClip
 }
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
@@ -30,6 +33,8 @@ export interface GameLine {
   /** The clip's file in the part's clips folder. */
   file: string
   cleaned: boolean
+  /** How loud the clip is, in percent (100 unless its voice was given a level). */
+  level: number
 }
 
 /**
@@ -59,6 +64,7 @@ export async function cleanedLinesOf(
         key: line.key,
         file,
         cleaned: isCleaned(cleaned?.[line.key], lock),
+        level: lineLevel(lock),
       })
     }
   }
@@ -107,7 +113,7 @@ export async function cleanLine(
   partId: string,
   language: string | undefined,
   key: string,
-  { encode = ffmpegEncoder, decode = decodeClip }: CleanDeps = {},
+  { encode = ffmpegEncoder, decode = decodeClip, gain = gainClip }: CleanDeps = {},
 ): Promise<LineResult> {
   const root = dirname(projectFile)
   return inPartTurn(projectFile, partId, async (): Promise<LineResult> => {
@@ -125,11 +131,33 @@ export async function cleanLine(
     if (isCleaned(cleaned[key], entry)) return { ok: true }
     const clip = resolveInRoot(root, join(read.paths.clipsPath, file))
     const temporary = resolveInRoot(root, join(read.paths.clipsPath, `.${key}.${randomUUID()}.mp3`))
+    const level = lineLevel(entry)
+    const output = read.project.narration.output
+    const kept = originalFile(read.project, partId, read.language, key)
     try {
-      const original = new Uint8Array(await readFile(clip))
+      // The original is kept at 100%: a clip at the voice's level is brought back up first.
+      let original = new Uint8Array(await readFile(clip))
+      if (level !== 100) {
+        const copy = resolveInRoot(
+          root,
+          join(read.paths.clipsPath, `.${key}.${randomUUID()}.o.mp3`),
+        )
+        try {
+          await Bun.write(copy, original)
+          await gain(copy, -levelDb(level))
+          original = new Uint8Array(await readFile(copy))
+        } finally {
+          await rm(copy, { force: true }).catch(() => {})
+        }
+      }
       const { wav } = await decode(clip)
-      await encode(wav, temporary, { ...read.project.narration.output, clean: true })
-      const kept = originalFile(read.project, partId, read.language, key)
+      // Levelling to the project's target takes the voice's level off, so it is put on again; with
+      // no target the clip decoded already has it.
+      await encode(wav, temporary, {
+        ...output,
+        clean: true,
+        gainDb: output.lufs === null ? 0 : levelDb(level),
+      })
       await writeAtomic(root, kept, original)
       cleaned[key] = { at: entry.at, original: `${key}.mp3` }
       await writeAtomic(root, read.paths.cleanedPath, formatEntriesPerLine(cleaned))
@@ -157,6 +185,7 @@ export async function putBackLine(
   partId: string,
   language: string | undefined,
   key: string,
+  { gain = gainClip }: CleanDeps = {},
 ): Promise<LineResult> {
   const root = dirname(projectFile)
   return inPartTurn(projectFile, partId, async (): Promise<LineResult> => {
@@ -187,6 +216,8 @@ export async function putBackLine(
         )
         try {
           await Bun.write(temporary, Bun.file(kept))
+          // The original is at 100%: the voice's level goes on it again.
+          if (lineLevel(entry) !== 100) await gain(temporary, levelDb(lineLevel(entry)))
           await rename(temporary, clip)
         } catch (error) {
           await rm(temporary, { force: true }).catch(() => {})

@@ -145,6 +145,93 @@ describe('cleaning a line already in the game', () => {
   })
 })
 
+/** A gain that only notes itself in the clip: `[+6.0]` after what was there. */
+const gain = async (file: string, db: number) => {
+  writeFileSync(file, `${readFileSync(file, 'utf8')}[${db > 0 ? '+' : ''}${db.toFixed(1)}]`)
+}
+
+describe('a line at a voice level', () => {
+  const atLevel = (lufs: number | null) => ({
+    ...files(),
+    'content-studio.json': projectJson({
+      narration: {
+        from: { part: 'tts/{part}/script.json' },
+        clips: 'audio/{part}',
+        manifest: 'audio/{part}/manifest.json',
+        output: { lufs },
+      },
+    }),
+    'content-studio/narration/act1.lock.json': {
+      k1: { ...lockEntry('T1'), level: 50 },
+      k2: lockEntry('T2'),
+      k3: lockEntry('T3'),
+    },
+  })
+
+  it('keeps its original at 100% and cleans the clip back at its level', async () => {
+    const root = tempRepo(atLevel(-20))
+    const projectFile = join(root, 'content-studio.json')
+    const gains: (number | undefined)[] = []
+    const watching: Encoder = async (wav, file, options) => {
+      gains.push(options.gainDb)
+      await encode(wav, file, options)
+    }
+    await cleanLine(projectFile, 'act1', undefined, 'k1', { encode: watching, decode, gain })
+    // The clip was turned down 6 dB: the original is turned up again to be at 100%.
+    expect(readFileSync(join(root, 'content-studio/narration/originals/act1/k1.mp3'), 'utf8')).toBe(
+      'one as recorded[+6.0]',
+    )
+    // The encoder levels to the project's target, so it is told the voice's level again.
+    expect(gains[0]).toBeCloseTo(-6.02, 2)
+    expect(readFileSync(join(root, 'audio/act1/k1.mp3'), 'utf8')).toContain('ONE AS RECORDED')
+    expect(
+      JSON.parse(readFileSync(join(root, 'content-studio/narration/act1.lock.json'), 'utf8')).k1
+        .level,
+    ).toBe(50)
+  })
+
+  it('adds no gain of its own when the project levels to no target: the decoded clip has its level', async () => {
+    const root = tempRepo(atLevel(null))
+    const gains: (number | undefined)[] = []
+    const watching: Encoder = async (wav, file, options) => {
+      gains.push(options.gainDb)
+      await encode(wav, file, options)
+    }
+    await cleanLine(join(root, 'content-studio.json'), 'act1', undefined, 'k1', {
+      encode: watching,
+      decode,
+      gain,
+    })
+    expect(gains[0] ?? 0).toBe(0)
+  })
+
+  it('puts the original back at the voice’s level', async () => {
+    const root = tempRepo(atLevel(-20))
+    const projectFile = join(root, 'content-studio.json')
+    await cleanLine(projectFile, 'act1', undefined, 'k1', { encode, decode, gain })
+    expect(await putBackLine(projectFile, 'act1', undefined, 'k1', { gain })).toEqual({ ok: true })
+    // Up to 100% for the original, and down to 50% for the game.
+    expect(readFileSync(join(root, 'audio/act1/k1.mp3'), 'utf8')).toBe(
+      'one as recorded[+6.0][-6.0]',
+    )
+    expect(readdirSync(join(root, 'audio/act1')).sort()).toEqual([
+      'k1.mp3',
+      'k2.mp3',
+      'k3.mp3',
+      'manifest.json',
+    ])
+  })
+
+  it('counts each line with its level', async () => {
+    const root = tempRepo(atLevel(-20))
+    const found = await cleanedLinesOf(join(root, 'content-studio.json'), 'narrator')
+    expect(found.lines.map((l) => [l.key, l.level])).toEqual([
+      ['k1', 50],
+      ['k2', 100],
+    ])
+  })
+})
+
 describe('originalClipFile', () => {
   it('finds the kept original of a cleaned line only, and not once the clip is recorded again', async () => {
     const root = tempRepo(files())
@@ -174,8 +261,8 @@ describe('cleanedLinesOf', () => {
       cleaned: 1,
       problem: null,
       lines: [
-        { part: 'act1', key: 'k1', file: 'k1.mp3', cleaned: true },
-        { part: 'act1', key: 'k2', file: 'k2.mp3', cleaned: false },
+        { part: 'act1', key: 'k1', file: 'k1.mp3', cleaned: true, level: 100 },
+        { part: 'act1', key: 'k2', file: 'k2.mp3', cleaned: false, level: 100 },
       ],
     })
   })
