@@ -185,6 +185,32 @@ describe('the level slider', () => {
     expect(JSON.parse(levelCalls()[0]!.body!)).toEqual({ level: 1.4 })
   })
 
+  // The button takes room from the track: shown or hidden mid-drag, the track moves under the
+  // pointer and the level let go of is not the one aimed at (as-n4nx).
+  it('keeps Back to 100% as it was while the slider is held, so the track stays put', async () => {
+    const { move, release, button, slider, levelCalls } = render(
+      row(),
+      view({ takes: [card(1), card(2, { level: 1.6 })] }),
+    )
+    const press = (n: number) =>
+      act(async () => {
+        slider(n)!.dispatchEvent(new window.Event('pointerdown', { bubbles: true }))
+      })
+    const resets = () => [...document.querySelectorAll('button.level-reset')].length
+    await press(1)
+    await move(1, 120)
+    expect(resets()).toBe(1)
+    await release(1)
+    expect(JSON.parse(levelCalls()[0]!.body!)).toEqual({ level: 1.2 })
+    expect(resets()).toBe(2)
+    await press(2)
+    await move(2, 100)
+    expect(button('Back to 100%')).toBeDefined()
+    await release(2)
+    expect(JSON.parse(levelCalls()[1]!.body!)).toEqual({ level: 1 })
+    expect(resets()).toBe(1)
+  })
+
   it('saves half a second after the last arrow key press', async () => {
     const { move, settle, levelCalls } = render(row(), view({ takes: [card(1)] }))
     await move(1, 105)
