@@ -32,6 +32,10 @@ const summary = {
   name: 'Sample',
   root: '/x/sample',
   partLabel: 'Act',
+  languages: [
+    { id: 'en', name: 'English' },
+    { id: 'sv', name: 'Svenska' },
+  ],
   characters: [],
   parts: [
     part('act1', 'Act I: The Lantern', 'ok', 12),
@@ -146,7 +150,7 @@ describe('the sidebar on a Narration page', () => {
       'Act II no script',
       'Prologue dialog gone',
       'Act IV invalid',
-      'Music',
+      'Music 2/4',
     ])
     expect(texts).not.toContain('Stingers')
   })
@@ -158,7 +162,9 @@ describe('the sidebar on a Narration page', () => {
     expect(links[2]!.title).toBe('Act II: The Long Name That Goes On')
     expect(container.textContent).not.toContain('lines')
     expect(container.querySelector('nav[aria-label="Acts"]')).toBeNull()
-    const gone = [...container.querySelectorAll('.meta-warn')].map((m) => m.textContent)
+    const gone = [...container.querySelectorAll('.music-subnav .meta-warn')].map(
+      (m) => m.textContent,
+    )
     expect(gone).toEqual(['dialog gone'])
   })
 })
@@ -177,7 +183,8 @@ describe('how far each narration act is', () => {
 
 describe('the colour of each count', () => {
   const tone = (container: HTMLElement, text: string) =>
-    [...container.querySelectorAll('.meta')].find((m) => m.textContent === text)?.className
+    [...container.querySelectorAll('.music-subnav .meta')].find((m) => m.textContent === text)
+      ?.className
 
   it('is green for all done, yellow for most, red for fewer than three quarters', () => {
     const music = render({ view: 'music', page: 'stingers' }).container
@@ -193,13 +200,9 @@ describe('the colour of each count', () => {
 describe('the sidebar elsewhere', () => {
   it('lists Images, its acts and Style only while an Images page is open', () => {
     const open = render({ view: 'images', page: 'style' }).links.map((l) => l.text)
-    expect(open).toContain('Images')
-    expect(open.slice(open.indexOf('Images'), open.indexOf('Images') + 4)).toEqual([
-      'Images',
-      'Act I 2/5',
-      'Act II',
-      'Style',
-    ])
+    const at = open.indexOf('Images 2/5')
+    expect(at).toBeGreaterThan(-1)
+    expect(open.slice(at, at + 4)).toEqual(['Images 2/5', 'Act I 2/5', 'Act II', 'Style'])
     const links = render({ view: 'images', page: 'image', image: 'x' }).links
     expect(links.filter((l) => l.current).map((l) => l.text)).toEqual([])
     const closed = render({ view: 'setup' }).links.map((l) => l.text)
@@ -209,13 +212,13 @@ describe('the sidebar elsewhere', () => {
   it('lists Music, its acts and Stingers on a Music page, and folds Narration', () => {
     const { links } = render({ view: 'music', page: 'stingers' })
     const texts = links.map((l) => l.text)
-    expect(texts.slice(0, 4)).toEqual(['Narration', 'Music', 'Act I 1/3', 'Stingers 1/1'])
+    expect(texts.slice(0, 4)).toEqual(['Narration', 'Music 2/4', 'Act I 1/3', 'Stingers 1/1'])
     expect(texts).not.toContain('Act II no script')
     expect(links.filter((l) => l.current).map((l) => l.text)).toEqual(['Stingers 1/1'])
   })
   it('folds both on Setup', () => {
     const { links } = render({ view: 'setup' })
-    expect(links.map((l) => l.text).slice(0, 2)).toEqual(['Narration', 'Music'])
+    expect(links.map((l) => l.text).slice(0, 2)).toEqual(['Narration', 'Music 2/4'])
     expect(links.some((l) => l.text.startsWith('Act'))).toBe(false)
   })
 })
@@ -237,6 +240,49 @@ describe('the sidebar’s Sound effects', () => {
   it('is not current on another page', () => {
     const { links } = render({ view: 'setup' })
     expect(links.find((l) => l.text.startsWith('Sound effects'))!.current).toBe(false)
+  })
+})
+
+describe('the workspace rows’ counts over every act', () => {
+  const progress = { ok: true, parts: { act1: { ok: 10, lines: 12 } } }
+  const rowText = (links: { text: string }[], name: string) =>
+    links.find((l) => l.text.startsWith(name))!.text
+
+  it('shows Music and Images totals on their rows while another workspace is open', () => {
+    const { links } = render({ view: 'setup' })
+    expect(rowText(links, 'Music')).toBe('Music 2/4')
+    expect(rowText(links, 'Images')).toBe('Images 2/5')
+  })
+
+  it('keeps the totals when the workspace is open, beside its act counts', () => {
+    const { links } = render({ view: 'music', page: 'stingers' })
+    expect(rowText(links, 'Music')).toBe('Music 2/4')
+    expect(links.map((l) => l.text)).toContain('Stingers 1/1')
+  })
+
+  it('shows Narration only once the whole game is counted, in the language shown', () => {
+    expect(rowText(render({ view: 'setup' }).links, 'Narration')).toBe('Narration')
+    const sv = render({ view: 'part', part: 'act1', language: 'sv' }, [
+      [['narration-progress', 'sv'], progress],
+    ])
+    expect(rowText(sv.links, 'Narration')).toBe('Narration 10/12')
+    const first = render({ view: 'setup' }, [[['narration-progress', undefined], progress]])
+    expect(rowText(first.links, 'Narration')).toBe('Narration 10/12')
+  })
+
+  it('colours a total with an unreadable act in the warning colour and hovers which', () => {
+    const { container } = render({ view: 'setup' }, [[['narration-progress', undefined], progress]])
+    const warn = [...container.querySelectorAll('.nav-workspace .meta-warn')]
+    expect(warn.map((m) => m.textContent)).toEqual(['10/12', '2/5'])
+    expect(warn[0]!.getAttribute('title')).toBe(
+      [
+        'Lines that are ok in English, out of all, in every act',
+        'Act II left out: no script',
+        'Prologue left out: dialog gone',
+        'Act IV left out: invalid',
+      ].join('\n'),
+    )
+    expect(warn[1]!.getAttribute('title')).toContain('Act II left out: no list')
   })
 })
 
@@ -310,6 +356,25 @@ function pills(container: HTMLElement) {
   }))
 }
 
+describe('the folded rail’s workspace dots', () => {
+  it('puts a dot and the count in the tip on each workspace icon, none while Narration loads', () => {
+    localStorage.clear()
+    const { container } = render({ view: 'setup' })
+    act(() => (container.querySelector('.brand-fold') as HTMLElement).click())
+    const items = [...container.querySelectorAll('.rail-nav:first-of-type .rail-item')].map((i) => [
+      i.querySelector('span')!.textContent,
+      i.getAttribute('title'),
+      i.querySelector('.rail-dot')?.getAttribute('data-dot') ?? null,
+    ])
+    expect(items.slice(0, 4)).toEqual([
+      ['Narration', 'Narration', null],
+      ['Music', 'Music · 2/4 tracks done', 'some'],
+      ['Images', 'Images · 2/5 images finished', 'some'],
+      ['Effects', 'Sound effects · 0/8 sound effects done', 'none'],
+    ])
+  })
+})
+
 describe('folding the sidebar', () => {
   const fold = (container: HTMLElement) =>
     act(() => (container.querySelector('.brand-fold') as HTMLElement).click())
@@ -352,9 +417,9 @@ describe('folding the sidebar', () => {
     const tips = [...container.querySelectorAll('a.rail-item')].map((a) => a.getAttribute('title'))
     expect(tips).toEqual([
       'Narration',
-      'Music',
-      'Images',
-      'Sound effects',
+      'Music · 2/4 tracks done',
+      'Images · 2/5 images finished',
+      'Sound effects · 0/8 sound effects done',
       'Scenes',
       'All characters',
       'Changes',

@@ -2,6 +2,7 @@ import type { ProjectSummary } from '../../core/summary'
 import { routeHref, type Route } from '../route'
 import { openWorkspace } from '../sidebarActs'
 import type { ReactNode } from 'react'
+import type { WorkspaceCount } from '../workspaceCounts'
 import {
   ChangesIcon,
   ChevronsRightIcon,
@@ -34,6 +35,7 @@ function RailItem({
   current,
   icon,
   badge,
+  dot,
 }: {
   name: string
   tip: string
@@ -41,11 +43,13 @@ function RailItem({
   current: boolean
   icon: ReactNode
   badge?: { text: string; tip: string }
+  dot?: 'all' | 'some' | 'none'
 }) {
   return (
     <a className="rail-item" href={href} title={tip} aria-current={current ? 'page' : undefined}>
       {icon}
       <span>{name}</span>
+      {dot && <span className="rail-dot" data-dot={dot} />}
       {badge && (
         <span className="rail-badge" title={badge.tip}>
           {badge.text}
@@ -64,6 +68,7 @@ export function SidebarRail({
   route,
   activePart,
   acts,
+  counts,
   markTip,
   problems,
   onUnfold,
@@ -72,6 +77,8 @@ export function SidebarRail({
   route: Route
   activePart: string | null
   acts: RailAct[]
+  /** Each workspace's count over the whole game, for its dot and tip; none while not known. */
+  counts: Record<'narration' | 'music' | 'images' | 'effects', WorkspaceCount | null>
   markTip: string
   problems: { count: number; tip: string }
   onUnfold: () => void
@@ -140,7 +147,8 @@ export function SidebarRail({
           <div key={w.key} className="rail-group">
             <RailItem
               name={w.name}
-              tip={w.tip}
+              tip={counts[w.key as keyof typeof counts]?.railTip ?? w.tip}
+              dot={counts[w.key as keyof typeof counts]?.dot}
               href={w.href}
               current={open === w.key || (w.key === 'effects' && route.view === 'effects')}
               icon={w.icon}

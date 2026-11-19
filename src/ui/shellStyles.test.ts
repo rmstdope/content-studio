@@ -96,3 +96,10 @@ describe('the previous/next control', () => {
     expect(rule(css, '.pager')).toContain('display: inline-flex')
   })
 })
+
+describe('the folded rail’s workspace dots', () => {
+  it('sit at the corner of the icon, not in the flow of the entry', () => {
+    const dot = rule(css, '.rail-item > span.rail-dot')
+    expect(dot).toContain('position: absolute')
+  })
+})
