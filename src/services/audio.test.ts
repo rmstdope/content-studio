@@ -13,6 +13,7 @@ import {
   levelClip,
 } from './audio'
 import { quietestStretch } from '../core/cleanup'
+import { levelDb } from '../core/level'
 
 const hasFfmpeg = Bun.which('ffmpeg') !== null
 
@@ -135,6 +136,44 @@ function sine(amplitude: number): Uint8Array {
     )
   }
   return writeWav({ format: { channels: 1, sampleRate: rate, bitsPerSample: 16 }, data })
+}
+
+/**
+ * Three seconds of speech-like syllables at 24 kHz: a 220 Hz tone in bursts of a quarter second,
+ * each fading out, the loud ones near full scale, so a gain above 100% drives the limiter.
+ */
+function syllables(): Uint8Array {
+  const rate = 24000
+  const data = new Uint8Array(rate * 3 * 2)
+  const view = new DataView(data.buffer)
+  for (let i = 0; i < rate * 3; i++) {
+    const syllable = Math.floor(i / (rate / 4))
+    const within = (i % (rate / 4)) / (rate / 4)
+    const amplitude = (syllable % 2 ? 0.25 : 0.9) * (1 - within)
+    view.setInt16(
+      i * 2,
+      Math.round(Math.sin((2 * Math.PI * 220 * i) / rate) * amplitude * 32767),
+      true,
+    )
+  }
+  return writeWav({ format: { channels: 1, sampleRate: rate, bitsPerSample: 16 }, data })
+}
+
+/** A file's mean volume in dB, as ffmpeg's volumedetect measures it (for clips too short for loudnorm). */
+function meanVolumeOf(file: string): number {
+  const detect = Bun.spawnSync([
+    'ffmpeg',
+    '-hide_banner',
+    '-nostats',
+    '-i',
+    file,
+    '-af',
+    'volumedetect',
+    '-f',
+    'null',
+    '-',
+  ])
+  return Number(/mean_volume: (-?[\d.]+) dB/.exec(detect.stderr.toString())![1])
 }
 
 /** A file's integrated loudness, as ffmpeg's loudnorm measures it. */
@@ -331,18 +370,71 @@ describe.skipIf(!hasFfmpeg || !Bun.which('ffprobe'))('gainClip', () => {
   const SLOW = 60_000
 
   it(
-    'raises or lowers a clip by the gain, in place, keeping its stream',
+    'raises or lowers a clip by the gain, making up what the encode lost (as-stb4)',
     async () => {
       const root = tempRepo({})
       const file = join(root, 'k1.mp3')
       await ffmpegEncoder(sine(0.2), file, { bitrate: '64k', channels: 1 })
       const before = await lufsOf(file)
-      await gainClip(file, -6.02)
-      expect(Math.abs((await lufsOf(file)) - (before - 6.02))).toBeLessThanOrEqual(0.5)
-      await gainClip(file, 6.02)
-      // Each pass is an MP3 encode at 64k, which costs a little loudness: within a dB of where it began.
-      expect(Math.abs((await lufsOf(file)) - before)).toBeLessThanOrEqual(1)
+      await gainClip(file, levelDb(60))
+      const lowered = await lufsOf(file)
+      // An MP3 encode alone loses about half a dB; each step comes within 0.1 LU of what it asks.
+      expect(Math.abs(lowered - (before + levelDb(60)))).toBeLessThanOrEqual(0.1)
+      await gainClip(file, -levelDb(60))
+      expect(Math.abs((await lufsOf(file)) - before)).toBeLessThanOrEqual(0.1)
       expect(readdirSync(root)).toEqual(['k1.mp3'])
+    },
+    SLOW,
+  )
+
+  it(
+    'never turns the gain more than a dB past what it asks when the limiter holds the clip down',
+    async () => {
+      const root = tempRepo({})
+      const file = join(root, 'k1.mp3')
+      const plain = join(root, 'plain.mp3')
+      await ffmpegEncoder(syllables(), file, { bitrate: '64k', channels: 1 })
+      const asked = levelDb(200)
+      // The same gain and limiter as one encode at the asked gain plus a dB, the most it may correct.
+      const filter = `volume=${(asked + 1).toFixed(2)}dB,alimiter=limit=0.8414:attack=5:release=50:level=false`
+      Bun.spawnSync([
+        'ffmpeg',
+        '-loglevel',
+        'error',
+        '-y',
+        '-i',
+        file,
+        '-af',
+        filter,
+        '-b:a',
+        '64k',
+        plain,
+      ])
+      const before = await lufsOf(file)
+      await gainClip(file, asked)
+      const after = await lufsOf(file)
+      expect(after).toBeLessThanOrEqual((await lufsOf(plain)) + 0.05)
+      // Held down, but still raised.
+      expect(after).toBeGreaterThan(before + 1)
+    },
+    SLOW,
+  )
+
+  it(
+    'gives a clip too short to measure the gain once',
+    async () => {
+      const root = tempRepo({})
+      const file = join(root, 'short.mp3')
+      // A third of a second: shorter than loudnorm's 400 ms block, so it cannot be measured.
+      const { format, data } = readWav(sine(0.2))
+      await ffmpegEncoder(writeWav({ format, data: data.slice(0, 8000 * 2) }), file, {
+        bitrate: '64k',
+        channels: 1,
+      })
+      const before = meanVolumeOf(file)
+      await gainClip(file, levelDb(60))
+      expect(Math.abs(meanVolumeOf(file) - (before + levelDb(60)))).toBeLessThanOrEqual(1)
+      expect(readdirSync(root)).toEqual(['short.mp3'])
     },
     SLOW,
   )

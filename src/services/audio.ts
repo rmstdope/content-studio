@@ -267,9 +267,21 @@ export async function levelClip(
 }
 
 /**
+ * How close `gainClip` brings a clip to the loudness it asks for, in LU, and the most it corrects
+ * the gain by, in dB: enough for what an encode loses, not to push against the limiter (as-stb4).
+ */
+const GAIN_TOLERANCE = 0.1
+const GAIN_CORRECTION = 1
+
+/**
  * Raises or lowers a clip by `gainDb` in place, keeping its rate, channels and bit rate (a voice's
- * level, as-ohm7): the constant gain and peak limiter of `levelClip`, with no measuring. The result is
- * written next to the clip (a hidden sibling) and renamed over it; a failure leaves the clip as it was.
+ * level, as-ohm7): the constant gain and peak limiter of `levelClip`. An MP3 encode alone costs
+ * about half a dB, which would compound over every rewrite (as-stb4), so the result is measured
+ * and the gain corrected, always from the clip as it was, up to four encodes, until it is within
+ * 0.1 LU of the clip's loudness plus `gainDb`. The correction stops a dB from `gainDb`: a clip the
+ * limiter holds down above 100% falls short rather than being limited harder. A clip too short or
+ * silent to measure gets the gain once, uncorrected. The result is written next to the clip (a hidden sibling) and renamed over it;
+ * a failure leaves the clip as it was.
  */
 export async function gainClip(
   file: string,
@@ -279,12 +291,26 @@ export async function gainClip(
   const deadline = Date.now() + timeoutMs
   const left = () => Math.max(1, deadline - Date.now())
   const stream = await probe(file, left())
+  const measured = await loudness(file, left())
+  const target = measured + gainDb
+  let gain = gainDb
   const out = join(dirname(file), `.${basename(file, '.mp3')}.gain.mp3`)
   try {
-    const args = ['-loglevel', 'error', '-y', '-i', file, '-af', gainFilter(gainDb)]
-    args.push('-ar', stream.sample_rate, '-ac', String(stream.channels))
-    if (stream.bit_rate) args.push('-b:a', stream.bit_rate)
-    await ffmpeg([...args, out], left())
+    for (let pass = 0; pass < PASSES; pass++) {
+      const args = ['-loglevel', 'error', '-y', '-i', file, '-af', gainFilter(gain)]
+      args.push('-ar', stream.sample_rate, '-ac', String(stream.channels))
+      if (stream.bit_rate) args.push('-b:a', stream.bit_rate)
+      await ffmpeg([...args, out], left())
+      if (!Number.isFinite(target)) break
+      const miss = target - (await loudness(out, left()))
+      if (!Number.isFinite(miss) || Math.abs(miss) <= GAIN_TOLERANCE) break
+      const next = Math.min(
+        gainDb + GAIN_CORRECTION,
+        Math.max(gainDb - GAIN_CORRECTION, gain + miss),
+      )
+      if (next === gain) break
+      gain = next
+    }
     await rename(out, file)
   } finally {
     await rm(out, { force: true })
