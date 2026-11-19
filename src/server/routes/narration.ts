@@ -54,6 +54,7 @@ import { freeVoices, readAddedVoices, voiceToSpeak } from '../../services/eleven
 import { freeableVoices } from '../../core/elevenLibrary'
 import { heardFor } from '../../services/heard'
 import { cleanedCopy, cleanedFile } from '../../services/cleanedCopy'
+import { cleanedLinesOf, originalClipFile } from '../../services/cleanLines'
 import {
   adoptPart,
   clipFile,
@@ -106,6 +107,7 @@ export function narrationRoutes(c: RouteContext) {
     budgets,
     busyRefusal,
     changeCharacter,
+    cleanJobs,
     creditBudgets,
     creditOf,
     creditSittings,
@@ -424,6 +426,54 @@ export function narrationRoutes(c: RouteContext) {
     },
     '/api/cleaned/:file': {
       GET: fileRoute(guard, async (request) => cleanedFile(projectFile, request.params.file)),
+    },
+    '/api/parts/:part/originals/:file': {
+      GET: fileRoute(guard, async (request) =>
+        originalClipFile(
+          projectFile,
+          request.params.part,
+          request.params.file,
+          languageOf(request),
+        ),
+      ),
+    },
+    '/api/characters/:id/cleaned-lines': {
+      GET: guard(async (request) => {
+        const language = await languageFor(request)
+        const { total, cleaned, lines } = await cleanedLinesOf(
+          projectFile,
+          request.params.id,
+          language,
+        )
+        return Response.json({
+          total,
+          cleaned,
+          cleanedFiles: lines.filter((l) => l.cleaned).map(({ part, file }) => ({ part, file })),
+          job: cleanJobs.get(request.params.id, language),
+        })
+      }),
+    },
+    '/api/characters/:id/cleaned-lines/clean': {
+      POST: fromOwnPage(async (request) => {
+        const language = await languageFor(request)
+        const started = await cleanJobs.start(projectFile, request.params.id, language, 'clean', {
+          encode,
+        })
+        return Response.json(started, { status: 'error' in started ? 409 : 200 })
+      }),
+    },
+    '/api/characters/:id/cleaned-lines/put-back': {
+      POST: fromOwnPage(async (request) => {
+        const language = await languageFor(request)
+        const started = await cleanJobs.start(projectFile, request.params.id, language, 'putback')
+        return Response.json(started, { status: 'error' in started ? 409 : 200 })
+      }),
+    },
+    '/api/characters/:id/cleaned-lines/stop': {
+      POST: fromOwnPage(async (request) => {
+        const job = cleanJobs.stop(request.params.id, await languageFor(request))
+        return job ? Response.json(job) : notFound()
+      }),
     },
     '/api/characters/:id': {
       PATCH: fromOwnPage(async (request) => {

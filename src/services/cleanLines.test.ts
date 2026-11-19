@@ -3,7 +3,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { projectJson, tempRepo } from '../../test/helpers'
 import type { Encoder } from './audio'
-import { cleanLine, cleanedLinesOf, putBackLine } from './cleanLines'
+import { cleanLine, cleanedLinesOf, originalClipFile, putBackLine } from './cleanLines'
 
 const lockEntry = (at: string) => ({
   fp: 'f',
@@ -127,6 +127,24 @@ describe('cleaning a line already in the game', () => {
     expect(await putBackLine(projectFile, 'act1', undefined, 'k1')).toEqual({ ok: true })
     expect(readFileSync(join(root, 'audio/act1/k1.mp3'), 'utf8')).toBe('one recorded again')
     expect(existsSync(join(root, 'content-studio/narration/originals/act1/k1.mp3'))).toBe(false)
+  })
+})
+
+describe('originalClipFile', () => {
+  it('finds the kept original of a cleaned line only, and not once the clip is recorded again', async () => {
+    const root = tempRepo(files())
+    const projectFile = join(root, 'content-studio.json')
+    expect(await originalClipFile(projectFile, 'act1', 'k1.mp3')).toBeNull()
+    await cleanLine(projectFile, 'act1', undefined, 'k1', deps)
+    expect(await originalClipFile(projectFile, 'act1', 'k1.mp3')).toBe(
+      join(root, 'content-studio/narration/originals/act1/k1.mp3'),
+    )
+    expect(await originalClipFile(projectFile, 'act1', '../k1.mp3')).toBeNull()
+    writeFileSync(
+      join(root, 'content-studio/narration/act1.lock.json'),
+      JSON.stringify({ k1: lockEntry('T9') }),
+    )
+    expect(await originalClipFile(projectFile, 'act1', 'k1.mp3')).toBeNull()
   })
 })
 

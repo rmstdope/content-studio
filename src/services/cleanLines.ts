@@ -188,3 +188,27 @@ export async function putBackLine(
     }
   })
 }
+
+/**
+ * The file of the original kept for a line's clip, or null when the line is not cleaned (no
+ * record, or the clip was recorded again since) or the name is not a clip's. For hearing "as
+ * recorded" beside what the game has.
+ */
+export async function originalClipFile(
+  projectFile: string,
+  partId: string,
+  file: string,
+  language?: string,
+): Promise<string | null> {
+  const key = /^([A-Za-z0-9_-]+)\.mp3$/.exec(file)?.[1]
+  if (!key) return null
+  const read = await readPart(projectFile, partId, language)
+  if (!read || !read.ok) return null
+  const root = dirname(projectFile)
+  const cleaned = await cleanedNow(root, read, [])
+  if (!isCleaned(cleaned?.[key], read.input.lock[key]) || read.input.manifest[key]?.file !== file) {
+    return null
+  }
+  const kept = resolveInRoot(root, originalFile(read.project, partId, read.language, key))
+  return existsSync(kept) ? kept : null
+}
