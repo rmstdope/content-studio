@@ -122,6 +122,21 @@ describe('recordLine', () => {
     expect(readFileSync(join(root, 'audio/act1/k1.mp3'), 'utf8')).toBe('as recorded')
   })
 
+  it('does not put a cleaned clip in the game when its original cannot be kept', async () => {
+    const root = tempRepo({
+      ...files,
+      'content-studio/narration/cast.json': {
+        speakers: { narrator: { voice: 'v-n', style: '[warm]', clean: true } },
+        pronounce: { en: { Elior: 'El-ee-or' } },
+      },
+      'content-studio/narration/act1.cleaned.json': '{ not json',
+    })
+    const { fish } = fakeFish()
+    const result = await record(root, 'k1', fish)
+    expect(result?.ok).toBe(false)
+    expect(existsSync(join(root, 'audio/act1/k1.mp3'))).toBe(false)
+  })
+
   it('has a switched-on voice’s lines cleaned as they are encoded, and leaves the others alone', async () => {
     const root = tempRepo({
       ...files,

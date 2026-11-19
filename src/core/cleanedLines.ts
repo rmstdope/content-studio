@@ -46,3 +46,6 @@ export function originalFile(
 ): string {
   return `${originalsDir(project, partId, language)}/${key}.mp3`
 }
+
+/** What starting a job says when the voice already has one running; the page waits on it. */
+export const CLEANING_BUSY = 'This voice is being cleaned already.'

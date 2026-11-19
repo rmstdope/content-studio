@@ -14,6 +14,7 @@ import { firstEntry, hearEntries, loopingText } from '../../cleanup'
 import { recordedLinesOf } from '../../inGame'
 import { PauseIcon, PlayIcon } from '../../components/icons'
 import { off } from '../../off'
+import { CLEANING_BUSY } from '../../../core/cleanedLines'
 import { CleanLines } from './CleanLines'
 import { useCompareLoop, type Side } from './useCompareLoop'
 
@@ -53,6 +54,7 @@ export function CleanUp({
   const switchRef = useRef<HTMLInputElement>(null)
   // The switch was moved off while lines in the game are cleaned: nothing is saved until the question is answered.
   const [askOff, setAskOff] = useState(false)
+  const [putBackError, setPutBackError] = useState<string | null>(null)
   const saved = save.isPending ? save.variables : clean
   const shown = askOff ? false : saved
   const reason = save.isError
@@ -120,6 +122,7 @@ export function CleanUp({
   /** Saves the switch off, then puts every cleaned line back (a cleaning still going on is stopped first). */
   async function switchOffAndPutBack() {
     setAskOff(false)
+    setPutBackError(null)
     save.reset()
     try {
       const job = cleaned.data?.job
@@ -130,9 +133,11 @@ export function CleanUp({
       // The cleaning in hand finishes its line first: asked again until the studio takes it.
       for (let tries = 0; tries < 40; tries++) {
         const answer = await cleaning.putBack.mutateAsync()
-        if (!('error' in answer) || !answer.error.includes('already')) return
+        if (!('error' in answer)) return
+        if (answer.error !== CLEANING_BUSY) return setPutBackError(answer.error)
         await new Promise((resolve) => setTimeout(resolve, 500))
       }
+      setPutBackError('The cleaning did not stop in time. Press Put them back.')
     } catch {
       // The save's own error is shown under the switch; a put back that failed shows in the panel.
     }
@@ -161,8 +166,7 @@ export function CleanUp({
       </div>
       <p className="clean-hint">{shown ? HINT_ON : HINT_OFF}</p>
       <CleanLines
-        characterId={characterId}
-        language={language}
+        cleaning={cleaning}
         on={shown}
         askOff={askOff}
         data={cleaned.data}
@@ -173,6 +177,7 @@ export function CleanUp({
         onSwitchOff={() => void switchOffAndPutBack()}
         switchRef={switchRef}
       />
+      {putBackError && <p className="adopt-error">{putBackError}</p>}
       {reason && <p className="adopt-error">Couldn’t save the clean-up: {reason}</p>}
 
       <div className="clean-hear">

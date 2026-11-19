@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { projectJson, tempRepo } from '../../test/helpers'
 import type { Encoder } from './audio'
+import { removeOrphans } from './narration'
 import { cleanLine, cleanedLinesOf, originalClipFile, putBackLine } from './cleanLines'
 
 const lockEntry = (at: string) => ({
@@ -157,10 +158,38 @@ describe('cleanedLinesOf', () => {
     expect(found).toEqual({
       total: 2,
       cleaned: 1,
+      problem: null,
       lines: [
         { part: 'act1', key: 'k1', file: 'k1.mp3', cleaned: true },
         { part: 'act1', key: 'k2', file: 'k2.mp3', cleaned: false },
       ],
     })
+  })
+
+  it('says when the record of cleaned lines cannot be read, instead of counting every line as not cleaned', async () => {
+    const root = tempRepo({
+      ...files(),
+      'content-studio/narration/act1.cleaned.json': '{ not json',
+    })
+    const found = await cleanedLinesOf(join(root, 'content-studio.json'), 'narrator')
+    expect(found.problem).toContain('act1.cleaned.json')
+  })
+})
+
+describe('what is kept of a cleaned line', () => {
+  it('goes when the line is removed as an orphan', async () => {
+    const root = tempRepo(files())
+    const projectFile = join(root, 'content-studio.json')
+    await cleanLine(projectFile, 'act1', undefined, 'k1', deps)
+    // The dialog no longer has k1.
+    writeFileSync(
+      join(root, 'tts/act1/script.json'),
+      JSON.stringify([{ id: 'k2', speaker: 'narrator', text: 'Two.' }]),
+    )
+    expect(await removeOrphans(projectFile, 'act1', ['k1'])).toBe(1)
+    expect(existsSync(join(root, 'content-studio/narration/originals/act1/k1.mp3'))).toBe(false)
+    expect(
+      JSON.parse(readFileSync(join(root, 'content-studio/narration/act1.cleaned.json'), 'utf8')),
+    ).toEqual({})
   })
 })

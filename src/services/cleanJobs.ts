@@ -1,4 +1,5 @@
-import { cleanLine, cleanedLinesOf, putBackLine, type CleanDeps } from './cleanLines'
+import { CLEANING_BUSY } from '../core/cleanedLines'
+import { cleanLine, cleanedLinesOf, putBackLine, voiceCleaned, type CleanDeps } from './cleanLines'
 
 /** What a job does to each line: cleans it, or puts its original back. */
 export type CleanJobKind = 'clean' | 'putback'
@@ -45,15 +46,31 @@ const keyOf = (speaker: string, language: string | undefined) => `${speaker}\n${
 export function createCleanJobs(): CleanJobs {
   const states = new Map<string, CleanJobState>()
   const ending = new Map<string, Promise<void>>()
+  /** Voices whose job is being set up: two starts at once must not both go on. */
+  const starting = new Set<string>()
 
   return {
     async start(projectFile, speaker, language, kind, deps) {
       const key = keyOf(speaker, language)
       const running = states.get(key)
-      if (running && (running.status === 'running' || running.status === 'stopping')) {
-        return { error: 'This voice is being cleaned already.' }
+      if (
+        starting.has(key) ||
+        (running && (running.status === 'running' || running.status === 'stopping'))
+      ) {
+        return { error: CLEANING_BUSY }
       }
-      const { lines } = await cleanedLinesOf(projectFile, speaker, language)
+      starting.add(key)
+      let lines
+      try {
+        if (kind === 'clean' && !(await voiceCleaned(projectFile, speaker, language))) {
+          return { error: 'The clean-up is switched off for this voice.' }
+        }
+        const found = await cleanedLinesOf(projectFile, speaker, language)
+        if (found.problem) return { error: found.problem }
+        lines = found.lines
+      } finally {
+        starting.delete(key)
+      }
       const todo = lines.filter((l) => l.cleaned === (kind === 'putback'))
       if (!todo.length) {
         return {
@@ -74,6 +91,11 @@ export function createCleanJobs(): CleanJobs {
         (async () => {
           for (const line of todo) {
             if (state.status === 'stopping') break
+            // Switched off meanwhile: the rest are left as recorded.
+            if (kind === 'clean' && !(await voiceCleaned(projectFile, speaker, language))) {
+              state.status = 'stopping'
+              break
+            }
             const result =
               kind === 'clean'
                 ? await cleanLine(projectFile, line.part, language, line.key, deps)

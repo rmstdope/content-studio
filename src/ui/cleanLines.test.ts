@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   allCleanedText,
   askCleanTitle,
+  cleanButtonText,
   askPutBackTitle,
   cleaningText,
   couldntCleanText,
@@ -19,14 +20,15 @@ describe('the words about the lines in the game', () => {
       button: 'Clean 26 lines…',
     })
     expect(countText(1, 38)).toEqual({
-      sentence: '1 of 38 lines in the game aren’t cleaned yet.',
+      sentence: '1 of 38 lines in the game isn’t cleaned yet.',
       button: 'Clean 1 line…',
     })
   })
 
   it('say when every line is cleaned', () => {
     expect(allCleanedText(38)).toBe('All 38 lines in the game are cleaned.')
-    expect(allCleanedText(1)).toBe('The line in the game is cleaned.')
+    expect(allCleanedText(1)).toBe('All 1 line in the game is cleaned.')
+    expect(countText(1, 1).sentence).toBe('1 of 1 line in the game isn’t cleaned yet.')
   })
 
   it('ask before cleaning and before putting back', () => {
@@ -52,6 +54,11 @@ describe('the words about the lines in the game', () => {
     })
     expect(stillCleanedText(1).sentence).toBe('1 line in the game is still cleaned.')
     expect(couldntCleanText(1, 'x')).toBe('1 line couldn’t be cleaned: x')
+  })
+
+  it('label the confirming button', () => {
+    expect(cleanButtonText(26)).toBe('Clean 26 lines')
+    expect(cleanButtonText(1)).toBe('Clean 1 line')
   })
 
   it('count what is not cleaned', () => {

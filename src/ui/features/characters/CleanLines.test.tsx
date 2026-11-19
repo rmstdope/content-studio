@@ -46,6 +46,7 @@ type Job = {
 type Counts = {
   total: number
   cleaned: number
+  problem?: string | null
   cleanedFiles?: { part: string; file: string }[]
   job?: Job | null
 }
@@ -72,7 +73,7 @@ function studio(counts: Counts) {
       })
     }
     if (path.startsWith('/api/characters/keeper/cleaned-lines') && method === 'GET') {
-      return Response.json({ cleanedFiles: [], job: null, ...counts })
+      return Response.json({ cleanedFiles: [], job: null, problem: null, ...counts })
     }
     if (path.startsWith('/api/characters/keeper/cleaned-lines')) return Response.json({})
     if (path.startsWith('/api/characters/keeper') && method === 'PATCH') {
@@ -148,6 +149,12 @@ describe('CleanLines', () => {
     const all = await show({ total: 38, cleaned: 38 })
     await all.settle(() => all.text().includes('All 38 lines in the game are cleaned.'))
     expect(all.container.querySelector('.clean-count button')).toBeNull()
+  })
+
+  it('says the record cannot be read instead of offering to clean', async () => {
+    const page = await show({ total: 38, cleaned: 0, problem: 'act1.cleaned.json: not valid JSON' })
+    await page.settle(() => page.text().includes('The record of cleaned lines can’t be read'))
+    expect(page.button('Clean 38 lines…')).toBeNull()
   })
 
   it('asks before cleaning, with focus on the confirming button; Escape brings the count back and writes nothing', async () => {

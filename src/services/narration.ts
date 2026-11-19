@@ -600,10 +600,11 @@ export async function commitClip({
           ...(take.heard === null ? {} : { heard: take.heard }),
           at,
         }
+        // The original and its record first: a cleaned clip is never in the game without them.
+        await keepOriginal(root, paths, key, clean ? temporaryOriginal : null, at)
         await rename(temporary, target)
         await writeAtomic(root, paths.manifestPath, `${pythonJson(sorted(manifest))}\n`)
         await writeAtomic(root, paths.lockPath, formatEntriesPerLine(lock))
-        await keepOriginal(root, paths, key, clean ? temporaryOriginal : null, at)
         await keepWhatWasHeard(projectFile, cacheName, key, { ...take, at, text: line.text })
         return []
       },
@@ -623,11 +624,10 @@ export async function commitClip({
 }
 
 /**
- * Keeps the original of a line just recorded cleaned (`original`, its unfiltered encoding) and
- * records the line as cleaned from the clip's lock time `at`, or, for a line recorded without the
- * clean-up, forgets any earlier original of the line. The studio's own state, written after the
- * clip and its lock: a failure here loses nothing the game reads, and a missing record only means
- * the line is not counted as cleaned.
+ * Keeps the original of a line recorded cleaned (`original`, its unfiltered encoding) and records
+ * the line as cleaned from the clip's lock time `at`; throws if it cannot, so the recording is not
+ * committed with a cleaned clip nobody can put back. With no `original` (recorded without the
+ * clean-up) it forgets any earlier record and original of the line, as far as it can.
  */
 async function keepOriginal(
   root: string,
@@ -636,25 +636,24 @@ async function keepOriginal(
   original: string | null,
   at: string,
 ): Promise<void> {
-  try {
-    const found: Problem[] = []
-    const read = await readResource(root, paths.cleanedPath, CleanedSchema, found)
-    if (read === 'invalid') return
-    const cleaned: Cleaned = read === 'missing' ? {} : read
-    const kept = `${paths.originalsPath}/${key}.mp3`
-    if (original) {
-      await writeAtomic(root, kept, new Uint8Array(await readFile(original)))
-      cleaned[key] = { at, original: `${key}.mp3` }
-    } else if (cleaned[key]) {
-      delete cleaned[key]
-      await rm(resolveInRoot(root, kept), { force: true })
-    } else {
-      return
-    }
-    await writeAtomic(root, paths.cleanedPath, formatEntriesPerLine(cleaned))
-  } catch {
-    // Not the game's: the recording stands.
+  const found: Problem[] = []
+  const read = await readResource(root, paths.cleanedPath, CleanedSchema, found)
+  if (read === 'invalid') {
+    if (original) throw new Error(`${found[0]?.file}: ${found[0]?.message}`)
+    return
   }
+  const cleaned: Cleaned = read === 'missing' ? {} : read
+  const kept = `${paths.originalsPath}/${key}.mp3`
+  if (original) {
+    await writeAtomic(root, kept, new Uint8Array(await readFile(original)))
+    cleaned[key] = { at, original: `${key}.mp3` }
+  } else if (cleaned[key]) {
+    delete cleaned[key]
+  } else {
+    return
+  }
+  await writeAtomic(root, paths.cleanedPath, formatEntriesPerLine(cleaned))
+  if (!original) await rm(resolveInRoot(root, kept), { force: true }).catch(() => {})
 }
 
 /** The part's manifest as it is now: empty if there is none, null (with the problem added) if broken. */
@@ -758,6 +757,8 @@ export async function removeOrphans(
         await rm(resolveInRoot(root, join(read.paths.clipsPath, entry.file)), { force: true })
       }
       delete lock[key]
+      // What was kept of a cleaned line goes with it.
+      await keepOriginal(root, read.paths, key, null, '').catch(() => {})
       removed++
     }
     if (removed) {

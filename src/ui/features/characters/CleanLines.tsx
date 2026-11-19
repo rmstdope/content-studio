@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
-import { useCleaningLines, type CleanedLines } from '../../api'
+import { type CleanedLines, type CleaningLines } from '../../api'
 import { off } from '../../off'
 import {
   allCleanedText,
+  cleanButtonText,
   askCleanTitle,
   askPutBackTitle,
   cleaningText,
@@ -82,8 +83,7 @@ function Progress({ text, done, total }: { text: string; done: number; total: nu
  * is left; this only shows where it has got to.
  */
 export function CleanLines({
-  characterId,
-  language,
+  cleaning,
   on,
   askOff,
   data,
@@ -91,8 +91,8 @@ export function CleanLines({
   onSwitchOff,
   switchRef,
 }: {
-  characterId: string
-  language?: string
+  /** The page's clean, put back and stop, shared with its switch. */
+  cleaning: CleaningLines
   /** Whether the voice's clean-up is on as shown. */
   on: boolean
   /** The switch was moved off, and the question before saving it is open. */
@@ -105,7 +105,7 @@ export function CleanLines({
   /** The switch, where focus goes when a button it was on has gone. */
   switchRef: RefObject<HTMLInputElement | null>
 }) {
-  const { clean, putBack, stop } = useCleaningLines(characterId, language)
+  const { clean, putBack, stop } = cleaning
   const [asking, setAsking] = useState(false)
   const opener = useRef<HTMLButtonElement>(null)
   const job = data?.job ?? null
@@ -131,6 +131,9 @@ export function CleanLines({
   }, [busy, switchRef])
 
   if (!data) return null
+  if (data.problem) {
+    return <p className="adopt-error">The record of cleaned lines can’t be read: {data.problem}</p>
+  }
   if (askOff) {
     return (
       <Ask
@@ -205,7 +208,7 @@ export function CleanLines({
           'The originals are kept. Switching the clean-up off puts them back.',
         ]}
         no="Cancel"
-        yes={`Clean ${left} ${left === 1 ? 'line' : 'lines'}`}
+        yes={cleanButtonText(left)}
         onNo={() => {
           setAsking(false)
           setReturning(true)

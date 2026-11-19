@@ -40,11 +40,14 @@ export async function cleanedLinesOf(
   projectFile: string,
   speaker: string,
   language?: string,
-): Promise<{ total: number; cleaned: number; lines: GameLine[] }> {
+): Promise<{ total: number; cleaned: number; lines: GameLine[]; problem: string | null }> {
   const opened = await readParts(projectFile, language)
   const lines: GameLine[] = []
+  let problem: string | null = null
   for (const read of opened) {
-    const cleaned = await cleanedNow(dirname(projectFile), read, [])
+    const found: Problem[] = []
+    const cleaned = await cleanedNow(dirname(projectFile), read, found)
+    if (!cleaned) problem ??= `${found[0]?.file}: ${found[0]?.message}`
     for (const line of read.input.lines) {
       if (line.speaker !== speaker) continue
       const file = read.input.manifest[line.key]?.file
@@ -58,7 +61,17 @@ export async function cleanedLinesOf(
       })
     }
   }
-  return { total: lines.length, cleaned: lines.filter((l) => l.cleaned).length, lines }
+  return { total: lines.length, cleaned: lines.filter((l) => l.cleaned).length, lines, problem }
+}
+
+/** Whether the speaker's clean-up is switched on in `language` (false when the project has no part to read it from). */
+export async function voiceCleaned(
+  projectFile: string,
+  speaker: string,
+  language?: string,
+): Promise<boolean> {
+  const [first] = await readParts(projectFile, language)
+  return first?.input.cast.speakers[speaker]?.clean === true
 }
 
 /** Every part of the project, read in `language` (the parts the project cannot read are left out). */

@@ -440,7 +440,7 @@ export function narrationRoutes(c: RouteContext) {
     '/api/characters/:id/cleaned-lines': {
       GET: guard(async (request) => {
         const language = await languageFor(request)
-        const { total, cleaned, lines } = await cleanedLinesOf(
+        const { total, cleaned, lines, problem } = await cleanedLinesOf(
           projectFile,
           request.params.id,
           language,
@@ -448,6 +448,7 @@ export function narrationRoutes(c: RouteContext) {
         return Response.json({
           total,
           cleaned,
+          problem,
           cleanedFiles: lines.filter((l) => l.cleaned).map(({ part, file }) => ({ part, file })),
           job: cleanJobs.get(request.params.id, language),
         })

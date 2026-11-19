@@ -581,6 +581,8 @@ export interface CleanedLines {
   cleaned: number
   /** The cleaned lines' clips, to hear their originals. */
   cleanedFiles: { part: string; file: string }[]
+  /** Why the record of cleaned lines cannot be read, when it cannot. */
+  problem: string | null
   job: CleanJobState | null
 }
 
@@ -635,13 +637,18 @@ export function useCleaningLines(characterId: string, language?: string) {
   const client = useQueryClient()
   const again = () =>
     client.invalidateQueries({ queryKey: ['cleaned-lines', characterId, language ?? null] })
-  const run = (action: 'clean' | 'put-back' | 'stop') =>
-    useMutation({
-      mutationFn: () => askCleaning(characterId, action, language),
-      onSettled: again,
-    })
-  return { clean: run('clean'), putBack: run('put-back'), stop: run('stop') }
+  const options = (action: 'clean' | 'put-back' | 'stop') => ({
+    mutationFn: () => askCleaning(characterId, action, language),
+    onSettled: again,
+  })
+  const clean = useMutation(options('clean'))
+  const putBack = useMutation(options('put-back'))
+  const stop = useMutation(options('stop'))
+  return { clean, putBack, stop }
 }
+
+/** The three mutations of `useCleaningLines`. */
+export type CleaningLines = ReturnType<typeof useCleaningLines>
 
 /** The URL of a cleaned copy the server made. */
 export function cleanedUrl(name: string): string {

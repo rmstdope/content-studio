@@ -16,13 +16,14 @@ writeFileSync(
     },
   }),
 )
+const cast = join(root, 'content-studio/narration/cast.json')
 const post = (path: string, origin: string = url('/').origin) =>
   fetch(url(path), { method: 'POST', headers: { origin } })
 
 describe('the lines cleaned in the game', () => {
   it('are counted for a voice, with the job that is running or last ran', async () => {
     const answer = await (await fetch(url('/api/characters/narrator/cleaned-lines'))).json()
-    expect(answer).toEqual({ total: 1, cleaned: 0, cleanedFiles: [], job: null })
+    expect(answer).toEqual({ total: 1, cleaned: 0, problem: null, cleanedFiles: [], job: null })
   })
 
   it('are cleaned and put back from the studio’s own page only', async () => {
@@ -39,7 +40,14 @@ describe('the lines cleaned in the game', () => {
     expect((await post('/api/characters/narrator/cleaned-lines/stop')).status).toBe(404)
   })
 
+  it('refuse to clean a voice that is switched off', async () => {
+    const answer = await post('/api/characters/narrator/cleaned-lines/clean')
+    expect(answer.status).toBe(409)
+    expect(await answer.json()).toEqual({ error: 'The clean-up is switched off for this voice.' })
+  })
+
   it('say why a line could not be cleaned, as given', async () => {
+    writeFileSync(cast, JSON.stringify({ speakers: { narrator: { voice: 'v1', clean: true } } }))
     // The sample clip is not audio, so decoding it fails whatever ffmpeg says.
     expect((await post('/api/characters/narrator/cleaned-lines/clean')).status).toBe(200)
     let job = null

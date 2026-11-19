@@ -120,4 +120,54 @@ describe('clean jobs', () => {
     expect(jobs.stop('narrator', undefined)).toMatchObject({ kind: 'putback', status: 'running' })
     await jobs.settled('narrator', undefined)
   })
+
+  it('refuses to clean a voice whose switch is off', async () => {
+    const root = repo()
+    writeFileSync(
+      join(root, 'content-studio/narration/cast.json'),
+      JSON.stringify({ speakers: { narrator: { voice: 'v' } }, pronounce: {} }),
+    )
+    const jobs = createCleanJobs()
+    expect(
+      await jobs.start(join(root, 'content-studio.json'), 'narrator', undefined, 'clean', {
+        encode: upper,
+        decode,
+      }),
+    ).toEqual({ error: 'The clean-up is switched off for this voice.' })
+  })
+
+  it('stops cleaning when the switch is turned off meanwhile, leaving the rest as recorded', async () => {
+    const root = repo()
+    const jobs = createCleanJobs()
+    const off = () =>
+      writeFileSync(
+        join(root, 'content-studio/narration/cast.json'),
+        JSON.stringify({ speakers: { narrator: { voice: 'v' } }, pronounce: {} }),
+      )
+    const flipping: Encoder = async (wav, file, options) => {
+      off()
+      return upper(wav, file, options)
+    }
+    await jobs.start(join(root, 'content-studio.json'), 'narrator', undefined, 'clean', {
+      encode: flipping,
+      decode,
+    })
+    await jobs.settled('narrator', undefined)
+    expect(jobs.get('narrator', undefined)).toMatchObject({ status: 'stopped', done: 1 })
+    expect(clip(root, 'k2')).toBe('k2 as recorded')
+  })
+
+  it('lets only one of two starts at once go on', async () => {
+    const root = repo()
+    const jobs = createCleanJobs()
+    const projectFile = join(root, 'content-studio.json')
+    const [a, b] = await Promise.all([
+      jobs.start(projectFile, 'narrator', undefined, 'clean', { encode: upper, decode }),
+      jobs.start(projectFile, 'narrator', undefined, 'clean', { encode: upper, decode }),
+    ])
+    expect([a, b].filter((r) => 'error' in r)).toEqual([
+      { error: 'This voice is being cleaned already.' },
+    ])
+    await jobs.settled('narrator', undefined)
+  })
 })

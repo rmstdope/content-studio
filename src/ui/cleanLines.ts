@@ -9,16 +9,14 @@ export function notCleaned({ total, cleaned }: { total: number; cleaned: number 
 /** The count line while some lines are not cleaned: its sentence and its button. */
 export function countText(n: number, total: number): { sentence: string; button: string } {
   return {
-    sentence: `${n} of ${total} ${lines(total)} in the game aren’t cleaned yet.`,
+    sentence: `${n} of ${total} ${lines(total)} in the game ${n === 1 ? 'isn’t' : 'aren’t'} cleaned yet.`,
     button: `Clean ${n} ${lines(n)}…`,
   }
 }
 
 /** The count line when every line is cleaned. */
 export function allCleanedText(total: number): string {
-  return total === 1
-    ? 'The line in the game is cleaned.'
-    : `All ${total} lines in the game are cleaned.`
+  return `All ${total} ${lines(total)} in the game ${total === 1 ? 'is' : 'are'} cleaned.`
 }
 
 /** The heading of the question before cleaning. */
@@ -57,4 +55,9 @@ export function stillCleanedText(n: number): { sentence: string; button: string 
     sentence: `${n} ${lines(n)} in the game ${n === 1 ? 'is' : 'are'} still cleaned.`,
     button: 'Put them back',
   }
+}
+
+/** The confirming button of the question before cleaning. */
+export function cleanButtonText(n: number): string {
+  return `Clean ${n} ${lines(n)}`
 }
