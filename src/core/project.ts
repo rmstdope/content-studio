@@ -512,14 +512,14 @@ export const NARRATION_DIR = `${STUDIO_DIR}/narration`
 export const CAST_FILE = `${NARRATION_DIR}/cast.json`
 
 /**
- * A part's narration edits (its cues) or lock in `language`: `<part>.edits.json` in the source
+ * A part's narration edits (its cues), lock or record of cleaned lines in `language`: `<part>.edits.json` in the source
  * language, `<part>.<language>.edits.json` in another, so adding a language renames nothing.
  */
 export function narrationFile(
   project: Pick<Project, 'languages'>,
   partId: string,
   language: string,
-  kind: 'edits' | 'lock',
+  kind: 'edits' | 'lock' | 'cleaned',
 ): string {
   const suffix = language === project.languages[0] ? '' : `.${language}`
   return `${NARRATION_DIR}/${partId}${suffix}.${kind}.json`
