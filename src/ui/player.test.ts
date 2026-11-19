@@ -482,3 +482,34 @@ describe('playedShare', () => {
     expect(playedShare(0, 0)).toBeNull()
   })
 })
+
+describe('createPlayer, a clip’s level', () => {
+  it('sets the level a clip carries as it begins, 1 when it has none', () => {
+    const { element, player } = setUp()
+    player.toggle('a', '/a.mp3', { level: 1.5 })
+    expect(element.level).toBe(1.5)
+    player.toggle('a', '/a.mp3')
+    player.toggle('b', '/b.mp3')
+    expect(element.level).toBe(1)
+  })
+
+  it('changes the level of the clip playing at once, and of no other', () => {
+    const { element, player } = setUp()
+    player.toggle('a', '/a.mp3', { level: 1 })
+    player.setLevel('a', 1.8)
+    expect(element.level).toBe(1.8)
+    player.setLevel('b', 0.2)
+    expect(element.level).toBe(1.8)
+  })
+
+  it('gives each clip of a list its own level', () => {
+    const { element, player } = setUp()
+    player.playInTurn([
+      { id: 'a', url: '/a.mp3', level: 0.5 },
+      { id: 'b', url: '/b.mp3', level: 1.5 },
+    ])
+    expect(element.level).toBe(0.5)
+    player.ended()
+    expect(element.level).toBe(1.5)
+  })
+})

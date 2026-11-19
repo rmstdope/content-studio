@@ -29,6 +29,8 @@ export interface LoopContext {
   decodeAudioData(data: ArrayBuffer): Promise<LoopBuffer>
   createBufferSource(): LoopSource
   createGain(): LoopGain
+  /** Routes an audio element through the graph, once per element; its volume then applies before the gain. */
+  createMediaElementSource?(element: unknown): { connect(node: unknown): unknown }
 }
 
 /** How far into a loop of `duration` seconds the playhead is, begun at `offset` at `startedAt`. */
@@ -59,6 +61,9 @@ export function createClipAudio(
   let rounds: number | undefined
   let offset = 0
   let volume = 1
+  let level = 1
+  // The gain a clip on the element is raised with, made the first time a level above 100% is asked for.
+  let elementGain: LoopGain | null = null
   let using: 'element' | 'web' | null = null
   let context: LoopContext | null = null
   const buffers = new Map<string, Promise<LoopBuffer>>()
@@ -68,6 +73,31 @@ export function createClipAudio(
   let startedAt = 0
   // Each play of a loop has a token: one paused while it was still loading never starts.
   let token = 0
+
+  /** Puts the level on what sounds: the loop's gain, the element's gain above 100%, else the element's volume. */
+  const applyLevel = () => {
+    if (using === 'web') {
+      if (gain) gain.gain.value = volume * level
+      return
+    }
+    if (using !== 'element') return
+    if (!elementGain && level > 1) {
+      context ??= web.context()
+      const ctx = context
+      if (ctx.createMediaElementSource) {
+        elementGain = ctx.createGain()
+        ctx.createMediaElementSource(element).connect(elementGain)
+        elementGain.connect(ctx.destination)
+        void ctx.resume?.()
+      }
+    }
+    if (elementGain) {
+      elementGain.gain.value = level
+      element.volume = volume
+    } else {
+      element.volume = volume * Math.min(level, 1)
+    }
+  }
 
   const stopWeb = () => {
     if (source) source.onended = null
@@ -92,7 +122,7 @@ export function createClipAudio(
     if (mine !== token) return
     buffer = decoded
     gain = ctx.createGain()
-    gain.gain.value = volume
+    gain.gain.value = volume * level
     gain.connect(ctx.destination)
     source = ctx.createBufferSource()
     source.buffer = decoded
@@ -147,8 +177,14 @@ export function createClipAudio(
     },
     set volume(value: number) {
       volume = value
-      if (using === 'element') element.volume = value
-      if (gain) gain.gain.value = value
+      applyLevel()
+    },
+    get level() {
+      return level
+    },
+    set level(value: number) {
+      level = value
+      applyLevel()
     },
     get duration() {
       if (using === 'web') return buffer?.duration ?? Number.NaN
@@ -166,7 +202,7 @@ export function createClipAudio(
       using = 'element'
       element.src = src
       element.currentTime = offset
-      element.volume = volume
+      applyLevel()
       return element.play()
     },
     pause() {

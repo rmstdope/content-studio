@@ -12,7 +12,8 @@ import { createPlayer, playedShare, type AudioLike, type Clip, type PlayerState 
  * plays a take: it fades in and out, and a stop is a short fade, never a cut. The length is the
  * person's own `takeFade` setting (Setup's Playing takes), asked as each clip begins. With `loop: true` it
  * comes round until stopped, without a gap (`createClipAudio`). `position()` is how far into the clip playing it is, 0 to 1, or null
- * while that is not known.
+ * while that is not known. A clip played with `level` sounds at it (above 1 through Web Audio), and
+ * `setLevel(id, level)` changes the level of the clip playing at once.
  */
 export function useClipPlayer(onFailed?: (id: string) => void) {
   const [state, setState] = useState<PlayerState>({ playing: null, inTurn: false })
@@ -63,12 +64,13 @@ export function useClipPlayer(onFailed?: (id: string) => void) {
   // The same functions on every render; they reach the player made on mount.
   const actions = useMemo(
     () => ({
-      toggle: (id: string, url: string, how?: { fade?: boolean; loop?: boolean }) =>
+      toggle: (id: string, url: string, how?: { fade?: boolean; loop?: boolean; level?: number }) =>
         player.current?.toggle(id, url, how),
       position: () =>
         audio.current
           ? playedShare(audio.current.currentTime, audio.current.duration ?? Number.NaN)
           : null,
+      setLevel: (id: string, level: number) => player.current?.setLevel(id, level),
       playInTurn: (clips: Clip[]) => player.current?.playInTurn(clips),
       stop: () => player.current?.stop(),
     }),
