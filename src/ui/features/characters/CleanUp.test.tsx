@@ -19,6 +19,7 @@ afterAll(async () => {
 class FakeAudio {
   static made: FakeAudio[] = []
   loop = false
+  volume = 1
   muted = false
   paused = true
   currentTime = 0
@@ -392,5 +393,24 @@ describe('CleanUp', () => {
     expect(page.button('Cleaned').getAttribute('aria-disabled')).toBe('true')
     const flip = page.container.querySelector<HTMLInputElement>('input[role="switch"]')!
     expect(flip.disabled).toBe(false)
+  })
+
+  it('puts the level under the clean-up and above Hear it on, and plays the loop at the slider’s level', async () => {
+    const page = await show(studio({ lines }), { level: 100 })
+    await page.settle(() => page.menu().options.length === 3)
+    const text = page.text()
+    expect(text.indexOf('Clean up the voice')).toBeLessThan(text.indexOf('Level'))
+    expect(text.indexOf('Level')).toBeLessThan(text.indexOf('Hear it on'))
+    await act(() => page.button('Play').click())
+    const slider = page.container.querySelector<HTMLInputElement>('input[type="range"]')!
+    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
+    set.call(slider, '50')
+    await act(() => {
+      slider.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    expect(FakeAudio.made[0]?.volume).toBe(0.5)
+    // Forgotten with the page, or the language: it comes back at the saved level.
+    await page.render('sv')
+    expect(page.container.querySelector<HTMLInputElement>('input[type="range"]')!.value).toBe('100')
   })
 })

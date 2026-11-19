@@ -268,6 +268,40 @@ describe('CharacterView', () => {
     expect(tag()).toBe(false)
     await act(async () => answerSave())
     await act(() => page.unmount())
+
+  it('tags the Voice heading with the level when it is not 100%, after Cleaned', async () => {
+    const show = async (level: number, clean: boolean) => {
+      const cast: CharacterLanguage = { ...uncast, voice: 'f1', voiceName: 'Ada', level, clean }
+      const level60: ProjectSummary = {
+        ...summary,
+        characters: summary.characters.map((c) => ({
+          ...c,
+          voice: 'f1',
+          voiceName: 'Ada',
+          languages: { en: cast },
+        })),
+      }
+      globalThis.fetch = studio
+      const container = document.createElement('div')
+      document.body.append(container)
+      const page = createRoot(container)
+      await act(() =>
+        page.render(
+          createElement(
+            QueryClientProvider,
+            { client: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+            createElement(CharacterView, { summary: level60, characterId: 'keeper' }),
+          ),
+        ),
+      )
+      const head = container.querySelector('[aria-label="Voice"] .section-head')
+      const chips = [...(head?.querySelectorAll('.chip') ?? [])].map((c) => c.textContent)
+      await act(() => page.unmount())
+      return chips
+    }
+    expect(await show(60, true)).toEqual(['Cast', 'Cleaned', '60%'])
+    expect(await show(100, true)).toEqual(['Cast', 'Cleaned'])
+    expect(await show(150, false)).toEqual(['Cast', '150%'])
   })
 
   it('shows an ElevenLabs voice as ElevenLabs gives it, with its preview and a take on ElevenLabs', async () => {
