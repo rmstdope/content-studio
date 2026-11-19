@@ -18,3 +18,6 @@ export function levelDb(level: number): number {
 export function lineLevel(entry: { level?: number } | undefined): number {
   return entry?.level ?? LEVEL.default
 }
+
+/** What setting a level says while the voice's lines are being cleaned or put back; the page waits on it. */
+export const LEVEL_WAIT = 'Wait for the lines to finish being cleaned.'

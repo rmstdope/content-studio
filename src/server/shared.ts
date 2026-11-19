@@ -8,6 +8,7 @@ import { readWav, writeWav } from '../core/wav'
 import { FishTierSchema } from '../core/project'
 import { FISH_VOICE_ID, VOICE_ID } from '../core/voices'
 import { type Budget } from '../core/spend'
+import { LEVEL } from '../core/level'
 import { SPEED } from '../core/resources'
 import { type ImageEditResult } from '../services/imageEdits'
 import { type EffectEditResult } from '../services/effectWords'
@@ -25,6 +26,11 @@ export const CharacterBody = z.union([
   z.object({ speed: z.number().min(SPEED.min).max(SPEED.max).nullable() }).strict(),
   z.object({ clean: z.boolean() }).strict(),
 ])
+
+/** A voice's level, in whole percent. */
+export const LevelBody = z
+  .object({ level: z.number().int().min(LEVEL.min).max(LEVEL.max) })
+  .strict()
 
 /**
  * What a cleaned copy is made from: a recorded line of a part by its file, or a character's

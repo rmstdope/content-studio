@@ -55,6 +55,9 @@ import { freeableVoices } from '../../core/elevenLibrary'
 import { heardFor } from '../../services/heard'
 import { cleanedCopy, cleanedFile } from '../../services/cleanedCopy'
 import { cleanedLinesOf, originalClipFile } from '../../services/cleanLines'
+import { LEVEL_BUSY } from '../../services/levelJobs'
+import { CAST_FILE } from '../../core/project'
+import { LEVEL_WAIT } from '../../core/level'
 import {
   adoptPart,
   clipFile,
@@ -71,6 +74,7 @@ import {
   AuditionTakeBody,
   CastOwnBody,
   CharacterBody,
+  LevelBody,
   CueBody,
   DesignBody,
   ElevenTtsBody,
@@ -107,6 +111,8 @@ export function narrationRoutes(c: RouteContext) {
     budgets,
     busyRefusal,
     changeCharacter,
+    changeLevel,
+    levelJobs,
     cleanJobs,
     creditBudgets,
     creditOf,
@@ -451,6 +457,8 @@ export function narrationRoutes(c: RouteContext) {
           problem,
           cleanedFiles: lines.filter((l) => l.cleaned).map(({ part, file }) => ({ part, file })),
           job: cleanJobs.get(request.params.id, language),
+          levels: lines.map(({ part, file, level }) => ({ part, file, level })),
+          levelJob: levelJobs.get(request.params.id, language),
         })
       }),
     },
@@ -474,6 +482,37 @@ export function narrationRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const job = cleanJobs.stop(request.params.id, await languageFor(request))
         return job ? Response.json(job) : notFound()
+      }),
+    },
+    '/api/characters/:id/level': {
+      POST: fromOwnPage(async (request) => {
+        const body = LevelBody.safeParse(await request.json().catch(() => null))
+        if (!body.success) {
+          return Response.json(
+            { error: 'expected { level: a whole number, 10 to 200 }' },
+            { status: 400 },
+          )
+        }
+        const { id } = request.params
+        const language = await languageFor(request)
+        const refuse = (message: string) =>
+          Response.json(
+            { ok: false, problems: [{ file: CAST_FILE, path: `speakers.${id}.level`, message }] },
+            { status: 409 },
+          )
+        // Nothing is saved while the voice's lines are being worked on: a level set meanwhile
+        // would leave them at two.
+        const cleaning = cleanJobs.get(id, language)
+        if (cleaning?.status === 'running' || cleaning?.status === 'stopping') {
+          return refuse(LEVEL_WAIT)
+        }
+        if (levelJobs.running(id, language)) return refuse(LEVEL_BUSY)
+        const saved = await changeLevel(id, body.data.level, language)
+        if (!saved) return notFound()
+        if (!saved.ok) return Response.json(saved, { status: 409 })
+        const job = await levelJobs.start(projectFile, id, language, body.data.level)
+        if (job && 'error' in job) return refuse(job.error)
+        return Response.json({ ok: true, job })
       }),
     },
     '/api/characters/:id': {
