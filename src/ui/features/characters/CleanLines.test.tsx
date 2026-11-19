@@ -315,7 +315,9 @@ describe('CleanLines', () => {
       cleanedFiles: [{ part: 'act1', file: 'a.mp3' }],
     })
     await page.settle(
-      () => page.text().includes('All 1') || page.text().includes('The line in the game'),
+      () =>
+        page.text().includes('The 1 line in the game is cleaned') ||
+        page.text().includes('The line in the game'),
     )
     await page.settle(() => page.container.querySelector('select')!.options.length === 2)
     await act(
