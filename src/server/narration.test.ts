@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from 'bun:test'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { projectJson, tempRepo } from '../../test/helpers'
 import { type FishClient } from '../services/fish'
@@ -1676,4 +1676,48 @@ describe('server, generating per language', () => {
     expect((await get('/api/parts/act1?language=sv')).part.notes).toEqual({ a: 'för snabb' })
     expect((await get('/api/parts/act1')).part.notes).toEqual({})
   })
+})
+
+describe('server, a character save that cannot be written', () => {
+  const ownRoot = tempRepo({
+    'content-studio.json': projectJson(),
+    'content-studio/narration/cast.json': { speakers: { narrator: { voice: 'v1' } } },
+    'tts/act1/script.json': [{ id: 'a', speaker: 'narrator', text: 'Once.' }],
+  })
+  const server = startServer({
+    projectFile: join(ownRoot, 'content-studio.json'),
+    port: 0,
+    fish,
+    encode,
+    transcriber: null,
+  })
+  afterAll(() => server.stop(true))
+
+  it.skipIf(process.getuid?.() === 0)(
+    'answers with the reason the cast could not be written, not a bare 500',
+    async () => {
+      const folder = join(ownRoot, 'content-studio/narration')
+      chmodSync(folder, 0o555)
+      try {
+        const response = await fetch(new URL('/api/characters/narrator', server.url), {
+          method: 'PATCH',
+          headers: { origin: server.url.origin, 'content-type': 'application/json' },
+          body: JSON.stringify({ clean: true }),
+        })
+        expect(response.status).toBe(409)
+        expect(await response.json()).toEqual({
+          ok: false,
+          problems: [
+            {
+              file: 'content-studio/narration/cast.json',
+              path: '',
+              message: 'permission denied',
+            },
+          ],
+        })
+      } finally {
+        chmodSync(folder, 0o755)
+      }
+    },
+  )
 })
