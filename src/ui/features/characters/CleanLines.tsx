@@ -16,7 +16,7 @@ import {
 } from '../../cleanLines'
 
 /** A question with two buttons, the second confirming: focus starts on it, Escape is the first. */
-function Ask({
+export function Ask({
   title,
   notes,
   no,

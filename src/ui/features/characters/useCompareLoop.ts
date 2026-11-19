@@ -1,5 +1,39 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+/** The gain each side is heard at: 1 is the file as it is (a voice's level, as-ohm7, can be more). */
+export interface Gains {
+  recorded: number
+  cleaned: number
+}
+
+const nodes = new WeakMap<HTMLAudioElement, GainNode>()
+let context: AudioContext | null = null
+
+/**
+ * Plays an element at `gain`. HTML audio cannot go above 1, so a gain node of the Web Audio API
+ * does it where there is one; without, the element's volume goes down but not up.
+ */
+function setGain(element: HTMLAudioElement, gain: number) {
+  if (typeof AudioContext !== 'undefined') {
+    try {
+      context ??= new AudioContext()
+      let node = nodes.get(element)
+      if (!node) {
+        node = context.createGain()
+        context.createMediaElementSource(element).connect(node)
+        node.connect(context.destination)
+        nodes.set(element, node)
+      }
+      node.gain.value = gain
+      void context.resume().catch(() => {})
+      return
+    } catch {
+      // Web Audio is not there to use: the element's own volume is.
+    }
+  }
+  element.volume = Math.min(1, Math.max(0, gain))
+}
+
 /** Which of the two sounds is heard. */
 export type Side = 'recorded' | 'cleaned'
 
@@ -10,11 +44,18 @@ export type Side = 'recorded' | 'cleaned'
  * It stops when the clip changes, and when the page is left. `position` and `length` are the
  * recorded clip's, in seconds.
  */
-export function useCompareLoop(recorded: string | null, cleaned: string | null, side: Side) {
+export function useCompareLoop(
+  recorded: string | null,
+  cleaned: string | null,
+  side: Side,
+  gains: Gains = { recorded: 1, cleaned: 1 },
+) {
   const [playing, setPlaying] = useState(false)
   const [time, setTime] = useState({ position: 0, length: 0 })
   const first = useRef<HTMLAudioElement | null>(null)
   const second = useRef<HTMLAudioElement | null>(null)
+  const gainsRef = useRef(gains)
+  gainsRef.current = gains
 
   const stop = useCallback(() => {
     first.current?.pause()
@@ -41,6 +82,7 @@ export function useCompareLoop(recorded: string | null, cleaned: string | null, 
     element.addEventListener('timeupdate', note)
     element.addEventListener('loadedmetadata', note)
     first.current = element
+    setGain(element, gainsRef.current.recorded)
     setPlaying(true)
     void element.play().catch(() => {
       if (first.current === element) stop()
@@ -54,8 +96,15 @@ export function useCompareLoop(recorded: string | null, cleaned: string | null, 
     element.loop = true
     element.currentTime = first.current.currentTime
     second.current = element
+    setGain(element, gainsRef.current.cleaned)
     void element.play().catch(() => {})
   }, [playing, cleaned])
+
+  // The slider moves the level heard while the line plays.
+  useEffect(() => {
+    if (first.current) setGain(first.current, gains.recorded)
+    if (second.current) setGain(second.current, gains.cleaned)
+  }, [gains.recorded, gains.cleaned])
 
   // Only the side chosen is heard; the other keeps time silently.
   useEffect(() => {
