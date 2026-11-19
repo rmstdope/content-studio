@@ -88,6 +88,37 @@ describe('cleanedCopy', () => {
     expect(readdirSync(join(root, 'content-studio/cache/cleaned'))).toEqual([made.name])
   })
 
+  it('finds a clip’s level by the manifest, not by guessing its key from the file name', async () => {
+    const root = tempRepo({
+      ...files,
+      'audio/act1/adopted.mp3': 'an adopted clip',
+      'audio/act1/manifest.json': {
+        k1: { file: 'adopted.mp3', speaker: 'narrator', duration: 1, words: [] },
+      },
+      'content-studio/narration/act1.lock.json': {
+        k1: {
+          fp: 'f',
+          voice: 'v',
+          model: 'm',
+          hashes: { cue: 'c', text: 't', said: 's', settings: 'x' },
+          level: 50,
+          at: 'T1',
+        },
+      },
+    })
+    const gains: (number | undefined)[] = []
+    const encode: Encoder = async (wav, file, options) => {
+      gains.push(options.gainDb)
+      writeFileSync(file, wav)
+    }
+    await cleanedCopy(
+      projectFileOf(root),
+      { part: 'act1', file: 'adopted.mp3' },
+      { encode, decode },
+    )
+    expect(gains[0]).toBeCloseTo(-6.02, 2)
+  })
+
   it('uses the copy it made before, until the clip changes', async () => {
     const root = tempRepo(files)
     const { asked, encode } = watching()

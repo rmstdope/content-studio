@@ -57,8 +57,16 @@ export async function levelLine(
       await gain(temporary, levelDb(level) - levelDb(was))
       const { level: _was, ...rest } = entry
       lock[key] = level === LEVEL.default ? rest : { ...rest, level }
-      await rename(temporary, clip)
+      // The lock first: if the clip cannot then be put in place, the lock is put back, so the
+      // next run never raises a clip that already has the gain.
       await writeAtomic(root, read.paths.lockPath, formatEntriesPerLine(lock))
+      try {
+        await rename(temporary, clip)
+      } catch (error) {
+        lock[key] = entry
+        await writeAtomic(root, read.paths.lockPath, formatEntriesPerLine(lock)).catch(() => {})
+        throw error
+      }
       return { ok: true }
     } catch (error) {
       await rm(temporary, { force: true }).catch(() => {})

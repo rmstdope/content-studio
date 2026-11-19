@@ -413,4 +413,36 @@ describe('CleanUp', () => {
     await page.render('sv')
     expect(page.container.querySelector<HTMLInputElement>('input[type="range"]')!.value).toBe('100')
   })
+
+  it('plays a line over the level its clip already has, and a kept original at 100%', async () => {
+    const answers = studio({ lines })
+    const inner = answers.fetcher
+    const fetcher = (async (path: string, init?: RequestInit) => {
+      if (path.startsWith('/api/characters/keeper/cleaned-lines')) {
+        return Response.json({
+          total: 2,
+          cleaned: 1,
+          problem: null,
+          cleanedFiles: [{ part: 'act1', file: 'a.mp3' }],
+          job: null,
+          levels: [
+            { part: 'act1', file: 'a.mp3', level: 60 },
+            { part: 'act1', file: 'b.mp3', level: 60 },
+          ],
+          levelJob: null,
+        })
+      }
+      return inner(path, init)
+    }) as unknown as typeof fetch
+    const page = await show({ fetcher, calls: answers.calls }, { level: 60 })
+    await page.settle(() => page.menu().options.length === 3)
+    await page.settle(() => page.text().includes('Level'))
+    await act(() => page.button('Play').click())
+    // The game's clip is at 60% and the slider at the saved 60%: heard as it is.
+    expect(FakeAudio.made[0]?.src).toContain('/originals/')
+    // The original is at 100%, so it is turned down to the voice's level.
+    expect(FakeAudio.made[0]?.volume).toBeCloseTo(0.6, 5)
+    await page.settle(() => FakeAudio.made.length === 2)
+    expect(FakeAudio.made[1]?.volume).toBe(1)
+  })
 })

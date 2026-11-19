@@ -62,9 +62,12 @@ export async function cleanedCopy(
       'part' in source && output.lufs !== null
         ? await readPart(projectFile, source.part, language)
         : null
-    const level = lineLevel(
-      read?.ok && 'part' in source ? read.input.lock[source.file.replace(/\.mp3$/, '')] : undefined,
-    )
+    // The line is the one whose manifest entry names the clip: an adopted clip's file need not be its key.
+    const key =
+      read?.ok && 'part' in source
+        ? Object.keys(read.input.manifest).find((k) => read.input.manifest[k]?.file === source.file)
+        : undefined
+    const level = lineLevel(key && read?.ok ? read.input.lock[key] : undefined)
     await encode(wav, temporary, {
       ...output,
       ...('take' in source ? { lufs: null } : {}),

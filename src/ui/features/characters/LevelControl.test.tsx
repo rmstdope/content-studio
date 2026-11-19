@@ -247,4 +247,13 @@ describe('LevelControl', () => {
     await act(() => page.button('Set 60%…')!.click())
     expect(page.text()).not.toContain('Set this voice to')
   })
+
+  it('cannot set the lines that are behind while the lines are being cleaned either', async () => {
+    const levels = [{ part: 'act1', file: 'a.mp3', level: 100 }]
+    const page = await show({ saved: 60, data: data({ levels }), cleaning: true })
+    expect(page.button('Set them to 60%')!.getAttribute('aria-disabled')).toBe('true')
+    expect(page.text()).toContain('Wait for the lines to finish being cleaned.')
+    await act(() => page.button('Set them to 60%')!.click())
+    expect(page.calls).toEqual([])
+  })
 })

@@ -34,6 +34,14 @@ function setGain(element: HTMLAudioElement, gain: number) {
   element.volume = Math.min(1, Math.max(0, gain))
 }
 
+/** Lets go of an element's place in the Web Audio graph, once it is no longer played. */
+function release(element: HTMLAudioElement | null) {
+  const node = element && nodes.get(element)
+  if (!element || !node) return
+  node.disconnect()
+  nodes.delete(element)
+}
+
 /** Which of the two sounds is heard. */
 export type Side = 'recorded' | 'cleaned'
 
@@ -60,6 +68,8 @@ export function useCompareLoop(
   const stop = useCallback(() => {
     first.current?.pause()
     second.current?.pause()
+    release(first.current)
+    release(second.current)
     first.current = null
     second.current = null
     setPlaying(false)

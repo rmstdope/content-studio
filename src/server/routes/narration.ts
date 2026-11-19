@@ -103,6 +103,8 @@ import {
 
 /** The narration routes. */
 export function narrationRoutes(c: RouteContext) {
+  /** Voices whose level is being saved and set going: one request at a time. */
+  const settingLevel = new Set<string>()
   const {
     admit,
     admitBoth,
@@ -506,13 +508,21 @@ export function narrationRoutes(c: RouteContext) {
         if (cleaning?.status === 'running' || cleaning?.status === 'stopping') {
           return refuse(LEVEL_WAIT)
         }
-        if (levelJobs.running(id, language)) return refuse(LEVEL_BUSY)
-        const saved = await changeLevel(id, body.data.level, language)
-        if (!saved) return notFound()
-        if (!saved.ok) return Response.json(saved, { status: 409 })
-        const job = await levelJobs.start(projectFile, id, language, body.data.level)
-        if (job && 'error' in job) return refuse(job.error)
-        return Response.json({ ok: true, job })
+        // The voice is held from here to the job's start: a second request meanwhile would save
+        // another level and then be refused.
+        const held = `${id}\n${language ?? ''}`
+        if (levelJobs.running(id, language) || settingLevel.has(held)) return refuse(LEVEL_BUSY)
+        settingLevel.add(held)
+        try {
+          const saved = await changeLevel(id, body.data.level, language)
+          if (!saved) return notFound()
+          if (!saved.ok) return Response.json(saved, { status: 409 })
+          const job = await levelJobs.start(projectFile, id, language, body.data.level)
+          if (job && 'error' in job) return refuse(job.error)
+          return Response.json({ ok: true, job })
+        } finally {
+          settingLevel.delete(held)
+        }
       }),
     },
     '/api/characters/:id': {

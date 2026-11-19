@@ -149,12 +149,20 @@ export function LevelControl({
     )
   } else if (behind.length > 0) {
     below = (
-      <div className="clean-count level-unset">
-        <span>{behindText(behind.length, behind[0]!.level)}</span>
-        <button type="button" className="btn" onClick={() => save(saved)}>
-          {`Set them to ${saved}%`}
-        </button>
-      </div>
+      <>
+        <div className="clean-count level-unset">
+          <span>{behindText(behind.length, behind[0]!.level)}</span>
+          <button
+            type="button"
+            className="btn"
+            {...off(cleaning && LEVEL_WAIT)}
+            onClick={() => !cleaning && save(saved)}
+          >
+            {`Set them to ${saved}%`}
+          </button>
+        </div>
+        {cleaning && <p className="clean-hint">{LEVEL_WAIT}</p>}
+      </>
     )
   }
 
