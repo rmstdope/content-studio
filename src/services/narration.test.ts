@@ -115,9 +115,7 @@ describe('recordLine', () => {
       }),
     )
     await record(root, 'k1', fish, marked)
-    expect(
-      JSON.parse(readFileSync(join(root, 'content-studio/narration/act1.cleaned.json'), 'utf8')),
-    ).toEqual({})
+    expect(existsSync(join(root, 'content-studio/narration/act1.cleaned.json'))).toBe(false)
     expect(existsSync(join(root, 'content-studio/narration/originals/act1/k1.mp3'))).toBe(false)
     expect(readFileSync(join(root, 'audio/act1/k1.mp3'), 'utf8')).toBe('as recorded')
   })

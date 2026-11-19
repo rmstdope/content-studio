@@ -34,6 +34,7 @@ import { sentPieces } from '../core/spoken'
 import { joinWavs } from '../core/wav'
 import type { FishFactory } from './auditions'
 import { decodeClip, ffmpegEncoder, type Encoder } from './audio'
+import { saveCleaned } from './cleanedRecord'
 import { formatEntriesPerLine, readResource, writeAtomic } from './files'
 import type { Limiter } from './limit'
 import type { Transcriber } from './transcriber'
@@ -652,8 +653,11 @@ async function keepOriginal(
   } else {
     return
   }
-  await writeAtomic(root, paths.cleanedPath, formatEntriesPerLine(cleaned))
-  if (!original) await rm(resolveInRoot(root, kept), { force: true }).catch(() => {})
+  if (original) {
+    await writeAtomic(root, paths.cleanedPath, formatEntriesPerLine(cleaned))
+  } else {
+    await saveCleaned(root, paths, cleaned, [key])
+  }
 }
 
 /** The part's manifest as it is now: empty if there is none, null (with the problem added) if broken. */
