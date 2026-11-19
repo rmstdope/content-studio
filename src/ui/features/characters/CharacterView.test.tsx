@@ -268,6 +268,7 @@ describe('CharacterView', () => {
     expect(tag()).toBe(false)
     await act(async () => answerSave())
     await act(() => page.unmount())
+  })
 
   it('tags the Voice heading with the level when it is not 100%, after Cleaned', async () => {
     const show = async (level: number, clean: boolean) => {

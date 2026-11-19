@@ -6846,7 +6846,6 @@ textarea[aria-disabled='true'][data-why] {
   justify-content: flex-end;
   gap: 8px;
 }
-<<<<<<< HEAD
 /* Sound effects: a take's level slider, on its own row under the waveform */
 .effect-level {
   display: flex;
@@ -6874,7 +6873,7 @@ textarea[aria-disabled='true'][data-why] {
 }
 .wave i.over {
   background: var(--danger-ink);
-=======
+}
 
 /* The Voice panel's level: a slider to try, then set (as-ohm7) */
 .level {
@@ -6936,5 +6935,4 @@ textarea[aria-disabled='true'][data-why] {
   .level-unset .level-buttons {
     flex-basis: 100%;
   }
->>>>>>> 5c0f949 (feat(as-ohm7): the Level control in the Voice panel, and the loop follows the slider)
 }
