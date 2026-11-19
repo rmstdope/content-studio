@@ -219,6 +219,31 @@ describe('useLineTake', () => {
     expect(readWav(readFileSync(kept!)).data.length).toBe(2000)
   })
 
+  it('sets the clip a take becomes to the voice’s level, and notes it in the lock', async () => {
+    const root = tempRepo({
+      ...files,
+      'content-studio/narration/cast.json': {
+        speakers: { narrator: { voice: 'v-n', style: '[warm]', level: 50 } },
+        pronounce: { en: { Elior: 'El-ee-or' } },
+      },
+    })
+    const { fish } = fakeFish()
+    const made = await take(root, fish)
+    if (!made?.ok) throw new Error('expected a take')
+    const gains: (number | undefined)[] = []
+    await useLineTake(projectFileOf(root), 'act1', 'k1', made.take.id, {
+      encode: async (wav, file, options) => {
+        gains.push(options.gainDb)
+        await keepWav(wav, file, options)
+      },
+    })
+    expect(gains[0]).toBeCloseTo(-6.02, 2)
+    const lock = JSON.parse(
+      readFileSync(join(root, 'content-studio/narration/act1.lock.json'), 'utf8'),
+    )
+    expect(lock.k1.level).toBe(50)
+  })
+
   it('makes the take the line’s clip, with its timings and score, as a recording does', async () => {
     const root = tempRepo(files)
     const { fish } = fakeFish()

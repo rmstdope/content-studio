@@ -227,6 +227,7 @@ export async function useLineTake(
     narration: read.project.narration,
     encode,
     clean: cast.speakers[line.speaker]?.clean === true,
+    level: cast.speakers[line.speaker]?.level,
     take: {
       clip: { wav, seconds: take.seconds },
       timed: take.timed,

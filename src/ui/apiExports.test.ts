@@ -7,6 +7,7 @@ const names = [
   'originalUrl',
   'useCleanedLines',
   'useCleaningLines',
+  'useSetLevel',
   'clipUrl',
   'lineTakeUrl',
   'recordVoiceTake',

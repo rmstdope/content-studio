@@ -602,6 +602,7 @@ function VoicePanel({
         <span className="label">Voice{language ? ` · ${language.name}` : ''}</span>
         <span className="chip chip-ok">Cast</span>
         {casting?.clean && !askingOff && <span className="chip chip-ok">Cleaned</span>}
+        {casting && casting.level !== 100 && <span className="chip chip-ok">{casting.level}%</span>}
       </div>
       <div className="voice-name">
         <strong>
@@ -739,6 +740,7 @@ function VoicePanel({
         characterId={character.id}
         language={language?.id}
         clean={casting?.clean ?? false}
+        level={casting?.level ?? 100}
         takeKey={take}
         parts={parts}
         speaker={character.id}

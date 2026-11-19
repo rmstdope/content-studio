@@ -20,6 +20,7 @@ import { useCallback, useState } from 'react'
 import type { CharacterChange, CharacterVoiceResult } from '../../services/auditions'
 import type { CleanedCopy, CleanSource } from '../../services/cleanedCopy'
 import type { CleanJobState } from '../../services/cleanJobs'
+import type { LevelJobState } from '../../services/levelJobs'
 import type { GenerationPlan } from '../../core/generation'
 import type { ElevenTts, Problem } from '../../core/project'
 import type { SpendingAnswer } from '../../core/spending'
@@ -569,6 +570,39 @@ export function useSetClean(characterId: string, language?: string) {
   })
 }
 
+/** What setting a voice's level answered: saved and the job started (null when no line needed it), or why not. */
+export type LevelAnswer =
+  { ok: true; job: LevelJobState | null } | { ok: false; problems: { message: string }[] }
+
+/**
+ * Saves a voice's level in the cast and sets the lines in the game to it (§8.4): the answer comes
+ * at once, the lines are set by a job the page follows through `useCleanedLines`.
+ */
+export function useSetLevel(characterId: string, language?: string) {
+  const client = useQueryClient()
+  return useMutation({
+    scope: { id: `level-${characterId}-${language ?? ''}` },
+    mutationFn: async (level: number): Promise<LevelAnswer> => {
+      const response = await fetch(
+        inLanguage(`/api/characters/${encodeURIComponent(characterId)}/level`, language),
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ level }),
+        },
+      )
+      if (!response.ok && response.status !== 409) {
+        throw new Error(`saving the level answered ${response.status}`)
+      }
+      return (await response.json()) as LevelAnswer
+    },
+    onSettled: async () => {
+      await client.invalidateQueries({ queryKey: ['project'] })
+      await client.invalidateQueries({ queryKey: ['cleaned-lines', characterId, language ?? null] })
+    },
+  })
+}
+
 /** The URL of the original kept for a cleaned line of the game. */
 export function originalUrl(partId: string, file: string, language?: string): string {
   const query = language ? `?language=${encodeURIComponent(language)}` : ''
@@ -584,6 +618,10 @@ export interface CleanedLines {
   /** Why the record of cleaned lines cannot be read, when it cannot. */
   problem: string | null
   job: CleanJobState | null
+  /** Each line in the game with the level its clip is at, in percent. */
+  levels: { part: string; file: string; level: number }[]
+  /** The job that sets the lines to the voice's level, running or last run. */
+  levelJob: LevelJobState | null
 }
 
 /**
@@ -596,7 +634,8 @@ export function useCleanedLines(characterId: string, language?: string) {
     retry: false,
     refetchInterval: (query) => {
       const status = query.state.data?.job?.status
-      return status === 'running' || status === 'stopping' ? 1000 : false
+      const level = query.state.data?.levelJob?.status
+      return status === 'running' || status === 'stopping' || level === 'running' ? 1000 : false
     },
     queryFn: async (): Promise<CleanedLines | null> => {
       const response = await fetch(

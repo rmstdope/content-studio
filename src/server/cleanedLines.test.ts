@@ -23,7 +23,15 @@ const post = (path: string, origin: string = url('/').origin) =>
 describe('the lines cleaned in the game', () => {
   it('are counted for a voice, with the job that is running or last ran', async () => {
     const answer = await (await fetch(url('/api/characters/narrator/cleaned-lines'))).json()
-    expect(answer).toEqual({ total: 1, cleaned: 0, problem: null, cleanedFiles: [], job: null })
+    expect(answer).toEqual({
+      total: 1,
+      cleaned: 0,
+      problem: null,
+      cleanedFiles: [],
+      job: null,
+      levels: [{ part: 'act1', file: 'a.mp3', level: 100 }],
+      levelJob: null,
+    })
   })
 
   it('are cleaned and put back from the studio’s own page only', async () => {

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { LEVEL } from './level'
 
 /** What a line id may hold: it names the line's clip file, so safe file-name characters only. */
 const LINE_ID = /^[A-Za-z0-9_-]+$/
@@ -37,6 +38,9 @@ export const DialogSchema = z.array(LineSchema).superRefine((lines, context) => 
 /** The speeds Fish speaks at: half to double. */
 export const SPEED = { min: 0.5, max: 2 }
 
+/** A voice's level in percent (as-ohm7). */
+const levelField = z.number().int().min(LEVEL.min).max(LEVEL.max).optional()
+
 /** A character's casting in one language other than the source: its voice, speed and phrase there. */
 export const LanguageVoiceSchema = z.looseObject({
   voice: z.string().min(1).optional(),
@@ -46,6 +50,8 @@ export const LanguageVoiceSchema = z.looseObject({
   phrase: z.string().optional(),
   /** Whether new lines in this language are cleaned of background noise (off when absent). */
   clean: z.boolean().optional(),
+  /** How loud this voice plays in this language, in percent (100 when absent). */
+  level: levelField,
 })
 
 /**
@@ -60,6 +66,8 @@ export const CharacterSchema = z.looseObject({
   speed: z.number().min(SPEED.min).max(SPEED.max).optional(),
   /** Whether new lines in the source language are cleaned of background noise (off when absent). */
   clean: z.boolean().optional(),
+  /** How loud the voice plays in the source language, in percent (100 when absent). */
+  level: levelField,
   audition: z
     .looseObject({
       keywords: z.array(z.string()).optional(),
@@ -132,6 +140,8 @@ export interface LanguageCasting {
   phrase: string | null
   /** Whether new lines are cleaned of background noise. */
   clean: boolean
+  /** How loud the voice plays, in percent. */
+  level: number
 }
 
 /**
@@ -151,6 +161,7 @@ export function voiceOf(
           speed: character?.speed,
           phrase: character?.audition?.phrase?.trim() || undefined,
           clean: character?.clean,
+          level: character?.level,
         }
       : (character?.languages?.[language] ?? {})
   return {
@@ -159,6 +170,7 @@ export function voiceOf(
     speed: own.speed ?? null,
     phrase: own.phrase?.trim() || null,
     clean: own.clean === true,
+    level: own.level ?? LEVEL.default,
   }
 }
 
@@ -185,12 +197,13 @@ export function projectCast(cast: Cast, language: string, source: string): Spoke
   if (language === source) return { speakers: cast.speakers, pronounce }
   const speakers = Object.fromEntries(
     Object.entries(cast.speakers).map(([id, entry]) => {
-      const { voice, voiceName, speed, phrase, clean } = voiceOf(entry, language, source)
+      const { voice, voiceName, speed, phrase, clean, level } = voiceOf(entry, language, source)
       const {
         voice: _v,
         voiceName: _n,
         speed: _s,
         clean: _c,
+        level: _lv,
         languages: _l,
         audition,
         ...rest
@@ -200,6 +213,7 @@ export function projectCast(cast: Cast, language: string, source: string): Spoke
       if (voiceName) projected.voiceName = voiceName
       if (speed !== null) projected.speed = speed
       if (clean) projected.clean = true
+      if (level !== LEVEL.default) projected.level = level
       const own = { ...audition, phrase }
       if (audition || phrase) projected.audition = own
       return [id, projected]
@@ -313,6 +327,8 @@ export const LockEntrySchema = z.looseObject({
   /** Share of the words Whisper heard in the kept take; absent for adopted clips. */
   heard: z.number().min(0).max(1).optional(),
   takes: z.number().int().min(1).optional(),
+  /** How loud the clip was set to, in percent: the voice's level when it was made (100 when absent). */
+  level: z.number().int().min(LEVEL.min).max(LEVEL.max).optional(),
   /** True when the clip was made before the studio, and taken as it was. */
   adopted: z.boolean().optional(),
   /** True when the user accepted the clip as it is, though heard below the bar: not weak. */

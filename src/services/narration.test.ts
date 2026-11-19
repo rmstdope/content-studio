@@ -161,6 +161,37 @@ describe('recordLine', () => {
     expect(part?.ok && part.part.lines.find((l) => l.key === 'k1')?.status).toBe('ok')
   })
 
+  it('records a line at its voice’s level, keeping an original at 100%', async () => {
+    const root = tempRepo({
+      ...files,
+      'content-studio/narration/cast.json': {
+        speakers: {
+          narrator: { voice: 'v-n', style: '[warm]', clean: true, level: 50 },
+          mira: { voice: 'v-m' },
+        },
+        pronounce: { en: { Elior: 'El-ee-or' } },
+      },
+    })
+    const { fish } = fakeFish()
+    const asked: { clean?: boolean; gainDb?: number }[] = []
+    const watching: Encoder = async (wav, file, options) => {
+      asked.push({ clean: options.clean, gainDb: options.gainDb })
+      await keepWav(wav, file, options)
+    }
+    await record(root, 'k1', fish, watching)
+    await record(root, 'k4', fish, watching)
+    expect(asked[0]?.gainDb).toBeCloseTo(-6.02, 2)
+    // The original kept for the clean-up is not turned down.
+    expect(asked[1]?.gainDb ?? 0).toBe(0)
+    expect(asked[2]?.gainDb ?? 0).toBe(0)
+    const lock = JSON.parse(
+      readFileSync(join(root, 'content-studio/narration/act1.lock.json'), 'utf8'),
+    )
+    expect(lock.k1.level).toBe(50)
+    // A voice at 100% leaves no level in the lock.
+    expect('level' in lock.k4).toBe(false)
+  })
+
   it('speaks a character at its own speed', async () => {
     const root = tempRepo(files)
     const { fish, requests } = fakeFish()

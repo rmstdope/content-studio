@@ -6874,3 +6874,65 @@ textarea[aria-disabled='true'][data-why] {
 .wave i.over {
   background: var(--danger-ink);
 }
+
+/* The Voice panel's level: a slider to try, then set (as-ohm7) */
+.level {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.level-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 14px;
+}
+.level-slider {
+  position: relative;
+  flex: 1 1 220px;
+}
+.level-slider input[type='range'] {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.level-tick {
+  position: absolute;
+  top: 2px;
+  width: 2px;
+  height: 14px;
+  background: var(--faint);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.level-scale {
+  position: relative;
+  height: 16px;
+  font-size: 11px;
+  color: var(--faint);
+}
+.level-scale span {
+  position: absolute;
+}
+.level-scale span:nth-child(2) {
+  transform: translateX(-50%);
+}
+.level-pct {
+  min-width: 52px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.level-buttons {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+@container panel (max-width: 520px) {
+  .level-row .label,
+  .level-slider {
+    flex-basis: 100%;
+  }
+  .level-unset .level-buttons {
+    flex-basis: 100%;
+  }
+}

@@ -3,11 +3,12 @@ import { existsSync } from 'node:fs'
 import { mkdir, rename, rm, rmdir, stat } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import { CLEANUP } from '../core/cleanup'
+import { levelDb, lineLevel } from '../core/level'
 import { resolveInRoot } from '../core/paths'
 import { CACHE_DIR } from '../core/project'
 import { decodeClip, ffmpegEncoder, type Encoder } from './audio'
 import { takeFile } from './takes'
-import { clipFile, openProject } from './workspace'
+import { clipFile, openProject, readPart } from './workspace'
 
 /** Where the cleaned copies made for hearing are kept, in the tool cache. */
 export const CLEANED_DIR = `${CACHE_DIR}/cleaned`
@@ -56,10 +57,22 @@ export async function cleanedCopy(
     // A take is heard as it was recorded, never levelled, so its copy is not levelled either:
     // only the noise differs. A game clip is levelled already, and levelling it again is a no-op.
     const output = opened.project.narration.output
+    // A game clip has its voice's level: levelling to the project's target takes it off, so it is put on again.
+    const read =
+      'part' in source && output.lufs !== null
+        ? await readPart(projectFile, source.part, language)
+        : null
+    // The line is the one whose manifest entry names the clip: an adopted clip's file need not be its key.
+    const key =
+      read?.ok && 'part' in source
+        ? Object.keys(read.input.manifest).find((k) => read.input.manifest[k]?.file === source.file)
+        : undefined
+    const level = lineLevel(key && read?.ok ? read.input.lock[key] : undefined)
     await encode(wav, temporary, {
       ...output,
       ...('take' in source ? { lufs: null } : {}),
       clean: true,
+      gainDb: levelDb(level),
     })
     await rename(temporary, target)
     return { ok: true, name }

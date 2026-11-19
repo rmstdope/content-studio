@@ -19,6 +19,7 @@ afterAll(async () => {
 class FakeAudio {
   static made: FakeAudio[] = []
   loop = false
+  volume = 1
   muted = false
   paused = true
   currentTime = 0
@@ -91,7 +92,7 @@ describe('CleanUp', () => {
 
   async function show(
     answers: ReturnType<typeof studio>,
-    props: { clean?: boolean; takeKey?: string | null; language?: string } = {},
+    props: { clean?: boolean; level?: number; takeKey?: string | null; language?: string } = {},
   ) {
     globalThis.fetch = answers.fetcher
     const container = document.createElement('div')
@@ -110,6 +111,7 @@ describe('CleanUp', () => {
               characterId: 'keeper',
               language,
               clean: props.clean ?? false,
+              level: props.level ?? 100,
               takeKey: props.takeKey === undefined ? 'c'.repeat(16) : props.takeKey,
               parts: [{ id: 'act1', title: 'Act I' }],
               speaker: 'keeper',
@@ -343,6 +345,7 @@ describe('CleanUp', () => {
       return createElement(CleanUp, {
         characterId: 'keeper',
         clean: current.data?.clean ?? false,
+        level: 100,
         takeKey: null,
         parts: [{ id: 'act1', title: 'Act I' }],
         speaker: 'keeper',
@@ -390,5 +393,56 @@ describe('CleanUp', () => {
     expect(page.button('Cleaned').getAttribute('aria-disabled')).toBe('true')
     const flip = page.container.querySelector<HTMLInputElement>('input[role="switch"]')!
     expect(flip.disabled).toBe(false)
+  })
+
+  it('puts the level under the clean-up and above Hear it on, and plays the loop at the slider’s level', async () => {
+    const page = await show(studio({ lines }), { level: 100 })
+    await page.settle(() => page.menu().options.length === 3)
+    const text = page.text()
+    expect(text.indexOf('Clean up the voice')).toBeLessThan(text.indexOf('Level'))
+    expect(text.indexOf('Level')).toBeLessThan(text.indexOf('Hear it on'))
+    await act(() => page.button('Play').click())
+    const slider = page.container.querySelector<HTMLInputElement>('input[type="range"]')!
+    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
+    set.call(slider, '50')
+    await act(() => {
+      slider.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    expect(FakeAudio.made[0]?.volume).toBe(0.5)
+    // Forgotten with the page, or the language: it comes back at the saved level.
+    await page.render('sv')
+    expect(page.container.querySelector<HTMLInputElement>('input[type="range"]')!.value).toBe('100')
+  })
+
+  it('plays a line over the level its clip already has, and a kept original at 100%', async () => {
+    const answers = studio({ lines })
+    const inner = answers.fetcher
+    const fetcher = (async (path: string, init?: RequestInit) => {
+      if (path.startsWith('/api/characters/keeper/cleaned-lines')) {
+        return Response.json({
+          total: 2,
+          cleaned: 1,
+          problem: null,
+          cleanedFiles: [{ part: 'act1', file: 'a.mp3' }],
+          job: null,
+          levels: [
+            { part: 'act1', file: 'a.mp3', level: 60 },
+            { part: 'act1', file: 'b.mp3', level: 60 },
+          ],
+          levelJob: null,
+        })
+      }
+      return inner(path, init)
+    }) as unknown as typeof fetch
+    const page = await show({ fetcher, calls: answers.calls }, { level: 60 })
+    await page.settle(() => page.menu().options.length === 3)
+    await page.settle(() => page.text().includes('Level'))
+    await act(() => page.button('Play').click())
+    // The game's clip is at 60% and the slider at the saved 60%: heard as it is.
+    expect(FakeAudio.made[0]?.src).toContain('/originals/')
+    // The original is at 100%, so it is turned down to the voice's level.
+    expect(FakeAudio.made[0]?.volume).toBeCloseTo(0.6, 5)
+    await page.settle(() => FakeAudio.made.length === 2)
+    expect(FakeAudio.made[1]?.volume).toBe(1)
   })
 })

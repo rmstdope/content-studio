@@ -2,6 +2,7 @@ import { basename, dirname } from 'node:path'
 import { z } from 'zod'
 import {
   setClean,
+  setLevel,
   setKeywords,
   setPhrase,
   setSpeed,
@@ -44,6 +45,7 @@ import {
 import { planPart } from '../core/planner'
 import { sentPieces } from '../core/spoken'
 import { createCleanJobs } from '../services/cleanJobs'
+import { createLevelJobs } from '../services/levelJobs'
 import { createJobs } from '../services/jobs'
 import { appendMusic, createSpendLog } from '../services/spending'
 import { type ModelsChange } from '../services/models'
@@ -238,6 +240,8 @@ export function createContext({
   const jobs = createJobs()
   /** Jobs that clean a voice's lines in the game, or put them back, one per voice and language. */
   const cleanJobs = createCleanJobs()
+  /** Jobs that set a voice's lines in the game to its level, one per voice and language. */
+  const levelJobs = createLevelJobs()
 
   /** What is asking Fish now outside a job: a part's line being recorded or tried, a character's audition. */
   const going = new Map<string, number>()
@@ -692,6 +696,11 @@ export function createContext({
   }
 
   /** What generating a part (or one speaker in it) would do, or why it can't be planned. */
+  /** Saves a voice's level in the cast (the lines in the game are set by `levelJobs`). */
+  function changeLevel(id: string, level: number, language?: string) {
+    return setLevel(projectFile, id, level, language)
+  }
+
   /** Saves the one field of a character a PATCH changes. */
   function changeCharacter(id: string, change: z.infer<typeof CharacterBody>, language?: string) {
     if ('keywords' in change) return setKeywords(projectFile, id, change.keywords)
@@ -870,6 +879,7 @@ export function createContext({
     busyNow,
     busyRefusal,
     changeCharacter,
+    changeLevel,
     creditBudgets,
     creditOf,
     creditsInFlight,
@@ -881,6 +891,7 @@ export function createContext({
     elevenFor,
     elevenHeld,
     cleanJobs,
+    levelJobs,
     elevenWork,
     encode,
     endGiven,

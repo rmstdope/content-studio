@@ -9,6 +9,7 @@ import {
   decodeClip,
   ffmpegEncoder,
   FileNotWritten,
+  gainClip,
   levelClip,
 } from './audio'
 import { quietestStretch } from '../core/cleanup'
@@ -324,4 +325,37 @@ describe.skipIf(!hasFfmpeg)('cleanWav', () => {
   it('says ffmpeg’s reason when it cannot clean', async () => {
     await expect(cleanWav(rumbling(), { timeoutMs: 1 })).rejects.toThrow('took longer than')
   })
+})
+
+describe.skipIf(!hasFfmpeg || !Bun.which('ffprobe'))('gainClip', () => {
+  const SLOW = 60_000
+
+  it(
+    'raises or lowers a clip by the gain, in place, keeping its stream',
+    async () => {
+      const root = tempRepo({})
+      const file = join(root, 'k1.mp3')
+      await ffmpegEncoder(sine(0.2), file, { bitrate: '64k', channels: 1 })
+      const before = await lufsOf(file)
+      await gainClip(file, -6.02)
+      expect(Math.abs((await lufsOf(file)) - (before - 6.02))).toBeLessThanOrEqual(0.5)
+      await gainClip(file, 6.02)
+      // Each pass is an MP3 encode at 64k, which costs a little loudness: within a dB of where it began.
+      expect(Math.abs((await lufsOf(file)) - before)).toBeLessThanOrEqual(1)
+      expect(readdirSync(root)).toEqual(['k1.mp3'])
+    },
+    SLOW,
+  )
+
+  it(
+    'is applied by the encoder after levelling, when it is asked',
+    async () => {
+      const root = tempRepo({})
+      const file = join(root, 'k1.mp3')
+      await ffmpegEncoder(sine(0.05), file, { bitrate: '64k', channels: 1, lufs: -20, gainDb: -6 })
+      expect(Math.abs((await lufsOf(file)) + 26)).toBeLessThanOrEqual(1)
+      expect(readdirSync(root)).toEqual(['k1.mp3'])
+    },
+    SLOW,
+  )
 })

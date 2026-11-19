@@ -73,7 +73,14 @@ function studio(counts: Counts) {
       })
     }
     if (path.startsWith('/api/characters/keeper/cleaned-lines') && method === 'GET') {
-      return Response.json({ cleanedFiles: [], job: null, problem: null, ...counts })
+      return Response.json({
+        cleanedFiles: [],
+        job: null,
+        problem: null,
+        levels: [],
+        levelJob: null,
+        ...counts,
+      })
     }
     if (path.startsWith('/api/characters/keeper/cleaned-lines')) return Response.json({})
     if (path.startsWith('/api/characters/keeper') && method === 'PATCH') {
@@ -116,6 +123,7 @@ describe('CleanLines', () => {
           createElement(CleanUp, {
             characterId: 'keeper',
             clean,
+            level: 100,
             takeKey: 'c'.repeat(16),
             parts: [{ id: 'act1', title: 'Act I' }],
             speaker: 'keeper',

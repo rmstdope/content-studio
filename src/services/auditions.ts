@@ -1,5 +1,6 @@
 import { dirname } from 'node:path'
 import { formatCast } from '../core/castFormat'
+import { isLevel, LEVEL } from '../core/level'
 import { resolveInRoot } from '../core/paths'
 import {
   CAST_FILE,
@@ -407,6 +408,46 @@ export function setClean(
   )
 }
 
+/**
+ * Saves how loud a character's voice plays in the cast (as-ohm7): a percentage from 10 to 200,
+ * 100 removing the key. It is per language, as the voice is. Lines recorded from now on are set to
+ * it; the ones in the game are rewritten by `levelJobs`. Nothing recorded goes stale: the
+ * fingerprint does not read it.
+ */
+export async function setLevel(
+  projectFile: string,
+  characterId: string,
+  level: number,
+  language?: string,
+): Promise<CharacterChange> {
+  if (!isLevel(level)) {
+    return {
+      ok: false,
+      problems: [
+        {
+          file: CAST_FILE,
+          path: `speakers.${characterId}.level`,
+          message: `the level must be a whole number from ${LEVEL.min} to ${LEVEL.max}`,
+        },
+      ],
+    }
+  }
+  const value = level === LEVEL.default ? undefined : level
+  return updateCharacter(
+    projectFile,
+    characterId,
+    (entry, which) => {
+      if (which.language !== which.source) {
+        return inLanguage(entry, which.language, (own) => withField(own, 'level', value))
+      }
+      if (value !== undefined) return { ...entry, level: value }
+      const { level: _removed, ...rest } = entry
+      return rest
+    },
+    language,
+  )
+}
+
 /** Saves a character's own audition phrase in the cast; an empty phrase goes back to the standard one. */
 export async function setPhrase(
   projectFile: string,
@@ -440,7 +481,7 @@ export async function setPhrase(
 /** A language's casting with one field set, or removed when `value` is undefined. */
 function withField(
   voice: NonNullable<Character['languages']>[string],
-  field: 'speed' | 'phrase' | 'voice' | 'voiceName' | 'clean',
+  field: 'speed' | 'phrase' | 'voice' | 'voiceName' | 'clean' | 'level',
   value: string | number | boolean | undefined,
 ): NonNullable<Character['languages']>[string] {
   const next: Record<string, unknown> = { ...voice, [field]: value }
