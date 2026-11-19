@@ -12,7 +12,6 @@ import {
   type TimedWord,
 } from '../core/align'
 import { CleanedSchema, type Cleaned } from '../core/cleanedLines'
-import { saveCleaned } from './cleanedRecord'
 import { clipInputs, fingerprint, type ClipInputs } from '../core/fingerprint'
 import { languageName } from '../core/languages'
 import { planPart } from '../core/planner'
@@ -35,6 +34,7 @@ import { sentPieces } from '../core/spoken'
 import { joinWavs } from '../core/wav'
 import type { FishFactory } from './auditions'
 import { decodeClip, ffmpegEncoder, type Encoder } from './audio'
+import { saveCleaned } from './cleanedRecord'
 import { formatEntriesPerLine, readResource, writeAtomic } from './files'
 import type { Limiter } from './limit'
 import type { Transcriber } from './transcriber'
@@ -656,8 +656,7 @@ async function keepOriginal(
   if (original) {
     await writeAtomic(root, paths.cleanedPath, formatEntriesPerLine(cleaned))
   } else {
-    await rm(resolveInRoot(root, kept), { force: true }).catch(() => {})
-    await saveCleaned(root, paths, cleaned)
+    await saveCleaned(root, paths, cleaned, [key])
   }
 }
 

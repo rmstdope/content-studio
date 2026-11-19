@@ -7,8 +7,8 @@ import { resolveInRoot } from '../core/paths'
 import type { Problem } from '../core/project'
 import { LockSchema } from '../core/resources'
 import { decodeClip, ffmpegEncoder, type Encoder } from './audio'
-import { formatEntriesPerLine, readResource, writeAtomic } from './files'
 import { saveCleaned } from './cleanedRecord'
+import { formatEntriesPerLine, readResource, writeAtomic } from './files'
 import { inPartTurn } from './partFiles'
 import { openProject, readPart, type PartRead } from './workspace'
 
@@ -194,8 +194,7 @@ export async function putBackLine(
         }
       }
       delete cleaned[key]
-      await rm(kept, { force: true })
-      await saveCleaned(root, read.paths, cleaned)
+      await saveCleaned(root, read.paths, cleaned, [key])
       return { ok: true }
     } catch (error) {
       return { ok: false, message: messageOf(error) }
