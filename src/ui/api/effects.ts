@@ -169,6 +169,18 @@ export function useSetEffectFades(id: string) {
   )
 }
 
+/**
+ * Saves a sound effect take's level (10% to 200%, 1 as made). When the take is the chosen one, the
+ * game's file is written again at once.
+ */
+export function useSetEffectLevel(id: string) {
+  return useTakeAction<{ file: string; level: number }, NonNullable<EffectMakeResult>>(
+    effectTakeMedium,
+    id,
+    (a) => a.level,
+  )
+}
+
 /** Cuts the near-silence of a one-shot sound effect take, or (with `undo`) gives the take back as generated. */
 export function useTrimEffectTake(id: string) {
   return useTakeAction<{ file: string; undo: boolean }, NonNullable<EffectTrimResult>>(

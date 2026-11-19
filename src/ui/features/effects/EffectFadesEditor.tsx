@@ -57,6 +57,7 @@ export function EffectFadesEditor({
       player={player}
       onClose={onClose}
       onSaved={onSaved}
+      level={take.level}
     />
   )
 }

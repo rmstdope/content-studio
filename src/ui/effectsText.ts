@@ -58,7 +58,7 @@ export const EFFECTS_PENDING = 'Wait for the current change to finish.'
 
 /** Why the sound effects lock being unreadable keeps choosing, dropping and fading off. */
 export const EFFECTS_LOCK_UNREAD =
-  'The sound effects lock cannot be read. Choosing, dropping and fading wait until it can be.'
+  'The sound effects lock cannot be read. Choosing, dropping, fading and levels wait until it can be.'
 
 /** Why Fades… is off while another take's fades are open. */
 export function effectFadesOpenWhy(fading: number): string {

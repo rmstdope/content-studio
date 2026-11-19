@@ -179,6 +179,7 @@ export function FadesEditorBody({
   player,
   onClose,
   onSaved,
+  level,
 }: {
   take: { n: number; file: string; fades?: Fades | undefined }
   /** The sound that plays: its length and the bars of it. */
@@ -197,6 +198,8 @@ export function FadesEditorBody({
   onClose: () => void
   /** The fades were saved or removed, before the editor closes. */
   onSaved?: () => void
+  /** The level the take plays at (a sound effect take's), 1 as it is. */
+  level?: number
 }) {
   const saved: Fades = take.fades ?? { in: 0, out: 0, shape: 'smooth' }
   const [inText, setInText] = useState(boxText(saved.in))
@@ -223,7 +226,7 @@ export function FadesEditorBody({
 
   const id = playId
   const { url, fade } = heardAs(soundUrl, good)
-  const how = { fade }
+  const how = { fade, ...(level !== undefined && { level }) }
   const playing = player.playing === id
   const heard = useRef(url)
   useEffect(() => {

@@ -22,6 +22,7 @@ import type { useClipPlayer } from '../../components/useClipPlayer'
 import { useFocusWhenClosed } from '../../components/useFocusWhenClosed'
 import { takePlayId, takeUrl } from '../../effectsPlay'
 import { Wave } from '../music/InTheGame'
+import { useEffectLevel } from './EffectLevel'
 import { cutShares, wavePosition } from '../music/trimSilence'
 import { EffectFadesEditor } from './EffectFadesEditor'
 import { useTrackActions } from '../../trackActions'
@@ -66,6 +67,13 @@ export function EffectInTheGame({
     onPress: () => {
       if (take && player.playing === takePlayId(row.id, take.n)) player.stop()
     },
+  })
+  const levelControl = useEffectLevel({
+    effect: row.id,
+    take,
+    inGame: true,
+    locked: view.lockUnread,
+    player,
   })
   const [asking, setAsking] = useState(false)
   // The take the question was about: a refusal is still named after the page re-reads.
@@ -210,7 +218,9 @@ export function EffectInTheGame({
               take={take}
               player={player}
               note={trimControl.note}
+              level={levelControl.level}
             />
+            {levelControl.row}
             {effectFadesOf(take, row.loops) && (
               <span className="faint small">{fadesLine(effectFadesOf(take, row.loops)!)}</span>
             )}
@@ -301,7 +311,11 @@ export function HearTheSeam({
     <button
       type="button"
       className="btn btn-small"
-      onClick={() => player.toggle(seamId, `${takeUrl(effect, { file: take.file })}?seam=1`, {})}
+      onClick={() =>
+        player.toggle(seamId, `${takeUrl(effect, { file: take.file })}?seam=1`, {
+          level: take.level,
+        })
+      }
     >
       {player.playing === seamId ? 'Stop' : 'Hear the seam'}
     </button>
@@ -319,6 +333,7 @@ export function Playback({
   take,
   player,
   note,
+  level = take.level,
 }: {
   effect: string
   /** How the effect plays now: a take's saved fades count only while it plays once. */
@@ -327,6 +342,8 @@ export function Playback({
   player: Player
   /** The line under the waveform (what a trim cut, or why Trim silence is greyed out), if any. */
   note?: ReactNode
+  /** The level it plays at and its bars show: the slider's, while it moves; the saved one by default. */
+  level?: number
 }) {
   const id = takePlayId(effect, take.n)
   const fades = effectFadesOf(take, effectLoops)
@@ -340,7 +357,9 @@ export function Playback({
           type="button"
           className="play"
           aria-label={`${playing ? 'Stop' : 'Play'} take ${take.n}`}
-          onClick={() => player.toggle(id, heard.url, take.loops ? { loop: true } : {})}
+          onClick={() =>
+            player.toggle(id, heard.url, take.loops ? { loop: true, level } : { level })
+          }
         >
           {playing ? '■' : '▶'}
         </button>
@@ -348,6 +367,7 @@ export function Playback({
           peaks={take.peaks}
           loop={take.loops}
           quiet={quiet}
+          level={level}
           cut={cutShares(take)}
           position={playing ? wavePosition(take, player.position) : undefined}
           fades={

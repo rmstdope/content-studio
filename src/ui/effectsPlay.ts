@@ -24,6 +24,7 @@ const compareClip = (
 ): Clip => ({
   id: takePlayId(effect, take.n),
   url: heardAs(takeUrl(effect, take), effectFadesOf(take, effectLoops)).url,
+  level: take.level,
   ...(take.loops && { loop: true, rounds: COMPARE_ROUNDS }),
   ...(after !== undefined && { after }),
 })

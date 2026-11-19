@@ -202,13 +202,17 @@ describe('server, sound effect takes', () => {
     expect((await send('PUT', path, { level: 'loud' })).status).toBe(400)
     expect((await send('PUT', path, { level: 1.4, extra: 1 })).status).toBe(400)
     expect((await send('PUT', path, { level: 3 })).status).toBe(400)
-    expect((await send('PUT', `/api/effects/nobody/takes/${file}/level`, { level: 1.4 })).status).toBe(404)
+    expect(
+      (await send('PUT', `/api/effects/nobody/takes/${file}/level`, { level: 1.4 })).status,
+    ).toBe(404)
     expect(await send('PUT', path, { level: 1.4 }).then((r) => r.json())).toEqual({ ok: true })
     expect((await view('door-creak')).takes[0].level).toBe(1.4)
     await send('POST', '/api/effects/wind/takes', { count: 1 })
     const loop = (await settled('wind')).takes[0].file as string
     expect(
-      await send('PUT', `/api/effects/wind/takes/${loop}/level`, { level: 0.5 }).then((r) => r.json()),
+      await send('PUT', `/api/effects/wind/takes/${loop}/level`, { level: 0.5 }).then((r) =>
+        r.json(),
+      ),
     ).toEqual({ ok: true })
   })
 

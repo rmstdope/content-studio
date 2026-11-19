@@ -23,12 +23,14 @@ describe('compareClips', () => {
         loop: true,
         rounds: 2,
         after: 1,
+        level: 1,
       },
       {
         id: takePlayId('rain', 3),
         url: takeUrl('rain', take(3, true)),
         loop: true,
         rounds: 2,
+        level: 1,
       },
     ])
   })
@@ -36,13 +38,28 @@ describe('compareClips', () => {
   it('plays a take made to play once once through, within the comparison', () => {
     const [chosen, other] = compareClips('rain', take(2, true), take(3, false), true)
     expect(chosen).toMatchObject({ loop: true, rounds: 2 })
-    expect(other).toEqual({ id: takePlayId('rain', 3), url: takeUrl('rain', take(3, false)) })
+    expect(other).toEqual({
+      id: takePlayId('rain', 3),
+      url: takeUrl('rain', take(3, false)),
+      level: 1,
+    })
     const once = compareClips('rain', take(2, false), take(3, true), true)
     expect(once[0]).toEqual({
       id: takePlayId('rain', 2),
       url: takeUrl('rain', take(2, false)),
       after: 1,
+      level: 1,
     })
+  })
+
+  it('plays each take at its own level', () => {
+    const [chosen, other] = compareClips(
+      'door',
+      { ...take(2, false), level: 1.4 },
+      { ...take(3, false), level: 0.6 },
+      false,
+    )
+    expect([chosen!.level, other!.level]).toEqual([1.4, 0.6])
   })
 
   it('plays each take of a one-shot effect with its own saved fades', () => {

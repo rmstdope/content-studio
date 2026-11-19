@@ -363,7 +363,7 @@ describe('Fades… on a sound effect take', () => {
     )
     expect(buttons('Fades…').every(isOff)).toBe(true)
     expect(text()).toContain(
-      'Choosing, dropping and fading wait until the sound effects lock can be read. You can still listen and make more takes.',
+      'Choosing, dropping, fading and setting levels wait until the sound effects lock can be read. You can still listen and make more takes.',
     )
   })
 

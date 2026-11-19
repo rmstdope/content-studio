@@ -105,6 +105,7 @@ const names = [
   'useSetCue',
   'useSetEffectDescription',
   'useSetEffectFades',
+  'useSetEffectLevel',
   'useSetEffectModel',
   'useSetElevenModel',
   'useSetElevenTts',

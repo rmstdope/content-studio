@@ -159,7 +159,9 @@ export function takeRoutes<Make, Fades>(
         resultResponse(await fades(request, null)),
       ),
     },
-    ...(service.setLevel && bodies.level && levelRoute(c, base, service.setLevel.bind(service), bodies.level)),
+    ...(service.setLevel &&
+      bodies.level &&
+      levelRoute(c, base, service.setLevel.bind(service), bodies.level)),
     [`${base}/:id/choose`]: {
       POST: fromOwnPage(async (request: RouteRequest) => {
         const body = bodies.choose.safeParse(await json(request))

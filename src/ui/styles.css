@@ -6846,3 +6846,25 @@ textarea[aria-disabled='true'][data-why] {
   justify-content: flex-end;
   gap: 8px;
 }
+/* Sound effects: a take's level slider, on its own row under the waveform */
+.effect-level {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.effect-level-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.effect-level-row input {
+  flex: 1 1 120px;
+  min-width: 100px;
+}
+.effect-level-row input[aria-disabled='true'] {
+  opacity: 0.55;
+}
+.wave i.over {
+  background: var(--danger-ink);
+}

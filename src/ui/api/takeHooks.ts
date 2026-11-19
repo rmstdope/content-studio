@@ -43,6 +43,15 @@ export function takeActions() {
       }),
       tolerated: refusable,
     },
+    level: {
+      what: 'saving the level',
+      request: (body: { file: string; level: number }): TakeRequest => ({
+        method: 'PUT',
+        path: `/takes/${encodeURIComponent(body.file)}/level`,
+        body: { level: body.level },
+      }),
+      tolerated: refusable,
+    },
     trim: {
       what: 'trimming the take',
       request: (body: { file: string; undo: boolean }) => post('/trim', body),
