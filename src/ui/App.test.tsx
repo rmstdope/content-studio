@@ -24,6 +24,7 @@ const summary = {
   root: '/x/sample',
   projectFile: '/x/sample/content-studio.json',
   partLabel: 'Act',
+  languages: [{ id: 'en', name: 'English' }],
   characters: [],
   problems: [],
   models: { draft: 's2.1-pro', final: 's2.1-pro' },

@@ -23,6 +23,14 @@ import { amountText } from '../spending'
 import { actCount, doneCount, openWorkspace, type DoneTone } from '../sidebarActs'
 import { imagesDone } from '../../core/images'
 import { tracksDone } from '../../core/musicChoose'
+import { languageName } from '../../core/languages'
+import {
+  effectsCount,
+  imagesCount,
+  musicCount,
+  narrationCount,
+  type WorkspaceCount,
+} from '../workspaceCounts'
 
 /** The class of a count at the right of a sidebar entry, coloured by how much is done. */
 function metaClass(tone: DoneTone, warn = false): string {
@@ -49,8 +57,18 @@ export function Sidebar({
     : 0
   const open = openWorkspace(route)
   const language = route.view === 'part' || route.view === 'lines' ? route.language : undefined
-  const progress = useNarrationProgress(language, open === 'narration')
-  const done = progress.data?.ok ? progress.data.parts : {}
+  const progress = useNarrationProgress(language, true)
+  const progressParts = progress.data?.ok ? progress.data.parts : undefined
+  const done = progressParts ?? {}
+  const languageCode = language ?? summary.languages[0]?.id ?? ''
+  const languageLabel =
+    summary.languages.find((l) => l.id === languageCode)?.name ?? languageName(languageCode)
+  const counts = {
+    narration: narrationCount(summary.parts, progressParts, languageLabel),
+    music: musicCount(summary.music),
+    images: imagesCount(summary.images),
+    effects: effectsCount(summary.effects),
+  }
   const [folded, toggleFolded] = useSidebarFolded()
   if (folded) {
     const folder = summary.root.split(/[\\/]/).filter(Boolean).pop()
@@ -67,6 +85,7 @@ export function Sidebar({
         route={route}
         activePart={activePart}
         acts={railActs(summary, route, activePart, done)}
+        counts={counts}
         markTip={markTip}
         problems={{ count: problems, tip: plural(problems, 'thing') + ' to fix' }}
         onUnfold={toggleFolded}
@@ -106,7 +125,8 @@ export function Sidebar({
       <nav className="nav" aria-label="Workspaces">
         <span className="label">Workspace</span>
         <a className="nav-item nav-workspace" href={routeHref({ view: 'part', part: activePart })}>
-          <MicIcon /> Narration
+          <MicIcon /> <span className="grow">Narration</span>
+          {counts.narration && <WorkspaceCountMeta count={counts.narration} />}
         </a>
         {open === 'narration' &&
           summary.parts.map((part) => {
@@ -140,6 +160,7 @@ export function Sidebar({
           aria-current={route.view === 'music' && !summary.music ? 'page' : undefined}
         >
           <MusicIcon /> <span className="grow">Music</span>
+          {counts.music && <WorkspaceCountMeta count={counts.music} />}
         </a>
         {open === 'music' &&
           summary.music?.lists.map((list) => {
@@ -173,6 +194,7 @@ export function Sidebar({
           aria-current={route.view === 'images' && !summary.images ? 'page' : undefined}
         >
           <ImageIcon /> <span className="grow">Images</span>
+          {counts.images && <WorkspaceCountMeta count={counts.images} />}
         </a>
         {open === 'images' && summary.images && (
           <>
@@ -399,6 +421,15 @@ function railActs(
 function DoneCount({ count, title }: { count: { text: string; tone: DoneTone }; title: string }) {
   return (
     <span className={metaClass(count.tone)} title={title}>
+      {count.text}
+    </span>
+  )
+}
+
+/** A workspace row's done count over every act, in its colour, its hover saying what is counted. */
+function WorkspaceCountMeta({ count }: { count: WorkspaceCount }) {
+  return (
+    <span className={metaClass(count.tone, count.warn)} title={count.tip}>
       {count.text}
     </span>
   )

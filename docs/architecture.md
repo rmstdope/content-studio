@@ -883,7 +883,15 @@ done out of all: a narration act its lines that are ok in the language shown ("6
 `GET /api/narration/progress?language=` every few seconds while the acts are listed, its line count
 until then), a music act or Stingers its tracks with a take chosen and up to date, an images act its
 images finished out of all (those the game's lists disagree on counted, never done; an image is finished when its main take is chosen and up to date, every patch has a chosen take on the take in the game and every named area is placed on it, as-2964.2: `ImageRow.missing`, status `incomplete`). A count is green when all are done, red when fewer than three
-quarters are, yellow between (an empty list has no colour). At the top of each list's page the
+quarters are, yellow between (an empty list has no colour). **Workspace totals** (as-2964.1; `ui/workspaceCounts.ts`): the Narration, Music and Images rows
+carry the same count summed over every act (Music with the Stingers), on every page, open or not, next to
+Sound effects' own: Narration's lines that are ok in the language the narration page shows (else the
+game's first), read with the same progress query, now polled on every page, and no number until it is
+known; Music's and Images' from the project summary, Images' by `imagesDone`. An act that cannot be
+read is left out: the count is the sum of the rest in the warning colour, its hover adds a line
+`Act 3 left out: <reason>` per act (no number when none can be read). Nothing to count shows `0/0`
+without a colour. The folded rail gives each workspace icon a dot (green all, amber some, grey none)
+and its tip `Music · 38/52 tracks done`. At the top of each list's page the
 same count stands large beside a ring filled to the share done, the other statuses' counts in chips beside it ("Lines up to date 620 / 624" on an act's narration overview, "Tracks up to
 date" on a music act or Stingers, "Images finished" on an images act) and, while some need
 attention, says how many ("4 need attention ›") and links to them: the act's lines page, which
@@ -916,7 +924,7 @@ as it does a track with nothing changed or none chosen).
 and after a thin line the project pages (Cast, Changes, Spending, Setup, with Setup's problem
 count as a badge). Under the open workspace the rail keeps its acts as pills ("Act 1"… by position,
 "Style", "Stingers") with a dot (green all done, amber some, grey none; none for an entry with
-nothing to count), the open one outlined in the accent; every entry's tip is its full name and
+nothing to count; each workspace icon has the same dot for the whole game, its tip the count), the open one outlined in the accent; every entry's tip is its full name and
 count. The choice is the person's, kept in the browser's local storage (`content-studio.sidebar-folded`,
 `src/ui/sidebarFold.ts`), never in the project; where the browser keeps nothing the sidebar opens
 unfolded. The rail is a sticky full-height column on the left at every width (scrolling on its own

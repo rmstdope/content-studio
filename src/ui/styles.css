@@ -384,6 +384,12 @@ a {
   background: var(--warn);
 }
 
+.rail-item > span.rail-dot {
+  position: absolute;
+  top: 6px;
+  right: 16px;
+}
+
 .project-box {
   padding: 10px;
   border-radius: 12px;
