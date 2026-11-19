@@ -28,7 +28,7 @@ describe('the words about the lines in the game', () => {
   it('say when every line is cleaned', () => {
     expect(allCleanedText(38)).toBe('All 38 lines in the game are cleaned.')
     expect(allCleanedText(1)).toBe('The 1 line in the game is cleaned.')
-    expect(countText(1, 1).sentence).toBe('1 of 1 line in the game isn’t cleaned yet.')
+    expect(countText(1, 1).sentence).toBe('The 1 line in the game isn’t cleaned yet.')
   })
 
   it('ask before cleaning and before putting back', () => {
