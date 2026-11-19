@@ -125,6 +125,8 @@ export function SidebarRail({
         ]
       : []),
   ]
+  const countOf = (key: string): WorkspaceCount | null =>
+    key in counts ? counts[key as keyof typeof counts] : null
   const language =
     route.view === 'part' ||
     route.view === 'lines' ||
@@ -147,8 +149,8 @@ export function SidebarRail({
           <div key={w.key} className="rail-group">
             <RailItem
               name={w.name}
-              tip={counts[w.key as keyof typeof counts]?.railTip ?? w.tip}
-              dot={counts[w.key as keyof typeof counts]?.dot}
+              tip={countOf(w.key)?.railTip ?? w.tip}
+              dot={countOf(w.key)?.dot}
               href={w.href}
               current={open === w.key || (w.key === 'effects' && route.view === 'effects')}
               icon={w.icon}

@@ -58,16 +58,13 @@ export function Sidebar({
   const open = openWorkspace(route)
   const language = route.view === 'part' || route.view === 'lines' ? route.language : undefined
   const progress = useNarrationProgress(language, true)
-  const done = progress.data?.ok ? progress.data.parts : {}
+  const progressParts = progress.data?.ok ? progress.data.parts : undefined
+  const done = progressParts ?? {}
   const languageCode = language ?? summary.languages[0]?.id ?? ''
   const languageLabel =
     summary.languages.find((l) => l.id === languageCode)?.name ?? languageName(languageCode)
   const counts = {
-    narration: narrationCount(
-      summary.parts,
-      progress.data?.ok ? progress.data.parts : undefined,
-      languageLabel,
-    ),
+    narration: narrationCount(summary.parts, progressParts, languageLabel),
     music: musicCount(summary.music),
     images: imagesCount(summary.images),
     effects: effectsCount(summary.effects),

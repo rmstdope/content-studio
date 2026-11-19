@@ -266,6 +266,10 @@ describe('the workspace rows’ counts over every act', () => {
       [['narration-progress', 'sv'], progress],
     ])
     expect(rowText(sv.links, 'Narration')).toBe('Narration 10/12')
+    expect(sv.links.find((l) => l.text.startsWith('Narration'))).toBeDefined()
+    expect(
+      [...sv.container.querySelectorAll('.nav-workspace .meta')][0]!.getAttribute('title'),
+    ).toStartWith('Lines that are ok in Svenska, out of all, in every act')
     const first = render({ view: 'setup' }, [[['narration-progress', undefined], progress]])
     expect(rowText(first.links, 'Narration')).toBe('Narration 10/12')
   })

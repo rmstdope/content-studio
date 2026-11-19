@@ -924,7 +924,7 @@ as it does a track with nothing changed or none chosen).
 and after a thin line the project pages (Cast, Changes, Spending, Setup, with Setup's problem
 count as a badge). Under the open workspace the rail keeps its acts as pills ("Act 1"… by position,
 "Style", "Stingers") with a dot (green all done, amber some, grey none; none for an entry with
-nothing to count), the open one outlined in the accent; every entry's tip is its full name and
+nothing to count; each workspace icon has the same dot for the whole game, its tip the count), the open one outlined in the accent; every entry's tip is its full name and
 count. The choice is the person's, kept in the browser's local storage (`content-studio.sidebar-folded`,
 `src/ui/sidebarFold.ts`), never in the project; where the browser keeps nothing the sidebar opens
 unfolded. The rail is a sticky full-height column on the left at every width (scrolling on its own
