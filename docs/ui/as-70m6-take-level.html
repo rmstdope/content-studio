@@ -1,0 +1,916 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sound effect take level</title>
+    <style>
+      :root {
+        --bg: #06070c;
+        --panel: #10121a;
+        --edge: rgb(255 255 255/8%);
+        --raised: #191c24;
+        --text: #eceef3;
+        --soft: #c7ccd6;
+        --muted: #a9b0bd;
+        --faint: #8a91a0;
+        --accent: #ff6b2c;
+        --accent-soft-bg: #2a1b12;
+        --accent-soft-ink: #ff9a6b;
+        --ok-bg: #10291f;
+        --ok-ink: #5be3ae;
+        --att-ink: #ffb38f;
+        --att-bg: rgb(255 122 61/10%);
+        --att-line: rgb(255 122 61/25%);
+        --chip: #1a1d26;
+        --bad: #ff8080;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.45 -apple-system,
+          system-ui,
+          sans-serif;
+      }
+      .wrap {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px 24px 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .note {
+        background: #1f1936;
+        color: #c4b5ff;
+        border: 1px dashed #5a4a9a;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 13px;
+      }
+      .note b {
+        color: #e2d9ff;
+      }
+      h1 {
+        margin: 0;
+        font-size: 22px;
+      }
+      h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+      h3 {
+        margin: 18px 0 0;
+        font-size: 13px;
+        color: #c4b5ff;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--edge);
+        border-radius: 14px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .ingame {
+        background: var(--panel);
+        border: 1px solid #1e4636;
+        border-radius: 14px;
+        padding: 14px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--ok-ink);
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .faint {
+        color: var(--faint);
+      }
+      .small {
+        font-size: 12px;
+      }
+      .chip {
+        display: inline-flex;
+        padding: 2px 9px;
+        border-radius: 999px;
+        font-size: 12px;
+        background: var(--chip);
+        color: var(--soft);
+      }
+      .chip-ok {
+        background: var(--ok-bg);
+        color: var(--ok-ink);
+      }
+      .chip-level {
+        background: var(--accent-soft-bg);
+        color: var(--accent-soft-ink);
+      }
+      .tag {
+        font-size: 11px;
+        color: var(--faint);
+        border: 1px solid var(--edge);
+        border-radius: 6px;
+        padding: 1px 6px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .grow {
+        flex: 1;
+      }
+      .takes {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+        gap: 12px;
+      }
+      .take {
+        background: var(--raised);
+        border: 1px solid var(--edge);
+        border-radius: 12px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .play {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 0;
+        background: var(--accent);
+        color: #111;
+        font-size: 12px;
+        flex: none;
+      }
+      .wave {
+        flex: 1;
+        height: 34px;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        position: relative;
+        min-width: 120px;
+      }
+      .wave i {
+        flex: 1;
+        background: #5b6272;
+        border-radius: 1px;
+      }
+      .wave i.hot {
+        background: var(--bad);
+      }
+      .wave .full {
+        position: absolute;
+        left: 0;
+        right: 0;
+        border-top: 1px dashed rgb(255 128 128/45%);
+      }
+      .btn {
+        background: #222632;
+        color: var(--text);
+        border: 1px solid var(--edge);
+        border-radius: 8px;
+        padding: 4px 10px;
+        font-size: 12px;
+      }
+      .btn-primary {
+        background: var(--accent);
+        color: #111;
+        border: 0;
+      }
+      .btn-ghost {
+        background: none;
+      }
+      .btn[disabled] {
+        opacity: 0.45;
+      }
+      .slider {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+      }
+      .slider input {
+        flex: 1;
+        accent-color: var(--accent);
+      }
+      .pct {
+        font-variant-numeric: tabular-nums;
+        min-width: 42px;
+        text-align: right;
+      }
+      .warn {
+        color: var(--att-ink);
+        font-size: 12px;
+      }
+      .err {
+        color: var(--bad);
+        font-size: 12px;
+      }
+      .editor {
+        border: 1px solid var(--att-line);
+        background: var(--att-bg);
+        border-radius: 10px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .cap {
+        font-size: 12px;
+        color: #c4b5ff;
+        margin-top: -4px;
+      }
+      .narrow {
+        max-width: 360px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="note">
+        <b>Agreed: a level slider on every take, always showing</b> (with the too-loud warning and a
+        “Back to 100%” button). Drag it and the take plays at that level at once; letting go saves
+        it. On the chosen take, letting go also writes the game's sound again. Like the level
+        sliders on the Scenes page.
+      </div>
+      <h1>Title move</h1>
+      <span class="muted">Plays once · 0.4 s · set by the game</span>
+      <div class="ingame">
+        <div class="row">
+          <span class="label">In the game</span><b>Take 2</b><span class="chip chip-ok">chosen</span
+          ><span class="faint small">Stable Audio Open</span>
+        </div>
+        <div class="row">
+          <button class="play">▶</button>
+          <div class="wave">
+            <i style="height: 21px"></i><i style="height: 26px"></i><i style="height: 16px"></i
+            ><i style="height: 25px"></i><i style="height: 31px"></i><i style="height: 25px"></i
+            ><i class="hot" style="height: 34px"></i><i style="height: 12px"></i
+            ><i style="height: 22px"></i><i style="height: 14px"></i><i style="height: 13px"></i
+            ><i style="height: 19px"></i><i style="height: 23px"></i><i style="height: 25px"></i
+            ><i style="height: 26px"></i><i class="hot" style="height: 34px"></i
+            ><i style="height: 30px"></i><i style="height: 6px"></i><i style="height: 23px"></i
+            ><i style="height: 14px"></i><i style="height: 16px"></i
+            ><i class="hot" style="height: 34px"></i><i style="height: 19px"></i
+            ><i style="height: 6px"></i><i style="height: 24px"></i><i style="height: 18px"></i
+            ><i style="height: 9px"></i><i style="height: 11px"></i><i style="height: 14px"></i
+            ><i style="height: 21px"></i><i style="height: 16px"></i><i style="height: 22px"></i
+            ><i class="hot" style="height: 34px"></i><i style="height: 13px"></i
+            ><i style="height: 12px"></i><i style="height: 18px"></i><i style="height: 32px"></i
+            ><i style="height: 14px"></i><i class="hot" style="height: 34px"></i
+            ><i style="height: 7px"></i><i style="height: 10px"></i><i style="height: 20px"></i
+            ><i style="height: 12px"></i><i style="height: 14px"></i>
+          </div>
+          <span class="faint small">0.4 s</span>
+        </div>
+        <div class="row">
+          <div class="slider">
+            <span class="small muted">Level</span
+            ><input
+              type="range"
+              min="10"
+              max="200"
+              step="5"
+              value="140"
+              aria-label="Level of take 2"
+            /><span class="pct">140%</span><button class="btn btn-small">Back to 100%</button>
+          </div>
+        </div>
+        <span class="faint small">The game plays it at 140%.</span>
+        <div class="row">
+          <button class="btn">Trim silence</button><button class="btn">Fades…</button
+          ><span class="grow"></span><button class="btn">Un-choose</button>
+        </div>
+      </div>
+      <section class="panel">
+        <div class="row">
+          <h2 class="grow">Takes</h2>
+          <button class="btn btn-primary">Make 4 more takes</button>
+        </div>
+        <div class="takes">
+          <div class="take">
+            <div class="row"><b class="grow">Take 1</b></div>
+            <span class="faint small">Stable Audio Open</span>
+            <div class="row">
+              <button class="play">▶</button>
+              <div class="wave">
+                <i style="height: 15px"></i><i style="height: 18px"></i><i style="height: 11px"></i
+                ><i style="height: 17px"></i><i style="height: 22px"></i><i style="height: 18px"></i
+                ><i style="height: 26px"></i><i style="height: 8px"></i><i style="height: 15px"></i
+                ><i style="height: 10px"></i><i style="height: 9px"></i><i style="height: 13px"></i
+                ><i style="height: 16px"></i><i style="height: 18px"></i><i style="height: 19px"></i
+                ><i style="height: 32px"></i><i style="height: 21px"></i><i style="height: 6px"></i
+                ><i style="height: 16px"></i><i style="height: 10px"></i><i style="height: 11px"></i
+                ><i style="height: 25px"></i><i style="height: 13px"></i><i style="height: 6px"></i
+                ><i style="height: 17px"></i><i style="height: 13px"></i><i style="height: 6px"></i
+                ><i style="height: 8px"></i><i style="height: 10px"></i><i style="height: 15px"></i
+                ><i style="height: 12px"></i><i style="height: 15px"></i><i style="height: 29px"></i
+                ><i style="height: 9px"></i><i style="height: 9px"></i><i style="height: 13px"></i
+                ><i style="height: 23px"></i><i style="height: 10px"></i><i style="height: 26px"></i
+                ><i style="height: 6px"></i><i style="height: 7px"></i><i style="height: 14px"></i
+                ><i style="height: 8px"></i><i style="height: 10px"></i>
+              </div>
+              <span class="faint small">0.4 s</span>
+            </div>
+            <div class="row">
+              <div class="slider">
+                <span class="small muted">Level</span
+                ><input
+                  type="range"
+                  min="10"
+                  max="200"
+                  step="5"
+                  value="100"
+                  aria-label="Level of take 1"
+                /><span class="pct">100%</span>
+              </div>
+            </div>
+            <div class="row">
+              <button class="btn">Trim silence</button><button class="btn">Fades…</button
+              ><span class="grow"></span><button class="btn btn-ghost">Drop</button
+              ><button class="btn">Choose</button>
+            </div>
+          </div>
+          <div class="take">
+            <div class="row"><b class="grow">Take 3</b><span class="tag">trimmed</span></div>
+            <span class="faint small">Stable Audio Open</span>
+            <div class="row">
+              <button class="play">▶</button>
+              <div class="wave">
+                <i style="height: 9px"></i><i style="height: 11px"></i><i style="height: 7px"></i
+                ><i style="height: 10px"></i><i style="height: 13px"></i><i style="height: 11px"></i
+                ><i style="height: 16px"></i><i style="height: 6px"></i><i style="height: 9px"></i
+                ><i style="height: 6px"></i><i style="height: 6px"></i><i style="height: 8px"></i
+                ><i style="height: 10px"></i><i style="height: 11px"></i><i style="height: 11px"></i
+                ><i style="height: 19px"></i><i style="height: 13px"></i><i style="height: 6px"></i
+                ><i style="height: 10px"></i><i style="height: 6px"></i><i style="height: 6px"></i
+                ><i style="height: 15px"></i><i style="height: 8px"></i><i style="height: 6px"></i
+                ><i style="height: 10px"></i><i style="height: 7px"></i><i style="height: 6px"></i
+                ><i style="height: 6px"></i><i style="height: 6px"></i><i style="height: 9px"></i
+                ><i style="height: 7px"></i><i style="height: 9px"></i><i style="height: 17px"></i
+                ><i style="height: 6px"></i><i style="height: 6px"></i><i style="height: 8px"></i
+                ><i style="height: 14px"></i><i style="height: 6px"></i><i style="height: 15px"></i
+                ><i style="height: 6px"></i><i style="height: 6px"></i><i style="height: 8px"></i
+                ><i style="height: 6px"></i><i style="height: 6px"></i>
+              </div>
+              <span class="faint small">0.3 s</span>
+            </div>
+            <div class="row">
+              <div class="slider">
+                <span class="small muted">Level</span
+                ><input
+                  type="range"
+                  min="10"
+                  max="200"
+                  step="5"
+                  value="60"
+                  aria-label="Level of take 3"
+                /><span class="pct">60%</span><button class="btn btn-small">Back to 100%</button>
+              </div>
+            </div>
+            <div class="row">
+              <button class="btn">Undo trim</button><button class="btn">Fades…</button
+              ><span class="grow"></span><button class="btn btn-ghost">Drop</button
+              ><button class="btn">Choose</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <h3>The states</h3>
+      <div class="note">
+        <b>The slider, state by state, with every word as it would ship.</b> Agreed as drawn.
+      </div>
+      <h3>
+        1 · The way back to 100%: a “Back to 100%” button shows beside the value once it isn't 100%
+      </h3>
+      <div class="takes">
+        <div class="take">
+          <div class="row"><b class="grow">Take 1</b></div>
+          <span class="faint small">Stable Audio Open</span>
+          <div class="row">
+            <button class="play">▶</button>
+            <div class="wave">
+              <i style="height: 15px"></i><i style="height: 18px"></i><i style="height: 11px"></i
+              ><i style="height: 17px"></i><i style="height: 22px"></i><i style="height: 18px"></i
+              ><i style="height: 26px"></i><i style="height: 8px"></i><i style="height: 15px"></i
+              ><i style="height: 10px"></i><i style="height: 9px"></i><i style="height: 13px"></i
+              ><i style="height: 16px"></i><i style="height: 18px"></i><i style="height: 19px"></i
+              ><i style="height: 32px"></i><i style="height: 21px"></i><i style="height: 6px"></i
+              ><i style="height: 16px"></i><i style="height: 10px"></i><i style="height: 11px"></i
+              ><i style="height: 25px"></i><i style="height: 13px"></i><i style="height: 6px"></i
+              ><i style="height: 17px"></i><i style="height: 13px"></i><i style="height: 6px"></i
+              ><i style="height: 8px"></i><i style="height: 10px"></i><i style="height: 15px"></i
+              ><i style="height: 12px"></i><i style="height: 15px"></i><i style="height: 29px"></i
+              ><i style="height: 9px"></i><i style="height: 9px"></i><i style="height: 13px"></i
+              ><i style="height: 23px"></i><i style="height: 10px"></i><i style="height: 26px"></i
+              ><i style="height: 6px"></i><i style="height: 7px"></i><i style="height: 14px"></i
+              ><i style="height: 8px"></i><i style="height: 10px"></i>
+            </div>
+            <span class="faint small">0.4 s</span>
+          </div>
+          <div class="row">
+            <div class="slider">
+              <span class="small muted">Level</span
+              ><input
+                type="range"
+                min="10"
+                max="200"
+                step="5"
+                value="100"
+                aria-label="Level of take 1"
+              /><span class="pct">100%</span>
+            </div>
+          </div>
+          <div class="row">
+            <button class="btn">Trim silence</button><button class="btn">Fades…</button
+            ><span class="grow"></span><button class="btn btn-ghost">Drop</button
+            ><button class="btn">Choose</button>
+          </div>
+        </div>
+        <div class="take">
+          <div class="row"><b class="grow">Take 3</b></div>
+          <span class="faint small">Stable Audio Open</span>
+          <div class="row">
+            <button class="play">▶</button>
+            <div class="wave">
+              <i style="height: 9px"></i><i style="height: 11px"></i><i style="height: 7px"></i
+              ><i style="height: 10px"></i><i style="height: 13px"></i><i style="height: 11px"></i
+              ><i style="height: 16px"></i><i style="height: 6px"></i><i style="height: 9px"></i
+              ><i style="height: 6px"></i><i style="height: 6px"></i><i style="height: 8px"></i
+              ><i style="height: 10px"></i><i style="height: 11px"></i><i style="height: 11px"></i
+              ><i style="height: 19px"></i><i style="height: 13px"></i><i style="height: 6px"></i
+              ><i style="height: 10px"></i><i style="height: 6px"></i><i style="height: 6px"></i
+              ><i style="height: 15px"></i><i style="height: 8px"></i><i style="height: 6px"></i
+              ><i style="height: 10px"></i><i style="height: 7px"></i><i style="height: 6px"></i
+              ><i style="height: 6px"></i><i style="height: 6px"></i><i style="height: 9px"></i
+              ><i style="height: 7px"></i><i style="height: 9px"></i><i style="height: 17px"></i
+              ><i style="height: 6px"></i><i style="height: 6px"></i><i style="height: 8px"></i
+              ><i style="height: 14px"></i><i style="height: 6px"></i><i style="height: 15px"></i
+              ><i style="height: 6px"></i><i style="height: 6px"></i><i style="height: 8px"></i
+              ><i style="height: 6px"></i><i style="height: 6px"></i>
+            </div>
+            <span class="faint small">0.4 s</span>
+          </div>
+          <div class="row">
+            <div class="slider">
+              <span class="small muted">Level</span
+              ><input
+                type="range"
+                min="10"
+                max="200"
+                step="5"
+                value="60"
+                aria-label="Level of take 3"
+              /><span class="pct">60%</span><button class="btn btn-small">Back to 100%</button>
+            </div>
+          </div>
+          <div class="row">
+            <button class="btn">Trim silence</button><button class="btn">Fades…</button
+            ><span class="grow"></span><button class="btn btn-ghost">Drop</button
+            ><button class="btn">Choose</button>
+          </div>
+        </div>
+      </div>
+      <h3>2 · A new take, and every take never touched: 100%, nothing else shown</h3>
+      <div class="takes">
+        <div class="take">
+          <div class="row"><b class="grow">Take 5</b></div>
+          <span class="faint small">Stable Audio Open</span>
+          <div class="row">
+            <button class="play">▶</button>
+            <div class="wave">
+              <i style="height: 15px"></i><i style="height: 18px"></i><i style="height: 11px"></i
+              ><i style="height: 17px"></i><i style="height: 22px"></i><i style="height: 18px"></i
+              ><i style="height: 26px"></i><i style="height: 8px"></i><i style="height: 15px"></i
+              ><i style="height: 10px"></i><i style="height: 9px"></i><i style="height: 13px"></i
+              ><i style="height: 16px"></i><i style="height: 18px"></i><i style="height: 19px"></i
+              ><i style="height: 32px"></i><i style="height: 21px"></i><i style="height: 6px"></i
+              ><i style="height: 16px"></i><i style="height: 10px"></i><i style="height: 11px"></i
+              ><i style="height: 25px"></i><i style="height: 13px"></i><i style="height: 6px"></i
+              ><i style="height: 17px"></i><i style="height: 13px"></i><i style="height: 6px"></i
+              ><i style="height: 8px"></i><i style="height: 10px"></i><i style="height: 15px"></i
+              ><i style="height: 12px"></i><i style="height: 15px"></i><i style="height: 29px"></i
+              ><i style="height: 9px"></i><i style="height: 9px"></i><i style="height: 13px"></i
+              ><i style="height: 23px"></i><i style="height: 10px"></i><i style="height: 26px"></i
+              ><i style="height: 6px"></i><i style="height: 7px"></i><i style="height: 14px"></i
+              ><i style="height: 8px"></i><i style="height: 10px"></i>
+            </div>
+            <span class="faint small">0.4 s</span>
+          </div>
+          <div class="row">
+            <div class="slider">
+              <span class="small muted">Level</span
+              ><input
+                type="range"
+                min="10"
+                max="200"
+                step="5"
+                value="100"
+                aria-label="Level of take 5"
+              /><span class="pct">100%</span>
+            </div>
+          </div>
+          <div class="row">
+            <button class="btn">Trim silence</button><button class="btn">Fades…</button
+            ><span class="grow"></span><button class="btn btn-ghost">Drop</button
+            ><button class="btn">Choose</button>
+          </div>
+        </div>
+      </div>
+      <h3>3 · The chosen take, not at 100%: one line says what the game gets</h3>
+      <div class="ingame">
+        <div class="row">
+          <span class="label">In the game</span><b>Take 2</b><span class="chip chip-ok">chosen</span
+          ><span class="faint small">Stable Audio Open</span>
+        </div>
+        <div class="row">
+          <button class="play">▶</button>
+          <div class="wave">
+            <i style="height: 21px"></i><i style="height: 26px"></i><i style="height: 16px"></i
+            ><i style="height: 25px"></i><i style="height: 31px"></i><i style="height: 25px"></i
+            ><i class="hot" style="height: 34px"></i><i style="height: 12px"></i
+            ><i style="height: 22px"></i><i style="height: 14px"></i><i style="height: 13px"></i
+            ><i style="height: 19px"></i><i style="height: 23px"></i><i style="height: 25px"></i
+            ><i style="height: 26px"></i><i class="hot" style="height: 34px"></i
+            ><i style="height: 30px"></i><i style="height: 6px"></i><i style="height: 23px"></i
+            ><i style="height: 14px"></i><i style="height: 16px"></i
+            ><i class="hot" style="height: 34px"></i><i style="height: 19px"></i
+            ><i style="height: 6px"></i><i style="height: 24px"></i><i style="height: 18px"></i
+            ><i style="height: 9px"></i><i style="height: 11px"></i><i style="height: 14px"></i
+            ><i style="height: 21px"></i><i style="height: 16px"></i><i style="height: 22px"></i
+            ><i class="hot" style="height: 34px"></i><i style="height: 13px"></i
+            ><i style="height: 12px"></i><i style="height: 18px"></i><i style="height: 32px"></i
+            ><i style="height: 14px"></i><i class="hot" style="height: 34px"></i
+            ><i style="height: 7px"></i><i style="height: 10px"></i><i style="height: 20px"></i
+            ><i style="height: 12px"></i><i style="height: 14px"></i>
+          </div>
+          <span class="faint small">0.4 s</span>
+        </div>
+        <div class="row">
+          <div class="slider">
+            <span class="small muted">Level</span
+            ><input
+              type="range"
+              min="10"
+              max="200"
+              step="5"
+              value="140"
+              aria-label="Level of take 2"
+            /><span class="pct">140%</span><button class="btn btn-small">Back to 100%</button>
+          </div>
+        </div>
+        <span class="faint small">The game plays it at 140%.</span>
+        <div class="row">
+          <button class="btn">Trim silence</button><button class="btn">Fades…</button
+          ><span class="grow"></span><button class="btn">Un-choose</button>
+        </div>
+      </div>
+      <h3>4 · Just let go on the chosen take: the game's sound is being written</h3>
+      <div class="ingame">
+        <div class="row">
+          <span class="label">In the game</span><b>Take 2</b><span class="chip chip-ok">chosen</span
+          ><span class="faint small">Stable Audio Open</span>
+        </div>
+        <div class="row">
+          <button class="play">▶</button>
+          <div class="wave">
+            <i style="height: 21px"></i><i style="height: 26px"></i><i style="height: 16px"></i
+            ><i style="height: 25px"></i><i style="height: 31px"></i><i style="height: 25px"></i
+            ><i class="hot" style="height: 34px"></i><i style="height: 12px"></i
+            ><i style="height: 22px"></i><i style="height: 14px"></i><i style="height: 13px"></i
+            ><i style="height: 19px"></i><i style="height: 23px"></i><i style="height: 25px"></i
+            ><i style="height: 26px"></i><i class="hot" style="height: 34px"></i
+            ><i style="height: 30px"></i><i style="height: 6px"></i><i style="height: 23px"></i
+            ><i style="height: 14px"></i><i style="height: 16px"></i
+            ><i class="hot" style="height: 34px"></i><i style="height: 19px"></i
+            ><i style="height: 6px"></i><i style="height: 24px"></i><i style="height: 18px"></i
+            ><i style="height: 9px"></i><i style="height: 11px"></i><i style="height: 14px"></i
+            ><i style="height: 21px"></i><i style="height: 16px"></i><i style="height: 22px"></i
+            ><i class="hot" style="height: 34px"></i><i style="height: 13px"></i
+            ><i style="height: 12px"></i><i style="height: 18px"></i><i style="height: 32px"></i
+            ><i style="height: 14px"></i><i class="hot" style="height: 34px"></i
+            ><i style="height: 7px"></i><i style="height: 10px"></i><i style="height: 20px"></i
+            ><i style="height: 12px"></i><i style="height: 14px"></i>
+          </div>
+          <span class="faint small">0.4 s</span>
+        </div>
+        <div class="row">
+          <div class="slider">
+            <span class="small muted">Level</span
+            ><input
+              type="range"
+              min="10"
+              max="200"
+              step="5"
+              value="140"
+              aria-label="Level of take 2"
+            /><span class="pct">140%</span><button class="btn btn-small">Back to 100%</button>
+          </div>
+        </div>
+        <span class="faint small">Writing it into the game at 140%…</span>
+        <div class="row">
+          <button class="btn">Trim silence</button><button class="btn">Fades…</button
+          ><span class="grow"></span><button class="btn">Un-choose</button>
+        </div>
+      </div>
+      <h3>5 · Writing the game's sound failed: the slider goes back to what the game has</h3>
+      <div class="ingame">
+        <div class="row">
+          <span class="label">In the game</span><b>Take 2</b><span class="chip chip-ok">chosen</span
+          ><span class="faint small">Stable Audio Open</span>
+        </div>
+        <div class="row">
+          <button class="play">▶</button>
+          <div class="wave">
+            <i style="height: 15px"></i><i style="height: 18px"></i><i style="height: 11px"></i
+            ><i style="height: 17px"></i><i style="height: 22px"></i><i style="height: 18px"></i
+            ><i style="height: 26px"></i><i style="height: 8px"></i><i style="height: 15px"></i
+            ><i style="height: 10px"></i><i style="height: 9px"></i><i style="height: 13px"></i
+            ><i style="height: 16px"></i><i style="height: 18px"></i><i style="height: 19px"></i
+            ><i style="height: 32px"></i><i style="height: 21px"></i><i style="height: 6px"></i
+            ><i style="height: 16px"></i><i style="height: 10px"></i><i style="height: 11px"></i
+            ><i style="height: 25px"></i><i style="height: 13px"></i><i style="height: 6px"></i
+            ><i style="height: 17px"></i><i style="height: 13px"></i><i style="height: 6px"></i
+            ><i style="height: 8px"></i><i style="height: 10px"></i><i style="height: 15px"></i
+            ><i style="height: 12px"></i><i style="height: 15px"></i><i style="height: 29px"></i
+            ><i style="height: 9px"></i><i style="height: 9px"></i><i style="height: 13px"></i
+            ><i style="height: 23px"></i><i style="height: 10px"></i><i style="height: 26px"></i
+            ><i style="height: 6px"></i><i style="height: 7px"></i><i style="height: 14px"></i
+            ><i style="height: 8px"></i><i style="height: 10px"></i>
+          </div>
+          <span class="faint small">0.4 s</span>
+        </div>
+        <div class="row">
+          <div class="slider">
+            <span class="small muted">Level</span
+            ><input
+              type="range"
+              min="10"
+              max="200"
+              step="5"
+              value="100"
+              aria-label="Level of take 2"
+            /><span class="pct">100%</span>
+          </div>
+        </div>
+        <span class="err"
+          >The level of Take 2 could not be changed: &lt;the reason&gt;. The game still plays it at
+          100%.</span
+        >
+        <div class="row">
+          <button class="btn">Trim silence</button><button class="btn">Fades…</button
+          ><span class="grow"></span><button class="btn">Un-choose</button>
+        </div>
+      </div>
+      <h3>6 · Saving failed on a take not in the game</h3>
+      <div class="takes">
+        <div class="take">
+          <div class="row"><b class="grow">Take 3</b></div>
+          <span class="faint small">Stable Audio Open</span>
+          <div class="row">
+            <button class="play">▶</button>
+            <div class="wave">
+              <i style="height: 15px"></i><i style="height: 18px"></i><i style="height: 11px"></i
+              ><i style="height: 17px"></i><i style="height: 22px"></i><i style="height: 18px"></i
+              ><i style="height: 26px"></i><i style="height: 8px"></i><i style="height: 15px"></i
+              ><i style="height: 10px"></i><i style="height: 9px"></i><i style="height: 13px"></i
+              ><i style="height: 16px"></i><i style="height: 18px"></i><i style="height: 19px"></i
+              ><i style="height: 32px"></i><i style="height: 21px"></i><i style="height: 6px"></i
+              ><i style="height: 16px"></i><i style="height: 10px"></i><i style="height: 11px"></i
+              ><i style="height: 25px"></i><i style="height: 13px"></i><i style="height: 6px"></i
+              ><i style="height: 17px"></i><i style="height: 13px"></i><i style="height: 6px"></i
+              ><i style="height: 8px"></i><i style="height: 10px"></i><i style="height: 15px"></i
+              ><i style="height: 12px"></i><i style="height: 15px"></i><i style="height: 29px"></i
+              ><i style="height: 9px"></i><i style="height: 9px"></i><i style="height: 13px"></i
+              ><i style="height: 23px"></i><i style="height: 10px"></i><i style="height: 26px"></i
+              ><i style="height: 6px"></i><i style="height: 7px"></i><i style="height: 14px"></i
+              ><i style="height: 8px"></i><i style="height: 10px"></i>
+            </div>
+            <span class="faint small">0.4 s</span>
+          </div>
+          <div class="row">
+            <div class="slider">
+              <span class="small muted">Level</span
+              ><input
+                type="range"
+                min="10"
+                max="200"
+                step="5"
+                value="100"
+                aria-label="Level of take 3"
+              /><span class="pct">100%</span>
+            </div>
+          </div>
+          <span class="err">The level of Take 3 could not be saved: &lt;the reason&gt;.</span>
+          <div class="row">
+            <button class="btn">Trim silence</button><button class="btn">Fades…</button
+            ><span class="grow"></span><button class="btn btn-ghost">Drop</button
+            ><button class="btn">Choose</button>
+          </div>
+        </div>
+      </div>
+      <h3>7 · Too loud (the warning you chose)</h3>
+      <div class="takes">
+        <div class="take">
+          <div class="row"><b class="grow">Take 4</b></div>
+          <span class="faint small">Stable Audio Open</span>
+          <div class="row">
+            <button class="play">▶</button>
+            <div class="wave">
+              <i style="height: 28px"></i><i style="height: 33px"></i><i style="height: 21px"></i
+              ><i style="height: 32px"></i><i class="hot" style="height: 34px"></i
+              ><i style="height: 33px"></i><i class="hot" style="height: 34px"></i
+              ><i style="height: 15px"></i><i style="height: 28px"></i><i style="height: 18px"></i
+              ><i style="height: 16px"></i><i style="height: 25px"></i><i style="height: 30px"></i
+              ><i style="height: 33px"></i><i class="hot" style="height: 34px"></i
+              ><i class="hot" style="height: 34px"></i><i class="hot" style="height: 34px"></i
+              ><i style="height: 6px"></i><i style="height: 30px"></i><i style="height: 19px"></i
+              ><i style="height: 20px"></i><i class="hot" style="height: 34px"></i
+              ><i style="height: 24px"></i><i style="height: 6px"></i><i style="height: 31px"></i
+              ><i style="height: 23px"></i><i style="height: 11px"></i><i style="height: 15px"></i
+              ><i style="height: 19px"></i><i style="height: 27px"></i><i style="height: 21px"></i
+              ><i style="height: 28px"></i><i class="hot" style="height: 34px"></i
+              ><i style="height: 16px"></i><i style="height: 16px"></i><i style="height: 24px"></i
+              ><i class="hot" style="height: 34px"></i><i style="height: 18px"></i
+              ><i class="hot" style="height: 34px"></i><i style="height: 9px"></i
+              ><i style="height: 13px"></i><i style="height: 26px"></i><i style="height: 15px"></i
+              ><i style="height: 19px"></i>
+            </div>
+            <span class="faint small">0.4 s</span>
+          </div>
+          <div class="row">
+            <div class="slider">
+              <span class="small muted">Level</span
+              ><input
+                type="range"
+                min="10"
+                max="200"
+                step="5"
+                value="180"
+                aria-label="Level of take 4"
+              /><span class="pct">180%</span><button class="btn btn-small">Back to 100%</button>
+            </div>
+          </div>
+          <span class="warn"
+            >At 180% the loudest parts are cut flat and may sound harsh. Up to 125% stays
+            clean.</span
+          >
+          <div class="row">
+            <button class="btn">Trim silence</button><button class="btn">Fades…</button
+            ><span class="grow"></span><button class="btn btn-ghost">Drop</button
+            ><button class="btn">Choose</button>
+          </div>
+        </div>
+      </div>
+      <div class="cap">
+        If even 100% is already at the top, the line reads “… Up to 100% stays clean.” Below 100%
+        the warning never shows.
+      </div>
+      <h3>
+        8 · The sound effects lock can't be read: the slider is greyed out like Choose, Drop and
+        Fades…
+      </h3>
+      <div class="takes">
+        <div class="take">
+          <div class="row"><b class="grow">Take 3</b></div>
+          <span class="faint small">Stable Audio Open</span>
+          <div class="row">
+            <button class="play">▶</button>
+            <div class="wave">
+              <i style="height: 9px"></i><i style="height: 11px"></i><i style="height: 7px"></i
+              ><i style="height: 10px"></i><i style="height: 13px"></i><i style="height: 11px"></i
+              ><i style="height: 16px"></i><i style="height: 6px"></i><i style="height: 9px"></i
+              ><i style="height: 6px"></i><i style="height: 6px"></i><i style="height: 8px"></i
+              ><i style="height: 10px"></i><i style="height: 11px"></i><i style="height: 11px"></i
+              ><i style="height: 19px"></i><i style="height: 13px"></i><i style="height: 6px"></i
+              ><i style="height: 10px"></i><i style="height: 6px"></i><i style="height: 6px"></i
+              ><i style="height: 15px"></i><i style="height: 8px"></i><i style="height: 6px"></i
+              ><i style="height: 10px"></i><i style="height: 7px"></i><i style="height: 6px"></i
+              ><i style="height: 6px"></i><i style="height: 6px"></i><i style="height: 9px"></i
+              ><i style="height: 7px"></i><i style="height: 9px"></i><i style="height: 17px"></i
+              ><i style="height: 6px"></i><i style="height: 6px"></i><i style="height: 8px"></i
+              ><i style="height: 14px"></i><i style="height: 6px"></i><i style="height: 15px"></i
+              ><i style="height: 6px"></i><i style="height: 6px"></i><i style="height: 8px"></i
+              ><i style="height: 6px"></i><i style="height: 6px"></i>
+            </div>
+            <span class="faint small">0.4 s</span>
+          </div>
+          <div class="row">
+            <div class="slider">
+              <span class="small muted">Level</span
+              ><input
+                type="range"
+                min="10"
+                max="200"
+                step="5"
+                value="60"
+                aria-label="Level of take 3"
+                disabled
+              /><span class="pct">60%</span>
+            </div>
+          </div>
+          <div class="row">
+            <button class="btn">Trim silence</button><button class="btn">Fades…</button
+            ><span class="grow"></span><button class="btn btn-ghost">Drop</button
+            ><button class="btn">Choose</button>
+          </div>
+        </div>
+      </div>
+      <span class="small" style="color: var(--att-ink)"
+        >Choosing, dropping, fading and setting levels wait until the sound effects lock can be
+        read. You can still listen and make more takes.</span
+      ><span class="faint small"
+        >Hover on the greyed slider: “The sound effects lock cannot be read. Choosing, dropping,
+        fading and levels wait until it can be.”</span
+      >
+      <h3>9 · A narrow window: the slider row wraps on its own, the button under the slider</h3>
+      <div class="narrow">
+        <div class="take">
+          <div class="row"><b class="grow">Take 3</b></div>
+          <span class="faint small">Stable Audio Open</span>
+          <div class="row">
+            <button class="play">▶</button>
+            <div class="wave">
+              <i style="height: 9px"></i><i style="height: 11px"></i><i style="height: 7px"></i
+              ><i style="height: 10px"></i><i style="height: 13px"></i><i style="height: 11px"></i
+              ><i style="height: 16px"></i><i style="height: 6px"></i><i style="height: 9px"></i
+              ><i style="height: 6px"></i><i style="height: 6px"></i><i style="height: 8px"></i
+              ><i style="height: 10px"></i><i style="height: 11px"></i><i style="height: 11px"></i
+              ><i style="height: 19px"></i><i style="height: 13px"></i><i style="height: 6px"></i
+              ><i style="height: 10px"></i><i style="height: 6px"></i><i style="height: 6px"></i
+              ><i style="height: 15px"></i><i style="height: 8px"></i><i style="height: 6px"></i
+              ><i style="height: 10px"></i><i style="height: 7px"></i><i style="height: 6px"></i
+              ><i style="height: 6px"></i><i style="height: 6px"></i><i style="height: 9px"></i
+              ><i style="height: 7px"></i><i style="height: 9px"></i><i style="height: 17px"></i
+              ><i style="height: 6px"></i><i style="height: 6px"></i><i style="height: 8px"></i
+              ><i style="height: 14px"></i><i style="height: 6px"></i><i style="height: 15px"></i
+              ><i style="height: 6px"></i><i style="height: 6px"></i><i style="height: 8px"></i
+              ><i style="height: 6px"></i><i style="height: 6px"></i>
+            </div>
+            <span class="faint small">0.4 s</span>
+          </div>
+          <div class="row">
+            <div class="slider">
+              <span class="small muted">Level</span
+              ><input
+                type="range"
+                min="10"
+                max="200"
+                step="5"
+                value="60"
+                aria-label="Level of take 3"
+              /><span class="pct">60%</span><button class="btn btn-small">Back to 100%</button>
+            </div>
+          </div>
+          <div class="row">
+            <button class="btn">Trim silence</button><button class="btn">Fades…</button
+            ><span class="grow"></span><button class="btn btn-ghost">Drop</button
+            ><button class="btn">Choose</button>
+          </div>
+        </div>
+      </div>
+      <h3>How it behaves (decided, so it matches the page today)</h3>
+      <ul class="muted small">
+        <li>
+          The slider moves in steps of 5%, from 10% to 200%. The arrow keys move it by 5%; it saves
+          half a second after the last key press, or when you let go of the mouse.
+        </li>
+        <li>
+          Moving it while the take plays changes the loudness straight away. Play, “The chosen, then
+          this”, Hear the seam and the Fades editor all play the take at its level.
+        </li>
+        <li>The waveform's bars grow and shrink with the level.</li>
+        <li>
+          While Fades… is open on a take, its slider is hidden with the rest of the card, as Trim
+          silence is today.
+        </li>
+        <li>
+          Each take keeps its own level after a reload. Choosing a take puts it into the game at its
+          level; un-choosing and choosing again keeps the level.
+        </li>
+        <li>The level on the Scenes page still applies on top of this one.</li>
+      </ul>
+    </div>
+  </body>
+</html>
