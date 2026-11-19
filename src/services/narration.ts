@@ -11,6 +11,7 @@ import {
   type HeardSegment,
   type TimedWord,
 } from '../core/align'
+import { LEVEL, levelDb } from '../core/level'
 import { CleanedSchema, type Cleaned } from '../core/cleanedLines'
 import { clipInputs, fingerprint, type ClipInputs } from '../core/fingerprint'
 import { languageName } from '../core/languages'
@@ -367,6 +368,7 @@ export async function recordLine(
       narration,
       encode,
       clean: cast.speakers[line.speaker]?.clean === true,
+      level: cast.speakers[line.speaker]?.level,
       take: best,
       takes,
       finalFp,
@@ -526,6 +528,7 @@ export async function commitClip({
   narration,
   encode,
   clean,
+  level = LEVEL.default,
   take,
   takes,
   finalFp,
@@ -547,6 +550,8 @@ export async function commitClip({
   encode: Encoder
   /** Whether the line's voice is switched on to be cleaned of background noise. */
   clean: boolean
+  /** How loud the line's voice plays, in percent (as-ohm7); absent: 100. */
+  level?: number
   take: Take
   takes: number
   finalFp: string | null
@@ -563,7 +568,7 @@ export async function commitClip({
     join(paths.clipsPath, `.${key}.${randomUUID()}.original.mp3`),
   )
   try {
-    await encode(clip.wav, temporary, { ...narration.output, clean })
+    await encode(clip.wav, temporary, { ...narration.output, clean, gainDb: levelDb(level) })
     if (clean) await encode(clip.wav, temporaryOriginal, { ...narration.output, clean: false })
   } catch (error) {
     await rm(temporary, { force: true }).catch(() => {})
@@ -599,6 +604,7 @@ export async function commitClip({
           hashes,
           takes,
           ...(take.heard === null ? {} : { heard: take.heard }),
+          ...(level === LEVEL.default ? {} : { level }),
           at,
         }
         // The original and its record first: a cleaned clip is never in the game without them.

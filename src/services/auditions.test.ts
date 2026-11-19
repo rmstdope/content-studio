@@ -10,6 +10,7 @@ import {
   setPhrase,
   setPronunciations,
   setClean,
+  setLevel,
   setSpeed,
   setStyle,
   setVoice,
@@ -526,6 +527,44 @@ describe('setClean', () => {
   it('knows no character it was not told of', async () => {
     const root = tempRepo(files)
     expect(await setClean(join(root, 'content-studio.json'), 'nobody', true)).toBeNull()
+  })
+})
+
+describe('setLevel', () => {
+  it('saves a voice’s level, and removes the key at 100', async () => {
+    const root = tempRepo(files)
+    const projectFile = join(root, 'content-studio.json')
+    expect(await setLevel(projectFile, 'grandmother', 60)).toEqual({ ok: true })
+    const read = () =>
+      JSON.parse(readFileSync(join(root, 'content-studio/narration/cast.json'), 'utf8'))
+    expect(read().speakers.grandmother).toEqual({
+      voice: 'cur',
+      style: '[warm]',
+      audition: { keywords: ['warm'] },
+      level: 60,
+    })
+    expect(await setLevel(projectFile, 'grandmother', 100)).toEqual({ ok: true })
+    expect(read().speakers.grandmother.level).toBeUndefined()
+  })
+
+  it('refuses a level out of range, and knows no character it was not told of', async () => {
+    const root = tempRepo(files)
+    const projectFile = join(root, 'content-studio.json')
+    expect(await setLevel(projectFile, 'grandmother', 5)).toMatchObject({ ok: false })
+    expect(await setLevel(projectFile, 'grandmother', 201)).toMatchObject({ ok: false })
+    expect(await setLevel(projectFile, 'nobody', 60)).toBeNull()
+  })
+
+  it('is per language, kept under languages for another language', async () => {
+    const root = tempRepo({ ...files, 'content-studio.json': languageProject() })
+    const projectFile = join(root, 'content-studio.json')
+    expect(await setLevel(projectFile, 'grandmother', 150, 'sv')).toEqual({ ok: true })
+    const cast = JSON.parse(readFileSync(join(root, 'content-studio/narration/cast.json'), 'utf8'))
+    expect(cast.speakers.grandmother.languages.sv).toEqual({ level: 150 })
+    expect(cast.speakers.grandmother.level).toBeUndefined()
+    expect(await setLevel(projectFile, 'grandmother', 100, 'sv')).toEqual({ ok: true })
+    const again = JSON.parse(readFileSync(join(root, 'content-studio/narration/cast.json'), 'utf8'))
+    expect(again.speakers.grandmother.languages).toBeUndefined()
   })
 })
 
