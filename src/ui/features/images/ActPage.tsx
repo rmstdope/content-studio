@@ -3,8 +3,8 @@ import { imagesDone, type ImagesAct, type ImageRow, type ImagesSummary } from '.
 import { useImageMaking, useRefreshDialog } from '../../api'
 import { shortTitle } from '../../format'
 import {
-  areasToPlaceText,
-  chosenLine,
+  finishedLine,
+  missingText,
   disagreeText,
   makeAgainActLine,
   overlapActLine,
@@ -23,18 +23,19 @@ import { FailedPanel, RefreshPanel } from '../music/MusicView'
 const STATUS_CHIP: Record<ImageRow['status'], string> = {
   'none yet': 'chip',
   chosen: 'chip chip-ok',
+  incomplete: 'chip chip-warn',
   'out of date': 'chip chip-warn',
   unknown: 'chip chip-warn',
 }
 
-/** The act list's line for an image's named areas left to place; nothing when none are. */
-function AreasLeft({ row }: { row: ImageRow }) {
-  const line = areasToPlaceText(row.areas.filter((area) => !area.placed).length, row.areas.length)
-  return line && <div className="muted images-areas">{line}</div>
+/** The act list's line naming what an image still lacks, in amber; nothing when it lacks nothing. */
+function MissingLine({ row }: { row: ImageRow }) {
+  const line = missingText(row.missing)
+  return line && <div className="images-areas images-missing">{line}</div>
 }
 
 /**
- * An act's page: how many of its images are up to date, linking to those that need attention, and
+ * An act's page: how many of its images are finished, linking to those that need attention, and
  * its images with the words they are made from, their size and status: all of them, or
  * (`attention`) only those not chosen or out of date, and those the game's lists disagree on.
  */
@@ -76,7 +77,7 @@ export function ActPage({
           <span className="crumbs">Images</span>
           <h1 tabIndex={-1}>{name}</h1>
           {act.state === 'ok' && (
-            <span className="muted">{chosenLine(name, done.total, act.chosen)}</span>
+            <span className="muted">{finishedLine(name, done.total, act.chosen)}</span>
           )}
         </div>
         {act.canRefresh && (
@@ -105,11 +106,11 @@ export function ActPage({
       )}
       {panel}
       {act.state === 'ok' && act.order.length > 0 && (
-        <section className="panel status-panel" aria-label="Images up to date">
+        <section className="panel status-panel" aria-label="Images finished">
           <MakeAllPanel act={act}>
             <div className="stats">
               <DoneStat
-                label="Images up to date"
+                label="Images finished"
                 done={done.done}
                 total={done.total}
                 href={page('attention')}
@@ -240,7 +241,7 @@ export function ActPage({
                           </span>
                         )}
                         {row.looksOld && <span className="chip chip-warn">Old look</span>}
-                        <AreasLeft row={row} />
+                        <MissingLine row={row} />
                       </td>
                     </tr>
                   )

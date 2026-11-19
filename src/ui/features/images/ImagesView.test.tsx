@@ -244,7 +244,7 @@ describe('an act’s page', () => {
     expect(text(page.querySelector('.crumbs'))).toBe('Images')
     expect(text(page.querySelector('h1'))).toBe('Act I')
     expect(text(page.querySelector('.page-header .muted'))).toBe(
-      'The images the game asks for in Act I. 0 of 2 chosen.',
+      'The images the game asks for in Act I. 0 of 2 finished.',
     )
     expect(text(page.querySelector('.images-style-line'))).toBe(
       'Every prompt ends with the style, and for Act I: lantern light. Style ›',
@@ -348,7 +348,7 @@ describe('an act’s page', () => {
     const page = render({ view: 'images', page: 'act', part: 'act1' }, summary({ chosen }))
     const chips = [...page.querySelectorAll('.images-status .chip')].map((c) => c.textContent)
     expect(chips).toEqual(['chosen', 'out of date'])
-    expect(text(page.querySelector('.page-header .muted'))).toContain('2 of 2 chosen')
+    expect(text(page.querySelector('.page-header .muted'))).toContain('1 of 2 finished')
   })
 })
 
@@ -1090,7 +1090,7 @@ describe('lists that disagree about an image', () => {
   it('counts an image the lists disagree about in the line under the act heading', () => {
     const page = render({ view: 'images', page: 'act', part: 'act2' }, summed())
     expect(text(page.querySelector('.page-header .muted'))).toBe(
-      'The images the game asks for in Act II. 0 of 1 chosen.',
+      'The images the game asks for in Act II. 0 of 1 finished.',
     )
   })
 
@@ -1117,7 +1117,7 @@ describe('what needs attention on an act’s images page', () => {
     )
     const stat = page.querySelector<HTMLAnchorElement>('a.stat-lead')!
     expect(stat.getAttribute('href')).toBe('#/images/parts/act1?show=attention')
-    expect(text(stat)).toBe('50%Images up to date1 / 21 needs attention ›')
+    expect(text(stat)).toBe('50%Images finished1 / 21 needs attention ›')
   })
 
   it('lists only the images that need attention there, with the way back to all', () => {
@@ -1137,7 +1137,7 @@ describe('what needs attention on an act’s images page', () => {
       summary({ chosen: { inn: made('inn'), barn: made('barn') } }),
     )
     expect(page.querySelector('a.stat-lead')).toBeNull()
-    expect(text(page.querySelector('.stat-lead'))).toBe('100%Images up to date2 / 2')
+    expect(text(page.querySelector('.stat-lead'))).toBe('100%Images finished2 / 2')
   })
 })
 
@@ -1232,9 +1232,9 @@ describe('the patches the game asks for', () => {
       const row = page.querySelector('tbody tr')!
       expect(text(row.querySelector('.images-prompt .chg'))).toBe('make again: Lamp lit, Door ajar')
       expect([...row.querySelectorAll('.images-status .chip')].map((c) => c.textContent)).toEqual([
-        'chosen',
+        'incomplete',
       ])
-      expect(text(page.querySelector('.page-header .muted'))).toContain('1 of 2 chosen')
+      expect(text(page.querySelector('.page-header .muted'))).toContain('0 of 2 finished')
     })
 
     it('puts it after the line about the game’s changed words', () => {
@@ -1320,7 +1320,7 @@ describe('the patches the game asks for', () => {
       expect([...row.querySelectorAll('.images-status .chip')].map((c) => c.textContent)).toEqual([
         'chosen',
       ])
-      expect(text(page.querySelector('.page-header .muted'))).toContain('1 of 2 chosen')
+      expect(text(page.querySelector('.page-header .muted'))).toContain('1 of 2 finished')
     })
     it('has no line when the areas only share a border', () => {
       const page = render(
@@ -1349,7 +1349,6 @@ describe('the named areas the game declares', () => {
   const image = { view: 'images', page: 'image', image: 'inn', from: 'act1' } as const
   const act = { view: 'images', page: 'act', part: 'act1' } as const
   const heading = (page: HTMLElement) => [...page.querySelectorAll('h2')].map((h) => text(h))
-  const chosen = (page: HTMLElement) => text(page.querySelector('.page-header .muted'))
   const lineOf = (page: HTMLElement, at = 0) =>
     text([...page.querySelectorAll('tbody tr')][at]!.querySelector('.images-areas'))
 
@@ -1398,25 +1397,47 @@ describe('the named areas the game declares', () => {
     expect(page.querySelector('.named-areas')).toBeNull()
     expect(heading(page)).not.toContain('Named areas')
   })
+  const taken = { inn: summary().images!.acts[0]!.rows[0]!.madeFrom }
   it('says on the act’s list how many are left, under the status, and counts nothing else', () => {
-    const page = render(act, summary({ areas: [fountain, notice] }))
-    expect(lineOf(page)).toBe('2 of 2 areas to place')
+    const page = render(act, summary({ areas: [fountain, notice], chosen: taken }))
+    expect(lineOf(page)).toBe('2 areas not placed')
     expect(page.querySelectorAll('tbody tr')[1]!.querySelector('.images-areas')).toBeNull()
     expect(page.querySelector('.images-status .images-areas')).not.toBeNull()
-    const none = render(act, summary())
+    const none = render(act, summary({ chosen: taken }))
     expect(none.querySelector('.images-areas')).toBeNull()
     const box = { x: 1, y: 1, width: 10, height: 10 }
     const some = render(
       act,
-      summary({ areas: [fountain, notice], edits: { inn: { areas: { fountain: box } } } }),
+      summary({
+        areas: [fountain, notice],
+        chosen: taken,
+        edits: { inn: { areas: { fountain: box } } },
+      }),
     )
-    expect(lineOf(some)).toBe('1 of 2 areas to place')
-    expect(chosen(page)).toBe(chosen(none))
-    expect(chosen(page)).toContain('chosen')
+    expect(lineOf(some)).toBe('1 area not placed')
+    const chip = (p: HTMLElement) => text(p.querySelector('.images-status .chip'))
+    expect(chip(page)).toBe('incomplete')
+    expect(chip(none)).toBe('chosen')
+  })
+  it('names patches and areas together, shows nothing before a main take, and keeps the line under out of date', () => {
+    const both = summary({ areas: [fountain], patches: [lamp], chosen: taken })
+    expect(lineOf(render(act, both))).toBe('1 patch not chosen, 1 area not placed')
+    expect(
+      render(act, summary({ areas: [fountain], patches: [lamp] })).querySelector('.images-missing'),
+    ).toBeNull()
+    const old = summary({
+      areas: [fountain],
+      chosen: { inn: { ...taken.inn, width: 1 } },
+    })
+    const page = render(act, old)
+    expect(text(page.querySelector('.images-status .chip'))).toBe('out of date')
+    expect(lineOf(page)).toBe('1 area not placed')
   })
   it('says one area in the singular, and keeps the line under the making chip', () => {
-    const page = render(act, summary({ areas: [fountain] }), { inn: { takes: 2, left: 1 } })
-    expect(lineOf(page)).toBe('1 of 1 area to place')
+    const page = render(act, summary({ areas: [fountain], chosen: taken }), {
+      inn: { takes: 2, left: 1 },
+    })
+    expect(lineOf(page)).toBe('1 area not placed')
     const status = page.querySelector('.images-status')!
     expect(status.querySelector('.chip')).not.toBeNull()
     expect(status.lastElementChild!.className).toContain('images-areas')

@@ -8,11 +8,11 @@ import {
   patchMenuWhy,
   bringFailureText,
   bringingText,
-  chosenLine,
+  finishedLine,
+  missingText,
   IMAGE_STATUS_LABEL,
   areaCaptionText,
   areasCountText,
-  areasToPlaceText,
   disagreeText,
   listSeparator,
   joined,
@@ -41,11 +41,14 @@ import { parseRoute, routeHref } from './route'
 import { openWorkspace } from './sidebarActs'
 
 describe('the images words', () => {
-  it('says how many are chosen', () => {
-    expect(chosenLine('Act I', 4, 1)).toBe('The images the game asks for in Act I. 1 of 4 chosen.')
+  it('says how many are finished', () => {
+    expect(finishedLine('Act I', 4, 1)).toBe(
+      'The images the game asks for in Act I. 1 of 4 finished.',
+    )
+    expect(IMAGE_STATUS_LABEL.incomplete).toBe('incomplete')
     expect(IMAGE_STATUS_LABEL.unknown).toBe('not known')
     // Which are chosen is not known while the lock cannot be read: no count to give.
-    expect(chosenLine('Act I', 4, null)).toBe('The images the game asks for in Act I.')
+    expect(finishedLine('Act I', 4, null)).toBe('The images the game asks for in Act I.')
   })
   it('names what an out-of-date image changed, joined with "and"', () => {
     expect(outOfDateText(['the words'], 'Act I')).toBe(
@@ -180,10 +183,12 @@ describe('the words of an image several acts list', () => {
   })
   it('counts the named areas placed and left to place', () => {
     expect(areasCountText(1, 5)).toBe('1 of 5 placed')
-    expect(areasToPlaceText(4, 5)).toBe('4 of 5 areas to place')
-    expect(areasToPlaceText(1, 1)).toBe('1 of 1 area to place')
-    expect(areasToPlaceText(0, 5)).toBeNull()
-    expect(areasToPlaceText(0, 0)).toBeNull()
+  })
+  it('names each thing an image still lacks', () => {
+    expect(missingText({ patches: 1, areas: 2 })).toBe('1 patch not chosen, 2 areas not placed')
+    expect(missingText({ patches: 3, areas: 0 })).toBe('3 patches not chosen')
+    expect(missingText({ patches: 0, areas: 1 })).toBe('1 area not placed')
+    expect(missingText({ patches: 0, areas: 0 })).toBeNull()
   })
   it('keeps the act an image was opened from in its address', () => {
     expect(routeHref({ view: 'images', page: 'image', image: 'inn', from: 'act3' })).toBe(

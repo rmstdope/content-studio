@@ -1,4 +1,10 @@
-import type { ConflictKind, ImageRow, ImageStatus, ImagesSummary } from '../core/images'
+import type {
+  ConflictKind,
+  ImageRow,
+  ImageStatus,
+  ImagesSummary,
+  MissingParts,
+} from '../core/images'
 import type { SetAsideAsk, SetAsideQuestion } from '../core/imagePatches'
 import type { ImagesRoute } from './route'
 
@@ -6,14 +12,15 @@ import type { ImagesRoute } from './route'
 export const IMAGE_STATUS_LABEL: Record<ImageStatus, string> = {
   'none yet': 'none yet',
   chosen: 'chosen',
+  incomplete: 'incomplete',
   'out of date': 'out of date',
   unknown: 'not known',
 }
 
-/** The line under an act's heading: how many of its images have a chosen one. */
-export function chosenLine(name: string, total: number, chosen: number | null): string {
+/** The line under an act's heading: how many of its images are finished. */
+export function finishedLine(name: string, total: number, finished: number | null): string {
   const lead = `The images the game asks for in ${name}.`
-  return chosen === null ? lead : `${lead} ${chosen} of ${total} chosen.`
+  return finished === null ? lead : `${lead} ${finished} of ${total} finished.`
 }
 
 /** Words joined as "a, b and c". */
@@ -59,9 +66,14 @@ export function areasCountText(placed: number, total: number): string {
   return `${placed} of ${total} placed`
 }
 
-/** The line under an image's status on the act's list: how many named areas are left; null when none are. */
-export function areasToPlaceText(left: number, total: number): string | null {
-  return left > 0 ? `${left} of ${total} ${total === 1 ? 'area' : 'areas'} to place` : null
+/** The line under an image's status on the act's list: each kind of thing still missing; null when none is. */
+export function missingText(missing: MissingParts): string | null {
+  const parts = [
+    missing.patches > 0 &&
+      `${missing.patches} ${missing.patches === 1 ? 'patch' : 'patches'} not chosen`,
+    missing.areas > 0 && `${missing.areas} ${missing.areas === 1 ? 'area' : 'areas'} not placed`,
+  ].filter(Boolean)
+  return parts.length ? parts.join(', ') : null
 }
 
 /** The palette's size, as the Style page shows it. */

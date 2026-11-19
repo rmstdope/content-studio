@@ -191,7 +191,7 @@ export function Sidebar({
                 {act.state === 'ok' && (
                   <DoneCount
                     count={doneCount(imagesDone(act))}
-                    title="Images chosen and up to date, out of all"
+                    title="Images finished, out of all"
                   />
                 )}
               </a>

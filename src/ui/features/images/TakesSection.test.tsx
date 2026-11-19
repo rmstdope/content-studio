@@ -52,6 +52,7 @@ const row: ImageRow = {
   chosenTake: null,
   gameFile: null,
   madeFrom: { words: 'a low inn', style: '', width: 320, height: 200 },
+  missing: { patches: 0, areas: 0 },
   status: 'none yet',
   reasons: [],
   look: {

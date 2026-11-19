@@ -992,7 +992,8 @@ export function acceptableReasons(reasons: ImageReason[]): boolean {
 }
 
 /**
- * How far an act's images are: those chosen and up to date (`done`) out of all, the ones the
+ * How far an act's images are: those finished (main take chosen and up to date, every patch
+ * chosen and every named area placed on the take in the game; `done`) out of all, the ones the
  * game's lists disagree on among them, and the ids of the rest, which need attention.
  */
 export function imagesDone(act: {
@@ -1047,9 +1048,14 @@ export interface AreaRow {
   elsewhereGone: boolean
 }
 
-/** The status chip of an image. */
 /** `unknown` while the images lock cannot be read: the lock is what says a take is chosen. */
-export type ImageStatus = 'none yet' | 'chosen' | 'out of date' | 'unknown'
+export type ImageStatus = 'none yet' | 'chosen' | 'incomplete' | 'out of date' | 'unknown'
+
+/** What an image still lacks once it has a main take: patches not chosen and named areas not placed, on the take in the game. */
+export interface MissingParts {
+  patches: number
+  areas: number
+}
 
 /** One image as a page shows it. */
 export interface ImageRow {
@@ -1093,6 +1099,8 @@ export interface ImageRow {
   gameFile: { file: string; exists: boolean } | null
   /** What a new take would be made from. */
   madeFrom: MadeFrom
+  /** What is still missing on the take in the game; none before there is one. */
+  missing: MissingParts
   status: ImageStatus
   reasons: ImageReason[]
   /** The game's look for this image: the line under its title, what it is brought to, or why it cannot be. */
@@ -1136,7 +1144,7 @@ export interface ImagesAct {
   conflicts: ImageConflict[]
   /** The ids of the list in the game's order, rows and conflicts alike. */
   order: string[]
-  /** How many have a chosen take; null while the lock cannot be read, when that is not known. */
+  /** How many are finished (see `imagesDone`); null while the lock cannot be read, when that is not known. */
   chosen: number | null
   canRefresh: boolean
 }
@@ -1366,6 +1374,7 @@ export function summarizeImages(input: ImagesInput): {
         ? { file: image.file, exists: input.gameFiles?.[image.id] ?? false }
         : null,
       madeFrom,
+      missing: { patches: 0, areas: 0 },
       status:
         standing.standing === 'unknown'
           ? 'unknown'
@@ -1381,6 +1390,22 @@ export function summarizeImages(input: ImagesInput): {
         error: look ? null : (input.lookError ?? "Can't bring this take to the game's look."),
       },
       looksOld: stale.length > 0,
+    }
+    if (made?.take != null) {
+      const take = made.take
+      row.missing = {
+        patches: row.patches.filter((patch) => !patch.chosenOn.includes(take)).length,
+        areas: row.areas.filter((area) => !area.placed).length,
+      }
+    } else if (made) {
+      // A take from before takes were numbered: the areas count, no patch can be chosen on it.
+      row.missing = {
+        patches: row.patches.length,
+        areas: row.areas.filter((area) => !area.placed).length,
+      }
+    }
+    if (row.status === 'chosen' && row.missing.patches + row.missing.areas > 0) {
+      row.status = 'incomplete'
     }
     bases.set(image.id, row)
     return row
@@ -1418,9 +1443,7 @@ export function summarizeImages(input: ImagesInput): {
       rows,
       conflicts,
       order,
-      chosen: chosen.read
-        ? rows.filter((row) => row.status === 'chosen' || row.status === 'out of date').length
-        : null,
+      chosen: chosen.read ? rows.filter((row) => row.status === 'chosen').length : null,
       canRefresh: list.canRefresh,
     }
   })

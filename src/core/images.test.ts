@@ -1035,7 +1035,7 @@ describe('the patches the game asks for', () => {
       const plain = rowOf({}, inn)
       const edits = { [inn.id]: { patches: { 'lamp-lit': { text: 'Dim', gameWas: 'Light' } } } }
       const row = rowOf({ edits, chosen: { [inn.id]: plain.madeFrom } })
-      expect(row.status).toBe('chosen')
+      expect(row.status).toBe('incomplete')
       expect(row.madeFrom).toEqual(plain.madeFrom)
       expect(row.prompt).toBe(plain.prompt)
     })
@@ -1163,7 +1163,7 @@ describe('a patch tied to a named area', () => {
     const before = run('well')
     expect(before.patches[0]!.area).toBe('well')
     const after = run(undefined, before.madeFrom as ChosenEntry)
-    expect(after.status).toBe('chosen')
+    expect(after.status).toBe('incomplete')
   })
 })
 
@@ -1233,7 +1233,7 @@ describe('the named areas the game declares', () => {
         chosen: { [inn.id]: plain.madeFrom },
       }),
     )
-    expect(images.acts[0]!.rows[0]!.status).toBe('chosen')
+    expect(images.acts[0]!.rows[0]!.status).toBe('incomplete')
   })
   it('is a disagreement when an area is missing or its id or title differs', () => {
     for (const other of [
@@ -1818,5 +1818,74 @@ describe('an image’s saved slow zoom', () => {
     expect(Object.keys(set)).toEqual(['file', 'width', 'height', 'extra', 'zoom'])
     expect(withZoom(set, null) as object).toEqual({ ...entry, zoom: null })
     expect('zoom' in withZoom(set, undefined)).toBe(false)
+  })
+})
+
+describe('a finished image', () => {
+  const bread = { id: 'bread-taken', title: 'Bread taken', description: 'Remove the bread' }
+  const lamp = { id: 'lamp-lit', title: 'Lamp lit', description: 'Light the lamp' }
+  const door = { id: 'door', title: 'Door' }
+  const full = { ...inn, patches: [bread, lamp], areas: [door] }
+  const box = { x: 1, y: 1, width: 5, height: 5 }
+  const rowOf = (over: InputOver = {}, image = full) =>
+    summarizeImages(
+      input({
+        lists: [
+          {
+            id: 'act1',
+            title: 'Act I',
+            file: 'tts/act1/images.json',
+            state: { status: 'ok', images: [image] },
+            canRefresh: true,
+          },
+        ],
+        ...over,
+      }),
+    ).images
+  const made = () => ({
+    [inn.id]: { ...summarizeImages(input()).images.acts[0]!.rows[0]!.madeFrom, take: 2 },
+  })
+
+  it('is incomplete, counting what is missing, until every patch is chosen and every area placed', () => {
+    const images = rowOf({ chosen: made() })
+    const row = images.acts[0]!.rows[0]!
+    expect(row.status).toBe('incomplete')
+    expect(row.missing).toEqual({ patches: 2, areas: 1 })
+    expect(imagesDone(images.acts[0]!).done).toBe(0)
+    expect(images.acts[0]!.chosen).toBe(0)
+  })
+  it('is chosen, and counts as done, when nothing is missing', () => {
+    const images = rowOf({
+      chosen: made(),
+      patchChoices: { [inn.id]: { 'bread-taken': [2], 'lamp-lit': [2, 3] } },
+      edits: { [inn.id]: { takeAreas: { 2: { door: box } } } },
+    })
+    const row = images.acts[0]!.rows[0]!
+    expect(row.status).toBe('chosen')
+    expect(row.missing).toEqual({ patches: 0, areas: 0 })
+    expect(imagesDone(images.acts[0]!)).toMatchObject({ done: 1, total: 1 })
+    expect(images.acts[0]!.chosen).toBe(1)
+  })
+  it('counts a patch chosen, or an area placed, only on another take as missing', () => {
+    const row = rowOf({
+      chosen: made(),
+      patchChoices: { [inn.id]: { 'bread-taken': [1], 'lamp-lit': [2] } },
+      edits: { [inn.id]: { takeAreas: { 1: { door: box } } } },
+    }).acts[0]!.rows[0]!
+    expect(row.missing).toEqual({ patches: 1, areas: 1 })
+  })
+  it('keeps out of date, with what is missing counted', () => {
+    const row = rowOf({
+      chosen: { [inn.id]: { ...made()[inn.id]!, words: 'other' } },
+    }).acts[0]!.rows[0]!
+    expect(row.status).toBe('out of date')
+    expect(row.missing).toEqual({ patches: 2, areas: 1 })
+  })
+  it('lists nothing missing before there is a main take, and an image with neither is finished at once', () => {
+    expect(rowOf().acts[0]!.rows[0]).toMatchObject({
+      status: 'none yet',
+      missing: { patches: 0, areas: 0 },
+    })
+    expect(rowOf({ chosen: made() }, inn).acts[0]!.rows[0]!.status).toBe('chosen')
   })
 })

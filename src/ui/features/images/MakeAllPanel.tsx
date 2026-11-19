@@ -30,7 +30,7 @@ import { useMakeAllPanel } from '../../components/useMakeAllPanel'
 import { routeHref } from '../../route'
 
 /**
- * The action of the "Images up to date" panel on an act: a button that makes four takes for every
+ * The action of the "Images finished" panel on an act: a button that makes four takes for every
  * image with no chosen take, after a question in the panel; while anything in the act is being
  * made, what is being made and Stop all; when the last take is done, a summary until Close. The
  * `children` (the panel's count) sit on its left.
