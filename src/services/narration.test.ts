@@ -83,6 +83,31 @@ function record(root: string, key: string, fish: FishClient, encode: Encoder = k
 }
 
 describe('recordLine', () => {
+  it('has a switched-on voice’s lines cleaned as they are encoded, and leaves the others alone', async () => {
+    const root = tempRepo({
+      ...files,
+      'content-studio/narration/cast.json': {
+        speakers: {
+          narrator: { voice: 'v-n', style: '[warm]', clean: true },
+          mira: { voice: 'v-m' },
+        },
+        pronounce: { en: { Elior: 'El-ee-or' } },
+      },
+    })
+    const { fish } = fakeFish()
+    const asked: (boolean | undefined)[] = []
+    const watching: Encoder = async (wav, file, options) => {
+      asked.push(options.clean)
+      await keepWav(wav, file, options)
+    }
+    await record(root, 'k1', fish, watching)
+    await record(root, 'k4', fish, watching)
+    expect(asked).toEqual([true, false])
+    // Nothing is stale for it: the switch is not part of what a clip is made from.
+    const part = await loadPart(join(root, 'content-studio.json'), 'act1')
+    expect(part?.ok && part.part.lines.find((l) => l.key === 'k1')?.status).toBe('ok')
+  })
+
   it('speaks a character at its own speed', async () => {
     const root = tempRepo(files)
     const { fish, requests } = fakeFish()

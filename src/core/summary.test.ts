@@ -240,6 +240,7 @@ describe('a character per language', () => {
       voiceName: 'Mira SV',
       speed: 0.95,
       phrase: null,
+      clean: false,
       appearances: [{ part: 'act1', lines: 2 }],
       totalLines: 2,
       longest: 'en längre rad',

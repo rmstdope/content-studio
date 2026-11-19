@@ -3,6 +3,7 @@ import * as api from './api'
 
 /** What `api.ts` has always exported to the pages, now spread over `api/`: a caller still imports from `./api`. */
 const names = [
+  'cleanedUrl',
   'clipUrl',
   'lineTakeUrl',
   'recordVoiceTake',
@@ -19,6 +20,7 @@ const names = [
   'useCastOwnVoice',
   'useChanges',
   'useCharacterVoice',
+  'useCleanedCopy',
   'useCheckAgain',
   'useChooseEffectTake',
   'useChooseImageTake',
@@ -118,6 +120,7 @@ const names = [
   'useSetPronunciations',
   'useSetSceneCue',
   'useSetSoundAlike',
+  'useSetClean',
   'useSetSpeed',
   'useSetStageModel',
   'useSetStyle',

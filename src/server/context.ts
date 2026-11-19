@@ -1,6 +1,13 @@
 import { basename, dirname } from 'node:path'
 import { z } from 'zod'
-import { setKeywords, setPhrase, setSpeed, setStyle, type FishFactory } from '../services/auditions'
+import {
+  setClean,
+  setKeywords,
+  setPhrase,
+  setSpeed,
+  setStyle,
+  type FishFactory,
+} from '../services/auditions'
 import { createLimiter } from '../services/limit'
 import { costCeiling, creditCeiling, planGeneration } from '../core/generation'
 import type { LineState } from '../core/planner'
@@ -687,6 +694,7 @@ export function createContext({
     if ('keywords' in change) return setKeywords(projectFile, id, change.keywords)
     if ('style' in change) return setStyle(projectFile, id, change.style)
     if ('speed' in change) return setSpeed(projectFile, id, change.speed, language)
+    if ('clean' in change) return setClean(projectFile, id, change.clean, language)
     return setPhrase(projectFile, id, change.phrase, language)
   }
 

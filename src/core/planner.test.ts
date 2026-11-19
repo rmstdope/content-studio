@@ -63,6 +63,17 @@ function statuses(state: ReturnType<typeof planPart>) {
 }
 
 describe('planPart', () => {
+  it('keeps clips up to date when the clean-up switch is flipped', () => {
+    const switched: SpokenCast = {
+      ...cast,
+      speakers: Object.fromEntries(
+        Object.entries(cast.speakers).map(([id, entry]) => [id, { ...entry, clean: true }]),
+      ),
+    }
+    const state = planPart(input({ lock: trackedLock, cast: switched }))
+    expect(statuses(state)).toEqual({ n1: 'ok', m1: 'ok', t1: 'uncast' })
+  })
+
   it('marks clips matching their inputs ok, and a speaker without a voice uncast', () => {
     const state = planPart(input({ lock: trackedLock }))
     expect(statuses(state)).toEqual({ n1: 'ok', m1: 'ok', t1: 'uncast' })

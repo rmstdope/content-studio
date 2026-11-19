@@ -364,6 +364,7 @@ export async function recordLine(
       cacheName: read.cacheName,
       narration,
       encode,
+      clean: cast.speakers[line.speaker]?.clean === true,
       take: best,
       takes,
       finalFp,
@@ -510,7 +511,8 @@ export async function checkTake(
  * read, with the manifest entry (the take's word timings) and the lock entry (`takes` tried, the
  * share heard) written after it. The lock last: if anything fails before it, the line shows as
  * stale or untracked, never as up to date. With `finalFp`, a final clip of the line that landed
- * meanwhile is kept and the take dropped (`skipped`).
+ * meanwhile is kept and the take dropped (`skipped`). With `clean`, the encoder lowers the
+ * background noise first (§8.4); the take's own audio and timings are as recorded.
  */
 export async function commitClip({
   projectFile,
@@ -521,6 +523,7 @@ export async function commitClip({
   cacheName = partId,
   narration,
   encode,
+  clean,
   take,
   takes,
   finalFp,
@@ -534,6 +537,8 @@ export async function commitClip({
   cacheName?: string
   narration: Project['narration']
   encode: Encoder
+  /** Whether the line's voice is switched on to be cleaned of background noise. */
+  clean: boolean
   take: Take
   takes: number
   finalFp: string | null
@@ -545,7 +550,7 @@ export async function commitClip({
   const target = resolveInRoot(root, join(paths.clipsPath, file))
   const temporary = resolveInRoot(root, join(paths.clipsPath, `.${key}.${randomUUID()}.mp3`))
   try {
-    await encode(clip.wav, temporary, narration.output)
+    await encode(clip.wav, temporary, { ...narration.output, clean })
   } catch (error) {
     await rm(temporary, { force: true }).catch(() => {})
     return { ok: false, reason: 'encode', message: messageOf(error) }

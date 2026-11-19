@@ -194,6 +194,30 @@ describe('takeLine, a paid draft model', () => {
 })
 
 describe('useLineTake', () => {
+  it('cleans the clip a take becomes when the voice is switched on', async () => {
+    const root = tempRepo({
+      ...files,
+      'content-studio/narration/cast.json': {
+        speakers: { narrator: { voice: 'v-n', style: '[warm]', clean: true } },
+        pronounce: { en: { Elior: 'El-ee-or' } },
+      },
+    })
+    const { fish } = fakeFish()
+    const made = await take(root, fish)
+    if (!made?.ok) throw new Error('expected a take')
+    const asked: (boolean | undefined)[] = []
+    await useLineTake(projectFileOf(root), 'act1', 'k1', made.take.id, {
+      encode: async (wav, file, options) => {
+        asked.push(options.clean)
+        await keepWav(wav, file, options)
+      },
+    })
+    expect(asked).toEqual([true])
+    // The take kept in the cache is as it was recorded.
+    const kept = await lineTakeFile(projectFileOf(root), 'act1', 'k1', made.take.id)
+    expect(readWav(readFileSync(kept!)).data.length).toBe(2000)
+  })
+
   it('makes the take the line’s clip, with its timings and score, as a recording does', async () => {
     const root = tempRepo(files)
     const { fish } = fakeFish()

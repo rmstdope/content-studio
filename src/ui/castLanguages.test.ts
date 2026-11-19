@@ -30,6 +30,7 @@ function casting(over: Partial<CharacterLanguage> = {}): CharacterLanguage {
     voiceName: null,
     speed: null,
     phrase: null,
+    clean: false,
     appearances: [],
     totalLines: 0,
     longest: null,

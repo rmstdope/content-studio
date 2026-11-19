@@ -379,6 +379,34 @@ export function setSpeed(
   )
 }
 
+/**
+ * Switches the clean-up of a character's voice on or off in the cast: whether lines recorded from
+ * now on are cleaned of background noise (§8.4). Off removes the key. It is per language, as the
+ * voice is. Nothing recorded goes stale: the fingerprint does not read it.
+ */
+export function setClean(
+  projectFile: string,
+  characterId: string,
+  clean: boolean,
+  language?: string,
+): Promise<CharacterChange> {
+  return updateCharacter(
+    projectFile,
+    characterId,
+    (entry, which) => {
+      if (which.language !== which.source) {
+        return inLanguage(entry, which.language, (own) =>
+          withField(own, 'clean', clean ? true : undefined),
+        )
+      }
+      if (clean) return { ...entry, clean: true }
+      const { clean: _removed, ...rest } = entry
+      return rest
+    },
+    language,
+  )
+}
+
 /** Saves a character's own audition phrase in the cast; an empty phrase goes back to the standard one. */
 export async function setPhrase(
   projectFile: string,
@@ -412,8 +440,8 @@ export async function setPhrase(
 /** A language's casting with one field set, or removed when `value` is undefined. */
 function withField(
   voice: NonNullable<Character['languages']>[string],
-  field: 'speed' | 'phrase' | 'voice' | 'voiceName',
-  value: string | number | undefined,
+  field: 'speed' | 'phrase' | 'voice' | 'voiceName' | 'clean',
+  value: string | number | boolean | undefined,
 ): NonNullable<Character['languages']>[string] {
   const next: Record<string, unknown> = { ...voice, [field]: value }
   if (value === undefined) delete next[field]
