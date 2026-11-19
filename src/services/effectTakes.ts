@@ -35,6 +35,7 @@ import { shapeEffectLoop, loopRequestSeconds } from '../core/effectLoop'
 import { peaks, wavSeconds } from '../core/musicTake'
 import { readWav, writeWav } from '../core/wav'
 import { applyFades, fadesProblem, hasFades, type Fades } from '../core/fades'
+import { LevelSchema, applyLevel } from '../core/effectLevel'
 import { ffmpegEncoder, type Encoder } from './audio'
 import { EFFECT_BOARD_DIR, EFFECT_TAKES_DIR, boardFile, readEffectBoard } from './effectBoards'
 import {
@@ -179,6 +180,12 @@ export interface EffectTakes {
    * if that fails.
    */
   trim(projectFile: string, id: string, name: string, undo: boolean): Promise<EffectTrimResult>
+  /**
+   * Saves a take's level (10% to 200%, 1 as made; 1 removes it), for takes that loop and that play
+   * once alike. Like fades: on the chosen take the game's file is written again first, and nothing
+   * changes if that fails.
+   */
+  setLevel(projectFile: string, id: string, name: string, level: number): Promise<EffectMakeResult>
   /** A trimmed take's sound between its cuts as a WAV; null for a take that is not trimmed. */
   trimmedSound(projectFile: string, id: string, name: string): Promise<Uint8Array | null>
   /** What is being made in the project, by effect, for the list's status. */
@@ -196,10 +203,12 @@ const fileOf = (take: Pick<EffectBoardTake, 'hash' | 'n'>) => `${take.hash}.${ta
  */
 function playedOf(take: EffectBoardTake, bytes: Uint8Array) {
   const fades = take.fades && hasFades(take.fades) ? take.fades : null
-  if (!take.trim && !fades) return { take, wav: bytes }
+  const level = take.level ?? 1
+  if (!take.trim && !fades && level === 1) return { take, wav: bytes }
   let wav = readWav(bytes)
   if (take.trim) wav = trimWav(wav, take.trim)
   if (fades) wav = applyFades(wav, fades)
+  wav = applyLevel(wav, level)
   return {
     take: take.trim ? { ...take, seconds: trimmedSeconds(take.seconds, take.trim) } : take,
     wav: writeWav(wav),
@@ -423,6 +432,100 @@ export function createEffectTakes({
 
   const { entriesOf } = engine
 
+  /**
+   * Changes one setting of a take that shapes what the game plays (fades, level): `change` gives the
+   * take as it should be kept, or a refusal. On the chosen take the game's file is written first
+   * with the new sound (the manifest and lock untouched) and the board second; a board that cannot
+   * be written puts the game's previous file back.
+   */
+  async function editPlayed(
+    projectFile: string,
+    id: string,
+    name: string,
+    verb: string,
+    what: string,
+    change: (
+      take: EffectBoardTake,
+      found: Found,
+    ) => EffectBoardTake | { ok: false; message: string },
+  ): Promise<EffectMakeResult | ProjectFailure | null> {
+    const found = await resolve(projectFile, id)
+    if (!found || !('inputs' in found)) return found
+    /** Puts the game's file back, once the board turned out not to be writable. */
+    let putBack: (() => Promise<void>) | null = null
+    let stuck = false
+    return changeBoard(
+      projectFile,
+      found,
+      async (board): Promise<EffectMakeResult> => {
+        const chosenEffects = await readEffectChosen(found.root, found.effects, [])
+        // Which take the game plays is not known: nothing is changed.
+        if (!chosenEffects.read) {
+          return { ok: false, message: 'The sound effects lock could not be read.' }
+        }
+        const take = board.takes.find((t) => fileOf(t) === name)
+        if (!take) return { ok: false, message: 'That take is not on the board.' }
+        const next = change(take, found)
+        if ('ok' in next) return next
+        const chosen = chosenEffects.entries[id]?.lock
+        if (chosen?.take === take.n && chosen.fp === take.hash) {
+          let wav: Uint8Array
+          try {
+            wav = new Uint8Array(await Bun.file(join(found.root, found.folder, name)).arrayBuffer())
+          } catch {
+            return { ok: false, message: `That take’s sound is gone, so it cannot be ${verb}.` }
+          }
+          let played: ReturnType<typeof playedOf>
+          try {
+            played = playedOf(next, wav)
+          } catch {
+            return { ok: false, message: `That take’s sound cannot be ${verb}.` }
+          }
+          const game = join(found.effects.clips, `${id}.mp3`)
+          const was = await Bun.file(resolveInRoot(found.root, game))
+            .bytes()
+            .catch(() => null)
+          putBack = async () => {
+            if (was) await writeAtomic(found.root, game, was)
+            else await rm(resolveInRoot(found.root, game), { force: true })
+          }
+          // Only the sound changes: the manifest and the lock (an accepted change too) stay as they are.
+          const done = await commitEffect({
+            root: found.root,
+            projectFile,
+            effects: found.effects,
+            id,
+            take: played.take,
+            inUse: found.inputs,
+            wav: played.wav,
+            encode,
+            soundOnly: true,
+          })
+          if (!done.ok) return done
+        }
+        board.takes = board.takes.map((t) => (t === take ? next : t))
+        return { ok: true }
+      },
+      () =>
+        (putBack?.() ?? Promise.resolve()).catch((error) => {
+          stuck = true
+          console.error('putting the game’s file back failed', error)
+        }),
+    ).catch((error): EffectMakeResult => {
+      // Kept in the server log: the person is told the plain reason, not the stack.
+      console.error(`saving the ${what} failed`, error)
+      const board = refusalSentence(error)
+      if (board === null) throw error
+      return stuck
+        ? {
+            ok: false,
+            message: `${board}, and the game’s file could not be put back.`,
+            gameChanged: true,
+          }
+        : { ok: false, message: `${board}.` }
+    })
+  }
+
   const api: EffectTakes = {
     async models(projectFile) {
       const opened = await openProject(projectFile)
@@ -462,6 +565,7 @@ export function createEffectTakes({
           model: modelName(take.model),
           loops,
           quietAt: take.quietAt ?? null,
+          level: take.level ?? 1,
           ...(take.fades && { fades: take.fades }),
           ...(take.trim && {
             trim: { ...take.trim, seconds: trimmedSeconds(take.seconds, take.trim) },
@@ -651,94 +755,32 @@ export function createEffectTakes({
       })
     },
 
-    async setFades(projectFile, id, name, fades) {
-      const found = await resolve(projectFile, id)
-      if (!found || !('inputs' in found)) return found
-      /** Puts the game's file back, once the board turned out not to be writable. */
-      let putBack: (() => Promise<void>) | null = null
-      let stuck = false
-      return changeBoard(
-        projectFile,
-        found,
-        async (board): Promise<EffectMakeResult> => {
-          const chosenEffects = await readEffectChosen(found.root, found.effects, [])
-          // Which take the game plays is not known: nothing is changed.
-          if (!chosenEffects.read) {
-            return { ok: false, message: 'The sound effects lock could not be read.' }
-          }
-          const take = board.takes.find((t) => fileOf(t) === name)
-          if (!take) return { ok: false, message: 'That take is not on the board.' }
-          if (take.inputs.loops || found.inputs.loops) {
-            return { ok: false, message: 'Only a sound that plays once can fade.' }
-          }
-          // The fades are of what the game plays: the take between its cuts, if it is trimmed.
-          const wrong =
-            fades &&
-            fadesProblem(fades, take.trim ? trimmedSeconds(take.seconds, take.trim) : take.seconds)
-          if (wrong) return { ok: false, message: wrong }
-          const next: EffectBoardTake = { ...take }
-          delete next.fades
-          if (fades && hasFades(fades)) next.fades = fades
-          const chosen = chosenEffects.entries[id]?.lock
-          if (chosen?.take === take.n && chosen.fp === take.hash) {
-            let wav: Uint8Array
-            try {
-              wav = new Uint8Array(
-                await Bun.file(join(found.root, found.folder, name)).arrayBuffer(),
-              )
-            } catch {
-              return { ok: false, message: 'That take’s sound is gone, so it cannot be faded.' }
-            }
-            let played: ReturnType<typeof playedOf>
-            try {
-              played = playedOf(next, wav)
-            } catch {
-              return { ok: false, message: 'That take’s sound cannot be faded.' }
-            }
-            const game = join(found.effects.clips, `${id}.mp3`)
-            const was = await Bun.file(resolveInRoot(found.root, game))
-              .bytes()
-              .catch(() => null)
-            putBack = async () => {
-              if (was) await writeAtomic(found.root, game, was)
-              else await rm(resolveInRoot(found.root, game), { force: true })
-            }
-            // Only the sound changes: the manifest and the lock (an accepted change too) stay as they are.
-            const done = await commitEffect({
-              root: found.root,
-              projectFile,
-              effects: found.effects,
-              id,
-              take: played.take,
-              inUse: found.inputs,
-              wav: played.wav,
-              encode,
-              soundOnly: true,
-            })
-            if (!done.ok) return done
-          }
-          board.takes = board.takes.map((t) => (t === take ? next : t))
-          return { ok: true }
-        },
-        () =>
-          (putBack?.() ?? Promise.resolve()).catch((error) => {
-            stuck = true
-            console.error('putting the game’s file back failed', error)
-          }),
-      ).catch((error): EffectMakeResult => {
-        // Kept in the server log: the person is told the plain reason, not the stack.
-        console.error('saving the fades failed', error)
-        const board = refusalSentence(error)
-        if (board === null) throw error
-        return stuck
-          ? {
-              ok: false,
-              message: `${board}, and the game’s file could not be put back.`,
-              gameChanged: true,
-            }
-          : { ok: false, message: `${board}.` }
-      })
-    },
+    setFades: (projectFile, id, name, fades) =>
+      editPlayed(projectFile, id, name, 'faded', 'fades', (take, found) => {
+        if (take.inputs.loops || found.inputs.loops) {
+          return { ok: false, message: 'Only a sound that plays once can fade.' }
+        }
+        // The fades are of what the game plays: the take between its cuts, if it is trimmed.
+        const wrong =
+          fades &&
+          fadesProblem(fades, take.trim ? trimmedSeconds(take.seconds, take.trim) : take.seconds)
+        if (wrong) return { ok: false, message: wrong }
+        const next: EffectBoardTake = { ...take }
+        delete next.fades
+        if (fades && hasFades(fades)) next.fades = fades
+        return next
+      }),
+
+    setLevel: (projectFile, id, name, level) =>
+      editPlayed(projectFile, id, name, 'changed', 'level', (take) => {
+        if (!LevelSchema.safeParse(level).success) {
+          return { ok: false, message: 'A level is between 10% and 200%, in steps of 5%.' }
+        }
+        const next: EffectBoardTake = { ...take }
+        delete next.level
+        if (level !== 1) next.level = level
+        return next
+      }),
 
     async trim(projectFile, id, name, undo) {
       const found = await resolve(projectFile, id)
