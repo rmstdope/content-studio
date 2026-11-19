@@ -173,9 +173,11 @@ export function LevelControl({
             max={LEVEL.max}
             step={LEVEL.step}
             value={shown}
-            disabled={rewriting}
+            {...off(rewriting && rewritingText(job.level, job.done, job.total))}
             aria-valuetext={`${shown}%`}
             onChange={(event) => {
+              // Locked while the lines are rewritten: it stays focusable and says why.
+              if (rewriting) return
               const value = Number(event.target.value)
               set.reset()
               setAsking(false)

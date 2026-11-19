@@ -91,7 +91,7 @@ describe('CleanUp', () => {
 
   async function show(
     answers: ReturnType<typeof studio>,
-    props: { clean?: boolean; takeKey?: string | null; language?: string } = {},
+    props: { clean?: boolean; level?: number; takeKey?: string | null; language?: string } = {},
   ) {
     globalThis.fetch = answers.fetcher
     const container = document.createElement('div')
@@ -110,6 +110,7 @@ describe('CleanUp', () => {
               characterId: 'keeper',
               language,
               clean: props.clean ?? false,
+              level: props.level ?? 100,
               takeKey: props.takeKey === undefined ? 'c'.repeat(16) : props.takeKey,
               parts: [{ id: 'act1', title: 'Act I' }],
               speaker: 'keeper',
@@ -343,6 +344,7 @@ describe('CleanUp', () => {
       return createElement(CleanUp, {
         characterId: 'keeper',
         clean: current.data?.clean ?? false,
+        level: 100,
         takeKey: null,
         parts: [{ id: 'act1', title: 'Act I' }],
         speaker: 'keeper',

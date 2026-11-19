@@ -209,7 +209,9 @@ describe('LevelControl', () => {
     const page = await show({ saved: 60, data: data({ levelJob }) })
     expect(page.text()).toContain('Setting lines in the game to 60%… 12 of 38')
     expect(page.button('Stop')).toBeUndefined()
-    expect(page.slider().disabled).toBe(true)
+    expect(page.slider().getAttribute('aria-disabled')).toBe('true')
+    await page.move(80)
+    expect(page.text()).not.toContain('Not set yet')
   })
 
   it('offers to set the lines that are still at another level, and says why some could not be set', async () => {

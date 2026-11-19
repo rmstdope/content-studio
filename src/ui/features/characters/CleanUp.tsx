@@ -15,7 +15,9 @@ import { recordedLinesOf } from '../../inGame'
 import { PauseIcon, PlayIcon } from '../../components/icons'
 import { off } from '../../off'
 import { CLEANING_BUSY } from '../../../core/cleanedLines'
+import { hearGain } from '../../level'
 import { CleanLines } from './CleanLines'
+import { LevelControl } from './LevelControl'
 import { useCompareLoop, type Side } from './useCompareLoop'
 
 /** The words of the panel, as agreed. */
@@ -32,6 +34,7 @@ export function CleanUp({
   characterId,
   language,
   clean,
+  level,
   takeKey,
   parts,
   speaker,
@@ -42,6 +45,8 @@ export function CleanUp({
   language?: string
   /** Whether the voice is switched on, as saved. */
   clean: boolean
+  /** How loud the voice plays, as saved, in percent. */
+  level: number
   /** The key of the character's take of the audition phrase; null until it is made. */
   takeKey: string | null
   /** The character's parts, whose recorded lines can be heard. */
@@ -92,6 +97,8 @@ export function CleanUp({
   const [chosen, setChosen] = useState<string | null>(null)
   const selected = entries.find((e) => e.id === chosen) ?? firstEntry(entries)
   const [side, setSide] = useState<Side>('recorded')
+  // The slider tried and not set: only what is heard follows it.
+  const [trial, setTrial] = useState<number | null>(null)
 
   // A line already cleaned in the game is heard from its kept original and from the game's clip.
   const inGame =
@@ -114,10 +121,26 @@ export function CleanUp({
       ? originalUrl(selected.source.part, selected.source.file, language)
       : selected.url
   const cleanedSide = inGame ? selected.url : copy.data?.ok ? cleanedUrl(copy.data.name) : null
+  // What is heard follows the slider: over the level each file already carries (a game clip its
+  // voice's, the take and a kept original 100%).
+  const carries =
+    ('part' in selected.source &&
+      cleaned.data?.levels.find(
+        (l) =>
+          'part' in selected.source &&
+          l.part === selected.source.part &&
+          l.file === selected.source.file,
+      )?.level) ||
+    100
+  const gains = {
+    recorded: hearGain(trial ?? level, inGame ? 100 : carries),
+    cleaned: hearGain(trial ?? level, carries),
+  }
   const loop = useCompareLoop(
     selected.missing ? null : recordedUrl,
     ready ? cleanedSide : null,
     side,
+    gains,
   )
   // The copy is asked for from the first press of play until the loop is stopped.
   if (wanted !== loop.playing) setWanted(loop.playing)
@@ -193,6 +216,18 @@ export function CleanUp({
       />
       {putBackError && <p className="adopt-error">{putBackError}</p>}
       {reason && <p className="adopt-error">Couldn’t save the clean-up: {reason}</p>}
+
+      <LevelControl
+        characterId={characterId}
+        language={language}
+        saved={level}
+        data={cleaned.data}
+        trial={trial}
+        onTrial={setTrial}
+        cleaning={
+          cleaned.data?.job?.status === 'running' || cleaned.data?.job?.status === 'stopping'
+        }
+      />
 
       <div className="clean-hear">
         <label className="clean-menu">
