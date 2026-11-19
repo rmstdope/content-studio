@@ -360,7 +360,7 @@ again: lines already recorded stay as they are (cleaning those is a later piece)
 one fixed chain (`core/cleanup.ts`, chosen by listening in as-bifl): a high-pass at 80 Hz,
 `afftdn` at 20 dB with its noise print learned from the take's own quietest 0.4 s, and an `agate`
 that opens 12 dB above that floor and lowers the pauses by 10 dB. `cleanWav` (`services/audio.ts`)
-runs it on the take's WAV and the encoder does so before encoding when `EncodeOptions.clean` is set
+runs it on the take's WAV (a copy of the quiet stretch is put in front so the noise print is learned before any of the take is filtered, and cut off again) and the encoder does so before encoding when `EncodeOptions.clean` is set
 (levelling follows as for any clip). `commitClip` sets it from the line's speaker, so it applies to
 a recording, a retake, and a take chosen as the line's clip; the audition, the character's take and
 a line's cached takes stay as recorded. The switch is saved by `PATCH /api/characters/:id` with
@@ -369,7 +369,7 @@ a line's cached takes stay as recorded. The switch is saved by `PATCH /api/chara
 **Hearing it** (`services/cleanedCopy.ts`): the Voice panel's _Hear it on_ menu plays one recorded
 line, or the take, in a loop, as recorded and cleaned. `POST /api/cleaned` with `{ part, file }` or
 `{ take }` makes the cleaned copy (the clip decoded, cleaned and encoded with the project's output
-settings) into `content-studio/cache/cleaned/<key>.mp3`, named by the clip's place, size and time
+settings; a take's copy is not levelled, as the take is not) into `content-studio/cache/cleaned/<key>.mp3`, named by the clip's place, size and time
 and the chain's version, so it is made once and again only when the clip or the chain changes;
 `GET /api/cleaned/:file` serves it. The game's clip is never written. The page plays both at once,
 one muted, so flipping As recorded / Cleaned does not restart the line.

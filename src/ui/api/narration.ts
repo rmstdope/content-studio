@@ -561,8 +561,9 @@ export function useSetClean(characterId: string, language?: string) {
       }
       return (await response.json()) as NonNullable<CharacterChange>
     },
-    onSuccess: (saved) => {
-      if (saved.ok) void client.invalidateQueries({ queryKey: ['project'] })
+    // Awaited: the switch keeps showing what was asked until the project says the same.
+    onSuccess: async (saved) => {
+      if (saved.ok) await client.invalidateQueries({ queryKey: ['project'] })
     },
   })
 }
@@ -780,7 +781,7 @@ export function useSetNote(partId: string, language?: string) {
       return (await response.json()) as NonNullable<NoteChange>
     },
     onSuccess: async (saved) => {
-      if (saved.ok) await client.invalidateQueries({ queryKey: ['part', partId] })
+      if (saved.ok) void client.invalidateQueries({ queryKey: ['part', partId] })
     },
   })
 }

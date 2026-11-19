@@ -1,4 +1,4 @@
-import type { Wav } from './wav'
+import { writeWav, type Wav } from './wav'
 
 /**
  * The one fixed clean-up of a voice (as-bifl): a high-pass, a noise print learned from the
@@ -68,19 +68,41 @@ function time(seconds: number): string {
 }
 
 /**
- * The ffmpeg `-af` chain that cleans a take whose quietest stretch is `floor`: high-pass, then a
- * noise print learned from that stretch (the `asendcmd` marks it for `afftdn`), then a gate that
- * opens 12 dB above the floor and lowers what stays under it by 10 dB. A take with no floor
- * silent enough to tell from the voice is still gated at least above the level of digital silence.
+ * The ffmpeg `-af` chain for a take that begins with a copy of its quietest stretch
+ * (`withNoiseFirst`): high-pass, then a noise print learned from that first 0.4 s (the `asendcmd`
+ * marks it for `afftdn`), then a gate that opens 12 dB above `floor` and lowers what stays under
+ * it by 10 dB, then the copy is cut off. The gate never opens above −6 dBFS.
  */
-export function cleanupFilter(floor: Floor): string {
+export function cleanupFilter(floor: Pick<Floor, 'db'>): string {
   const { highpassHz, reductionDb, noiseSeconds, gateAboveFloorDb, gateLowersDb } = CLEANUP
   const threshold = 10 ** (Math.min(floor.db + gateAboveFloorDb, -6) / 20)
   const range = 10 ** (-gateLowersDb / 20)
   return [
     `highpass=f=${highpassHz}`,
-    `asendcmd=c='${time(floor.start)} afftdn sn start; ${time(floor.start + noiseSeconds)} afftdn sn stop'`,
+    `asendcmd=c='0 afftdn sn start; ${time(noiseSeconds)} afftdn sn stop'`,
     `afftdn=nr=${reductionDb}`,
     `agate=threshold=${threshold.toFixed(6)}:range=${range.toFixed(6)}`,
+    `atrim=start=${time(noiseSeconds)},asetpts=PTS-STARTPTS`,
   ].join(',')
+}
+
+/**
+ * The take with a copy of its quietest stretch put in front of it, so the noise print is learned
+ * before any of the take is filtered (afftdn learns as the audio streams). The copy is cut off
+ * again after the chain (`cleanupFilter`). Null when the take has no 16-bit stretch to copy.
+ */
+export function withNoiseFirst(wav: Wav, floor: Floor): Wav {
+  const { format, data } = wav
+  const frame = 2 * format.channels
+  const from = Math.round(floor.start * format.sampleRate) * frame
+  const length = Math.round(CLEANUP.noiseSeconds * format.sampleRate) * frame
+  const joined = new Uint8Array(length + data.length)
+  joined.set(data.subarray(from, from + length), 0)
+  joined.set(data, length)
+  return { format, data: joined }
+}
+
+/** `withNoiseFirst`, as the WAV file ffmpeg reads. */
+export function noiseFirstFile(wav: Wav, floor: Floor): Uint8Array {
+  return writeWav(withNoiseFirst(wav, floor))
 }

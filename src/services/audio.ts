@@ -2,7 +2,7 @@ import { constants } from 'node:fs'
 import { access, mkdir, rename, rm } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { pyFixed } from '../core/pyformat'
-import { cleanupFilter, CLEANUP, quietestStretch } from '../core/cleanup'
+import { cleanupFilter, CLEANUP, noiseFirstFile, quietestStretch } from '../core/cleanup'
 import { readWav } from '../core/wav'
 
 /** How clips are encoded (the project's `output`). */
@@ -110,8 +110,12 @@ export async function cleanWav(
   wav: Uint8Array,
   { timeoutMs = 120_000 }: { timeoutMs?: number } = {},
 ): Promise<Uint8Array> {
-  const floor = quietestStretch(readWav(wav), CLEANUP.noiseSeconds)
+  const parsed = readWav(wav)
+  const floor = quietestStretch(parsed, CLEANUP.noiseSeconds)
   if (!floor) return wav
+  // The noise print is learned from a copy of the quiet stretch put first, so all of the take is
+  // filtered with it; the copy is cut off by the chain.
+  const input = noiseFirstFile(parsed, floor)
   let child
   try {
     child = Bun.spawn(
@@ -145,7 +149,7 @@ export async function cleanWav(
   const out = new Response(child.stdout).arrayBuffer()
   const stderr = new Response(child.stderr).text()
   try {
-    child.stdin.write(wav)
+    child.stdin.write(input)
     await child.stdin.end()
   } catch {
     // ffmpeg stopped reading: its exit says why.

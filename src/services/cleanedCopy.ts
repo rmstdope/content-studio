@@ -53,7 +53,14 @@ export async function cleanedCopy(
   try {
     await mkdir(dirname(target), { recursive: true })
     const { wav } = await decode(file)
-    await encode(wav, temporary, { ...opened.project.narration.output, clean: true })
+    // A take is heard as it was recorded, never levelled, so its copy is not levelled either:
+    // only the noise differs. A game clip is levelled already, and levelling it again is a no-op.
+    const output = opened.project.narration.output
+    await encode(wav, temporary, {
+      ...output,
+      ...('take' in source ? { lufs: null } : {}),
+      clean: true,
+    })
     await rename(temporary, target)
     return { ok: true, name }
   } catch (error) {

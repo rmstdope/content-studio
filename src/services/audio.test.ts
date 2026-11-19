@@ -252,7 +252,7 @@ describe.skipIf(!hasFfmpeg || !Bun.which('ffprobe'))('levelClip', () => {
  * Three seconds at 16 kHz: a voice-like burst (600 Hz and 1.8 kHz) from 0.5 s to 1.5 s, and a 150 Hz
  * rumble with a little noise under all of it, so the pauses before and after are only rumble.
  */
-function rumbling(): Uint8Array {
+function rumbling(trailing = 1): Uint8Array {
   const rate = 16000
   const data = new Uint8Array(rate * 3 * 2)
   const view = new DataView(data.buffer)
@@ -261,7 +261,7 @@ function rumbling(): Uint8Array {
     const t = i / rate
     seed = (seed * 1103515245 + 12345) & 0x7fffffff
     const noise = (seed / 0x7fffffff - 0.5) * 0.004
-    let v = 0.02 * Math.sin(2 * Math.PI * 150 * t) + noise
+    let v = (0.02 * Math.sin(2 * Math.PI * 150 * t) + noise) * (t > 1.5 ? trailing : 1)
     if (t > 0.5 && t < 1.5) {
       v += 0.3 * Math.sin(2 * Math.PI * 600 * t) + 0.15 * Math.sin(2 * Math.PI * 1800 * t)
     }
@@ -289,6 +289,18 @@ describe.skipIf(!hasFfmpeg)('cleanWav', () => {
       return 10 * Math.log10(sum / 16000)
     }
     expect(Math.abs(loud(b) - loud(a))).toBeLessThan(3)
+  })
+
+  it('cleans a pause before the quietest stretch too, when that comes last', async () => {
+    const before = readWav(rumbling(0.5))
+    const after = readWav(await cleanWav(rumbling(0.5)))
+    /** The level of the leading pause, 0.05 s to 0.45 s. */
+    const lead = (wav: typeof before) =>
+      quietestStretch(
+        { format: wav.format, data: wav.data.subarray(0.05 * 16000 * 2, 0.45 * 16000 * 2) },
+        0.4,
+      )!.db
+    expect(lead(after)).toBeLessThan(lead(before) - 10)
   })
 
   it('is what the encoder does first when asked to clean', async () => {

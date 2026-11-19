@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { cleanupFilter, quietestStretch } from './cleanup'
+import { cleanupFilter, quietestStretch, withNoiseFirst } from './cleanup'
 import type { Wav } from './wav'
 
 /** 16-bit mono PCM at 1000 Hz from one level per tenth of a second (constant samples). */
@@ -36,10 +36,11 @@ describe('quietestStretch', () => {
 
 describe('cleanupFilter', () => {
   it('is the chosen chain: 80 Hz high-pass, noise print from the quiet stretch, a gate 12 dB over the floor lowering by 10 dB', () => {
-    const chain = cleanupFilter({ db: -40, start: 1.25 })
+    const chain = cleanupFilter({ db: -40 })
     expect(chain).toStartWith('highpass=f=80,asendcmd=c=')
-    expect(chain).toContain('1.250000 afftdn sn start')
-    expect(chain).toContain('1.650000 afftdn sn stop')
+    expect(chain).toContain('0 afftdn sn start')
+    expect(chain).toContain('0.400000 afftdn sn stop')
+    expect(chain).toEndWith('atrim=start=0.400000,asetpts=PTS-STARTPTS')
     expect(chain).toContain('afftdn=nr=20')
     const gate = /agate=threshold=([\d.]+):range=([\d.]+)/.exec(chain)!
     expect(20 * Math.log10(Number(gate[1]))).toBeCloseTo(-28, 1)
@@ -47,7 +48,20 @@ describe('cleanupFilter', () => {
   })
 
   it('never opens the gate above −6 dBFS, however loud the floor', () => {
-    const gate = /threshold=([\d.]+)/.exec(cleanupFilter({ db: 0, start: 0 }))!
+    const gate = /threshold=([\d.]+)/.exec(cleanupFilter({ db: 0 }))!
     expect(20 * Math.log10(Number(gate[1]))).toBeLessThanOrEqual(-5.9)
+  })
+})
+
+describe('withNoiseFirst', () => {
+  it('puts a copy of the quietest stretch in front of the take', () => {
+    const wav = take([8000, 8000, 300, 300, 300, 300, 300, 8000, 8000])
+    const floor = quietestStretch(wav, 0.4)!
+    const joined = withNoiseFirst(wav, floor)
+    expect(joined.data.length).toBe(wav.data.length + 0.4 * 1000 * 2)
+    const view = new DataView(joined.data.buffer)
+    expect(view.getInt16(0, true)).toBe(300)
+    expect(view.getInt16(0.4 * 1000 * 2, true)).toBe(8000)
+    expect(joined.data.subarray(0.4 * 1000 * 2)).toEqual(wav.data)
   })
 })

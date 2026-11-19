@@ -81,9 +81,12 @@ export function CleanUp({
   // The copy is asked for from the first press of play until the loop is stopped.
   if (wanted !== loop.playing) setWanted(loop.playing)
   const lit: Side = loop.playing ? heard : side
+  // The line the menu opens on is not known until the parts are in: playing before would play the take.
+  const loading = loaded.some((part) => part.isPending)
   const waitForTake = selected.missing ? 'Wait for the take to be made.' : false
+  const playWhy = waitForTake || (loading && !loop.playing && 'The recorded lines are loading.')
   const flipWhy = waitForTake || (cleaning && 'The cleaned version is being made.') || failure
-  const flipDisabled = typeof flipWhy === 'string' && flipWhy !== ''
+  const flipDisabled = Boolean(flipWhy)
 
   return (
     <div className="clean-up">
@@ -128,8 +131,8 @@ export function CleanUp({
             type="button"
             className="icon-btn"
             aria-label={loop.playing ? 'Stop' : 'Play'}
-            {...off(waitForTake)}
-            onClick={() => !waitForTake && loop.toggle()}
+            {...off(playWhy)}
+            onClick={() => !playWhy && loop.toggle()}
           >
             {loop.playing ? <PauseIcon /> : <PlayIcon />}
           </button>

@@ -12,8 +12,16 @@ import { projectJson, tempRepo } from '../../test/helpers'
 import type { Encoder } from './audio'
 import { cleanedCopy, cleanedFile } from './cleanedCopy'
 
+const leveled = projectJson({
+  narration: {
+    from: { part: 'tts/{part}/script.json' },
+    clips: 'audio/{part}',
+    manifest: 'audio/{part}/manifest.json',
+    output: { lufs: -20 },
+  },
+})
 const files = {
-  'content-studio.json': projectJson(),
+  'content-studio.json': leveled,
   'tts/act1/script.json': [{ id: 'k1', speaker: 'narrator', text: 'Hello.' }],
   'audio/act1/k1.mp3': 'the recorded line',
 }
@@ -23,9 +31,9 @@ const decode = async () => ({ wav: new Uint8Array([1, 2, 3]), seconds: 1 })
 
 /** An encoder that notes how it was asked, and writes what it was given. */
 function watching() {
-  const asked: { clean?: boolean; bitrate: string }[] = []
+  const asked: { clean?: boolean; bitrate: string; lufs?: number | null }[] = []
   const encode: Encoder = async (wav, file, options) => {
-    asked.push({ clean: options.clean, bitrate: options.bitrate })
+    asked.push({ clean: options.clean, bitrate: options.bitrate, lufs: options.lufs })
     writeFileSync(file, wav)
   }
   return { asked, encode }
@@ -42,7 +50,7 @@ describe('cleanedCopy', () => {
     )
     if (!made?.ok) throw new Error(JSON.stringify(made))
     expect(made.name).toMatch(/^[0-9a-f]{16}\.mp3$/)
-    expect(asked).toEqual([{ clean: true, bitrate: '64k' }])
+    expect(asked).toEqual([{ clean: true, bitrate: '64k', lufs: -20 }])
     expect(readFileSync(join(root, 'content-studio/cache/cleaned', made.name))).toEqual(
       Buffer.from([1, 2, 3]),
     )
@@ -74,9 +82,11 @@ describe('cleanedCopy', () => {
     const key = 'a'.repeat(16)
     mkdirSync(join(root, 'content-studio/cache/takes'), { recursive: true })
     writeFileSync(join(root, `content-studio/cache/takes/${key}.mp3`), 'take')
-    const { encode } = watching()
+    const { asked, encode } = watching()
     const made = await cleanedCopy(projectFileOf(root), { take: key }, { encode, decode })
     expect(made?.ok).toBe(true)
+    // Never levelled: the take it is heard beside is not.
+    expect(asked[0]?.lufs).toBeNull()
   })
 
   it('says why it could not, as given, and leaves nothing behind', async () => {

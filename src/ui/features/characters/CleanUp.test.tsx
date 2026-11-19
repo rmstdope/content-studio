@@ -5,12 +5,15 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 GlobalRegistrator.register()
 const { act, createElement } = await import('react')
 const { createRoot } = await import('react-dom/client')
-const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
+const { QueryClient, QueryClientProvider, useQuery } = await import('@tanstack/react-query')
 const { CleanUp } = await import('./CleanUp')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(async () => {
+  await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+  await GlobalRegistrator.unregister()
+})
 
 /** An audio element that only notes what it was told: which clips play, muted or not, and where. */
 class FakeAudio {
@@ -78,7 +81,9 @@ describe('CleanUp', () => {
     FakeAudio.made = []
     ;(globalThis as { Audio?: unknown }).Audio = FakeAudio
   })
+  const roots: { unmount: () => void }[] = []
   afterEach(() => {
+    act(() => roots.splice(0).forEach((root) => root.unmount()))
     globalThis.fetch = realFetch
     ;(globalThis as { Audio?: unknown }).Audio = realAudio
     document.body.innerHTML = ''
@@ -92,6 +97,7 @@ describe('CleanUp', () => {
     const container = document.createElement('div')
     document.body.append(container)
     const root = createRoot(container)
+    roots.push(root)
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const render = (language?: string) =>
       act(() =>
@@ -124,7 +130,15 @@ describe('CleanUp', () => {
         (b) => b.textContent === name || b.getAttribute('aria-label') === name,
       )!
     const menu = () => container.querySelector('select')!
-    return { container, render, settle, text, button, menu }
+    return {
+      container,
+      render,
+      settle,
+      text,
+      button,
+      menu,
+      unmount: () => act(() => root.unmount()),
+    }
   }
 
   it('offers the take, then each recorded line, opening on the first line, as recorded', async () => {
@@ -269,7 +283,7 @@ describe('CleanUp', () => {
     expect(page.button('As recorded').getAttribute('aria-pressed')).toBe('true')
   })
 
-  it('stops the loop when the language changes, and when the page is left', async () => {
+  it('stops the loop when the language changes', async () => {
     const page = await show(studio({ lines }))
     await page.settle(() => page.menu().options.length === 3)
     await act(() => page.button('Play').click())
@@ -278,9 +292,89 @@ describe('CleanUp', () => {
     expect(FakeAudio.made.every((a) => a.paused)).toBe(true)
   })
 
+  it('stops the loop when the page is left', async () => {
+    const page = await show(studio({ lines }))
+    await page.settle(() => page.menu().options.length === 3)
+    await act(() => page.button('Play').click())
+    await page.settle(() => FakeAudio.made.length === 2)
+    await page.unmount()
+    expect(FakeAudio.made.every((a) => a.paused)).toBe(true)
+  })
+
+  it('cannot play until the recorded lines are in, so the loop is never swapped under it', async () => {
+    let arrive!: () => void
+    const held = new Promise<void>((resolve) => (arrive = resolve))
+    const answers = studio({ lines })
+    const inner = answers.fetcher
+    answers.fetcher = (async (path: string, init?: RequestInit) => {
+      if (String(path).startsWith('/api/parts/')) await held
+      return inner(path, init)
+    }) as unknown as typeof fetch
+    const page = await show(answers)
+    expect(page.button('Play').getAttribute('aria-disabled')).toBe('true')
+    await act(async () => arrive())
+    await page.settle(() => page.button('Play').getAttribute('aria-disabled') === null)
+  })
+
+  it('keeps showing the switch on from the flip until the project says so', async () => {
+    let saved = false
+    let release!: () => void
+    const project = new Promise<void>((resolve) => (release = resolve))
+    const answers = studio({
+      lines,
+      save: () => {
+        saved = true
+        return Response.json({ ok: true })
+      },
+    })
+    const inner = answers.fetcher
+    globalThis.fetch = (async (path: string, init?: RequestInit) => {
+      if (path === '/api/project') {
+        if (saved) await project
+        return Response.json({ clean: saved })
+      }
+      return inner(path, init)
+    }) as unknown as typeof fetch
+    const Wrapper = () => {
+      const current = useQuery({
+        queryKey: ['project'],
+        queryFn: async () => (await (await fetch('/api/project')).json()) as { clean: boolean },
+      })
+      return createElement(CleanUp, {
+        characterId: 'keeper',
+        clean: current.data?.clean ?? false,
+        takeKey: null,
+        parts: [{ id: 'act1', title: 'Act I' }],
+        speaker: 'keeper',
+      })
+    }
+    const container = document.createElement('div')
+    document.body.append(container)
+    const root = createRoot(container)
+    roots.push(root)
+    await act(() =>
+      root.render(
+        createElement(
+          QueryClientProvider,
+          { client: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+          createElement(Wrapper),
+        ),
+      ),
+    )
+    const flip = () => container.querySelector<HTMLInputElement>('input[role="switch"]')!
+    await act(() => flip().click())
+    // The save has been answered, the project has not: the switch has not gone back.
+    for (let i = 0; i < 5; i++) await act(() => new Promise((resolve) => setTimeout(resolve, 10)))
+    expect(saved).toBe(true)
+    expect(flip().checked).toBe(true)
+    await act(async () => release())
+    for (let i = 0; i < 5; i++) await act(() => new Promise((resolve) => setTimeout(resolve, 10)))
+    expect(flip().checked).toBe(true)
+  })
+
   it('has only the take to hear when no line is recorded, and compares on it', async () => {
     const page = await show(studio({ lines: [] }))
-    await page.settle(() => page.text().includes('Hear it on'))
+    await page.settle(() => page.button('Play').getAttribute('aria-disabled') === null)
     expect([...page.menu().options].map((o) => o.textContent)).toEqual([
       'The take (the audition phrase)',
     ])
