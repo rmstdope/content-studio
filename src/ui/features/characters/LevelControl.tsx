@@ -126,6 +126,8 @@ export function LevelControl({
               onClick={() => {
                 set.reset()
                 onTrial(null)
+                // Undo goes away whatever else the row shows (a "set them" button may take its place).
+                slider.current?.focus({ preventScroll: true })
               }}
             >
               Undo
