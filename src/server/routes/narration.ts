@@ -53,6 +53,7 @@ import {
 import { freeVoices, readAddedVoices, voiceToSpeak } from '../../services/elevenVoices'
 import { freeableVoices } from '../../core/elevenLibrary'
 import { heardFor } from '../../services/heard'
+import { cleanedCopy, cleanedFile } from '../../services/cleanedCopy'
 import {
   adoptPart,
   clipFile,
@@ -90,6 +91,7 @@ import {
   VoiceBody,
   languageOf,
   fileRoute,
+  CleanedBody,
   notFound,
   parseOrNull,
 } from '../shared'
@@ -406,6 +408,22 @@ export function narrationRoutes(c: RouteContext) {
       GET: fileRoute(guard, async (request) => {
         return clipFile(projectFile, request.params.part, request.params.file, languageOf(request))
       }),
+    },
+    '/api/cleaned': {
+      POST: fromOwnPage(async (request) => {
+        const body = CleanedBody.safeParse(await request.json().catch(() => null))
+        if (!body.success) {
+          return Response.json({ error: 'expected { part, file } or { take }' }, { status: 400 })
+        }
+        const made = await cleanedCopy(projectFile, body.data, {
+          encode,
+          language: languageOf(request),
+        })
+        return made ? Response.json(made) : notFound()
+      }),
+    },
+    '/api/cleaned/:file': {
+      GET: fileRoute(guard, async (request) => cleanedFile(projectFile, request.params.file)),
     },
     '/api/characters/:id': {
       PATCH: fromOwnPage(async (request) => {

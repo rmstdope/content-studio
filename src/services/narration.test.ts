@@ -87,7 +87,10 @@ describe('recordLine', () => {
     const root = tempRepo({
       ...files,
       'content-studio/narration/cast.json': {
-        speakers: { narrator: { voice: 'v-n', style: '[warm]', clean: true }, mira: { voice: 'v-m' } },
+        speakers: {
+          narrator: { voice: 'v-n', style: '[warm]', clean: true },
+          mira: { voice: 'v-m' },
+        },
         pronounce: { en: { Elior: 'El-ee-or' } },
       },
     })

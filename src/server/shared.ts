@@ -26,6 +26,15 @@ export const CharacterBody = z.union([
   z.object({ clean: z.boolean() }).strict(),
 ])
 
+/**
+ * What a cleaned copy is made from: a recorded line of a part by its file, or a character's
+ * take by its key.
+ */
+export const CleanedBody = z.union([
+  z.object({ part: z.string().max(200), file: z.string().max(200) }).strict(),
+  z.object({ take: z.string().regex(/^[0-9a-f]{16}$/) }).strict(),
+])
+
 /** The whole pronunciation table, and the one the page showed (to refuse a stale page). */
 export const Table = z.array(z.tuple([z.string().max(1_000), z.string().max(1_000)])).max(2_000)
 /** The body of a save of the pronunciation table. */
