@@ -6,6 +6,7 @@ import {
   SetEffectFadesBody,
   TrimEffectTakeBody,
 } from '../../core/effectTakes'
+import { SetEffectLevelBody } from '../../core/effectLevel'
 import { MakeAllBody } from '../../core/effectsMakeAll'
 import { effectClipFile, effectCurrentFile } from '../../services/workspace'
 import type { RouteContext } from '../context'
@@ -62,6 +63,7 @@ export function effectsRoutes(c: RouteContext) {
         fades: SetEffectFadesBody,
         choose: ChooseEffectTakeBody,
         trim: TrimEffectTakeBody,
+        level: SetEffectLevelBody,
       },
     }),
     '/api/effects/:id': {
