@@ -21,6 +21,7 @@ const uncast: CharacterLanguage = {
   speed: null,
   phrase: null,
   clean: false,
+  level: 100,
   appearances: [],
   totalLines: 0,
   longest: null,
