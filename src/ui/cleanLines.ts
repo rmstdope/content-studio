@@ -8,10 +8,11 @@ export function notCleaned({ total, cleaned }: { total: number; cleaned: number 
 
 /** The count line while some lines are not cleaned: its sentence and its button. */
 export function countText(n: number, total: number): { sentence: string; button: string } {
-  if (total === 1)
-    return { sentence: 'The 1 line in the game isn’t cleaned yet.', button: `Clean 1 line…` }
+  const only = n === 1 && total === 1
   return {
-    sentence: `${n} of ${total} ${lines(total)} in the game ${n === 1 ? 'isn’t' : 'aren’t'} cleaned yet.`,
+    sentence: only
+      ? 'The 1 line in the game isn’t cleaned yet.'
+      : `${n} of ${total} ${lines(total)} in the game ${n === 1 ? 'isn’t' : 'aren’t'} cleaned yet.`,
     button: `Clean ${n} ${lines(n)}…`,
   }
 }
