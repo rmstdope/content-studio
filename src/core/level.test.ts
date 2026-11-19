@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { CharacterSchema, LockEntrySchema, orderLockEntry, projectCast, voiceOf } from './resources'
+import { CharacterSchema, LockEntrySchema, projectCast, voiceOf } from './resources'
 import { LEVEL, isLevel, levelDb, lineFailure, lineLevel } from './level'
 
 describe('a voice level', () => {
@@ -73,20 +73,5 @@ describe('lineFailure', () => {
     expect(lineFailure('k1', new Error('ffmpeg is needed to level clips: install it'))).toBe(
       'Line k1: ffmpeg is needed to level clips: install it',
     )
-  })
-})
-
-describe('orderLockEntry', () => {
-  it('puts the fields in one order, level between takes and adopted, unknown ones last', () => {
-    const entry = { at: 'T', adopted: true, level: 50, extra: 1, takes: 2, fp: 'f', heard: 0.9 }
-    expect(Object.keys(orderLockEntry(entry))).toEqual([
-      'fp',
-      'heard',
-      'takes',
-      'level',
-      'adopted',
-      'at',
-      'extra',
-    ])
   })
 })

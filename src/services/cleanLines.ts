@@ -116,7 +116,7 @@ export async function cleanLine(
   const root = dirname(projectFile)
   return inPartTurn(projectFile, partId, async (): Promise<LineResult> => {
     const read = await readPart(projectFile, partId, language)
-    if (!read || !read.ok) return { ok: false, message: 'The part could not be read.' }
+    if (!read || !read.ok) return { ok: false, message: `Line ${key}: the part could not be read.` }
     const problems: Problem[] = []
     const lock = await readResource(root, read.paths.lockPath, LockSchema, problems)
     const cleaned = await cleanedNow(root, read, problems)
@@ -125,7 +125,8 @@ export async function cleanLine(
       return { ok: false, message: problems[0]?.message ?? 'The line has no clip in the game.' }
     }
     const entry = lock[key]
-    if (!file || !entry) return { ok: false, message: 'The line has no clip in the game.' }
+    if (!file || !entry)
+      return { ok: false, message: `Line ${key}: the line has no clip in the game.` }
     if (isCleaned(cleaned[key], entry)) return { ok: true }
     const clip = resolveInRoot(root, join(read.paths.clipsPath, file))
     const temporary = resolveInRoot(root, join(read.paths.clipsPath, `.${key}.${randomUUID()}.mp3`))
@@ -188,7 +189,7 @@ export async function putBackLine(
   const root = dirname(projectFile)
   return inPartTurn(projectFile, partId, async (): Promise<LineResult> => {
     const read = await readPart(projectFile, partId, language)
-    if (!read || !read.ok) return { ok: false, message: 'The part could not be read.' }
+    if (!read || !read.ok) return { ok: false, message: `Line ${key}: the part could not be read.` }
     const problems: Problem[] = []
     const lock = await readResource(root, read.paths.lockPath, LockSchema, problems)
     const cleaned = await cleanedNow(root, read, problems)
@@ -206,7 +207,7 @@ export async function putBackLine(
     try {
       if (file && isCleaned(record, entry)) {
         if (!existsSync(kept))
-          return { ok: false, message: 'The original of this line is missing.' }
+          return { ok: false, message: `Line ${key}: the original of this line is missing.` }
         const clip = resolveInRoot(root, join(read.paths.clipsPath, file))
         const temporary = resolveInRoot(
           root,

@@ -80,7 +80,7 @@ describe('levelLine', () => {
         gain,
       },
     )
-    expect(result).toEqual({ ok: false, message: 'The line has no clip in the game.' })
+    expect(result).toEqual({ ok: false, message: 'Line nope: the line has no clip in the game.' })
   })
 
   it('keeps level in one place in the lock entry, whatever the entry had', async () => {

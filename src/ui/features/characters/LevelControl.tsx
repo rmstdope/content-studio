@@ -73,7 +73,7 @@ export function LevelControl({
   useEffect(() => {
     if (hadButtons.current && !buttons) {
       const active = typeof document === 'undefined' ? null : document.activeElement
-      if (!active || active === document.body) slider.current?.focus()
+      if (!active || active === document.body) slider.current?.focus({ preventScroll: true })
     }
     hadButtons.current = buttons
   }, [buttons])

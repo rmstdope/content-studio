@@ -126,8 +126,8 @@ bundle breaks.
   `content-studio/cache/cleaned/`, and the person's own settings, the Fish
   tier and the take fade, in `content-studio/cache/settings.json`, never in the project file, and how long
   image takes took on this computer in `content-studio/cache/take-times.json`).
-- Write JSON with stable key order and small diffs (`formatEntriesPerLine` for narration's and the
-  scenes' locks, `formatMusicLock` and `formatBriefs` for music's, `formatImageLock` and
+- Write JSON with stable key order and small diffs (`formatLock` for narration's locks, `formatEntriesPerLine` for the
+  scenes', `formatMusicLock` and `formatBriefs` for music's, `formatImageLock` and
   `formatImageEdits` for images', `formatEffectLock` for effects').
 - Never delete clips without the user confirming it in the UI.
 - Only changes from the studio's own page are accepted (the Origin check on every POST, PUT, PATCH and DELETE route).

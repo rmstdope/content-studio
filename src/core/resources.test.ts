@@ -7,6 +7,7 @@ import {
   NarrationEditsSchema,
   cuesOfEdits,
   formatEdits,
+  orderLockEntry,
   pronounceOf,
   projectCast,
   sceneKey,
@@ -273,5 +274,20 @@ describe('the narration lock', () => {
   it('refuses an entry without them', () => {
     const { hashes, ...old } = entry
     expect(LockSchema.safeParse({ a1: { ...old, parts: hashes } }).success).toBe(false)
+  })
+})
+
+describe('orderLockEntry', () => {
+  it('puts the fields in one order, level between takes and adopted, unknown ones last', () => {
+    const entry = { at: 'T', adopted: true, level: 50, extra: 1, takes: 2, fp: 'f', heard: 0.9 }
+    expect(Object.keys(orderLockEntry(entry))).toEqual([
+      'fp',
+      'heard',
+      'takes',
+      'level',
+      'adopted',
+      'at',
+      'extra',
+    ])
   })
 })

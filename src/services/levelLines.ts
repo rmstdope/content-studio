@@ -35,7 +35,7 @@ export async function levelLine(
   const root = dirname(projectFile)
   return inPartTurn(projectFile, partId, async (): Promise<LineResult> => {
     const read = await readPart(projectFile, partId, language)
-    if (!read || !read.ok) return { ok: false, message: 'The part could not be read.' }
+    if (!read || !read.ok) return { ok: false, message: `Line ${key}: the part could not be read.` }
     const problems: Problem[] = []
     const lock = await readResource(root, read.paths.lockPath, LockSchema, problems)
     const file = read.input.manifest[key]?.file
@@ -44,7 +44,7 @@ export async function levelLine(
     }
     const entry = lock[key]
     if (!file || !entry || !read.input.files.has(file)) {
-      return { ok: false, message: 'The line has no clip in the game.' }
+      return { ok: false, message: `Line ${key}: the line has no clip in the game.` }
     }
     const was = lineLevel(entry)
     if (was === level) return { ok: true }
