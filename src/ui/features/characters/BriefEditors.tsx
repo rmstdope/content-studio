@@ -30,8 +30,9 @@ export function KeywordsEditor({
   const add = (event: FormEvent) => {
     event.preventDefault()
     const next = addKeyword(current, draft)
-    if (next) save.mutate(next)
-    setDraft('')
+    if (!next) return setDraft('')
+    // The keyword stays in the field until the cast has it, so a failed save can be tried again.
+    save.mutate(next, { onSuccess: (result) => result.ok && setDraft('') })
   }
 
   return (
