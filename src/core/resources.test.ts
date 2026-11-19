@@ -102,7 +102,26 @@ describe('a character per language', () => {
       voiceName: 'Gentle Granny',
       speed: 0.9,
       phrase: 'Come in.',
+      clean: false,
     })
+  })
+
+  it('reads the clean-up switch per language, off by default', () => {
+    const switched = CastSchema.parse({
+      speakers: {
+        nyx: { voice: 'a', clean: true, languages: { sv: { voice: 'b', clean: true } } },
+        mira: { voice: 'c', languages: { sv: { voice: 'd' } } },
+      },
+    })
+    expect(voiceOf(switched.speakers.nyx!, 'en', 'en').clean).toBe(true)
+    expect(voiceOf(switched.speakers.nyx!, 'sv', 'en').clean).toBe(true)
+    expect(voiceOf(switched.speakers.mira!, 'en', 'en').clean).toBe(false)
+    expect(voiceOf(switched.speakers.mira!, 'sv', 'en').clean).toBe(false)
+    // One language's switch is not the other's.
+    const only = CastSchema.parse({ speakers: { nyx: { voice: 'a', languages: { sv: { clean: true } } } } })
+    expect(voiceOf(only.speakers.nyx!, 'en', 'en').clean).toBe(false)
+    expect(projectCast(only, 'sv', 'en').speakers.nyx?.clean).toBe(true)
+    expect(projectCast(only, 'en', 'en').speakers.nyx?.clean).toBeUndefined()
   })
 
   it('gives another language its own fields, and nothing of the source language', () => {
@@ -111,12 +130,14 @@ describe('a character per language', () => {
       voiceName: 'Varm Mormor',
       speed: 0.95,
       phrase: 'Kom in.',
+      clean: false,
     })
     expect(voiceOf(cast.speakers.mira!, 'sv', 'en')).toEqual({
       voice: null,
       voiceName: null,
       speed: null,
       phrase: null,
+      clean: false,
     })
   })
 

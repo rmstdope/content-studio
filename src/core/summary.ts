@@ -64,6 +64,8 @@ export interface CharacterLanguage {
   speed: number | null
   /** The character's own audition phrase in the language, or null. */
   phrase: string | null
+  /** Whether new lines in the language are cleaned of background noise. */
+  clean: boolean
   appearances: Appearance[]
   totalLines: number
   /** The character's longest line in the language (first on a tie); null without lines. */

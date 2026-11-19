@@ -44,6 +44,8 @@ export const LanguageVoiceSchema = z.looseObject({
   speed: z.number().min(SPEED.min).max(SPEED.max).optional(),
   /** The character's own audition phrase in this language. */
   phrase: z.string().optional(),
+  /** Whether new lines in this language are cleaned of background noise (off when absent). */
+  clean: z.boolean().optional(),
 })
 
 /**
@@ -56,6 +58,8 @@ export const CharacterSchema = z.looseObject({
   style: z.string().optional(),
   /** The character's own speaking speed, in place of the project's `generate.fish.speed`. */
   speed: z.number().min(SPEED.min).max(SPEED.max).optional(),
+  /** Whether new lines in the source language are cleaned of background noise (off when absent). */
+  clean: z.boolean().optional(),
   audition: z
     .looseObject({
       keywords: z.array(z.string()).optional(),
@@ -126,6 +130,8 @@ export interface LanguageCasting {
   voiceName: string | null
   speed: number | null
   phrase: string | null
+  /** Whether new lines are cleaned of background noise. */
+  clean: boolean
 }
 
 /**
@@ -144,6 +150,7 @@ export function voiceOf(
           voiceName: character?.voiceName,
           speed: character?.speed,
           phrase: character?.audition?.phrase?.trim() || undefined,
+          clean: character?.clean,
         }
       : (character?.languages?.[language] ?? {})
   return {
@@ -151,6 +158,7 @@ export function voiceOf(
     voiceName: own.voiceName ?? null,
     speed: own.speed ?? null,
     phrase: own.phrase?.trim() || null,
+    clean: own.clean === true,
   }
 }
 
@@ -177,12 +185,13 @@ export function projectCast(cast: Cast, language: string, source: string): Spoke
   if (language === source) return { speakers: cast.speakers, pronounce }
   const speakers = Object.fromEntries(
     Object.entries(cast.speakers).map(([id, entry]) => {
-      const { voice, voiceName, speed, phrase } = voiceOf(entry, language, source)
-      const { voice: _v, voiceName: _n, speed: _s, languages: _l, audition, ...rest } = entry
+      const { voice, voiceName, speed, phrase, clean } = voiceOf(entry, language, source)
+      const { voice: _v, voiceName: _n, speed: _s, clean: _c, languages: _l, audition, ...rest } = entry
       const projected: Character = { ...rest }
       if (voice) projected.voice = voice
       if (voiceName) projected.voiceName = voiceName
       if (speed !== null) projected.speed = speed
+      if (clean) projected.clean = true
       const own = { ...audition, phrase }
       if (audition || phrase) projected.audition = own
       return [id, projected]
