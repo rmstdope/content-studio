@@ -1,24 +1,485 @@
-<!doctype html><meta charset="utf-8"><title>Workspace counts</title><style>
-:root{--bg:#06070c;--sidebar:rgb(10 11 18/55%);--edge:rgb(255 255 255/8%);--glass:rgb(255 255 255/3.5%);--glass-strong:rgb(255 255 255/6%);--text:#eceef3;--muted:#a9b0bd;--faint:#8a91a0;--ok:#5be3ae;--warn:#ffc24b;--few:#ff94a8;--accent:#ff6b2c}
-body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,sans-serif;padding:24px}
-h1{font-size:18px;margin:0 0 4px}p.lead{color:var(--muted);margin:0 0 20px;max-width:760px}
-.row{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
-.frame{width:240px}.cap{font-size:12px;color:var(--faint);margin:0 0 8px;text-transform:uppercase;letter-spacing:.05em}
-.sb{background:#0b0c13;border:1px solid var(--edge);border-radius:12px;padding:14px 10px}
-.label{display:block;font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;margin:0 8px 6px}
-.ni{display:flex;align-items:center;gap:8px;min-height:32px;padding:0 8px;border-radius:8px;color:var(--muted);font-size:13.5px}
-.ni.cur{background:var(--glass-strong);color:var(--text)}.ni.sub{padding-left:32px}
-.ic{width:16px;height:16px;border-radius:4px;background:#2a2d38;flex:none}
-.grow{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.m{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--faint)}
-.all{color:var(--ok)}.most{color:var(--warn)}.few{color:var(--few)}.warn{color:var(--warn)}
-.tip{position:relative;display:inline-block;margin-top:6px;background:#20242e;border:1px solid var(--edge);border-radius:6px;padding:4px 8px;font-size:12px;color:var(--text)}
-.note{font-size:12.5px;color:var(--muted);margin-top:10px;max-width:240px}
-.rail{width:72px;background:#0b0c13;border:1px solid var(--edge);border-radius:12px;padding:12px 0;display:flex;flex-direction:column;align-items:center;gap:10px}
-.ri{position:relative;width:40px;height:40px;border-radius:10px;background:var(--glass);display:grid;place-items:center}
-.ri .ic{background:#3a3e4c}.dot{position:absolute;right:4px;bottom:4px;width:7px;height:7px;border-radius:50%}
-.dot.all{background:var(--ok)}.dot.some{background:var(--warn)}.dot.none{background:#5e6575}
-.rlab{position:absolute;left:52px;top:8px;white-space:nowrap}
- h2{font-size:16px;margin:0 0 4px}</style>
-<h1>The sidebar's whole-game counts (as-2964.1) — agreed</h1><p class="lead">Narration, Music and Images each show done out of all, summed over every act, beside their name, the way Sound effects already does. The folded sidebar gives every workspace, Sound effects included, a dot and a hover.</p>
-<section style="margin-bottom:36px"><h2>the total always shows</h2><p class="lead">The count stays on the workspace row even while its acts are listed beneath it, exactly as Sound effects does.</p><div class="row"><div class="frame"><p class="cap">Nothing open (on Setup)</p><div class="sb"><span class="label">Workspace</span><div class="ni "><span class="ic"></span><span class="grow">Narration</span><span class="m most">2880/2881</span></div><div class="ni "><span class="ic"></span><span class="grow">Music</span><span class="m few">38/52</span></div><div class="ni "><span class="ic"></span><span class="grow">Images</span><span class="m most">71/90</span></div><div class="ni "><span class="ic"></span><span class="grow">Sound effects</span><span class="m all">120/120</span></div><div class="ni "><span class="ic"></span><span class="grow">Scenes</span></div></div></div><div class="frame"><p class="cap">Music open</p><div class="sb"><span class="label">Workspace</span><div class="ni "><span class="ic"></span><span class="grow">Narration</span><span class="m most">2880/2881</span></div><div class="ni cur"><span class="ic"></span><span class="grow">Music</span><span class="m few">38/52</span></div><div class="ni sub"><span class="grow">Act 1</span><span class="m all">12/12</span></div><div class="ni sub"><span class="grow">Act 2</span><span class="m few">14/20</span></div><div class="ni sub"><span class="grow">Act 3</span><span class="m few">9/14</span></div><div class="ni sub"><span class="grow">Stingers</span><span class="m few">3/6</span></div><div class="ni "><span class="ic"></span><span class="grow">Images</span><span class="m most">71/90</span></div><div class="ni "><span class="ic"></span><span class="grow">Sound effects</span><span class="m all">120/120</span></div><div class="ni "><span class="ic"></span><span class="grow">Scenes</span></div></div><p class="note">The row reads 38/52 and the acts beneath add up to it.</p></div></div></section><section style="margin-bottom:36px"><h2>one language: the one shown, else the first</h2><p class="lead">Narration counts lines that are ok in the language a narration page shows; anywhere else it counts the first language the game lists (English here).</p><div class="row"><div class="frame"><p class="cap">On Setup</p><div class="sb"><span class="label">Workspace</span><div class="ni "><span class="ic"></span><span class="grow">Narration</span><span class="m most">2880/2881</span></div><div class="ni "><span class="ic"></span><span class="grow">Music</span><span class="m few">38/52</span></div><div class="ni "><span class="ic"></span><span class="grow">Images</span><span class="m most">71/90</span></div><div class="ni "><span class="ic"></span><span class="grow">Sound effects</span><span class="m all">120/120</span></div><div class="ni "><span class="ic"></span><span class="grow">Scenes</span></div></div><p class="note">English: 2880 of 2881 lines ok.</p></div><div class="frame"><p class="cap">On Act 2, Svenska shown</p><div class="sb"><span class="label">Workspace</span><div class="ni cur"><span class="ic"></span><span class="grow">Narration</span><span class="m few">1204/2881</span></div><div class="ni sub"><span class="grow">Act 1</span><span class="m most">610/612</span></div><div class="ni sub"><span class="grow">Act 2</span><span class="m few">594/980</span></div><div class="ni sub"><span class="grow">Act 3</span><span class="m few">0/1289</span></div><div class="ni "><span class="ic"></span><span class="grow">Music</span><span class="m few">38/52</span></div><div class="ni "><span class="ic"></span><span class="grow">Images</span><span class="m most">71/90</span></div></div><p class="note">The row follows the language you pick, like the act counts below it.</p></div><div class="frame"><p class="cap">Hover the count</p><div class="sb"><span class="label">Workspace</span><div class="ni "><span class="ic"></span><span class="grow">Narration</span><span class="m most">2880/2881</span></div></div><span class="tip">Lines that are ok in English, out of all</span></div></div></section><section style="margin-bottom:36px"><h2>add up what can be read, and say what is missing</h2><p class="lead">When an act cannot be read (its script is missing or broken), the row adds up the acts that can be read, in the warning colour, and the hover says which act is left out.</p><div class="row"><div class="frame"><p class="cap">Act 3 has no script</p><div class="sb"><span class="label">Workspace</span><div class="ni "><span class="ic"></span><span class="grow">Narration</span><span class="m warn">1590/1592</span></div><div class="ni "><span class="ic"></span><span class="grow">Music</span><span class="m few">38/52</span></div><div class="ni "><span class="ic"></span><span class="grow">Images</span><span class="m most">71/90</span></div></div><span class="tip">Lines that are ok, out of all — Act 3 left out: no script</span></div></div></section><section style="margin-bottom:36px"><h2>nothing until it is known</h2><p class="lead">While the studio works out how many lines are ok across the whole game (a second or two after opening), the Narration row shows no number; the count appears when it is ready.</p><div class="row"><div class="frame"><p class="cap">Just opened</p><div class="sb"><span class="label">Workspace</span><div class="ni "><span class="ic"></span><span class="grow">Narration</span></div><div class="ni "><span class="ic"></span><span class="grow">Music</span><span class="m few">38/52</span></div><div class="ni "><span class="ic"></span><span class="grow">Images</span><span class="m most">71/90</span></div><div class="ni "><span class="ic"></span><span class="grow">Sound effects</span><span class="m all">120/120</span></div></div></div><div class="frame"><p class="cap">A moment later</p><div class="sb"><span class="label">Workspace</span><div class="ni "><span class="ic"></span><span class="grow">Narration</span><span class="m most">2880/2881</span></div><div class="ni "><span class="ic"></span><span class="grow">Music</span><span class="m few">38/52</span></div><div class="ni "><span class="ic"></span><span class="grow">Images</span><span class="m most">71/90</span></div><div class="ni "><span class="ic"></span><span class="grow">Sound effects</span><span class="m all">120/120</span></div></div><p class="note">Nothing changes meaning on the way.</p></div></div></section><section style="margin-bottom:36px"><h2>say exactly what is counted</h2><p class="lead">Each hover names what counts as done and that it covers every act.</p><div class="row"><div class="frame"><p class="cap">Hover Narration</p><div class="sb"><span class="label">Workspace</span><div class="ni "><span class="ic"></span><span class="grow">Narration</span><span class="m most">2880/2881</span></div></div><div><span class="tip">Lines that are ok in English, out of all, in every act</span><br><span class="tip">Act 3 left out: no script  (added only when an act cannot be read)</span></div></div><div class="frame"><p class="cap">Hover Music</p><div class="sb"><span class="label">Workspace</span><div class="ni "><span class="ic"></span><span class="grow">Music</span><span class="m few">38/52</span></div></div><div><span class="tip">Tracks with a take chosen and up to date, out of all, in every act and the Stingers</span></div></div><div class="frame"><p class="cap">Hover Images</p><div class="sb"><span class="label">Workspace</span><div class="ni "><span class="ic"></span><span class="grow">Images</span><span class="m most">71/90</span></div></div><div><span class="tip">Images finished, out of all, in every act</span></div></div><div class="frame"><p class="cap">Folded, hovering</p><div class="sb"><span class="label">Workspace</span><div class="ni "><span class="ic"></span><span class="grow">Narration</span></div></div><div><span class="tip">Narration · 2880/2881 lines ok</span><br><span class="tip">Music · 38/52 tracks done</span><br><span class="tip">Images · 71/90 images finished</span><br><span class="tip">Sound effects · 120/120 sound effects done</span></div></div></div></section><section style="margin-bottom:36px"><h2>0/0 in grey</h2><p class="lead">A workspace with nothing in it shows 0/0 in grey, and a grey dot when folded.</p><div class="row"><div class="frame"><p class="cap">A game with no images yet</p><div class="sb"><span class="label">Workspace</span><div class="ni "><span class="ic"></span><span class="grow">Narration</span><span class="m most">2880/2881</span></div><div class="ni "><span class="ic"></span><span class="grow">Music</span><span class="m few">38/52</span></div><div class="ni "><span class="ic"></span><span class="grow">Images</span><span class="m ">0/0</span></div><div class="ni "><span class="ic"></span><span class="grow">Sound effects</span><span class="m all">120/120</span></div></div></div></div></section><section style="margin-bottom:36px"><h2>a dot on each workspace, the count in its hover</h2><p class="lead">On the folded sidebar each workspace icon gets the same small dot the act pills have (green all done, yellow some, grey none), and hovering it names the count.</p><div class="row"><div class="frame"><p class="cap">Folded, hovering Narration</p><div class="rail"><div class="ri"><span class="ic"></span><span class="dot some"></span><span class="tip rlab">Narration · 2880/2881 lines ok</span></div><div class="ri"><span class="ic"></span><span class="dot some"></span></div><div class="ri"><span class="ic"></span><span class="dot some"></span></div><div class="ri"><span class="ic"></span><span class="dot all"></span></div></div><p class="note">The dot answers "is it done?" without hovering.</p></div></div></section>
+<!doctype html><meta charset="utf-8" /><title>Workspace counts</title
+><style>
+  :root {
+    --bg: #06070c;
+    --sidebar: rgb(10 11 18/55%);
+    --edge: rgb(255 255 255/8%);
+    --glass: rgb(255 255 255/3.5%);
+    --glass-strong: rgb(255 255 255/6%);
+    --text: #eceef3;
+    --muted: #a9b0bd;
+    --faint: #8a91a0;
+    --ok: #5be3ae;
+    --warn: #ffc24b;
+    --few: #ff94a8;
+    --accent: #ff6b2c;
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font:
+      14px/1.45 system-ui,
+      -apple-system,
+      sans-serif;
+    padding: 24px;
+  }
+  h1 {
+    font-size: 18px;
+    margin: 0 0 4px;
+  }
+  p.lead {
+    color: var(--muted);
+    margin: 0 0 20px;
+    max-width: 760px;
+  }
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 28px;
+    align-items: flex-start;
+  }
+  .frame {
+    width: 240px;
+  }
+  .cap {
+    font-size: 12px;
+    color: var(--faint);
+    margin: 0 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .sb {
+    background: #0b0c13;
+    border: 1px solid var(--edge);
+    border-radius: 12px;
+    padding: 14px 10px;
+  }
+  .label {
+    display: block;
+    font-size: 11px;
+    color: var(--faint);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 8px 6px;
+  }
+  .ni {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    padding: 0 8px;
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 13.5px;
+  }
+  .ni.cur {
+    background: var(--glass-strong);
+    color: var(--text);
+  }
+  .ni.sub {
+    padding-left: 32px;
+  }
+  .ic {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    background: #2a2d38;
+    flex: none;
+  }
+  .grow {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .m {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    color: var(--faint);
+  }
+  .all {
+    color: var(--ok);
+  }
+  .most {
+    color: var(--warn);
+  }
+  .few {
+    color: var(--few);
+  }
+  .warn {
+    color: var(--warn);
+  }
+  .tip {
+    position: relative;
+    display: inline-block;
+    margin-top: 6px;
+    background: #20242e;
+    border: 1px solid var(--edge);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 12px;
+    color: var(--text);
+  }
+  .note {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-top: 10px;
+    max-width: 240px;
+  }
+  .rail {
+    width: 72px;
+    background: #0b0c13;
+    border: 1px solid var(--edge);
+    border-radius: 12px;
+    padding: 12px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  .ri {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--glass);
+    display: grid;
+    place-items: center;
+  }
+  .ri .ic {
+    background: #3a3e4c;
+  }
+  .dot {
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+  }
+  .dot.all {
+    background: var(--ok);
+  }
+  .dot.some {
+    background: var(--warn);
+  }
+  .dot.none {
+    background: #5e6575;
+  }
+  .rlab {
+    position: absolute;
+    left: 52px;
+    top: 8px;
+    white-space: nowrap;
+  }
+  h2 {
+    font-size: 16px;
+    margin: 0 0 4px;
+  }
+</style>
+<h1>The sidebar's whole-game counts (as-2964.1) — agreed</h1>
+<p class="lead">
+  Narration, Music and Images each show done out of all, summed over every act, beside their name,
+  the way Sound effects already does. The folded sidebar gives every workspace, Sound effects
+  included, a dot and a hover.
+</p>
+<section style="margin-bottom: 36px">
+  <h2>the total always shows</h2>
+  <p class="lead">
+    The count stays on the workspace row even while its acts are listed beneath it, exactly as Sound
+    effects does.
+  </p>
+  <div class="row">
+    <div class="frame">
+      <p class="cap">Nothing open (on Setup)</p>
+      <div class="sb">
+        <span class="label">Workspace</span>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Narration</span
+          ><span class="m most">2880/2881</span>
+        </div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Music</span><span class="m few">38/52</span>
+        </div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Images</span><span class="m most">71/90</span>
+        </div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Sound effects</span
+          ><span class="m all">120/120</span>
+        </div>
+        <div class="ni"><span class="ic"></span><span class="grow">Scenes</span></div>
+      </div>
+    </div>
+    <div class="frame">
+      <p class="cap">Music open</p>
+      <div class="sb">
+        <span class="label">Workspace</span>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Narration</span
+          ><span class="m most">2880/2881</span>
+        </div>
+        <div class="ni cur">
+          <span class="ic"></span><span class="grow">Music</span><span class="m few">38/52</span>
+        </div>
+        <div class="ni sub"><span class="grow">Act 1</span><span class="m all">12/12</span></div>
+        <div class="ni sub"><span class="grow">Act 2</span><span class="m few">14/20</span></div>
+        <div class="ni sub"><span class="grow">Act 3</span><span class="m few">9/14</span></div>
+        <div class="ni sub"><span class="grow">Stingers</span><span class="m few">3/6</span></div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Images</span><span class="m most">71/90</span>
+        </div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Sound effects</span
+          ><span class="m all">120/120</span>
+        </div>
+        <div class="ni"><span class="ic"></span><span class="grow">Scenes</span></div>
+      </div>
+      <p class="note">The row reads 38/52 and the acts beneath add up to it.</p>
+    </div>
+  </div>
+</section>
+<section style="margin-bottom: 36px">
+  <h2>one language: the one shown, else the first</h2>
+  <p class="lead">
+    Narration counts lines that are ok in the language a narration page shows; anywhere else it
+    counts the first language the game lists (English here).
+  </p>
+  <div class="row">
+    <div class="frame">
+      <p class="cap">On Setup</p>
+      <div class="sb">
+        <span class="label">Workspace</span>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Narration</span
+          ><span class="m most">2880/2881</span>
+        </div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Music</span><span class="m few">38/52</span>
+        </div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Images</span><span class="m most">71/90</span>
+        </div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Sound effects</span
+          ><span class="m all">120/120</span>
+        </div>
+        <div class="ni"><span class="ic"></span><span class="grow">Scenes</span></div>
+      </div>
+      <p class="note">English: 2880 of 2881 lines ok.</p>
+    </div>
+    <div class="frame">
+      <p class="cap">On Act 2, Svenska shown</p>
+      <div class="sb">
+        <span class="label">Workspace</span>
+        <div class="ni cur">
+          <span class="ic"></span><span class="grow">Narration</span
+          ><span class="m few">1204/2881</span>
+        </div>
+        <div class="ni sub"><span class="grow">Act 1</span><span class="m most">610/612</span></div>
+        <div class="ni sub"><span class="grow">Act 2</span><span class="m few">594/980</span></div>
+        <div class="ni sub"><span class="grow">Act 3</span><span class="m few">0/1289</span></div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Music</span><span class="m few">38/52</span>
+        </div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Images</span><span class="m most">71/90</span>
+        </div>
+      </div>
+      <p class="note">The row follows the language you pick, like the act counts below it.</p>
+    </div>
+    <div class="frame">
+      <p class="cap">Hover the count</p>
+      <div class="sb">
+        <span class="label">Workspace</span>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Narration</span
+          ><span class="m most">2880/2881</span>
+        </div>
+      </div>
+      <span class="tip">Lines that are ok in English, out of all</span>
+    </div>
+  </div>
+</section>
+<section style="margin-bottom: 36px">
+  <h2>add up what can be read, and say what is missing</h2>
+  <p class="lead">
+    When an act cannot be read (its script is missing or broken), the row adds up the acts that can
+    be read, in the warning colour, and the hover says which act is left out.
+  </p>
+  <div class="row">
+    <div class="frame">
+      <p class="cap">Act 3 has no script</p>
+      <div class="sb">
+        <span class="label">Workspace</span>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Narration</span
+          ><span class="m warn">1590/1592</span>
+        </div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Music</span><span class="m few">38/52</span>
+        </div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Images</span><span class="m most">71/90</span>
+        </div>
+      </div>
+      <span class="tip">Lines that are ok, out of all — Act 3 left out: no script</span>
+    </div>
+  </div>
+</section>
+<section style="margin-bottom: 36px">
+  <h2>nothing until it is known</h2>
+  <p class="lead">
+    While the studio works out how many lines are ok across the whole game (a second or two after
+    opening), the Narration row shows no number; the count appears when it is ready.
+  </p>
+  <div class="row">
+    <div class="frame">
+      <p class="cap">Just opened</p>
+      <div class="sb">
+        <span class="label">Workspace</span>
+        <div class="ni"><span class="ic"></span><span class="grow">Narration</span></div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Music</span><span class="m few">38/52</span>
+        </div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Images</span><span class="m most">71/90</span>
+        </div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Sound effects</span
+          ><span class="m all">120/120</span>
+        </div>
+      </div>
+    </div>
+    <div class="frame">
+      <p class="cap">A moment later</p>
+      <div class="sb">
+        <span class="label">Workspace</span>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Narration</span
+          ><span class="m most">2880/2881</span>
+        </div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Music</span><span class="m few">38/52</span>
+        </div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Images</span><span class="m most">71/90</span>
+        </div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Sound effects</span
+          ><span class="m all">120/120</span>
+        </div>
+      </div>
+      <p class="note">Nothing changes meaning on the way.</p>
+    </div>
+  </div>
+</section>
+<section style="margin-bottom: 36px">
+  <h2>say exactly what is counted</h2>
+  <p class="lead">Each hover names what counts as done and that it covers every act.</p>
+  <div class="row">
+    <div class="frame">
+      <p class="cap">Hover Narration</p>
+      <div class="sb">
+        <span class="label">Workspace</span>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Narration</span
+          ><span class="m most">2880/2881</span>
+        </div>
+      </div>
+      <div>
+        <span class="tip">Lines that are ok in English, out of all, in every act</span><br /><span
+          class="tip"
+          >Act 3 left out: no script (added only when an act cannot be read)</span
+        >
+      </div>
+    </div>
+    <div class="frame">
+      <p class="cap">Hover Music</p>
+      <div class="sb">
+        <span class="label">Workspace</span>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Music</span><span class="m few">38/52</span>
+        </div>
+      </div>
+      <div>
+        <span class="tip"
+          >Tracks with a take chosen and up to date, out of all, in every act and the Stingers</span
+        >
+      </div>
+    </div>
+    <div class="frame">
+      <p class="cap">Hover Images</p>
+      <div class="sb">
+        <span class="label">Workspace</span>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Images</span><span class="m most">71/90</span>
+        </div>
+      </div>
+      <div><span class="tip">Images finished, out of all, in every act</span></div>
+    </div>
+    <div class="frame">
+      <p class="cap">Folded, hovering</p>
+      <div class="sb">
+        <span class="label">Workspace</span>
+        <div class="ni"><span class="ic"></span><span class="grow">Narration</span></div>
+      </div>
+      <div>
+        <span class="tip">Narration · 2880/2881 lines ok</span><br /><span class="tip"
+          >Music · 38/52 tracks done</span
+        ><br /><span class="tip">Images · 71/90 images finished</span><br /><span class="tip"
+          >Sound effects · 120/120 sound effects done</span
+        >
+      </div>
+    </div>
+  </div>
+</section>
+<section style="margin-bottom: 36px">
+  <h2>0/0 in grey</h2>
+  <p class="lead">A workspace with nothing in it shows 0/0 in grey, and a grey dot when folded.</p>
+  <div class="row">
+    <div class="frame">
+      <p class="cap">A game with no images yet</p>
+      <div class="sb">
+        <span class="label">Workspace</span>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Narration</span
+          ><span class="m most">2880/2881</span>
+        </div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Music</span><span class="m few">38/52</span>
+        </div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Images</span><span class="m">0/0</span>
+        </div>
+        <div class="ni">
+          <span class="ic"></span><span class="grow">Sound effects</span
+          ><span class="m all">120/120</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section style="margin-bottom: 36px">
+  <h2>a dot on each workspace, the count in its hover</h2>
+  <p class="lead">
+    On the folded sidebar each workspace icon gets the same small dot the act pills have (green all
+    done, yellow some, grey none), and hovering it names the count.
+  </p>
+  <div class="row">
+    <div class="frame">
+      <p class="cap">Folded, hovering Narration</p>
+      <div class="rail">
+        <div class="ri">
+          <span class="ic"></span><span class="dot some"></span
+          ><span class="tip rlab">Narration · 2880/2881 lines ok</span>
+        </div>
+        <div class="ri"><span class="ic"></span><span class="dot some"></span></div>
+        <div class="ri"><span class="ic"></span><span class="dot some"></span></div>
+        <div class="ri"><span class="ic"></span><span class="dot all"></span></div>
+      </div>
+      <p class="note">The dot answers "is it done?" without hovering.</p>
+    </div>
+  </div>
+</section>
