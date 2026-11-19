@@ -1,0 +1,335 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Finished image</title>
+    <style>
+      :root {
+        --bg: #06070c;
+        --panel: #10121a;
+        --edge: rgb(255 255 255/8%);
+        --raised: #191c24;
+        --line: rgb(255 255 255/7%);
+        --text: #eceef3;
+        --soft: #c7ccd6;
+        --muted: #a9b0bd;
+        --faint: #8a91a0;
+        --accent: #ff6b2c;
+        --ok-bg: #10291f;
+        --ok-ink: #5be3ae;
+        --warn-bg: #2d2412;
+        --warn: #ffc24b;
+        --att-ink: #ffb38f;
+        --att-bg: rgb(255 122 61/10%);
+        --att-line: rgb(255 122 61/25%);
+        --chip: #1a1d26;
+        --chg: #ff9a6b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.45 -apple-system,
+          system-ui,
+          sans-serif;
+      }
+      .app {
+        display: flex;
+        min-height: 100vh;
+      }
+      .sidebar {
+        flex: 0 0 212px;
+        padding: 16px 10px;
+        border-right: 1px solid var(--edge);
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .sidebar b {
+        display: block;
+        color: var(--text);
+        margin: 0 0 14px 6px;
+      }
+      .sidebar div {
+        padding: 6px 8px;
+        border-radius: 8px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .sidebar .on {
+        background: var(--raised);
+        color: var(--text);
+      }
+      .content {
+        flex: 1;
+        min-width: 0;
+        padding: 20px 24px 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .note {
+        background: #1f1936;
+        color: #c4b5ff;
+        border: 1px dashed #5a4a9a;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 13px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 22px;
+      }
+      .crumbs {
+        color: var(--faint);
+        font-size: 12px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--edge);
+        border-radius: 14px;
+        padding: 14px 16px;
+      }
+      .stat {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .ring {
+        width: 54px;
+        height: 54px;
+        border-radius: 50%;
+        background: conic-gradient(var(--ok-ink) var(--p), rgb(255 255 255/7%) 0);
+        display: grid;
+        place-items: center;
+      }
+      .ring i {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: var(--panel);
+        display: grid;
+        place-items: center;
+        font-style: normal;
+        font-size: 12px;
+      }
+      .stat b {
+        font-size: 20px;
+      }
+      .stat a {
+        color: var(--att-ink);
+        font-size: 13px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th {
+        text-align: left;
+        color: var(--faint);
+        font-weight: 500;
+        font-size: 12px;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--line);
+      }
+      td {
+        padding: 10px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      .mono {
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+      }
+      .chip {
+        display: inline-block;
+        padding: 2px 9px;
+        border-radius: 999px;
+        background: var(--chip);
+        color: var(--muted);
+        font-size: 12px;
+        margin: 0 4px 4px 0;
+      }
+      .ok {
+        background: var(--ok-bg);
+        color: var(--ok-ink);
+      }
+      .warn {
+        background: var(--warn-bg);
+        color: var(--warn);
+      }
+      .att {
+        background: var(--att-bg);
+        color: var(--att-ink);
+        box-shadow: inset 0 0 0 1px var(--att-line);
+      }
+      .miss {
+        font-size: 12.5px;
+        margin-top: 2px;
+      }
+      .miss.m {
+        color: var(--muted);
+      }
+      .miss.a {
+        color: var(--att-ink);
+      }
+      .state {
+        color: #c4b5ff;
+        font-size: 11px;
+        font-style: italic;
+        display: block;
+        margin-top: 4px;
+      }
+      @media (max-width: 760px) {
+        .sidebar {
+          display: none;
+        }
+        td.p,
+        th.p {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="sidebar">
+        <b>Content Studio</b>
+        <div>Narration</div>
+        <div>Music</div>
+        <div class="on">Images</div>
+        <div style="padding-left: 20px" class="on"><span>Act 1</span><span>1/7</span></div>
+        <div style="padding-left: 20px"><span>Act 2</span><span>0/4</span></div>
+      </div>
+      <div class="content">
+        <div class="note">
+          Agreed (as-2964.2): an image is finished only when its main take, every patch and every
+          named area are done. Green “chosen” only when finished; otherwise amber “incomplete” with
+          every missing thing beneath. <b>out of date</b> and <b>making takes</b> keep the missing
+          line; <b>none yet</b> shows nothing more; a patch or area done only on another take reads
+          simply “not chosen” / “not placed”. Ring “Images finished”, line “N of M finished.”
+        </div>
+        <div>
+          <span class="crumbs">Images</span>
+          <h1>Act 1</h1>
+          <span class="muted">The images the game asks for in Act 1. 1 of 7 finished.</span>
+        </div>
+        <div class="panel">
+          <div class="stat">
+            <div class="ring" style="--p: 14%"><i>14%</i></div>
+            <div>
+              <div class="muted" style="font-size: 12px">Images finished</div>
+              <b>1 / 7</b><br /><a href="#">3 need attention ›</a>
+            </div>
+          </div>
+        </div>
+        <div class="panel" style="padding: 0 6px">
+          <table>
+            <thead>
+              <tr>
+                <th>Image</th>
+                <th class="p">Prompt</th>
+                <th>Size</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <strong>Tavern hall</strong>
+                  <div class="mono muted">tavern-hall</div>
+                  <span class="state">finished</span>
+                </td>
+                <td class="p muted">…</td>
+                <td class="muted">640 × 360</td>
+                <td><span class="chip ok">chosen</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <strong>Cellar door</strong>
+                  <div class="mono muted">cellar-door</div>
+                  <span class="state">main take chosen, things missing</span>
+                </td>
+                <td class="p muted">…</td>
+                <td class="muted">640 × 360</td>
+                <td>
+                  <span class="chip att">incomplete</span>
+                  <div class="miss a">1 patch not chosen, 2 areas not placed</div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <strong>Forge</strong>
+                  <div class="mono muted">forge</div>
+                  <span class="state">out of date, and 1 patch not chosen</span>
+                </td>
+                <td class="p muted">…</td>
+                <td class="muted">640 × 360</td>
+                <td>
+                  <span class="chip warn">out of date</span>
+                  <div class="miss a">1 patch not chosen</div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <strong>Chapel</strong>
+                  <div class="mono muted">chapel</div>
+                  <span class="state">no main take yet (has 2 patches, 1 area)</span>
+                </td>
+                <td class="p muted">…</td>
+                <td class="muted">640 × 360</td>
+                <td><span class="chip">none yet</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <strong>Old well</strong>
+                  <div class="mono muted">old-well</div>
+                  <span class="state">takes being made right now; 3 patches not chosen</span>
+                </td>
+                <td class="p muted">…</td>
+                <td class="muted">640 × 360</td>
+                <td>
+                  <span class="chip warn">making 2 takes…</span>
+                  <div class="miss a">3 patches not chosen</div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <strong>Market square</strong>
+                  <div class="mono muted">market-square</div>
+                  <span class="state"
+                    >an area placed only on another take, not the one in the game</span
+                  >
+                </td>
+                <td class="p muted">…</td>
+                <td class="muted">640 × 360</td>
+                <td>
+                  <span class="chip att">incomplete</span>
+                  <div class="miss a">1 area not placed</div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <strong>Harbour</strong>
+                  <div class="mono muted">harbour</div>
+                  <span class="state">the studio can’t read which takes are chosen</span>
+                </td>
+                <td class="p muted">…</td>
+                <td class="muted">640 × 360</td>
+                <td><span class="chip warn">not known</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
