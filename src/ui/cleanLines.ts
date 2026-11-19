@@ -16,7 +16,8 @@ export function countText(n: number, total: number): { sentence: string; button:
 
 /** The count line when every line is cleaned. */
 export function allCleanedText(total: number): string {
-  return `All ${total} ${lines(total)} in the game ${total === 1 ? 'is' : 'are'} cleaned.`
+  if (total === 1) return `The 1 line in the game is cleaned.`
+  return `All ${total} lines in the game are cleaned.`
 }
 
 /** The heading of the question before cleaning. */
