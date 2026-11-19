@@ -58,6 +58,15 @@ describe('KeywordsEditor', () => {
     expect(page.field.value).toBe('elderly male')
   })
 
+  it('keeps the typed keyword when Add is pressed again while the save is under way', async () => {
+    globalThis.fetch = (() => new Promise<Response>(() => {})) as unknown as typeof fetch
+    page = await addKeyword('elderly male')
+    await act(async () => {
+      page.container.querySelector<HTMLButtonElement>('button[type=submit]')!.click()
+    })
+    expect(page.field.value).toBe('elderly male')
+  })
+
   it('clears the field when the save works', async () => {
     globalThis.fetch = (async () => Response.json({ ok: true })) as unknown as typeof fetch
     page = await addKeyword('elderly male')

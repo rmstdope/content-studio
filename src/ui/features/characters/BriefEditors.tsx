@@ -29,6 +29,7 @@ export function KeywordsEditor({
 
   const add = (event: FormEvent) => {
     event.preventDefault()
+    if (save.isPending) return
     const next = addKeyword(current, draft)
     if (!next) return setDraft('')
     // The keyword stays in the field until the cast has it, so a failed save can be tried again.
@@ -66,7 +67,10 @@ export function KeywordsEditor({
         <button
           className="btn"
           type="submit"
-          {...off(!draft.trim() && 'Type a keyword first. Add turns on when there is one.')}
+          {...off(
+            !draft.trim() && 'Type a keyword first. Add turns on when there is one.',
+            save.isPending && SAVING,
+          )}
         >
           Add
         </button>
