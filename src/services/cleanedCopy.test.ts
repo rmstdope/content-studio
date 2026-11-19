@@ -40,6 +40,32 @@ function watching() {
 }
 
 describe('cleanedCopy', () => {
+  it('keeps a clip’s level in its copy, so the two are heard at the same loudness', async () => {
+    const root = tempRepo({
+      ...files,
+      'audio/act1/manifest.json': {
+        k1: { file: 'k1.mp3', speaker: 'narrator', duration: 1, words: [] },
+      },
+      'content-studio/narration/act1.lock.json': {
+        k1: {
+          fp: 'f',
+          voice: 'v',
+          model: 'm',
+          hashes: { cue: 'c', text: 't', said: 's', settings: 'x' },
+          level: 50,
+          at: 'T1',
+        },
+      },
+    })
+    const gains: (number | undefined)[] = []
+    const encode: Encoder = async (wav, file, options) => {
+      gains.push(options.gainDb)
+      writeFileSync(file, wav)
+    }
+    await cleanedCopy(projectFileOf(root), { part: 'act1', file: 'k1.mp3' }, { encode, decode })
+    expect(gains[0]).toBeCloseTo(-6.02, 2)
+  })
+
   it('makes a cleaned copy of a recorded line in the cache, encoded as the project encodes', async () => {
     const root = tempRepo(files)
     const { asked, encode } = watching()
