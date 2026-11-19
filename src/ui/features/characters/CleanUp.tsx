@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   cleanedUrl,
   clipUrl,
@@ -35,6 +35,7 @@ export function CleanUp({
   takeKey,
   parts,
   speaker,
+  onAskingOff,
 }: {
   characterId: string
   /** The language shown, in a project with several. */
@@ -47,6 +48,8 @@ export function CleanUp({
   parts: { id: string; title: string }[]
   /** The character's id in the dialog, to find its lines. */
   speaker: string
+  /** Told whether the question before switching off is open, so the panel's header can follow the switch. */
+  onAskingOff?: (asking: boolean) => void
 }) {
   const save = useSetClean(characterId, language)
   const cleaned = useCleanedLines(characterId, language)
@@ -54,6 +57,10 @@ export function CleanUp({
   const switchRef = useRef<HTMLInputElement>(null)
   // The switch was moved off while lines in the game are cleaned: nothing is saved until the question is answered.
   const [askOff, setAskOff] = useState(false)
+  useEffect(() => {
+    onAskingOff?.(askOff)
+    return () => onAskingOff?.(false)
+  }, [askOff, onAskingOff])
   const [putBackError, setPutBackError] = useState<string | null>(null)
   const saved = save.isPending ? save.variables : clean
   const shown = askOff ? false : saved
