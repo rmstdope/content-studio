@@ -108,11 +108,25 @@ describe('cleaning a line already in the game', () => {
     expect(await putBackLine(projectFile, 'act1', undefined, 'k1')).toEqual({ ok: true })
     expect(readFileSync(join(root, 'audio/act1/k1.mp3'), 'utf8')).toBe('one as recorded')
     expect(existsSync(join(root, 'content-studio/narration/originals/act1/k1.mp3'))).toBe(false)
-    expect(
-      JSON.parse(readFileSync(join(root, 'content-studio/narration/act1.cleaned.json'), 'utf8')),
-    ).toEqual({})
+    // Nothing is left of the clean-up for the game's git to show.
+    expect(existsSync(join(root, 'content-studio/narration/act1.cleaned.json'))).toBe(false)
+    expect(existsSync(join(root, 'content-studio/narration/originals/act1'))).toBe(false)
     // Again, as after a crash part-way: nothing to do, nothing lost.
     expect(await putBackLine(projectFile, 'act1', undefined, 'k1')).toEqual({ ok: true })
+  })
+
+  it('keeps the record and the folder while another line is still cleaned', async () => {
+    const root = tempRepo(files())
+    const projectFile = join(root, 'content-studio.json')
+    await cleanLine(projectFile, 'act1', undefined, 'k1', deps)
+    await cleanLine(projectFile, 'act1', undefined, 'k2', deps)
+    await putBackLine(projectFile, 'act1', undefined, 'k1')
+    expect(
+      Object.keys(
+        JSON.parse(readFileSync(join(root, 'content-studio/narration/act1.cleaned.json'), 'utf8')),
+      ),
+    ).toEqual(['k2'])
+    expect(existsSync(join(root, 'content-studio/narration/originals/act1/k2.mp3'))).toBe(true)
   })
 
   it('does not put an old original over a clip recorded again since', async () => {
@@ -188,8 +202,7 @@ describe('what is kept of a cleaned line', () => {
     )
     expect(await removeOrphans(projectFile, 'act1', ['k1'])).toBe(1)
     expect(existsSync(join(root, 'content-studio/narration/originals/act1/k1.mp3'))).toBe(false)
-    expect(
-      JSON.parse(readFileSync(join(root, 'content-studio/narration/act1.cleaned.json'), 'utf8')),
-    ).toEqual({})
+    expect(existsSync(join(root, 'content-studio/narration/act1.cleaned.json'))).toBe(false)
+    expect(existsSync(join(root, 'content-studio/narration/originals/act1'))).toBe(false)
   })
 })
