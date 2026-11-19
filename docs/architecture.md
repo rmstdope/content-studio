@@ -514,7 +514,7 @@ the truth.
 
 Every character has a **character page** (`#/characters/<id>`), the one place about it: its
 cast voice (Fish's details, its take and Fish's sample, its id and a link to Fish; the take
-records by itself when missing; a note when another character has the same voice), its lines per part, its delivery (the style cue and its own speed), **Clean up the voice** under its take and sample (a switch that saves at once, a "Cleaned" tag beside "Cast" while on, and _Hear it on_: a looping line to flip between as recorded and cleaned) and casting
+records by itself when missing; a note when another character has the same voice), its lines per part, its delivery (the style cue and its own speed), **Clean up the voice** under its take and sample (a switch that saves at once, a "Cleaned" tag beside "Cast" while on (hidden while the question before switching off is open), and _Hear it on_: a looping line to flip between as recorded and cleaned) and casting
 brief (search keywords and audition phrase), the voices ruled out for it, the audition in
 progress, if there is one, and **Hear it in the game**: its recorded lines with their part, cue
 and status, as the game plays them, one by one or all in turn (the first five shown until asked

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   cleanedUrl,
   clipUrl,
@@ -35,6 +35,7 @@ export function CleanUp({
   takeKey,
   parts,
   speaker,
+  onAskingOff,
 }: {
   characterId: string
   /** The language shown, in a project with several. */
@@ -47,6 +48,8 @@ export function CleanUp({
   parts: { id: string; title: string }[]
   /** The character's id in the dialog, to find its lines. */
   speaker: string
+  /** Told whether the question before switching off is open, so the panel's header can follow the switch. */
+  onAskingOff?: (asking: boolean) => void
 }) {
   const save = useSetClean(characterId, language)
   const cleaned = useCleanedLines(characterId, language)
@@ -54,9 +57,16 @@ export function CleanUp({
   const switchRef = useRef<HTMLInputElement>(null)
   // The switch was moved off while lines in the game are cleaned: nothing is saved until the question is answered.
   const [askOff, setAskOff] = useState(false)
+  // Confirmed: the switch stays off until the save is in, however long a cleaning takes to stop first.
+  const [leaving, setLeaving] = useState(false)
+  const switchedOff = askOff || leaving
+  useEffect(() => {
+    onAskingOff?.(switchedOff)
+    return () => onAskingOff?.(false)
+  }, [switchedOff, onAskingOff])
   const [putBackError, setPutBackError] = useState<string | null>(null)
   const saved = save.isPending ? save.variables : clean
-  const shown = askOff ? false : saved
+  const shown = switchedOff ? false : saved
   const reason = save.isError
     ? save.error.message
     : save.data && !save.data.ok
@@ -121,6 +131,7 @@ export function CleanUp({
 
   /** Saves the switch off, then puts every cleaned line back (a cleaning still going on is stopped first). */
   async function switchOffAndPutBack() {
+    setLeaving(true)
     setAskOff(false)
     setPutBackError(null)
     save.reset()
@@ -129,7 +140,9 @@ export function CleanUp({
       if (job?.kind === 'clean' && (job.status === 'running' || job.status === 'stopping')) {
         await cleaning.stop.mutateAsync()
       }
-      if (!(await save.mutateAsync(false)).ok) return
+      const result = await save.mutateAsync(false)
+      setLeaving(false)
+      if (!result.ok) return
       // The cleaning in hand finishes its line first: asked again until the studio takes it.
       for (let tries = 0; tries < 40; tries++) {
         const answer = await cleaning.putBack.mutateAsync()
@@ -139,6 +152,7 @@ export function CleanUp({
       }
       setPutBackError('The cleaning did not stop in time. Press Put them back.')
     } catch {
+      setLeaving(false)
       // The save's own error is shown under the switch; a put back that failed shows in the panel.
     }
   }

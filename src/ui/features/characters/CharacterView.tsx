@@ -537,6 +537,8 @@ function VoicePanel({
   sessionKnown: boolean
 }) {
   const recorder = useTakes(character.id, false, language?.id)
+  // The question before switching the clean-up off is open: the switch shows off, so the tag does too.
+  const [askingOff, setAskingOff] = useState(false)
   const id = casting?.voice ?? null
   // Without a voice here, her other voices are named as Fish names them.
   const others = !id && language ? otherVoices(character, languages, language.id) : []
@@ -599,7 +601,7 @@ function VoicePanel({
       <div className="section-head">
         <span className="label">Voice{language ? ` · ${language.name}` : ''}</span>
         <span className="chip chip-ok">Cast</span>
-        {casting?.clean && <span className="chip chip-ok">Cleaned</span>}
+        {casting?.clean && !askingOff && <span className="chip chip-ok">Cleaned</span>}
       </div>
       <div className="voice-name">
         <strong>
@@ -740,6 +742,7 @@ function VoicePanel({
         takeKey={take}
         parts={parts}
         speaker={character.id}
+        onAskingOff={setAskingOff}
       />
       <div className="voice-foot">
         <span className="mono muted voice-id">{id}</span>

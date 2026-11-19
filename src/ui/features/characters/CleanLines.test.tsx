@@ -100,6 +100,7 @@ describe('CleanLines', () => {
   })
 
   async function show(counts: Counts, { clean = true }: { clean?: boolean } = {}) {
+    const asking: boolean[] = []
     const answers = studio(counts)
     globalThis.fetch = answers.fetcher
     const container = document.createElement('div')
@@ -118,6 +119,7 @@ describe('CleanLines', () => {
             takeKey: 'c'.repeat(16),
             parts: [{ id: 'act1', title: 'Act I' }],
             speaker: 'keeper',
+            onAskingOff: (open: boolean) => asking.push(open),
           }),
         ),
       ),
@@ -133,7 +135,7 @@ describe('CleanLines', () => {
       [...container.querySelectorAll('button')].find((b) => b.textContent === name) ?? null
     const flip = () => container.querySelector<HTMLInputElement>('input[role="switch"]')!
     const writes = () => answers.calls.filter((c) => c.method !== 'GET')
-    return { ...answers, container, settle, text, button, flip, writes }
+    return { ...answers, asking, container, settle, text, button, flip, writes }
   }
 
   it('says how many lines are not cleaned, with the button, while the voice is on', async () => {
@@ -233,6 +235,29 @@ describe('CleanLines', () => {
     expect(page.flip().checked).toBe(true)
     expect(document.activeElement).toBe(page.flip())
     expect(page.writes()).toEqual([])
+  })
+
+  it('tells the panel while the switch-off question is open, so the Cleaned tag can follow', async () => {
+    const page = await show({ total: 38, cleaned: 38 })
+    await page.settle(() => page.text().includes('All 38 lines'))
+    expect(page.asking.at(-1)).toBe(false)
+    await act(() => page.flip().click())
+    expect(page.asking.at(-1)).toBe(true)
+    await act(() => page.button('Keep it on')!.click())
+    expect(page.asking.at(-1)).toBe(false)
+    // Escape brings it back too.
+    await act(() => page.flip().click())
+    expect(page.asking.at(-1)).toBe(true)
+    await act(() => {
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+      )
+    })
+    expect(page.asking.at(-1)).toBe(false)
+    // Confirming closes the question as well.
+    await act(() => page.flip().click())
+    await act(() => page.button('Switch off and put back')!.click())
+    expect(page.asking.at(-1)).toBe(false)
   })
 
   it('switches off and puts back when confirmed: the switch is saved, then the lines put back', async () => {
