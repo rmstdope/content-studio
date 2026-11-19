@@ -936,7 +936,7 @@ describe('casting per language', () => {
 
 describe('a cast that cannot be written', () => {
   const refused = {
-    ok: false,
+    ok: false as const,
     problems: [
       { file: 'content-studio/narration/cast.json', path: '', message: 'permission denied' },
     ],
