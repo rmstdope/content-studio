@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { readFile, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { levelDb, lineLevel } from '../core/level'
+import { levelDb, lineFailure, lineLevel } from '../core/level'
 import { CleanedSchema, isCleaned, originalFile, type Cleaned } from '../core/cleanedLines'
 import { resolveInRoot } from '../core/paths'
 import type { Problem } from '../core/project'
@@ -23,8 +23,6 @@ export interface CleanDeps {
   /** Raises or lowers a clip in place (a voice's level). */
   gain?: typeof gainClip
 }
-
-const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
 /** A speaker's line in the game, and whether its clip is cleaned. */
 export interface GameLine {
@@ -118,7 +116,7 @@ export async function cleanLine(
   const root = dirname(projectFile)
   return inPartTurn(projectFile, partId, async (): Promise<LineResult> => {
     const read = await readPart(projectFile, partId, language)
-    if (!read || !read.ok) return { ok: false, message: 'The part could not be read.' }
+    if (!read || !read.ok) return { ok: false, message: `Line ${key}: the part could not be read.` }
     const problems: Problem[] = []
     const lock = await readResource(root, read.paths.lockPath, LockSchema, problems)
     const cleaned = await cleanedNow(root, read, problems)
@@ -127,7 +125,8 @@ export async function cleanLine(
       return { ok: false, message: problems[0]?.message ?? 'The line has no clip in the game.' }
     }
     const entry = lock[key]
-    if (!file || !entry) return { ok: false, message: 'The line has no clip in the game.' }
+    if (!file || !entry)
+      return { ok: false, message: `Line ${key}: the line has no clip in the game.` }
     if (isCleaned(cleaned[key], entry)) return { ok: true }
     const clip = resolveInRoot(root, join(read.paths.clipsPath, file))
     const temporary = resolveInRoot(root, join(read.paths.clipsPath, `.${key}.${randomUUID()}.mp3`))
@@ -170,7 +169,7 @@ export async function cleanLine(
         await rm(resolveInRoot(root, originalFile(read.project, partId, read.language, key)), {
           force: true,
         }).catch(() => {})
-      return { ok: false, message: messageOf(error) }
+      return { ok: false, message: lineFailure(key, error) }
     }
   })
 }
@@ -190,7 +189,7 @@ export async function putBackLine(
   const root = dirname(projectFile)
   return inPartTurn(projectFile, partId, async (): Promise<LineResult> => {
     const read = await readPart(projectFile, partId, language)
-    if (!read || !read.ok) return { ok: false, message: 'The part could not be read.' }
+    if (!read || !read.ok) return { ok: false, message: `Line ${key}: the part could not be read.` }
     const problems: Problem[] = []
     const lock = await readResource(root, read.paths.lockPath, LockSchema, problems)
     const cleaned = await cleanedNow(root, read, problems)
@@ -208,7 +207,7 @@ export async function putBackLine(
     try {
       if (file && isCleaned(record, entry)) {
         if (!existsSync(kept))
-          return { ok: false, message: 'The original of this line is missing.' }
+          return { ok: false, message: `Line ${key}: the original of this line is missing.` }
         const clip = resolveInRoot(root, join(read.paths.clipsPath, file))
         const temporary = resolveInRoot(
           root,
@@ -228,7 +227,7 @@ export async function putBackLine(
       await saveCleaned(root, read.paths, cleaned, [key])
       return { ok: true }
     } catch (error) {
-      return { ok: false, message: messageOf(error) }
+      return { ok: false, message: lineFailure(key, error) }
     }
   })
 }

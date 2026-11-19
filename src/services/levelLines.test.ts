@@ -62,7 +62,7 @@ describe('levelLine', () => {
     const result = await levelLine(join(root, 'content-studio.json'), 'act1', undefined, 'k1', 60, {
       gain: failing,
     })
-    expect(result).toEqual({ ok: false, message: 'ffmpeg could not level the clip' })
+    expect(result).toEqual({ ok: false, message: 'Line k1: ffmpeg could not level the clip' })
     expect(readFileSync(join(root, 'audio/act1/k1.mp3'), 'utf8')).toBe('one')
     expect('level' in lockOf(root).k1).toBe(false)
     expect(readdirSync(join(root, 'audio/act1')).sort()).toEqual(['k1.mp3', 'manifest.json'])
@@ -80,6 +80,26 @@ describe('levelLine', () => {
         gain,
       },
     )
-    expect(result).toEqual({ ok: false, message: 'The line has no clip in the game.' })
+    expect(result).toEqual({ ok: false, message: 'Line nope: the line has no clip in the game.' })
+  })
+
+  it('keeps level in one place in the lock entry, whatever the entry had', async () => {
+    const root = tempRepo({
+      ...files(),
+      'content-studio/narration/act1.lock.json': {
+        k1: { ...lockEntry('T1'), adopted: true, takes: 2 },
+      },
+    })
+    await levelLine(join(root, 'content-studio.json'), 'act1', undefined, 'k1', 60, { gain })
+    expect(Object.keys(lockOf(root).k1)).toEqual([
+      'fp',
+      'voice',
+      'model',
+      'hashes',
+      'takes',
+      'level',
+      'adopted',
+      'at',
+    ])
   })
 })

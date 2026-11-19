@@ -36,7 +36,7 @@ import { joinWavs } from '../core/wav'
 import type { FishFactory } from './auditions'
 import { decodeClip, ffmpegEncoder, type Encoder } from './audio'
 import { saveCleaned } from './cleanedRecord'
-import { formatEntriesPerLine, readResource, writeAtomic } from './files'
+import { formatEntriesPerLine, formatLock, readResource, writeAtomic } from './files'
 import type { Limiter } from './limit'
 import type { Transcriber } from './transcriber'
 import { keepHeard } from './heard'
@@ -611,7 +611,7 @@ export async function commitClip({
         await keepOriginal(root, paths, key, clean ? temporaryOriginal : null, at)
         await rename(temporary, target)
         await writeAtomic(root, paths.manifestPath, `${pythonJson(sorted(manifest))}\n`)
-        await writeAtomic(root, paths.lockPath, formatEntriesPerLine(lock))
+        await writeAtomic(root, paths.lockPath, formatLock(lock))
         await keepWhatWasHeard(projectFile, cacheName, key, { ...take, at, text: line.text })
         return []
       },
@@ -773,7 +773,7 @@ export async function removeOrphans(
     }
     if (removed) {
       await writeAtomic(root, read.paths.manifestPath, `${pythonJson(sorted(manifest))}\n`)
-      await writeAtomic(root, read.paths.lockPath, formatEntriesPerLine(lock))
+      await writeAtomic(root, read.paths.lockPath, formatLock(lock))
     }
     return removed
   })
@@ -809,7 +809,7 @@ export async function acceptLine(
       return { ok: false, reason: 'not-weak', message: 'Only a weak line can be accepted.' }
     }
     const lock = { ...read.input.lock, [key]: { ...entry, accepted: true } }
-    await writeAtomic(dirname(projectFile), read.paths.lockPath, formatEntriesPerLine(lock))
+    await writeAtomic(dirname(projectFile), read.paths.lockPath, formatLock(lock))
     return { ok: true, key }
   })
 }
@@ -939,7 +939,7 @@ export async function measureLine(
     manifest[key] = { ...now, duration, words: aligned.timed }
     lock[key] = { ...locked, heard }
     await writeAtomic(root, read.paths.manifestPath, `${pythonJson(sorted(manifest))}\n`)
-    await writeAtomic(root, read.paths.lockPath, formatEntriesPerLine(lock))
+    await writeAtomic(root, read.paths.lockPath, formatLock(lock))
     await keepWhatWasHeard(projectFile, read.cacheName, key, {
       heard,
       at: locked.at,

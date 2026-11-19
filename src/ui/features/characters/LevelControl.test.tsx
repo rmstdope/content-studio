@@ -135,6 +135,33 @@ describe('LevelControl', () => {
     expect(saved.text()).toContain('Above 100%, the loudest moments')
   })
 
+  it('puts the Not set yet line before the softening note', async () => {
+    const page = await show()
+    await page.move(120)
+    const text = page.text()
+    expect(text.indexOf('Not set yet')).toBeGreaterThan(-1)
+    expect(text.indexOf('Not set yet')).toBeLessThan(text.indexOf('Above 100%'))
+  })
+
+  it('moves focus to the slider when Undo takes the buttons away', async () => {
+    const page = await show()
+    await page.move(60)
+    const undo = page.button('Undo')!
+    undo.focus()
+    await act(() => undo.click())
+    expect(document.activeElement).toBe(page.slider())
+  })
+
+  it('moves focus to the slider when an instant Set takes the buttons away', async () => {
+    const page = await show({ data: data({ total: 0 }) })
+    await page.move(60)
+    const set = page.button('Set 60%')!
+    set.focus()
+    await act(() => set.click())
+    await page.settle(() => page.button('Set 60%') === undefined)
+    expect(document.activeElement).toBe(page.slider())
+  })
+
   it('asks before rewriting the lines in the game, and Cancel writes nothing', async () => {
     const page = await show()
     await page.move(60)

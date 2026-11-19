@@ -54,7 +54,7 @@ describe('the lines cleaned in the game', () => {
     expect(await answer.json()).toEqual({ error: 'The clean-up is switched off for this voice.' })
   })
 
-  it('say why a line could not be cleaned, as given', async () => {
+  it('say why a line could not be cleaned, naming the line and no file', async () => {
     writeFileSync(cast, JSON.stringify({ speakers: { narrator: { voice: 'v1', clean: true } } }))
     // The sample clip is not audio, so decoding it fails whatever ffmpeg says.
     expect((await post('/api/characters/narrator/cleaned-lines/clean')).status).toBe(200)
@@ -65,7 +65,8 @@ describe('the lines cleaned in the game', () => {
     }
     expect(job.failed).toHaveLength(1)
     expect(job.failed[0]).toMatchObject({ part: 'act1', key: 'a' })
-    expect(job.failed[0].message).toContain('ffmpeg')
+    expect(job.failed[0].message).toStartWith('Line a: ')
+    expect(job.failed[0].message).not.toContain('.mp3')
   })
 
   it('serve an original only for a line that is cleaned', async () => {

@@ -65,15 +65,18 @@ export function LevelControl({
     }
   }, [returning, asking])
 
-  // A button that had focus is gone when the rewriting ends: focus goes to the slider.
-  const wasRewriting = useRef(false)
+  const behind = (data?.levels ?? []).filter((line) => line.level !== saved)
+  // A button that had focus is gone when the rewriting ends, or when Undo or Set takes the row of
+  // buttons away: focus goes to the slider, never to the page.
+  const buttons = rewriting || differs || behind.length > 0
+  const hadButtons = useRef(false)
   useEffect(() => {
-    if (wasRewriting.current && !rewriting) {
+    if (hadButtons.current && !buttons) {
       const active = typeof document === 'undefined' ? null : document.activeElement
-      if (!active || active === document.body) slider.current?.focus()
+      if (!active || active === document.body) slider.current?.focus({ preventScroll: true })
     }
-    wasRewriting.current = rewriting
-  }, [rewriting])
+    hadButtons.current = buttons
+  }, [buttons])
 
   const reason = set.isError
     ? set.error.message
@@ -85,7 +88,6 @@ export function LevelControl({
     set.mutate(level, { onSuccess: (answer) => answer.ok && onTrial(null) })
   }
 
-  const behind = (data?.levels ?? []).filter((line) => line.level !== saved)
   const failed = job && job.failed.length > 0 ? job : null
 
   let below = null
@@ -205,8 +207,8 @@ export function LevelControl({
         </div>
         <strong className="level-pct">{shown}%</strong>
       </div>
-      {shown > LEVEL.default && <p className="clean-hint">{SOFTENED}</p>}
       {below}
+      {shown > LEVEL.default && <p className="clean-hint">{SOFTENED}</p>}
       {reason && <p className="adopt-error">{levelCouldntSaveText(reason)}</p>}
       {!differs && failed && behind.length > 0 && !rewriting && (
         <p className="adopt-error">

@@ -65,7 +65,7 @@ describe('level jobs', () => {
     expect(jobs.get('narrator', undefined)).toMatchObject({
       status: 'done',
       done: 3,
-      failed: [{ part: 'act1', key: 'k2', message: 'ffmpeg could not level the clip' }],
+      failed: [{ part: 'act1', key: 'k2', message: 'Line k2: ffmpeg could not level the clip' }],
     })
     expect(clip(root, 'k3')).toBe('k3[-6.0]')
     // Again: only the line that is still at 100% is done.

@@ -336,6 +336,27 @@ export const LockEntrySchema = z.looseObject({
   at: z.string(),
 })
 
+/** The order a narration lock entry's fields are written in, whatever order the entry was built in. */
+const LOCK_FIELD_ORDER = [
+  'fp',
+  'voice',
+  'model',
+  'hashes',
+  'heard',
+  'takes',
+  'level',
+  'adopted',
+  'accepted',
+  'at',
+]
+
+/** A lock entry with its fields in `LOCK_FIELD_ORDER` (fields a newer version added follow, in their order). */
+export function orderLockEntry<T extends Record<string, unknown>>(entry: T): T {
+  const known = LOCK_FIELD_ORDER.filter((key) => key in entry).map((key) => [key, entry[key]])
+  const rest = Object.entries(entry).filter(([key]) => !LOCK_FIELD_ORDER.includes(key))
+  return Object.fromEntries([...known, ...rest]) as T
+}
+
 /** A part's narration lock (`content-studio/narration/<part>[.<lang>].lock.json`): line key → what its clip was made from. */
 export const LockSchema = z.record(z.string(), LockEntrySchema)
 
