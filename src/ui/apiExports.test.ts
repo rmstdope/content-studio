@@ -4,6 +4,9 @@ import * as api from './api'
 /** What `api.ts` has always exported to the pages, now spread over `api/`: a caller still imports from `./api`. */
 const names = [
   'cleanedUrl',
+  'originalUrl',
+  'useCleanedLines',
+  'useCleaningLines',
   'clipUrl',
   'lineTakeUrl',
   'recordVoiceTake',
