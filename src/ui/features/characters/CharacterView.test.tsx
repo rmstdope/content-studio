@@ -214,6 +214,61 @@ describe('CharacterView', () => {
     await act(() => page.unmount())
   })
 
+  it('keeps the Cleaned tag hidden after confirming, until the switch-off is saved', async () => {
+    const cast: CharacterLanguage = {
+      ...uncast,
+      voice: 'eleven:g1',
+      voiceName: 'George',
+      clean: true,
+    }
+    const castSummary: ProjectSummary = {
+      ...summary,
+      characters: summary.characters.map((c) => ({
+        ...c,
+        voice: 'eleven:g1',
+        voiceName: 'George',
+        languages: { en: cast },
+      })),
+    }
+    let answerSave: () => void = () => {}
+    const saving = new Promise<void>((resolve) => (answerSave = resolve))
+    globalThis.fetch = (async (path: string, init?: RequestInit) => {
+      if (path.startsWith('/api/characters/keeper/cleaned-lines')) {
+        return Response.json({ total: 4, cleaned: 4, cleanedFiles: [], job: null, problem: null })
+      }
+      if (init?.method === 'PATCH') {
+        await saving
+        return Response.json({ ok: true })
+      }
+      return studio(path)
+    }) as unknown as typeof fetch
+    const container = document.createElement('div')
+    document.body.append(container)
+    const page = createRoot(container)
+    await act(() =>
+      page.render(
+        createElement(
+          QueryClientProvider,
+          { client: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+          createElement(CharacterView, { summary: castSummary, characterId: 'keeper' }),
+        ),
+      ),
+    )
+    const tag = () =>
+      [...container.querySelectorAll('.chip')].some((c) => c.textContent === 'Cleaned')
+    await until(() => container.textContent?.includes('All 4 lines') === true)
+    await act(() => container.querySelector<HTMLInputElement>('input[role="switch"]')!.click())
+    await act(() =>
+      [...container.querySelectorAll('button')]
+        .find((b) => b.textContent === 'Switch off and put back')!
+        .click(),
+    )
+    // The save is still on its way: the switch shows off, so the tag stays hidden.
+    expect(tag()).toBe(false)
+    await act(async () => answerSave())
+    await act(() => page.unmount())
+  })
+
   it('shows an ElevenLabs voice as ElevenLabs gives it, with its preview and a take on ElevenLabs', async () => {
     const cast: CharacterLanguage = { ...uncast, voice: 'eleven:g1', voiceName: 'George' }
     const castSummary: ProjectSummary = {
