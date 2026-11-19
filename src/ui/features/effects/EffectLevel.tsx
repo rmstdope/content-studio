@@ -50,6 +50,10 @@ export function useEffectLevel({
   const saved = take?.level ?? 1
   const [value, setValue] = useState(saved)
   const dragging = useRef(false)
+  // Whether Back to 100% showed when the slider was pressed, kept until it is let go: the button
+  // takes room from the track, so showing or hiding it mid-drag would move the track under the
+  // pointer and save a level other than the one aimed at.
+  const [heldReset, setHeldReset] = useState<boolean | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const clear = () => {
     if (timer.current !== null) clearTimeout(timer.current)
@@ -105,6 +109,7 @@ export function useEffectLevel({
   /** The mouse is let go, or the press ended some other way: the level shown is saved. */
   const finish = (next: number) => {
     dragging.current = false
+    setHeldReset(null)
     save(next)
   }
   latest.current = value
@@ -146,6 +151,7 @@ export function useEffectLevel({
               onPointerDown={() => {
                 if (locked) return
                 dragging.current = true
+                setHeldReset(percent !== 100)
                 // Let go away from the slider (outside it or the window): saved all the same.
                 const end = () => {
                   if (dragging.current) finish(latest.current)
@@ -161,7 +167,7 @@ export function useEffectLevel({
             />
             <b className="scene-level">{levelPercent(value)}</b>
           </span>
-          {percent !== 100 && (
+          {(heldReset ?? percent !== 100) && (
             <button
               type="button"
               className="btn btn-ghost btn-small level-reset"
