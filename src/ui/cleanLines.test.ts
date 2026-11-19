@@ -25,6 +25,14 @@ describe('the words about the lines in the game', () => {
     })
   })
 
+  it('say none of the lines is cleaned when several are in the game and none is cleaned', () => {
+    expect(countText(2, 2)).toEqual({
+      sentence: 'None of the 2 lines in the game is cleaned yet.',
+      button: 'Clean 2 lines…',
+    })
+    expect(countText(38, 38).sentence).toBe('None of the 38 lines in the game is cleaned yet.')
+  })
+
   it('say when every line is cleaned', () => {
     expect(allCleanedText(38)).toBe('All 38 lines in the game are cleaned.')
     expect(allCleanedText(1)).toBe('The 1 line in the game is cleaned.')
