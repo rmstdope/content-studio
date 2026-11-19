@@ -19,7 +19,7 @@ import { off } from '../../off'
 import { DoneStat } from '../../components/DoneStat'
 import { FailedPanel, RefreshPanel } from '../music/MusicView'
 
-/** The chip class of each status: muted until chosen, green when chosen, amber when out of date. */
+/** The chip class of each status: muted until chosen, green when finished, amber when out of date or incomplete. */
 const STATUS_CHIP: Record<ImageRow['status'], string> = {
   'none yet': 'chip',
   chosen: 'chip chip-ok',
@@ -37,7 +37,7 @@ function MissingLine({ row }: { row: ImageRow }) {
 /**
  * An act's page: how many of its images are finished, linking to those that need attention, and
  * its images with the words they are made from, their size and status: all of them, or
- * (`attention`) only those not chosen or out of date, and those the game's lists disagree on.
+ * (`attention`) only those not finished, and those the game's lists disagree on.
  */
 export function ActPage({
   act,

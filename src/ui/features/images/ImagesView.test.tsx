@@ -1110,6 +1110,16 @@ describe('what needs attention on an act’s images page', () => {
   const names = (page: HTMLElement) =>
     [...page.querySelectorAll('tbody tr .images-name strong')].map((s) => s.textContent)
 
+  it('lists an incomplete image among those needing attention', () => {
+    const lamp = { id: 'lamp-lit', title: 'Lamp lit', description: 'Light the lamp' }
+    const page = render(
+      { view: 'images', page: 'act', part: 'act1', show: 'attention' },
+      summary({ patches: [lamp], chosen: { inn: made('inn'), barn: made('barn') } }),
+    )
+    expect(names(page).length).toBeGreaterThan(0)
+    expect(text(page.querySelector('.status-note'))).toContain('that need')
+  })
+
   it('counts the images up to date at the top, a link to the ones that need attention', () => {
     const page = render(
       { view: 'images', page: 'act', part: 'act1' },
@@ -1398,7 +1408,7 @@ describe('the named areas the game declares', () => {
     expect(heading(page)).not.toContain('Named areas')
   })
   const taken = { inn: summary().images!.acts[0]!.rows[0]!.madeFrom }
-  it('says on the act’s list how many are left, under the status, and counts nothing else', () => {
+  it('names the areas left under the status, and makes the image incomplete', () => {
     const page = render(act, summary({ areas: [fountain, notice], chosen: taken }))
     expect(lineOf(page)).toBe('2 areas not placed')
     expect(page.querySelectorAll('tbody tr')[1]!.querySelector('.images-areas')).toBeNull()

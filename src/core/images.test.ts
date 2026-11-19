@@ -1881,6 +1881,13 @@ describe('a finished image', () => {
     expect(row.status).toBe('out of date')
     expect(row.missing).toEqual({ patches: 2, areas: 1 })
   })
+  it('counts every patch missing on a take from before takes were numbered', () => {
+    const old = { [inn.id]: summarizeImages(input()).images.acts[0]!.rows[0]!.madeFrom }
+    expect(rowOf({ chosen: old }).acts[0]!.rows[0]).toMatchObject({
+      status: 'incomplete',
+      missing: { patches: 2, areas: 1 },
+    })
+  })
   it('lists nothing missing before there is a main take, and an image with neither is finished at once', () => {
     expect(rowOf().acts[0]!.rows[0]).toMatchObject({
       status: 'none yet',

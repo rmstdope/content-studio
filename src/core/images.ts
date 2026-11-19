@@ -1048,7 +1048,11 @@ export interface AreaRow {
   elsewhereGone: boolean
 }
 
-/** `unknown` while the images lock cannot be read: the lock is what says a take is chosen. */
+/**
+ * `chosen` means finished: main take chosen and up to date, nothing missing; `incomplete` is the same
+ * with patches or areas missing. `unknown` while the images lock cannot be read: the lock is what
+ * says a take is chosen.
+ */
 export type ImageStatus = 'none yet' | 'chosen' | 'incomplete' | 'out of date' | 'unknown'
 
 /** What an image still lacks once it has a main take: patches not chosen and named areas not placed, on the take in the game. */
