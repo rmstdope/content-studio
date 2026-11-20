@@ -5,7 +5,12 @@ import type {
   ImagesSummary,
   MissingParts,
 } from '../core/images'
-import type { SetAsideAsk, SetAsideQuestion } from '../core/imagePatches'
+import type {
+  OnTopQuestion,
+  SetAsideAsk,
+  SetAsideQuestion,
+  StackProblem,
+} from '../core/imagePatches'
 import type { ImagesRoute } from './route'
 
 /** What an image's status chip says; the lock being unreadable says "not known", as music's and effects' do. */
@@ -468,4 +473,72 @@ export function areaRowWhy(
   if (state === 'none')
     return 'Choose a take of the image first. Areas are placed on the take the game shows.'
   return null
+}
+
+/** A patch underneath another, with the take chosen on it. */
+export interface UnderTake {
+  title: string
+  n: number
+}
+
+/** The dim words after a patch's title in its chip and its side list. */
+export const onTopSuffix = (title: string) => `· on ${title}`
+
+/**
+ * What the open patch is painted on, given what lies underneath it, the bottom patch first: the
+ * patch directly under it, and each one's chosen take, down to the image's own take.
+ */
+export function onTopLine(under: readonly UnderTake[]): string {
+  const [top, ...rest] = [...under].reverse()
+  const lower = rest.map((u) => `, which is on top of ${u.title} (take ${u.n})`).join('')
+  return `The game asks for this on top of ${top!.title}, so it is painted on ${top!.title}’s chosen take (take ${top!.n})${lower}.`
+}
+
+/** The amber line while the patch underneath has no chosen take. */
+export const onTopNoneLine = (title: string) =>
+  `The game asks for this on top of ${title}, which has no chosen take yet. Choose a take of ${title} first.`
+
+/** The box that stands where the picture would be while the patch underneath has no chosen take. */
+export const onTopEmpty = (under: string, title: string) =>
+  `Nothing to paint on yet: ${under} has no chosen take. Open ${under} and choose one; ${title} is then painted over it.`
+
+/** The caption under the big picture of a patch on top of another. */
+export function onTopCaption(title: string, under: readonly UnderTake[]): string {
+  const [top, ...rest] = [...under].reverse()
+  const lower = rest.map((u) => `, on ${u.title} (take ${u.n})`).join('')
+  return `${title}, painted on ${top!.title} (take ${top!.n})${lower} on the image’s take`
+}
+
+/** What a take was painted on, after the model's name: a take of the patch underneath, or the image's take. */
+export function onTopTake(model: string, on: { title: string; n: number } | null): string {
+  return `${model} · ${on ? `on ${on.title} take ${on.n}` : 'on the image’s take'}`
+}
+
+/** The line on a patch whose chosen take was painted on something other than what lies underneath now. */
+export function onTopStale(on: { title: string; n: number } | null, under: string): string {
+  return on
+    ? `Painted on take ${on.n} of ${on.title}, so the game does not show it now. Make a new one here.`
+    : `Painted on the image’s take before the game asked for it on top of ${under}, so the game does not show it now. Make a new one here.`
+}
+
+/** "A, B and C". */
+export const joinTitles = (titles: readonly string[]): string => joined([...titles])
+
+/** The sentence that opens the question on a patch that others lie on top of. */
+export function onTopQuestionLead(ask: SetAsideAsk, q: OnTopQuestion): string {
+  const n = q.leaving.length
+  const what = `${n} chosen ${n === 1 ? 'patch was' : 'patches were'} painted on take ${q.from} of ${q.of}: ${joined(q.leaving)}.`
+  if (ask.kind === 'drop') {
+    return `${what} After this ${n === 1 ? 'it cannot' : 'they cannot'} be brought back; only ${n === 1 ? 'a new one' : 'new ones'} can be made.`
+  }
+  return `${what} The game will stop showing ${n === 1 ? 'it' : 'them'} until you make ${n === 1 ? 'a new one' : 'new ones'}.`
+}
+
+/** The dim line of the question: the way back. */
+export const onTopQuestionDim = (q: OnTopQuestion) =>
+  `Choosing take ${q.from} again brings ${q.leaving.length === 1 ? 'it' : 'them all'} back.`
+
+/** The red line in an act's row naming the patches that cannot be made. */
+export function onTopActLine(problems: readonly { title: string; rowText: string }[]): string {
+  return `cannot be made: ${problems.map((p) => `${p.title} (${p.rowText})`).join('; ')}`
 }
