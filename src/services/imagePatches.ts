@@ -285,13 +285,18 @@ export function createImagePatches({
   }
 
   /** Brings a take just made to the look and notes it on the board; a take that cannot be stays as the model made it. */
-  async function bringTake(found: Found, n: number, base: number): Promise<void> {
+  async function bringTake(
+    found: Found,
+    n: number,
+    base: number,
+    under: PatchTake['under'],
+  ): Promise<void> {
     const mark = `${found.key}\0${n}`
     try {
       const key = found.row.look.key
       if (!key || !found.look) return
       const made = await renderPatchGame(
-        { root: found.root, image: found.id, patch: found.patchId, base, n },
+        { root: found.root, image: found.id, patch: found.patchId, base, n, under },
         found.look,
         found.row,
       )
@@ -403,7 +408,7 @@ export function createImagePatches({
         try {
           if (took !== null)
             await recordTakeTime(found.projectFile, timeKeyOfEdit(entry.model), took)
-          await bringTake(found, entry.n, entry.base)
+          await bringTake(found, entry.n, entry.base, entry.under)
         } catch {
           // The take stays as the model made it.
         }
@@ -873,7 +878,7 @@ export function createImagePatches({
         const png =
           stored ??
           (await renderPatchGame(
-            { root: found.root, image: id, patch, base: take.base, n },
+            { root: found.root, image: id, patch, base: take.base, n, under: take.under },
             found.look,
             found.row,
           ))

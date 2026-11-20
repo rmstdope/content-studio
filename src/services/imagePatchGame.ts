@@ -85,18 +85,22 @@ export function changePatchBoard<T>(
  * and returns the PNG, or the sentence saying why not ('missing' when a picture is gone).
  */
 export async function renderPatchGame(
-  where: { root: string; image: string; patch: string; base: number; n: number },
+  where: {
+    root: string
+    image: string
+    patch: string
+    base: number
+    n: number
+    /** What the take was painted over (the take's `under`). */
+    under?: { patch: string; n: number } | undefined
+  },
   look: Look,
   size: { width: number; height: number },
 ): Promise<Uint8Array | { error: string }> {
-  const { root, image, patch, base, n } = where
+  const { root, image, patch, base, n, under } = where
   let take: Pixels
   let picture: Uint8Array
   try {
-    const board = await readPatchBoard(root, image, patch)
-    // Never against the bare take when the board that says what it lies on cannot be read.
-    if ('ok' in board) return { error: 'missing' }
-    const under = board.takes.find((t) => t.n === n)?.under
     take = await laidPicture(root, image, base, under)
     picture = await Bun.file(resolveInRoot(root, patchPictureOf(image, patch, n))).bytes()
   } catch {
