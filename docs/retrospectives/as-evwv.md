@@ -1,13 +1,13 @@
 # as-evwv
 
-## A check I did not read went to the PR red
+## A music spending test failed once in CI and passed on re-run
 
-**What happened:** I ran `bun run check` in the background and read only `tail` of its log, which printed the test counts and not the exit code; it had one failure (`renderPatchGame` returned an error when a board read raced the engine's write). I pushed and reviewed on that head. Later CI also failed on a second cause of my own: `workOf` read all patch boards before the takes being made, so a take that landed in between showed as neither made nor making (passed locally, failed on a slower runner).
+**What happened.** CI on PR #618 failed `server, what music takes cost > lists a paid take on the Spending page, in its act, and a free one not` (`src/server/music.test.ts:201`): the Spending page answered every act with `credits: 0, total: 0`. The change touched only `src/core/imagePatches.ts`. The same suite passed three times locally, and the failed job passed on one bare re-run.
 
-**Why:** the exit code was not part of what I looked at; the ordering rule ("entries first, then the board", a comment in `workOf`) was lost when I hoisted the board reads out of the loop.
+**Why.** Not established.
 
-**Cost:** two extra pushes and one CI cycle.
+**Cost.** About five minutes of CI and one of the bead's two re-runs.
 
-**Prevent by:** run the gate with its exit code in the same call (`bun run check; echo "exit $?"`) and read that line, never a `tail` alone.
+**Prevent by.** Not established; a fix needs the test run in a loop under CI-like load to find what it races on.
 
-**Seen before:** nothing like it yet.
+**Seen before.** Nothing like it yet in `docs/retrospectives/`.
