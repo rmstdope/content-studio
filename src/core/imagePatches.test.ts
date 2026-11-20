@@ -1220,6 +1220,13 @@ describe('what lies on a take of a patch', () => {
       stick: { 2: ['snare'] },
     })
   })
+  it('lists what lies on a take of a patch that has no chosen take of its own now', () => {
+    const { vines: _gone, ...rest } = choices
+    expect(carriesOf(patches, rest)).toEqual({
+      vines: { 1: ['stick', 'snare'], 3: ['stick'] },
+      stick: { 2: ['snare'] },
+    })
+  })
   it('is empty when nothing lies on anything', () => {
     expect(carriesOf(patches, { vines: choices.vines })).toEqual({})
   })

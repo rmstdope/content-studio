@@ -1144,7 +1144,7 @@ export function carriesOf(
       .filter((p) => (choices[p.id] ?? []).some((c) => c.on?.patch === patch && c.on.n === n))
       .map((p) => p.id)
   const out: Record<string, Record<number, string[]>> = {}
-  for (const patch of Object.keys(choices)) {
+  for (const { id: patch } of patches) {
     // The takes of this patch something is painted on: the takes of the patches above name them.
     const taken = new Set(
       patches.flatMap((p) =>
