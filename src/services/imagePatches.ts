@@ -24,6 +24,8 @@ import {
   type PatchBoard,
   type PatchTake,
   type PatchWorkView,
+  choiceOn,
+  stackOf,
 } from '../core/imagePatches'
 import type { PatchRow } from '../core/images'
 import { resolveInRoot } from '../core/paths'
@@ -39,7 +41,9 @@ import {
   patchFolder,
   patchGameOf,
   readPatchBoard,
+  laidPicture,
   renderPatchGame,
+  restack,
 } from './imagePatchGame'
 import { downloadOf, type ImageGenerator } from './images'
 import { editStep } from './imageEditStep'
@@ -129,6 +133,8 @@ interface Entry extends TakeEntry {
   base: number
   /** The edit model it is made with, kept for making it again. */
   model: EditModelId
+  /** The take of the patch underneath it is painted over, when the game asks for it on top of another. */
+  under?: { patch: string; n: number } | undefined
   /** The area and words it is made with, kept for making it again. */
   area: PatchArea
   words: string
@@ -279,13 +285,18 @@ export function createImagePatches({
   }
 
   /** Brings a take just made to the look and notes it on the board; a take that cannot be stays as the model made it. */
-  async function bringTake(found: Found, n: number, base: number): Promise<void> {
+  async function bringTake(
+    found: Found,
+    n: number,
+    base: number,
+    under: PatchTake['under'],
+  ): Promise<void> {
     const mark = `${found.key}\0${n}`
     try {
       const key = found.row.look.key
       if (!key || !found.look) return
       const made = await renderPatchGame(
-        { root: found.root, image: found.id, patch: found.patchId, base, n },
+        { root: found.root, image: found.id, patch: found.patchId, base, n, under },
         found.look,
         found.row,
       )
@@ -297,6 +308,32 @@ export function createImagePatches({
     } finally {
       bringing.delete(mark)
     }
+  }
+
+  /**
+   * What the patch is painted over: nothing for a patch straight on the image, else the chosen take
+   * of the patch underneath, or the sentence saying why takes cannot be made yet.
+   */
+  async function underneath(
+    found: Found,
+  ): Promise<{ under: { patch: string; n: number } | undefined } | { message: string }> {
+    const over = found.patch.over
+    if (over === undefined) return { under: undefined }
+    const stack = stackOf(found.row.patches, found.patchId)
+    if (!stack.ok) return { message: stack.text }
+    const boards: Record<string, PatchBoard> = {}
+    for (const p of found.row.patches) {
+      const board = await readPatchBoard(found.root, found.id, p.id)
+      if (!('ok' in board)) boards[p.id] = board
+    }
+    const below = choiceOn(found.row.patches, boards, over, found.chosen!)
+    const title = found.patch.overTitle ?? over
+    if (!below?.valid) {
+      return {
+        message: `The game asks for this on top of ${title}, which has no chosen take yet. Choose a take of ${title} first.`,
+      }
+    }
+    return { under: { patch: over, n: below.n } }
   }
 
   /** Edits a window of the image take around the marked area and saves what the edit changed as take `entry.n`. */
@@ -336,6 +373,7 @@ export function createImagePatches({
             area: entry.area,
             seen: false,
             model: entry.model,
+            ...(entry.under && { under: entry.under }),
           }
           // Marked before it is on the board, so the page never sees it between made and brought.
           bringing.add(mark)
@@ -370,7 +408,7 @@ export function createImagePatches({
         try {
           if (took !== null)
             await recordTakeTime(found.projectFile, timeKeyOfEdit(entry.model), took)
-          await bringTake(found, entry.n, entry.base)
+          await bringTake(found, entry.n, entry.base, entry.under)
         } catch {
           // The take stays as the model made it.
         }
@@ -420,10 +458,12 @@ export function createImagePatches({
         : DEFAULT_EDIT_MODEL
     const problem = await makerProblem(model)
     if (problem) return { ok: false, message: problem }
+    const under = await underneath(found)
+    if ('message' in under) return { ok: false, message: under.message }
     // Read once for all the takes, before any is queued.
     let around: Pixels
     try {
-      around = decodePng(new Uint8Array(await Bun.file(picture.path).arrayBuffer()))
+      around = await laidPicture(found.root, found.id, found.chosen, under.under)
     } catch {
       return {
         ok: false,
@@ -441,6 +481,7 @@ export function createImagePatches({
           message: `Take ${request.retry} did not fail, so it is not made again.`,
         }
       }
+      again.under = under.under
       queued = [again]
     } else {
       // The entries are added before the first wait, so a second request at once is refused above.
@@ -457,6 +498,7 @@ export function createImagePatches({
           hash: '',
           base,
           model,
+          under: under.under,
           area: request.area,
           words: found.patch.words,
         }),
@@ -489,14 +531,28 @@ export function createImagePatches({
     const figures = figuresOf(await readTakeTimes(image.projectFile))
     const patches: PatchWorkView[] = []
     const earlier: Record<string, PatchArea> = {}
+    // Before the boards: a take that lands in between then shows as made, never as neither.
+    const reads = new Map(
+      image.row.patches.map((patch) => {
+        const found = patchOf(image, patch)
+        return [
+          patch.id,
+          engine
+            .entriesOf(found.projectFile, found.engineId)
+            .filter((e) => e.base === image.chosen),
+        ] as const
+      }),
+    )
+    const boards: Record<string, PatchBoard> = {}
+    for (const patch of image.row.patches) {
+      const board = await readBoard(patchOf(image, patch))
+      if ('ok' in board) return board
+      boards[patch.id] = board
+    }
     for (const patch of image.row.patches) {
       const found = patchOf(image, patch)
-      // Before the board: a take that lands in between then shows as made, never as neither.
-      const read = engine
-        .entriesOf(found.projectFile, found.engineId)
-        .filter((e) => e.base === image.chosen)
-      const board = await readBoard(found)
-      if ('ok' in board) return board
+      const read = reads.get(patch.id)!
+      const board = boards[patch.id]!
       const split = engine.split(read, board.takes)
       // The take chosen on the newest other take of the image that is still on the board.
       const was = Object.keys(board.chosen)
@@ -506,7 +562,10 @@ export function createImagePatches({
         .map((base) => board.takes.find((t) => t.n === board.chosen[String(base)]))
         .find((t) => t !== undefined)
       if (was) earlier[patch.id] = was.area
-      const chosen = image.chosen === null ? undefined : board.chosen[String(image.chosen)]
+      const choice =
+        image.chosen === null ? null : choiceOn(image.row.patches, boards, patch.id, image.chosen)
+      const chosen = choice?.valid ? choice.n : undefined
+      const stack = stackOf(image.row.patches, patch.id)
       const key = image.row.look.key
       const takes: PatchWorkView['takes'] = []
       for (const t of board.takes.filter((t) => t.base === image.chosen)) {
@@ -517,6 +576,7 @@ export function createImagePatches({
           chosen: t.n === chosen,
           isNew: !t.seen,
           model: t.model ?? BEFORE_CHOICE,
+          ...(t.under && { under: t.under }),
           kept: await keptOf(image.root, `${found.folder}/${t.n}.png`),
           look: bringing.has(`${found.key}\0${t.n}`)
             ? 'bringing'
@@ -552,6 +612,18 @@ export function createImagePatches({
           model: e.model,
         })),
         failedModels: EDIT_MODEL_IDS.filter((m) => failedModels.get(found.key)?.has(m)),
+        ...(stack.ok &&
+          stack.under.length > 0 && {
+            under: stack.under.map((u) => ({
+              id: u.id,
+              n:
+                image.chosen === null
+                  ? null
+                  : ((c) => (c?.valid ? c.n : null))(
+                      choiceOn(image.row.patches, boards, u.id, image.chosen),
+                    ),
+            })),
+          }),
       })
     }
     return { work: patches, earlier }
@@ -786,6 +858,21 @@ export function createImagePatches({
         if (take.base !== found.chosen) {
           return { ok: false, message: 'That take was made on another take of the image.' }
         }
+        const under = await underneath(found)
+        if ('message' in under) return { ok: false, message: under.message }
+        if (take.under?.patch !== under.under?.patch || take.under?.n !== under.under?.n) {
+          const titleOf = (id: string) => found.row.patches.find((p) => p.id === id)?.title ?? id
+          return {
+            ok: false,
+            message: take.under
+              ? `Take ${n} was painted on take ${take.under.n} of ${titleOf(take.under.patch)}, ${
+                  under.under
+                    ? `not on its chosen take (take ${under.under.n})`
+                    : 'which the game no longer asks for it on top of'
+                }. Make a new one here.`
+              : `Take ${n} was painted on the image’s take, not on what lies underneath it. Make a new one here.`,
+          }
+        }
         const key = found.row.look.key
         if (!key || !found.look) {
           return { ok: false, message: found.row.look.error ?? "The game's look cannot be used." }
@@ -800,7 +887,7 @@ export function createImagePatches({
         const png =
           stored ??
           (await renderPatchGame(
-            { root: found.root, image: id, patch, base: take.base, n },
+            { root: found.root, image: id, patch, base: take.base, n, under: take.under },
             found.look,
             found.row,
           ))
@@ -834,6 +921,13 @@ export function createImagePatches({
             await writeOrRefuse(found.root, join(found.config.clips, file), png)
             const listed = { ...(entry.patches as Record<string, unknown> | undefined) }
             listed[patch] = { file, width: found.row.width, height: found.row.height }
+            // What lies on top of it leaves, or comes back with the take it was painted on.
+            const on = await restack({ ...found, clips: found.config.clips }, take.base, patch, {
+              ...board,
+              chosen: { ...board.chosen, [String(take.base)]: n },
+            })
+            for (const gone of on.gone) delete listed[gone]
+            Object.assign(listed, on.add)
             manifest[id] = { ...entry, patches: sorted(listed) }
             await writeManifest(found, manifest)
             return { ok: true }
@@ -864,9 +958,20 @@ export function createImagePatches({
             if (!manifest) return { ok: false, message: 'The images manifest could not be read.' }
             const entry = manifest[id]
             const listed = entry?.patches as Record<string, unknown> | undefined
-            const had = !!entry && !!listed && patch in listed
+            const { gone: above } = await restack(
+              { ...found, clips: found.config.clips },
+              found.chosen!,
+              patch,
+              {
+                ...board,
+                chosen: {},
+              },
+            )
+            const had = !!entry && !!listed && [patch, ...above].some((p) => p in listed)
             if (entry && listed && had) {
-              const { [patch]: _gone, ...rest } = listed
+              const rest = Object.fromEntries(
+                Object.entries(listed).filter(([p]) => p !== patch && !above.includes(p)),
+              )
               const { patches: _all, ...others } = entry
               manifest[id] = Object.keys(rest).length ? { ...others, patches: rest } : others
             }

@@ -980,6 +980,42 @@ describe('the patches the game asks for', () => {
       ])
       expect(rowOf({}, inn).patches).toEqual([])
     })
+    it('says what a patch lies on top of, and what is wrong with an ask that cannot be followed', () => {
+      const stick = { id: 'stick', title: 'Stick', description: 'Add a stick', over: 'bread-taken' }
+      const rope = { id: 'rope', title: 'Rope', description: 'Add a rope', over: 'ghost' }
+      const [b, s, r] = rowOf({}, { ...inn, patches: [bread, stick, rope] }).patches
+      expect(b!.over).toBeUndefined()
+      expect(s).toMatchObject({ over: 'bread-taken', overTitle: 'Bread taken' })
+      expect(s!.problem).toBeUndefined()
+      expect(r).toMatchObject({ over: 'ghost', overTitle: 'ghost' })
+      expect(r!.problem?.kind).toBe('unknown')
+    })
+    it('reads a chosen take painted on something else as one to make again', () => {
+      const stick = { id: 'stick', title: 'Stick', description: 'Add a stick', over: 'bread-taken' }
+      const row = rowOf(
+        {
+          chosen: { [inn.id]: { ...made, take: 2 } } as never,
+          patchChoice: {
+            [inn.id]: { stick: { 2: { n: 5, valid: false, on: { patch: 'bread-taken', n: 1 } } } },
+          },
+        },
+        { ...inn, patches: [bread, stick] },
+      )
+      expect(row.patches[1]!.stale).toEqual({ title: 'Bread taken', n: 1 })
+      expect(row.patches[0]!.stale).toBeUndefined()
+    })
+    it('does not ask to make again a patch whose ask cannot be followed', () => {
+      const rope = { id: 'rope', title: 'Rope', description: 'Add a rope', over: 'ghost' }
+      const row = rowOf(
+        {
+          chosen: { [inn.id]: { ...made, take: 2 } } as never,
+          patchChoice: { [inn.id]: { rope: { 2: { n: 5, valid: false, on: null } } } },
+        },
+        { ...inn, patches: [rope] },
+      )
+      expect(row.patches[0]!.problem?.kind).toBe('unknown')
+      expect(row.patches[0]!.stale).toBeUndefined()
+    })
     it('uses the user’s words, and notes when the game’s changed under them', () => {
       const edits = {
         [inn.id]: {
@@ -1061,6 +1097,7 @@ describe('the patches the game asks for', () => {
     it('is a disagreement when a patch is missing or its id, title or words differ', () => {
       for (const other of [
         [bread],
+        [bread, { ...lamp, over: 'bread-taken' }],
         [bread, { ...lamp, id: 'lamp-out' }],
         [bread, { ...lamp, title: 'Lamp' }],
         [bread, { ...lamp, description: 'x' }],

@@ -1,6 +1,14 @@
 import { join } from 'node:path'
 import type { Look } from '../core/imageLook'
-import { gamePatch, PatchBoardSchema, type PatchBoard } from '../core/imagePatches'
+import {
+  choiceOn,
+  gamePatch,
+  layerPatch,
+  PatchBoardSchema,
+  stackOf,
+  type PatchBoard,
+} from '../core/imagePatches'
+import type { Pixels } from '../core/imagePixels'
 import type { ImageRow } from '../core/images'
 import { resolveInRoot } from '../core/paths'
 import { CACHE_DIR, type Problem } from '../core/project'
@@ -77,26 +85,64 @@ export function changePatchBoard<T>(
  * and returns the PNG, or the sentence saying why not ('missing' when a picture is gone).
  */
 export async function renderPatchGame(
-  where: { root: string; image: string; patch: string; base: number; n: number },
+  where: {
+    root: string
+    image: string
+    patch: string
+    base: number
+    n: number
+    /** What the take was painted over (the take's `under`). */
+    under?: { patch: string; n: number } | undefined
+  },
   look: Look,
   size: { width: number; height: number },
 ): Promise<Uint8Array | { error: string }> {
-  const { root, image, patch, base, n } = where
-  let take: Uint8Array
+  const { root, image, patch, base, n, under } = where
+  let take: Pixels
   let picture: Uint8Array
   try {
-    take = await Bun.file(resolveInRoot(root, `${IMAGE_TAKES_DIR}/${image}/${base}.png`)).bytes()
+    take = await laidPicture(root, image, base, under)
     picture = await Bun.file(resolveInRoot(root, patchPictureOf(image, patch, n))).bytes()
   } catch {
     return { error: 'missing' }
   }
   try {
-    const png = encodeTransparentPng(gamePatch(decodePng(take), decodePng(picture), look, size))
+    const png = encodeTransparentPng(gamePatch(take, decodePng(picture), look, size))
     await writeOrRefuse(root, patchGameOf(image, patch, n), png)
     return png
   } catch (error) {
     return { error: error instanceof Error ? error.message : String(error) }
   }
+}
+
+/**
+ * The picture a patch take is painted on (as-evwv): the image's take with, when the patch lies on
+ * top of another, that patch's take laid over it, and whatever that one lies on beneath it in
+ * turn. Throws when a picture is missing.
+ */
+export async function laidPicture(
+  root: string,
+  image: string,
+  base: number,
+  under: { patch: string; n: number } | undefined,
+): Promise<Pixels> {
+  const chain: { patch: string; n: number }[] = []
+  for (let at = under; at;) {
+    chain.unshift(at)
+    const board = await readPatchBoard(root, image, at.patch)
+    if ('ok' in board) throw new Error('board')
+    at = board.takes.find((t) => t.n === at!.n)?.under
+  }
+  let pixels = decodePng(
+    await Bun.file(resolveInRoot(root, `${IMAGE_TAKES_DIR}/${image}/${base}.png`)).bytes(),
+  )
+  for (const { patch, n } of chain) {
+    const laid = decodePng(
+      await Bun.file(resolveInRoot(root, patchPictureOf(image, patch, n))).bytes(),
+    )
+    pixels = layerPatch(pixels, laid)
+  }
+  return pixels
 }
 
 /** One patch of an image as the game's manifest lists it. */
@@ -122,11 +168,13 @@ export async function patchesInGame(
 ): Promise<Record<string, ManifestPatch>> {
   const { root, clips, row } = image
   const entries: Record<string, ManifestPatch> = {}
+  const boards = await boardsOf(root, row)
   for (const patch of [...row.patches].sort((a, b) => a.id.localeCompare(b.id))) {
-    const board = await readPatchBoard(root, row.id, patch.id)
-    if ('ok' in board) continue
+    const board = boards[patch.id]
+    if (!board) continue
     const n = board.inGame[String(base)]
-    if (n === undefined) continue
+    // A patch on top of another is in the game only while it lies on what is underneath.
+    if (n === undefined || !choiceOn(row.patches, boards, patch.id, base)?.valid) continue
     const png = await Bun.file(resolveInRoot(root, patchGameOf(row.id, patch.id, n)))
       .bytes()
       .catch(() => null)
@@ -136,4 +184,58 @@ export async function patchesInGame(
     entries[patch.id] = { file, width: row.width, height: row.height }
   }
   return entries
+}
+
+/** The boards of an image's patches that can be read, by patch id. */
+async function boardsOf(
+  root: string,
+  row: Pick<ImageRow, 'id' | 'patches'>,
+): Promise<Record<string, PatchBoard>> {
+  const boards: Record<string, PatchBoard> = {}
+  for (const patch of row.patches) {
+    const board = await readPatchBoard(root, row.id, patch.id)
+    if (!('ok' in board)) boards[patch.id] = board
+  }
+  return boards
+}
+
+/**
+ * What a change of a patch's chosen take does to the patches lying on top of it (as-evwv): given
+ * its board as it will be, those that still lie on what is underneath, with their pictures
+ * written to the clips folder from their stored game versions, and those that no longer do and
+ * must leave the manifest.
+ */
+export async function restack(
+  image: {
+    root: string
+    clips: string
+    row: Pick<ImageRow, 'id' | 'width' | 'height' | 'patches'>
+  },
+  base: number,
+  patch: string,
+  board: PatchBoard,
+): Promise<{ add: Record<string, ManifestPatch>; gone: string[] }> {
+  const { root, clips, row } = image
+  const boards = { ...(await boardsOf(root, row)), [patch]: board }
+  const add: Record<string, ManifestPatch> = {}
+  const gone: string[] = []
+  for (const on of row.patches) {
+    const stack = stackOf(row.patches, on.id)
+    if (!stack.ok || !stack.under.some((u) => u.id === patch)) continue
+    const n = boards[on.id]?.inGame[String(base)]
+    const png =
+      n !== undefined && choiceOn(row.patches, boards, on.id, base)?.valid
+        ? await Bun.file(resolveInRoot(root, patchGameOf(row.id, on.id, n)))
+            .bytes()
+            .catch(() => null)
+        : null
+    if (!png) {
+      gone.push(on.id)
+      continue
+    }
+    const file = patchClipName(row.id, on.id)
+    await writeOrRefuse(root, join(clips, file), png)
+    add[on.id] = { file, width: row.width, height: row.height }
+  }
+  return { add, gone }
 }

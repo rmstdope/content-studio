@@ -1,5 +1,13 @@
 import { explainStyleProblem, lookOf, type Look } from '../core/imageLook'
-import { PatchBoardSchema, type PatchArea } from '../core/imagePatches'
+import {
+  carriesOf,
+  choiceOn,
+  PatchBoardSchema,
+  type Choice,
+  type PatchBoard,
+  type PatchArea,
+  type Stackable,
+} from '../core/imagePatches'
 import { ImageBoardSchema } from '../core/imageTakes'
 import {
   ImageLockSchema,
@@ -99,36 +107,55 @@ async function readTakeLooks(
  */
 export async function readPatchChoices(
   root: string,
-  images: { id: string; patches: { id: string }[] }[],
+  images: { id: string; patches: Stackable[] }[],
   withBoxes: ReadonlySet<string> = new Set(),
 ): Promise<{
   patchChoices: Record<string, Record<string, number[]>>
+  patchChoice: Record<string, Record<string, Record<number, Choice>>>
+  patchCarries: Record<string, Record<string, Record<number, string[]>>>
   patchAreas: Record<string, Record<string, Record<number, PatchArea>>>
   imageTakes: Record<string, number[]>
 }> {
   const patchChoices: Record<string, Record<string, number[]>> = {}
   const patchAreas: Record<string, Record<string, Record<number, PatchArea>>> = {}
+  const patchChoice: Record<string, Record<string, Record<number, Choice>>> = {}
+  const patchCarries: Record<string, Record<string, Record<number, string[]>>> = {}
   const imageTakes: Record<string, number[]> = {}
   for (const { id, patches } of images) {
     if (patches.length === 0 && !withBoxes.has(id)) continue
+    const boards: Record<string, PatchBoard> = {}
     for (const patch of patches) {
       const folder = `${CACHE_DIR}/image-patches/${id}/${patch.id}`
       const board = await readResource(root, `${folder}/board.json`, PatchBoardSchema, [])
       if (board === 'missing' || board === 'invalid') continue
-      const bases = Object.keys(board.chosen).map(Number)
-      if (bases.length) (patchChoices[id] ??= {})[patch.id] = bases
+      boards[patch.id] = board
+    }
+    const choices: Record<string, { n: number; on: { patch: string; n: number } | null }[]> = {}
+    for (const patch of patches) {
+      const board = boards[patch.id]
+      if (!board) continue
+      // Only a take that lies on what is underneath now counts as chosen: the game shows no other.
+      const valid: number[] = []
       for (const [base, n] of Object.entries(board.chosen)) {
+        const choice = choiceOn(patches, boards, patch.id, Number(base))!
+        ;((patchChoice[id] ??= {})[patch.id] ??= {})[Number(base)] = choice
+        ;(choices[patch.id] ??= []).push({ n, on: choice.on })
+        if (!choice.valid) continue
+        valid.push(Number(base))
         const take = board.takes.find((t) => t.n === n)
         const picture = resolveInRoot(root, `${IMAGE_TAKES_DIR}/${id}/${base}.png`)
         if (take && (await Bun.file(picture).exists())) {
           ;((patchAreas[id] ??= {})[patch.id] ??= {})[Number(base)] = take.area
         }
       }
+      if (valid.length) (patchChoices[id] ??= {})[patch.id] = valid
     }
+    const carried = carriesOf(patches, choices)
+    if (Object.keys(carried).length) patchCarries[id] = carried
     const board = await readResource(root, `${IMAGE_BOARD_DIR}/${id}.json`, ImageBoardSchema, [])
     if (board !== 'missing' && board !== 'invalid') imageTakes[id] = board.takes.map((t) => t.n)
   }
-  return { patchChoices, patchAreas, imageTakes }
+  return { patchChoices, patchChoice, patchCarries, patchAreas, imageTakes }
 }
 
 /**

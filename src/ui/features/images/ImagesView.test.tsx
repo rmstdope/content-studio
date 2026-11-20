@@ -1223,6 +1223,24 @@ describe('the patches the game asks for', () => {
     expect(text(settled.querySelector('tbody tr'))).not.toContain('patch')
   })
 
+  it('names on the act’s row, in red, each patch whose ask to lie on top of another cannot be followed', () => {
+    const rope = { ...lamp, over: 'rope' }
+    const self = { ...door, over: 'door-ajar' }
+    const page = render(
+      { view: 'images', page: 'act', part: 'act1' },
+      summary({ patches: [rope, self] }),
+    )
+    const red = page.querySelector('tbody tr .images-prompt .adopt-error')!
+    expect(text(red)).toBe(
+      'cannot be made: Lamp lit (the game asks for it on top of “rope”); Door ajar (the game asks for it on top of itself)',
+    )
+    const quiet = render(
+      { view: 'images', page: 'act', part: 'act1' },
+      summary({ patches: [lamp, door] }),
+    )
+    expect(quiet.querySelector('.images-prompt .adopt-error')).toBeNull()
+  })
+
   describe('patches to make again', () => {
     const actRoute = { view: 'images', page: 'act', part: 'act1' } as const
     const image = { view: 'images', page: 'image', image: 'inn', from: 'act1' } as const

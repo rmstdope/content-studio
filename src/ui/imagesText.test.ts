@@ -29,6 +29,17 @@ import {
   overlapOpenLine,
   overlapPairLine,
   makeAgainOpenLine,
+  onTopSuffix,
+  onTopLine,
+  onTopNoneLine,
+  onTopEmpty,
+  onTopCaption,
+  onTopTake,
+  onTopStale,
+  onTopQuestionLead,
+  onTopQuestionDim,
+  onTopActLine,
+  joinTitles,
   setAsideDim,
   setAsideLead,
   placeAgainLine,
@@ -530,5 +541,85 @@ describe('areaRowWhy', () => {
     expect(areaRowWhy('none')).toBe(
       'Choose a take of the image first. Areas are placed on the take the game shows.',
     )
+  })
+})
+
+describe('patches on top of patches', () => {
+  it('names what a patch lies on in its chip and its side list', () => {
+    expect(onTopSuffix('Vines cut')).toBe('· on Vines cut')
+  })
+  it('says what the open patch is painted on, at any depth', () => {
+    expect(onTopLine([{ title: 'Vines cut', n: 1 }])).toBe(
+      'The game asks for this on top of Vines cut, so it is painted on Vines cut’s chosen take (take 1).',
+    )
+    expect(
+      onTopLine([
+        { title: 'Vines cut', n: 1 },
+        { title: 'Stick', n: 2 },
+      ]),
+    ).toBe(
+      'The game asks for this on top of Stick, so it is painted on Stick’s chosen take (take 2), which is on top of Vines cut (take 1).',
+    )
+    expect(
+      onTopLine([
+        { title: 'Vines cut', n: 1 },
+        { title: 'Stick', n: 2 },
+        { title: 'Snare', n: 4 },
+      ]),
+    ).toBe(
+      'The game asks for this on top of Snare, so it is painted on Snare’s chosen take (take 4), which is on top of Stick (take 2), which is on top of Vines cut (take 1).',
+    )
+  })
+  it('says the patch underneath has no chosen take, and what the empty box says', () => {
+    expect(onTopNoneLine('Vines cut')).toBe(
+      'The game asks for this on top of Vines cut, which has no chosen take yet. Choose a take of Vines cut first.',
+    )
+    expect(onTopEmpty('Vines cut', 'Stick')).toBe(
+      'Nothing to paint on yet: Vines cut has no chosen take. Open Vines cut and choose one; Stick is then painted over it.',
+    )
+  })
+  it('captions the picture and the takes', () => {
+    expect(onTopCaption('Stick', [{ title: 'Vines cut', n: 1 }])).toBe(
+      'Stick, painted on Vines cut (take 1) on the image’s take',
+    )
+    expect(onTopTake('FLUX.2 klein', { title: 'Vines cut', n: 1 })).toBe(
+      'FLUX.2 klein · on Vines cut take 1',
+    )
+    expect(onTopTake('FLUX.2 klein', null)).toBe('FLUX.2 klein · on the image’s take')
+  })
+  it('says why a chosen take is set aside', () => {
+    expect(onTopStale({ title: 'Vines cut', n: 1 }, 'Vines cut')).toBe(
+      'Painted on take 1 of Vines cut, so the game does not show it now. Make a new one here.',
+    )
+    expect(onTopStale(null, 'Vines cut')).toBe(
+      'Painted on the image’s take before the game asked for it on top of Vines cut, so the game does not show it now. Make a new one here.',
+    )
+  })
+  it('asks before the patch underneath changes its take', () => {
+    const q = { of: 'Vines cut', from: 1, to: 3, leaving: ['Stick'] }
+    expect(onTopQuestionLead({ kind: 'choose', n: 3 }, q)).toBe(
+      '1 chosen patch was painted on take 1 of Vines cut: Stick. The game will stop showing it until you make a new one.',
+    )
+    expect(onTopQuestionLead({ kind: 'choose', n: 3 }, { ...q, leaving: ['Stick', 'Snare'] })).toBe(
+      '2 chosen patches were painted on take 1 of Vines cut: Stick and Snare. The game will stop showing them until you make new ones.',
+    )
+    expect(onTopQuestionDim(q)).toBe('Choosing take 1 again brings it back.')
+    expect(onTopQuestionDim({ ...q, leaving: ['Stick', 'Snare'] })).toBe(
+      'Choosing take 1 again brings them all back.',
+    )
+    expect(onTopQuestionLead({ kind: 'drop', n: 1 }, q)).toBe(
+      '1 chosen patch was painted on take 1 of Vines cut: Stick. After this it cannot be brought back; only a new one can be made.',
+    )
+  })
+  it('names the mistakes in the act’s row, joined by semicolons', () => {
+    expect(
+      onTopActLine([
+        { title: 'Stick', rowText: 'the game asks for it on top of “rope”' },
+        { title: 'Snare', rowText: 'the game asks for it on top of itself' },
+      ]),
+    ).toBe(
+      'cannot be made: Stick (the game asks for it on top of “rope”); Snare (the game asks for it on top of itself)',
+    )
+    expect(joinTitles(['A', 'B', 'C'])).toBe('A, B and C')
   })
 })

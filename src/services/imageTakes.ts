@@ -588,7 +588,14 @@ export function createImageTakes({
           ).exists()
           if (take.look === key && there) continue
           const made = await renderPatchGame(
-            { root: found.root, image: found.id, patch: patch.id, base: take.base, n: take.n },
+            {
+              root: found.root,
+              image: found.id,
+              patch: patch.id,
+              base: take.base,
+              n: take.n,
+              under: take.under,
+            },
             look,
             found.row,
           )
