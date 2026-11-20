@@ -7,6 +7,7 @@ import {
   missingText,
   disagreeText,
   makeAgainActLine,
+  onTopActLine,
   overlapActLine,
   IMAGE_STATUS_LABEL,
 } from '../../imagesText'
@@ -216,6 +217,17 @@ export function ActPage({
                         {again.length > 0 && (
                           <div className="chg">
                             {makeAgainActLine(again.map((patch) => patch.title))}
+                          </div>
+                        )}
+                        {row && row.patches.some((patch) => patch.problem) && (
+                          <div className="adopt-error">
+                            {onTopActLine(
+                              row.patches.flatMap((patch) =>
+                                patch.problem
+                                  ? [{ title: patch.title, rowText: patch.problem.rowText }]
+                                  : [],
+                              ),
+                            )}
                           </div>
                         )}
                         {overlaps.length > 0 && (

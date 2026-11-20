@@ -5,12 +5,7 @@ import type {
   ImagesSummary,
   MissingParts,
 } from '../core/images'
-import type {
-  OnTopQuestion,
-  SetAsideAsk,
-  SetAsideQuestion,
-  StackProblem,
-} from '../core/imagePatches'
+import type { OnTopQuestion, SetAsideAsk, SetAsideQuestion } from '../core/imagePatches'
 import type { ImagesRoute } from './route'
 
 /** What an image's status chip says; the lock being unreadable says "not known", as music's and effects' do. */
