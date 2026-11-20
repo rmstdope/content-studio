@@ -43,6 +43,7 @@ import {
   readPatchBoard,
   laidPicture,
   renderPatchGame,
+  restack,
 } from './imagePatchGame'
 import { downloadOf, type ImageGenerator } from './images'
 import { editStep } from './imageEditStep'
@@ -537,8 +538,7 @@ export function createImagePatches({
       const read = engine
         .entriesOf(found.projectFile, found.engineId)
         .filter((e) => e.base === image.chosen)
-      const board = await readBoard(found)
-      if ('ok' in board) return board
+      const board = boards[patch.id]!
       const split = engine.split(read, board.takes)
       // The take chosen on the newest other take of the image that is still on the board.
       const was = Object.keys(board.chosen)
@@ -907,6 +907,13 @@ export function createImagePatches({
             await writeOrRefuse(found.root, join(found.config.clips, file), png)
             const listed = { ...(entry.patches as Record<string, unknown> | undefined) }
             listed[patch] = { file, width: found.row.width, height: found.row.height }
+            // What lies on top of it leaves, or comes back with the take it was painted on.
+            const on = await restack({ ...found, clips: found.config.clips }, take.base, patch, {
+              ...board,
+              chosen: { ...board.chosen, [String(take.base)]: n },
+            })
+            for (const gone of on.gone) delete listed[gone]
+            Object.assign(listed, on.add)
             manifest[id] = { ...entry, patches: sorted(listed) }
             await writeManifest(found, manifest)
             return { ok: true }
@@ -937,9 +944,20 @@ export function createImagePatches({
             if (!manifest) return { ok: false, message: 'The images manifest could not be read.' }
             const entry = manifest[id]
             const listed = entry?.patches as Record<string, unknown> | undefined
-            const had = !!entry && !!listed && patch in listed
+            const { gone: above } = await restack(
+              { ...found, clips: found.config.clips },
+              found.chosen!,
+              patch,
+              {
+                ...board,
+                chosen: {},
+              },
+            )
+            const had = !!entry && !!listed && [patch, ...above].some((p) => p in listed)
             if (entry && listed && had) {
-              const { [patch]: _gone, ...rest } = listed
+              const rest = Object.fromEntries(
+                Object.entries(listed).filter(([p]) => p !== patch && !above.includes(p)),
+              )
               const { patches: _all, ...others } = entry
               manifest[id] = Object.keys(rest).length ? { ...others, patches: rest } : others
             }

@@ -1004,6 +1004,18 @@ describe('the patches the game asks for', () => {
       expect(row.patches[1]!.stale).toEqual({ title: 'Bread taken', n: 1 })
       expect(row.patches[0]!.stale).toBeUndefined()
     })
+    it('does not ask to make again a patch whose ask cannot be followed', () => {
+      const rope = { id: 'rope', title: 'Rope', description: 'Add a rope', over: 'ghost' }
+      const row = rowOf(
+        {
+          chosen: { [inn.id]: { ...made, take: 2 } } as never,
+          patchChoice: { [inn.id]: { rope: { 2: { n: 5, valid: false, on: null } } } },
+        },
+        { ...inn, patches: [rope] },
+      )
+      expect(row.patches[0]!.problem?.kind).toBe('unknown')
+      expect(row.patches[0]!.stale).toBeUndefined()
+    })
     it('uses the user’s words, and notes when the game’s changed under them', () => {
       const edits = {
         [inn.id]: {

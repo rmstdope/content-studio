@@ -1633,4 +1633,35 @@ describe('a patch the game asks for on top of another', () => {
     })
     void root
   })
+
+  describe('the game’s manifest', () => {
+    const listed = (root: string) =>
+      Object.keys(JSON.parse(readFileSync(join(root, MANIFEST), 'utf8')).inn.patches ?? {}).sort()
+    /** Door takes 1 and 2 made; the sign made and chosen on door take 1; the door's take 1 chosen. */
+    async function stackedAndChosen() {
+      const made = setup({ list: stacked, makes: paints })
+      await made.patches.make(made.file, 'inn', 'door', { count: 2, area })
+      await made.work('door')
+      await made.patches.choose(made.file, 'inn', 'door', 1)
+      await made.patches.make(made.file, 'inn', 'sign', { count: 1, area })
+      await made.work('sign')
+      await made.patches.choose(made.file, 'inn', 'sign', 1)
+      return made
+    }
+
+    it('drops the patch on top when the patch underneath chooses another take, and brings it back with the old take', async () => {
+      const { root, file, patches } = await stackedAndChosen()
+      expect(listed(root)).toEqual(['door', 'sign'])
+      await patches.choose(file, 'inn', 'door', 2)
+      expect(listed(root)).toEqual(['door'])
+      await patches.choose(file, 'inn', 'door', 1)
+      expect(listed(root)).toEqual(['door', 'sign'])
+    })
+
+    it('drops the patch on top when the patch underneath is un-chosen', async () => {
+      const { root, file, patches } = await stackedAndChosen()
+      await patches.unchoose(file, 'inn', 'door')
+      expect(listed(root)).toEqual([])
+    })
+  })
 })

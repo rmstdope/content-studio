@@ -1824,7 +1824,7 @@ describe('a patch on top of another (as-evwv)', () => {
     const lower = patchRow('vines', {
       title: 'Vines cut',
       chosenOn: [3],
-      carries: { 1: ['Stick'] },
+      carries: { 1: ['stick'] },
     })
     const upper = stick({ chosenOn: [3] })
     const { host, sent } = await render(

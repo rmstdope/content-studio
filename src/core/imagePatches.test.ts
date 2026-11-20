@@ -1228,7 +1228,7 @@ describe('what lies on a take of a patch', () => {
     const row = (chosenTake: number | null) => ({
       chosenTake,
       patches: [
-        { ...base('Vines cut'), id: 'vines', carries: { 1: ['Stick', 'Snare'], 3: ['Stick'] } },
+        { ...base('Vines cut'), id: 'vines', carries: { 1: ['stick', 'snare'], 3: ['stick'] } },
         { ...base('Stick'), id: 'stick', over: 'vines', chosenOn: [1] },
         { ...base('Snare'), id: 'snare', over: 'stick', chosenOn: [1] },
       ] as PatchRow[],

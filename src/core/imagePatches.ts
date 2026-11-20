@@ -1198,11 +1198,16 @@ export function onTopQuestion(
   const patch = row.patches.find((p) => p.id === patchId)
   const from = ask.kind === 'drop' ? ask.n : chosen
   if (!patch || from === null || (ask.kind === 'choose' && ask.n === from)) return null
-  const shown = (title: string) =>
+  const shown = (id: string) =>
     ask.kind === 'drop' ||
     (row.chosenTake !== null &&
-      !!row.patches.find((p) => p.title === title)?.chosenOn.includes(row.chosenTake))
+      !!row.patches.find((p) => p.id === id)?.chosenOn.includes(row.chosenTake))
   const leaving = (patch.carries?.[from] ?? []).filter(shown)
   if (leaving.length === 0) return null
-  return { of: patch.title, from, to: ask.kind === 'choose' ? ask.n : null, leaving }
+  return {
+    of: patch.title,
+    from,
+    to: ask.kind === 'choose' ? ask.n : null,
+    leaving: leaving.map((id) => row.patches.find((p) => p.id === id)?.title ?? id),
+  }
 }

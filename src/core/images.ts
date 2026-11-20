@@ -1050,7 +1050,7 @@ export interface PatchRow {
    * own take. Such a take is set aside (the game does not show it).
    */
   stale?: { title: string; n: number } | null | undefined
-  /** The patches painted on each take of this one, by take, titles in the game's order (as-evwv). */
+  /** The ids of the patches painted on each take of this one, by take, in the game's order (as-evwv). */
   carries?: Record<number, string[]> | undefined
 }
 
@@ -1343,7 +1343,7 @@ export function summarizeImages(input: ImagesInput): {
         const choice =
           made?.take == null ? undefined : input.patchChoice?.[image.id]?.[patch.id]?.[made.take]
         const stale =
-          choice && !choice.valid
+          choice && !choice.valid && !(stack && !stack.ok)
             ? choice.on
               ? {
                   title:
@@ -1375,14 +1375,7 @@ export function summarizeImages(input: ImagesInput): {
           }),
           ...(stack && !stack.ok && { problem: stack }),
           ...(stale !== undefined && { stale }),
-          ...(carried && {
-            carries: Object.fromEntries(
-              Object.entries(carried).map(([n, ids]) => [
-                n,
-                ids.map((id) => image.patches.find((p) => p.id === id)?.title ?? id),
-              ]),
-            ),
-          }),
+          ...(carried && { carries: carried }),
         }
       }),
       areas: image.areas.map((area): AreaRow => {
