@@ -13,6 +13,7 @@ import { projectJson, tempRepo } from '../../test/helpers'
 import type { EditModelId } from '../core/imageModels'
 import {
   keptBox,
+  layerPatch,
   matchToTake,
   type ImagePatchesView,
   type PatchWorkView,
@@ -78,6 +79,7 @@ function setup({
   seeds = [11, 12, 13, 14, 15, 16, 17, 18],
   manifest,
   now,
+  list = inn as object,
 }: {
   chosen?: boolean
   picture?: boolean
@@ -92,10 +94,12 @@ function setup({
   /** The manifest as the game has it, in place of the one with the image alone. */
   manifest?: unknown
   now?: () => number
+  /** The image as the game lists it, in place of the inn with its two patches. */
+  list?: object
 } = {}) {
   const root = tempRepo({
     'content-studio.json': projectJson({ images }),
-    'tts/act1/images.json': [inn],
+    'tts/act1/images.json': [list],
     ...(chosen ? { [LOCK]: lock, [MANIFEST]: gameManifest } : {}),
     ...(manifest === undefined ? {} : { [MANIFEST]: manifest }),
   })
@@ -1541,5 +1545,92 @@ describe('a take whose time cannot be kept', () => {
     const view = await work()
     expect(view.takes.map((t) => t.n)).toEqual([1])
     expect(view.failed).toEqual([])
+  })
+})
+
+describe('a patch the game asks for on top of another', () => {
+  const stacked = {
+    ...inn,
+    patches: [
+      { id: 'door', title: 'The door', text: 'the door is gone' },
+      { id: 'sign', title: 'The sign', text: 'the sign is new', over: 'door' },
+    ],
+  }
+  const SIGN = 'content-studio/cache/image-patches/inn/sign'
+  /** White paint over the area of the take, black elsewhere in the sent window. */
+  const paints = (request: ImageRequest) => {
+    const sent = decodePng(new Uint8Array(readFileSync(request.editing!)))
+    return encodePng({
+      ...sent,
+      data: sent.data.map((v, i) => (i % 4 === 3 ? v : 255)),
+    })
+  }
+
+  it('refuses to make takes while the patch underneath has no chosen take', async () => {
+    const { file, patches, requests } = setup({ list: stacked })
+    expect(await patches.make(file, 'inn', 'sign', { count: 1, area })).toEqual({
+      ok: false,
+      message:
+        'The game asks for this on top of The door, which has no chosen take yet. Choose a take of The door first.',
+    })
+    expect(requests).toEqual([])
+  })
+
+  it('refuses to make takes when the ask cannot be followed, with the sentence the page shows', async () => {
+    const lost = { ...stacked, patches: [{ ...stacked.patches[1]!, over: 'rope' }] }
+    const { file, patches, requests } = setup({ list: lost })
+    expect(await patches.make(file, 'inn', 'sign', { count: 1, area })).toEqual({
+      ok: false,
+      message:
+        'The game asks for this on top of “rope”, which is not one of this image’s patches. Fix the game’s list, then Refresh from the game.',
+    })
+    expect(requests).toEqual([])
+  })
+
+  it('paints on the take with the chosen take underneath laid in, and records what it lies on', async () => {
+    const sent: Uint8Array[] = []
+    const { root, file, patches, work } = setup({
+      list: stacked,
+      makes: (request) => {
+        sent.push(new Uint8Array(readFileSync(request.editing!)))
+        return paints(request)
+      },
+    })
+    await patches.make(file, 'inn', 'door', { count: 1, area })
+    await work('door')
+    expect(await patches.choose(file, 'inn', 'door', 1)).toEqual({ ok: true })
+    const small = { x: 80, y: 80, width: 32, height: 32 }
+    expect(await patches.make(file, 'inn', 'sign', { count: 1, area: small })).toEqual({ ok: true })
+    await work('sign')
+    const take = decodePng(new Uint8Array(readFileSync(join(root, TAKE))))
+    const door = decodePng(new Uint8Array(readFileSync(join(root, `${FOLDER}/1.png`))))
+    const window = editWindow(small, take)
+    const laid = cropPixels(layerPatch(take, door), window).data
+    expect(decodePng(sent[1]!).data).toEqual(laid)
+    expect(laid).not.toEqual(cropPixels(take, window).data)
+    const board = JSON.parse(readFileSync(join(root, `${SIGN}/board.json`), 'utf8'))
+    expect(board.takes[0].under).toEqual({ patch: 'door', n: 1 })
+  })
+
+  it('chooses only a take painted on what lies underneath now', async () => {
+    const { root, file, patches, work } = setup({ list: stacked, makes: paints })
+    await patches.make(file, 'inn', 'door', { count: 2, area })
+    await work('door')
+    await patches.choose(file, 'inn', 'door', 1)
+    await patches.make(file, 'inn', 'sign', { count: 1, area })
+    await work('sign')
+    expect(await patches.choose(file, 'inn', 'sign', 1)).toEqual({ ok: true })
+    // The door's other take is chosen: the sign's take lies on take 1, so it is not shown any more.
+    await patches.choose(file, 'inn', 'door', 2)
+    const view = await work('sign')
+    expect(view.takes.map((t) => [t.n, t.chosen, t.under])).toEqual([
+      [1, false, { patch: 'door', n: 1 }],
+    ])
+    expect(await patches.choose(file, 'inn', 'sign', 1)).toEqual({
+      ok: false,
+      message:
+        'Take 1 was painted on take 1 of The door, not on its chosen take (take 2). Make a new one here.',
+    })
+    void root
   })
 })

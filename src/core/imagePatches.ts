@@ -99,6 +99,8 @@ export interface PatchTakeView {
   look: 'ready' | 'bringing' | 'old' | 'missing'
   /** The edit model that made it (klein for a take made before there was a choice). */
   model: EditModelId
+  /** The take of the patch underneath it was painted over; absent for a take painted straight on the image's take. */
+  under?: { patch: string; n: number } | undefined
   /** The box round what the take keeps, in the model's pixels; none when nothing is kept or its picture cannot be read. */
   kept: PatchArea | null
 }
@@ -135,6 +137,12 @@ export interface PatchWorkView {
   oldLook: boolean
   /** The edit models whose last take of this patch failed, until one of theirs works. */
   failedModels: EditModelId[]
+  /**
+   * What the game asks it to lie on top of, the bottom patch first, each with the take chosen on
+   * the image's take in the game (null while it has none); absent for a patch straight on the
+   * image and while the ask cannot be followed.
+   */
+  under?: { id: string; n: number | null }[] | undefined
 }
 
 /** The patches of an image as the page shows them: those made on the take the game shows. */

@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import type { Look } from '../core/imageLook'
-import { gamePatch, PatchBoardSchema, type PatchBoard } from '../core/imagePatches'
+import { gamePatch, layerPatch, PatchBoardSchema, type PatchBoard } from '../core/imagePatches'
+import type { Pixels } from '../core/imagePixels'
 import type { ImageRow } from '../core/images'
 import { resolveInRoot } from '../core/paths'
 import { CACHE_DIR, type Problem } from '../core/project'
@@ -82,21 +83,53 @@ export async function renderPatchGame(
   size: { width: number; height: number },
 ): Promise<Uint8Array | { error: string }> {
   const { root, image, patch, base, n } = where
-  let take: Uint8Array
+  let take: Pixels
   let picture: Uint8Array
   try {
-    take = await Bun.file(resolveInRoot(root, `${IMAGE_TAKES_DIR}/${image}/${base}.png`)).bytes()
+    const board = await readPatchBoard(root, image, patch)
+    const under = 'ok' in board ? undefined : board.takes.find((t) => t.n === n)?.under
+    take = await laidPicture(root, image, base, under)
     picture = await Bun.file(resolveInRoot(root, patchPictureOf(image, patch, n))).bytes()
   } catch {
     return { error: 'missing' }
   }
   try {
-    const png = encodeTransparentPng(gamePatch(decodePng(take), decodePng(picture), look, size))
+    const png = encodeTransparentPng(gamePatch(take, decodePng(picture), look, size))
     await writeOrRefuse(root, patchGameOf(image, patch, n), png)
     return png
   } catch (error) {
     return { error: error instanceof Error ? error.message : String(error) }
   }
+}
+
+/**
+ * The picture a patch take is painted on (as-evwv): the image's take with, when the patch lies on
+ * top of another, that patch's take laid over it, and whatever that one lies on beneath it in
+ * turn. Throws when a picture is missing.
+ */
+export async function laidPicture(
+  root: string,
+  image: string,
+  base: number,
+  under: { patch: string; n: number } | undefined,
+): Promise<Pixels> {
+  const chain: { patch: string; n: number }[] = []
+  for (let at = under; at;) {
+    chain.unshift(at)
+    const board = await readPatchBoard(root, image, at.patch)
+    if ('ok' in board) throw new Error('board')
+    at = board.takes.find((t) => t.n === at!.n)?.under
+  }
+  let pixels = decodePng(
+    await Bun.file(resolveInRoot(root, `${IMAGE_TAKES_DIR}/${image}/${base}.png`)).bytes(),
+  )
+  for (const { patch, n } of chain) {
+    const laid = decodePng(
+      await Bun.file(resolveInRoot(root, patchPictureOf(image, patch, n))).bytes(),
+    )
+    pixels = layerPatch(pixels, laid)
+  }
+  return pixels
 }
 
 /** One patch of an image as the game's manifest lists it. */
