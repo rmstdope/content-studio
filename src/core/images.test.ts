@@ -993,7 +993,12 @@ describe('the patches the game asks for', () => {
     it('reads a chosen take painted on something else as one to make again', () => {
       const stick = { id: 'stick', title: 'Stick', description: 'Add a stick', over: 'bread-taken' }
       const row = rowOf(
-        { patchStale: { [inn.id]: { stick: { title: 'Bread taken', n: 1 } } } },
+        {
+          chosen: { [inn.id]: { ...made, take: 2 } } as never,
+          patchChoice: {
+            [inn.id]: { stick: { 2: { n: 5, valid: false, on: { patch: 'bread-taken', n: 1 } } } },
+          },
+        },
         { ...inn, patches: [bread, stick] },
       )
       expect(row.patches[1]!.stale).toEqual({ title: 'Bread taken', n: 1 })

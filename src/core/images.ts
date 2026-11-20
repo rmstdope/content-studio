@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { describeLook, lookChanges, lookKey, lookOf, type Look } from './imageLook'
-import { stackOf, type PatchArea, type StackProblem } from './imagePatches'
+import { stackOf, type Choice, type PatchArea, type StackProblem } from './imagePatches'
 import { lockEntry, type LockRead } from './lockRead'
 import { problemsFrom, type Problem } from './project'
 
@@ -1220,8 +1220,8 @@ export interface ImagesInput {
   patchChoices?: Record<string, Record<string, number[]>>
   /** The area each patch's chosen take on each take of an image was made with, by image id, patch id, then take of the image. */
   patchAreas?: Record<string, Record<string, Record<number, PatchArea>>>
-  /** By image id then patch id: what a chosen take on the take in the game was painted on, when that is not what lies underneath now. */
-  patchStale?: Record<string, Record<string, { title: string; n: number } | null>>
+  /** By image id, patch id, then take of the image: the patch's chosen take there and whether it still lies on what is underneath (`choiceOn`). */
+  patchChoice?: Record<string, Record<string, Record<number, Choice>>>
   /** By image id then patch id: the patches painted on each take of the patch (`carriesOf`), as ids. */
   patchCarries?: Record<string, Record<string, Record<number, string[]>>>
   /** The takes on each image's board, by image id; an image absent here has a board that was not read. */
@@ -1340,7 +1340,18 @@ export function summarizeImages(input: ImagesInput): {
       patches: image.patches.map((patch) => {
         const mine = own?.patches?.[patch.id]
         const stack = patch.over === undefined ? null : stackOf(image.patches, patch.id)
-        const stale = input.patchStale?.[image.id]?.[patch.id]
+        const choice =
+          made?.take == null ? undefined : input.patchChoice?.[image.id]?.[patch.id]?.[made.take]
+        const stale =
+          choice && !choice.valid
+            ? choice.on
+              ? {
+                  title:
+                    image.patches.find((p) => p.id === choice.on!.patch)?.title ?? choice.on.patch,
+                  n: choice.on.n,
+                }
+              : null
+            : undefined
         const carried = input.patchCarries?.[image.id]?.[patch.id]
         const bases = input.patchChoices?.[image.id]?.[patch.id] ?? []
         // An image whose board was not read has takes unknown: nothing counts as dropped.
