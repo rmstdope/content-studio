@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Patch on a patch</title>
+    <style>
+      :root {
+        --bg: #06070c;
+        --panel: #10121a;
+        --raised: #191c24;
+        --line: rgb(255 255 255/7%);
+        --line-strong: rgb(255 255 255/11%);
+        --text: #eceef3;
+        --muted: #a9b0bd;
+        --faint: #8a91a0;
+        --accent: #ff6b2c;
+        --accent-ink: #1a0a02;
+        --ok: #3ddc97;
+        --ok-bg: #10291f;
+        --warn: #ffc24b;
+        --warn-bg: #2d2412;
+        --err: #ff6b6b;
+        --chip: #1a1d26;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.45 system-ui,
+          -apple-system,
+          sans-serif;
+      }
+      .about {
+        background: #1b1408;
+        border-bottom: 1px solid #4a3a18;
+        padding: 10px 16px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .about b {
+        color: var(--warn);
+      }
+      .about .opts {
+        margin-top: 6px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+      }
+      .about label {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        cursor: pointer;
+      }
+      .shell {
+        display: flex;
+        min-height: calc(100vh - 60px);
+      }
+      .rail {
+        width: 56px;
+        flex: none;
+        border-right: 1px solid var(--line);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        padding-top: 16px;
+      }
+      .rail i {
+        width: 24px;
+        height: 24px;
+        border-radius: 7px;
+        background: var(--raised);
+        display: block;
+      }
+      .rail i.on {
+        background: #3a2416;
+        outline: 1px solid var(--accent);
+      }
+      main {
+        flex: 1;
+        min-width: 0;
+        padding: 18px 24px 40px;
+      }
+      .crumbs {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 2px 0 0;
+      }
+      .mono {
+        font-family: ui-monospace, monospace;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .tabs {
+        display: flex;
+        gap: 6px;
+        margin: 12px 0;
+        flex-wrap: wrap;
+      }
+      .tab {
+        padding: 7px 12px;
+        border-radius: 9px;
+        background: var(--chip);
+        color: var(--muted);
+      }
+      .tab.on {
+        background: #23263a;
+        outline: 1px solid #3a3f5c;
+        color: var(--text);
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 20px 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .label {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+      }
+      .pchip {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: var(--raised);
+        border: 1px solid var(--line-strong);
+        font-size: 13px;
+      }
+      .pchip.on {
+        outline: 2px solid var(--accent);
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #3a3f4c;
+      }
+      .dot.ok {
+        background: var(--ok);
+      }
+      .chip {
+        font-size: 11.5px;
+        padding: 1px 8px;
+        border-radius: 999px;
+        background: var(--chip);
+        color: var(--muted);
+      }
+      .chip.ok {
+        background: var(--ok-bg);
+        color: var(--ok);
+      }
+      .chip.new {
+        background: #2a1b12;
+        color: #ff9a6b;
+      }
+      .btn {
+        background: var(--raised);
+        border: 1px solid var(--line-strong);
+        color: var(--text);
+        padding: 6px 12px;
+        border-radius: 9px;
+        font: inherit;
+        font-size: 13px;
+        cursor: default;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: var(--accent-ink);
+        border-color: transparent;
+        font-weight: 600;
+      }
+      .btn.ghost {
+        background: transparent;
+      }
+      kbd {
+        font:
+          11px ui-monospace,
+          monospace;
+        padding: 0 4px;
+        border-radius: 4px;
+        border: 1px solid var(--line-strong);
+        color: var(--muted);
+        margin-left: 4px;
+      }
+      select {
+        background: var(--raised);
+        color: var(--text);
+        border: 1px solid var(--line-strong);
+        border-radius: 9px;
+        padding: 6px 8px;
+        font: inherit;
+        font-size: 13px;
+      }
+      textarea {
+        width: 100%;
+        background: #0d0f14;
+        color: var(--text);
+        border: 1px solid var(--line-strong);
+        border-radius: 10px;
+        padding: 8px 10px;
+        font: inherit;
+        resize: vertical;
+        min-height: 44px;
+      }
+      h3 {
+        margin: 0;
+        font-size: 15px;
+      }
+      .faint {
+        color: var(--faint);
+        font-size: 12.5px;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      /* tools */
+      .tools {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px 20px;
+        align-items: start;
+      }
+      .tools .make {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+      }
+      .tools.stack {
+        display: flex;
+        flex-direction: column;
+      }
+      @container (max-width: 640px) {
+        .tools {
+          grid-template-columns: 1fr;
+        }
+      }
+      .bench-right {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 280px;
+        gap: 16px;
+        align-items: start;
+      }
+      .side-list {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr);
+        gap: 16px;
+        align-items: start;
+      }
+      .plist {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .prow {
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: var(--raised);
+        border: 1px solid var(--line-strong);
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .prow.on {
+        outline: 2px solid var(--accent);
+      }
+      .panel-inner {
+        container-type: inline-size;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      /* picture */
+      .looking {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .lbl {
+        font-size: 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .pic-wrap {
+        position: relative;
+      }
+      .stage {
+        position: relative;
+        border-radius: 6px;
+        overflow: hidden;
+        cursor: crosshair;
+        background: #000;
+      }
+      .stage canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .stage.px canvas {
+        image-rendering: pixelated;
+      }
+      .mark {
+        position: absolute;
+        border: 2px dashed #fff;
+        box-shadow: 0 0 0 1px #000;
+        border-radius: 2px;
+      }
+      .measure {
+        position: absolute;
+        right: 6px;
+        bottom: 6px;
+        background: rgb(0 0 0/70%);
+        color: #fff;
+        font:
+          11px ui-monospace,
+          monospace;
+        padding: 2px 6px;
+        border-radius: 5px;
+      }
+
+      /* takes */
+      .takes-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        align-items: center;
+      }
+      .takes-head h4 {
+        margin: 0;
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .thumbs {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+        gap: 8px;
+      }
+      .thumb {
+        background: var(--raised);
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        padding: 5px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .thumb.on {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      .thumb .cu {
+        height: 64px;
+        border-radius: 5px;
+        background: linear-gradient(135deg, #5a3f22, #2b2016);
+      }
+      .thumb .cu.b {
+        background: linear-gradient(135deg, #4c3a28, #1f1a14);
+      }
+      .thumb .cu.c {
+        background: linear-gradient(135deg, #6a4a28, #2e2216);
+      }
+      .confirm {
+        background: #16130b;
+        border: 1px solid #6b5420;
+        border-radius: 12px;
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-width: 640px;
+      }
+      .ph {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 16px;
+        border: 1px dashed #2c3040;
+        background: #0d0f14;
+        color: var(--faint);
+        border-radius: 6px;
+      }
+      .ph.err {
+        color: var(--err);
+        border-color: #5a2a2a;
+      }
+      .empty {
+        border: 1px dashed #2c3040;
+        border-radius: 10px;
+        padding: 14px;
+        color: var(--faint);
+        font-size: 13px;
+      }
+      .check {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        font-size: 13px;
+      }
+    </style>
+    <style>
+      .pchip .on-what {
+        color: var(--faint);
+        font-size: 12px;
+      }
+      .chip.again {
+        background: var(--warn-bg);
+        color: var(--warn);
+      }
+      .line-warn {
+        color: var(--warn);
+        font-size: 13px;
+      }
+      .setting {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        font-size: 13px;
+      }
+      .menu-open {
+        background: #151821;
+        border: 1px solid var(--line-strong);
+        border-radius: 10px;
+        padding: 4px;
+        display: flex;
+        flex-direction: column;
+        min-width: 260px;
+        box-shadow: 0 8px 24px rgb(0 0 0/50%);
+      }
+      .menu-open div {
+        padding: 6px 10px;
+        border-radius: 7px;
+        font-size: 13px;
+      }
+      .menu-open .sel {
+        background: #23263a;
+      }
+      .menu-open .dis {
+        color: var(--faint);
+      }
+      .menu-open small {
+        display: block;
+        color: var(--faint);
+        font-size: 11.5px;
+      }
+      .qtag {
+        display: inline-block;
+        background: #1f1936;
+        color: #c4b5ff;
+        border: 1px dashed #5a4a9a;
+        border-radius: 8px;
+        padding: 2px 8px;
+        font-size: 12px;
+        margin-bottom: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="about" id="about"></div>
+    <div class="shell">
+      <nav class="rail"><i></i><i></i><i class="on"></i><i></i><i></i></nav>
+      <main>
+        <div class="crumbs">Act 2 · Images</div>
+        <h1>The forest path</h1>
+        <div class="mono">forest-path · 320 × 200</div>
+        <div class="tabs">
+          <span class="tab">Make</span><span class="tab">Fine-tune</span
+          ><span class="tab on">Patches · 2 of 3</span><span class="tab">Named areas</span
+          ><span class="tab">Movement</span>
+        </div>
+        <section class="panel" id="panel"></section>
+      </main>
+    </div>
+    <script>
+      const V = new URLSearchParams(location.search).get('v') || 'decl-chip'
+      const NONE = V === 'decl-none' || V === 'bad-a' || V === 'chain-no' || V.startsWith('loop')
+      const OLD = V === 'asked-a' || V === 'asked-b'
+      const CH = V.startsWith('chain')
+      const ABOUT = {
+        'decl-line': [
+          'Question 1 · Option A — said once, in the open patch',
+          'The game asks for Stick on top of Vines cut, so every take of Stick is painted on the picture with Vines cut’s chosen take laid in. The open patch says so in one line under its title; the row of patches stays as it is.',
+        ],
+        'decl-chip': [
+          'The patch on top',
+          'The game asks for Stick on top of Vines cut: the chip reads “Stick · on Vines cut”, the open patch says so in one line, and the picture always has Vines cut’s chosen take laid in; “Patch off” takes away only Stick.',
+        ],
+        'decl-none': [
+          'A state to look at — the patch underneath has no chosen take',
+          'Vines cut has takes but none chosen, so there is nothing to paint Stick on yet. Make is off and the line says what to do.',
+        ],
+        'asked-a': [
+          'Round 2 · 1 · Option A — takes made before the game asked wait to be made again',
+          'Stick was chosen while it was painted straight on the image’s take; then the game started asking for it on top of Vines cut. Stick stops showing in the game and is marked Make again, as when the image’s take changes. If the game stops asking, the old choice comes back.',
+        ],
+        'asked-b': [
+          'Round 2 · 1 · Option B — they keep showing, with a warning',
+          'Stick keeps its old choice in the game; an amber line says it was painted before the game asked for it on top of Vines cut.',
+        ],
+        'bad-a': [
+          'Round 2 · 2 · Option A — an ask the studio cannot follow stops Make',
+          'The game asks for Stick on top of “rope”, which this image does not have (the same holds for a patch asked on top of itself, or two patches each on top of the other). Make is off until the game’s list is fixed.',
+        ],
+        'bad-b': [
+          'Round 2 · 2 · Option B — it is painted on the image’s take, with a warning',
+          'The same mistake, but the studio paints Stick on the image’s take anyway and says why in amber.',
+        ],
+        chain: [
+          'Round 2 · 3 · Option A — a patch can be on top of one that is itself on top of another',
+          'The game asks for Snare on top of Stick, and Stick on top of Vines cut: Snare is painted with both laid in.',
+        ],
+        'chain-no': [
+          'Round 2 · 3 · Option B — only one patch deep',
+          'The same ask is refused as a mistake in the game’s list, the way an unknown patch is.',
+        ],
+        'loop-a': [
+          'Round 3 · 1 · Option A — each mistake in its own words',
+          'Shown here: Stick asked on top of Snare while Snare is asked on top of Stick. Asked on top of itself reads “The game asks for this on top of itself. Fix the game’s list, then Refresh from the game.”',
+        ],
+        'loop-b': [
+          'Round 3 · 1 · Option B — one sentence for every mistake',
+          'The same case, in the one sentence used for an unknown patch, itself, or a loop.',
+        ],
+        'act-a': [
+          'Round 3 · 2 · Option A — the act’s Images page names it too',
+          'In the image’s row, beside “make again”, a line says which patch cannot be made and why.',
+        ],
+        'act-b': [
+          'Round 3 · 2 · Option B — only the image’s page says it',
+          'The act’s row shows only what it shows today: the image is incomplete with 1 patch not chosen.',
+        ],
+        'stage-a': [
+          'Question 2 · Option A — the patch underneath is always laid in',
+          'The picture is the take with Vines cut’s chosen take laid on it. “Patch off” takes away only Stick; Vines cut stays, since Stick was painted on it.',
+        ],
+        'stage-b': [
+          'Question 2 · Option B — a second button for the patch underneath',
+          '“Vines cut off” shows the bare take, so you can see what is underneath. One more button and one more key.',
+        ],
+        'under-a': [
+          'Question 3 · Option A — the patch on top waits to be made again',
+          'Vines cut’s choice moved from take 1 to take 3. Stick was painted on take 1, so the game stops showing Stick until a new take is made — the same as when the image’s own take changes. Choosing Vines cut take 1 again brings Stick back.',
+        ],
+        'under-a-ask': [
+          'Question 3 · Option A — the question asked first, on Vines cut',
+          'Pressing Choose on Vines cut take 3 asks first, the same way choosing another take of the image does.',
+        ],
+        'under-b': [
+          'Question 3 · Option B — the patch on top keeps showing, with a warning',
+          'Stick keeps its choice and the game keeps showing it over the new Vines cut. An amber line says it was painted on an earlier take and may not fit.',
+        ],
+      }
+      const [h, p] = ABOUT[V]
+      const AGREED = [
+        'decl-chip',
+        'decl-none',
+        'under-a-ask',
+        'under-a',
+        'asked-a',
+        'bad-a',
+        'loop-a',
+        'chain',
+        'act-a',
+      ]
+      const links = AGREED.map((k) =>
+        k === V ? `<b>${k}</b>` : `<a style="color:var(--accent)" href="?v=${k}">${k}</a>`,
+      ).join(' · ')
+      document.getElementById('about').innerHTML =
+        `<b>Agreed (as-evwv): a patch the game asks for on top of another.</b> ${AGREED.includes(V) ? '' : '<b style="color:var(--err)">This state was considered and rejected.</b> '}<b>${h}</b><br>${p}<div class="opts">${links}</div>`
+
+      const openVines = V === 'under-a-ask'
+      const stickAgain = V === 'under-a' || V === 'asked-a'
+      const chipOn = V.startsWith('loop')
+        ? ' <span class="on-what">· on Snare</span>'
+        : V === 'decl-line'
+          ? ''
+          : ' <span class="on-what">· on Vines cut</span>'
+      const chips = `<div class="chips"><span class="label">Patches the game asks for</span>
+  <span class="pchip ${openVines ? 'on' : ''}"><span class="dot ${V === 'decl-none' ? '' : 'ok'}"></span>Vines cut</span>
+  <span class="pchip ${openVines || CH ? '' : 'on'}"><span class="dot ${stickAgain || V === 'under-b' || NONE ? '' : 'ok'}"></span>Stick${chipOn}${stickAgain ? ' <span class="chip again">Make again</span>' : ''}</span>
+  <span class="pchip ${V.startsWith('chain') ? 'on' : ''}"><span class="dot"></span>Snare${V.startsWith('chain') ? ' <span class="on-what">· on Stick</span>' : ''}</span></div>`
+
+      let headExtra = '<span class="faint">Drag over the picture to mark what should change.</span>'
+      if (
+        !openVines &&
+        !['loop-a', 'loop-b', 'asked-a', 'asked-b', 'bad-a', 'bad-b', 'chain', 'chain-no'].includes(
+          V,
+        )
+      )
+        headExtra =
+          (NONE
+            ? `<span class="line-warn">The game asks for this on top of Vines cut, which has no chosen take yet. Choose a take of Vines cut first.</span>`
+            : `<span class="muted">The game asks for this on top of Vines cut, so it is painted on Vines cut’s chosen take (take ${V === 'under-a' || V === 'under-b' ? 3 : 1}).</span>`) +
+          headExtra
+      if (V === 'asked-a')
+        headExtra = `<span class="line-warn">Painted on the image’s take before the game asked for it on top of Vines cut, so the game does not show it now. Make a new one here.</span><span class="faint">Drag over the picture to mark what should change.</span>`
+      else if (V === 'asked-b')
+        headExtra = `<span class="line-warn">Painted on the image’s take before the game asked for it on top of Vines cut. Make a new one so it fits.</span><span class="faint">Drag over the picture to mark what should change.</span>`
+      else if (V === 'bad-a')
+        headExtra = `<span class="line-warn" style="color:var(--err)">The game asks for this on top of “rope”, which is not one of this image’s patches. Fix the game’s list, then Refresh from the game.</span>`
+      else if (V === 'bad-b')
+        headExtra = `<span class="line-warn">The game asks for this on top of “rope”, which is not one of this image’s patches, so it is painted on the image’s take.</span><span class="faint">Drag over the picture to mark what should change.</span>`
+      else if (V === 'chain')
+        headExtra = `<span class="muted">The game asks for this on top of Stick, so it is painted on Stick’s chosen take (take 2), which is on top of Vines cut (take 1).</span><span class="faint">Drag over the picture to mark what should change.</span>`
+      else if (V === 'loop-a')
+        headExtra = `<span class="line-warn" style="color:var(--err)">The game asks for this on top of Snare, and for Snare on top of this. Fix the game’s list, then Refresh from the game.</span>`
+      else if (V === 'loop-b')
+        headExtra = `<span class="line-warn" style="color:var(--err)">The game asks for this on top of a patch it cannot be painted on. Fix the game’s list, then Refresh from the game.</span>`
+      else if (V === 'chain-no')
+        headExtra = `<span class="line-warn" style="color:var(--err)">The game asks for this on top of Stick, which is itself on top of Vines cut. A patch can be on top of only one other. Fix the game’s list, then Refresh from the game.</span>`
+      else if (stickAgain)
+        headExtra =
+          `<span class="line-warn">Painted on take 1 of Vines cut, so the game does not show it now. Make a new one here.</span>` +
+          headExtra
+      if (V === 'under-b')
+        headExtra =
+          `<span class="line-warn">Painted on take 1 of Vines cut, which is no longer chosen. It may not fit the take the game shows.</span>` +
+          headExtra
+
+      const title = openVines ? 'Vines cut' : CH ? 'Snare' : 'Stick'
+      const words = CH
+        ? 'A rope snare set in the hollow of the rock'
+        : openVines
+          ? 'Cut away the vines covering the hollow in the rock'
+          : 'A short stick lying in the hollow of the rock'
+      let paintOn = ''
+      if (V === 'menu' || V.startsWith('stage') || V.startsWith('under'))
+        paintOn = `<label class="row"><span class="label">Paint on</span><select><option>${stickAgain || V === 'under-b' ? 'Vines cut (take 3)' : 'Vines cut (take 1)'}</option></select></label>`
+      if (V === 'menu-open')
+        paintOn = `<div class="row" style="align-items:flex-start"><span class="label" style="padding-top:6px">Paint on</span><div class="menu-open">
+  <div>The image’s take</div><div class="sel">✓ Vines cut <small>its chosen take, take 1</small></div><div class="dis">Snare <small>no take chosen yet</small></div></div></div>`
+      if (openVines)
+        paintOn = `<label class="row"><span class="label">Paint on</span><select><option>The image’s take</option></select></label>`
+      const make = `<div class="make"><label class="row"><span class="label">Model for new takes</span><select><option>FLUX.2 klein 4B</option></select></label>
+  <div class="row"><select><option>2 takes</option></select><button class="btn primary" ${NONE ? 'disabled style="opacity:.4"' : ''}>${NONE ? 'Make 2 takes' : 'Make 2 more takes'}</button></div>
+  <span class="faint"><kbd>←</kbd><kbd>→</kbd> take · <kbd>C</kbd> choose · <kbd>D</kbd> drop · <kbd>S</kbd> patch off/on${V === 'stage-b' ? ' · <kbd>U</kbd> Vines cut off/on' : ''}</span></div>`
+      const tools = `<div class="tools"><div class="col"><h3>${title}</h3><textarea rows="2">${words}</textarea>${headExtra}</div>${make}</div>`
+
+      const onWhat = openVines
+        ? ''
+        : CH
+          ? ' · on Stick take 2'
+          : OLD || V === 'bad-b'
+            ? ' · on the image’s take'
+            : ' · on Vines cut take 1'
+      let looking = `<div class="looking"><span class="lbl">Looking at</span><b>Take 2</b><span class="faint">FLUX.2 klein${onWhat}</span><span style="flex:1"></span>
+  ${V === 'stage-b' ? '<button class="btn">Vines cut off<kbd>U</kbd></button>' : ''}<button class="btn">Patch off<kbd>S</kbd></button><button class="btn ghost">Drop<kbd>D</kbd></button><button class="btn primary">${stickAgain ? 'Choose' : 'Choose'}<kbd>C</kbd></button></div>`
+      if (openVines)
+        looking = `<div class="confirm" role="alertdialog"><b>Choose take 3?</b>
+  <span class="muted">1 chosen patch was painted on take 1 of Vines cut: Stick. The game will stop showing it until you make a new one.</span>
+  <span class="faint">Choosing take 1 again brings it back.</span>
+  <div class="row"><button class="btn">Cancel</button><button class="btn primary">Choose take 3</button></div></div>`
+      const cap = openVines
+        ? ''
+        : CH
+          ? 'Snare, painted on Stick (take 2) and Vines cut (take 1) on the image’s take'
+          : V === 'asked-a' || V === 'asked-b' || V === 'bad-b'
+            ? 'Stick, painted on the image’s take'
+            : V === 'under-b'
+              ? 'Stick (painted on Vines cut take 1), shown over Vines cut take 3'
+              : V === 'stage-b'
+                ? 'Stick over Vines cut (take 1), on the image’s take'
+                : 'Stick, painted on Vines cut (take 1) on the image’s take'
+      const picture = `<div class="pic-wrap" id="picwrap"><div class="stage" id="stage"><canvas id="cv"></canvas><div class="mark" id="mark"></div></div></div><span class="faint">${cap}</span>`
+      const thumbCap = (m, on) =>
+        `<span class="faint">${m}${openVines ? '' : CH ? '<br>on Stick take 2' : OLD || V === 'bad-b' ? '<br>on the image’s take' : on}</span>`
+      const takes = `<div class="col"><div class="takes-head"><h4>Takes · 3</h4><label class="check"><input type="checkbox" checked/> What the game gets</label></div>
+  <div class="thumbs">
+   <div class="thumb"><div class="cu"></div><span>Take 1</span>${thumbCap('FLUX.2 klein', '<br>on Vines cut take 1')}</div>
+   <div class="thumb on"><div class="cu b"></div><span>Take 2 <span class="chip ok">chosen</span></span>${thumbCap('FLUX.2 klein', '<br>on Vines cut take 1')}</div>
+   <div class="thumb"><div class="cu c"></div><span>Take 3</span>${thumbCap('FLUX.2 klein', '<br>on Vines cut take 1')}</div></div></div>`
+      if (NONE) {
+        document.getElementById('panel').innerHTML =
+          `${chips}<div class="panel-inner">${tools}<div class="looking"><span class="lbl">The chosen take of the image</span></div><div class="empty">${V === 'decl-none' ? 'Nothing to paint on yet: Vines cut has no chosen take. Open Vines cut and choose one; Stick is then painted over it.' : 'No takes can be made until the game’s list is fixed.'}</div></div>`
+      } else
+        document.getElementById('panel').innerHTML =
+          `${chips}<div class="panel-inner">${tools}<div class="col">${looking}${picture}</div>${takes}</div>`
+
+      const S = 1
+      function paint(cv, w, h, opt) {
+        cv.width = w
+        cv.height = h
+        const g = cv.getContext('2d')
+        const s = w / 1024
+        const gr = g.createLinearGradient(0, 0, 0, h)
+        gr.addColorStop(0, '#1d2b24')
+        gr.addColorStop(0.6, '#2e3a22')
+        gr.addColorStop(1, '#3b2e1c')
+        g.fillStyle = gr
+        g.fillRect(0, 0, w, h)
+        g.fillStyle = '#1a2418'
+        for (const x of [60, 200, 880, 980]) g.fillRect(x * s, 0, 46 * s, 460 * s)
+        g.fillStyle = '#5a4a32'
+        g.beginPath()
+        g.moveTo(380 * s, 640 * s)
+        g.lineTo(470 * s, 380 * s)
+        g.lineTo(560 * s, 380 * s)
+        g.lineTo(700 * s, 640 * s)
+        g.fill()
+        g.fillStyle = '#55565a'
+        g.beginPath()
+        g.ellipse(700 * s, 370 * s, 170 * s, 120 * s, 0, 0, 7)
+        g.fill()
+        // hollow
+        g.fillStyle = '#141416'
+        g.beginPath()
+        g.ellipse(700 * s, 385 * s, 80 * s, 52 * s, 0, 0, 7)
+        g.fill()
+        if (opt.snare) {
+          g.strokeStyle = '#d8c79a'
+          g.lineWidth = 3 * s
+          g.beginPath()
+          g.ellipse(690 * s, 370 * s, 22 * s, 12 * s, 0, 0, 7)
+          g.stroke()
+          g.beginPath()
+          g.moveTo(712 * s, 370 * s)
+          g.lineTo(745 * s, 350 * s)
+          g.stroke()
+        }
+        if (opt.stick) {
+          g.strokeStyle = '#a0763e'
+          g.lineWidth = 9 * s
+          g.beginPath()
+          g.moveTo(650 * s, 410 * s)
+          g.lineTo(752 * s, 392 * s)
+          g.stroke()
+        }
+        if (!opt.cut) {
+          g.strokeStyle = '#3f7a34'
+          g.lineWidth = 10 * s
+          for (let i = 0; i < 9; i++) {
+            g.beginPath()
+            g.moveTo((610 + i * 22) * s, 300 * s)
+            g.bezierCurveTo(
+              (600 + i * 24) * s,
+              360 * s,
+              (640 + i * 20) * s,
+              400 * s,
+              (615 + i * 22) * s,
+              460 * s,
+            )
+            g.stroke()
+          }
+          g.fillStyle = '#4f9a3f'
+          for (let i = 0; i < 30; i++) {
+            g.beginPath()
+            g.arc((610 + ((i * 37) % 190)) * s, (310 + ((i * 53) % 150)) * s, 7 * s, 0, 7)
+            g.fill()
+          }
+        }
+      }
+      function draw() {
+        const wrap = document.getElementById('picwrap')
+        if (!wrap) return
+        const stage = document.getElementById('stage'),
+          cv = document.getElementById('cv')
+        const width = Math.floor(Math.min(wrap.clientWidth, 1024)),
+          height = Math.round(width / 1.6)
+        stage.style.width = width + 'px'
+        stage.style.height = height + 'px'
+        stage.classList.add('px')
+        if (openVines) paint(cv, 320, 200, { cut: true })
+        else if (V === 'under-b') paint(cv, 320, 200, { cut: true, stick: true })
+        else if (OLD || V === 'bad-b') paint(cv, 320, 200, { cut: false, stick: true })
+        else paint(cv, 320, 200, { cut: true, stick: true, snare: CH })
+        const k = width / 1024,
+          m = document.getElementById('mark')
+        const box = openVines
+          ? { x: 600, y: 290, w: 210, h: 180 }
+          : { x: 630, y: 360, w: 140, h: 70 }
+        Object.assign(m.style, {
+          left: box.x * k + 'px',
+          top: box.y * k + 'px',
+          width: box.w * k + 'px',
+          height: box.h * k + 'px',
+        })
+      }
+      if (V.startsWith('act')) {
+        document.querySelector('h1').textContent = 'Act 2 · Images'
+        document.querySelector('.mono').textContent = ''
+        document.querySelector('.tabs').style.display = 'none'
+        document.getElementById('panel').innerHTML =
+          `<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="color:var(--muted);text-align:left"><th style="padding:6px">Image</th><th>Status</th><th>Prompt</th></tr>
+  <tr style="border-top:1px solid var(--line);vertical-align:top"><td style="padding:8px 6px"><b>The forest path</b><div class="mono">forest-path</div></td>
+  <td style="padding:8px 6px"><span class="chip again">incomplete</span><div class="line-warn" style="font-size:12px">1 patch not chosen</div></td>
+  <td style="padding:8px 6px;max-width:520px">A narrow forest path past a mossy rock with a hollow…${V === 'act-a' ? '<div class="line-warn" style="color:var(--err);font-size:12.5px">cannot be made: Stick (the game asks for it on top of “rope”)</div>' : ''}</td></tr></table>`
+      } else {
+        addEventListener('resize', draw)
+        draw()
+      }
+    </script>
+  </body>
+</html>
