@@ -48,6 +48,7 @@ import {
   STYLE_BROKEN_WHY,
   IMAGE_TAKE_UNKNOWN,
   modelCaption,
+  chosenTakeLabel,
   onTopCaption,
   onTopQuestionDim,
   onTopQuestionLead,
@@ -560,7 +561,7 @@ export function PatchWorkbench({
             </>
           ) : (
             <span className="lbl" ref={heading} tabIndex={-1}>
-              The chosen take of the image
+              {chosenTakeLabel(stack?.kind === 'on' ? stack.under : [])}
             </span>
           )}
         </div>
