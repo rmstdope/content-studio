@@ -1118,3 +1118,83 @@ export function layerPatch(take: Pixels, patch: Pixels): Pixels {
   }
   return { ...take, data }
 }
+
+/**
+ * The patches painted on each take of each patch that has some, by patch id then take: every
+ * patch with a chosen take painted on that take, and those painted on those in turn, in the
+ * game's order. `choices` is each patch's chosen takes (one per take of the image) with what
+ * each was painted on.
+ */
+export function carriesOf(
+  patches: readonly Stackable[],
+  choices: Readonly<
+    Record<string, readonly { n: number; on: { patch: string; n: number } | null }[]>
+  >,
+): Record<string, Record<number, string[]>> {
+  const direct = (patch: string, n: number) =>
+    patches
+      .filter((p) => (choices[p.id] ?? []).some((c) => c.on?.patch === patch && c.on.n === n))
+      .map((p) => p.id)
+  const out: Record<string, Record<number, string[]>> = {}
+  for (const patch of Object.keys(choices)) {
+    // The takes of this patch something is painted on: the takes of the patches above name them.
+    const taken = new Set(
+      patches.flatMap((p) =>
+        (choices[p.id] ?? []).filter((c) => c.on?.patch === patch).map((c) => c.on!.n),
+      ),
+    )
+    for (const n of taken) {
+      const found = new Set<string>()
+      const walk = (at: string, m: number) => {
+        for (const id of direct(at, m)) {
+          if (found.has(id)) continue
+          found.add(id)
+          for (const c of choices[id] ?? []) {
+            if (c.on?.patch === at && c.on.n === m) walk(id, c.n)
+          }
+        }
+      }
+      walk(patch, n)
+      const ordered = patches.map((p) => p.id).filter((id) => found.has(id))
+      if (ordered.length) (out[patch] ??= {})[n] = ordered
+    }
+  }
+  return out
+}
+
+/** What to ask before a patch with others painted on it changes its chosen take, or drops one. */
+export interface OnTopQuestion {
+  /** The title of the patch underneath. */
+  of: string
+  /** The take the patches on top were painted on. */
+  from: number
+  /** The take being chosen; null on Un-choose and Drop. */
+  to: number | null
+  /** Titles of the patches painted on `from`, in the game's order. */
+  leaving: string[]
+}
+
+/**
+ * What to ask on a patch that others lie on top of: choosing another take, un-choosing, or
+ * dropping a take sets aside the patches painted on the take it leaves, as a change of the
+ * image's take does (`setAsideQuestion`). On Choose and Un-choose only those the game shows now
+ * count; a dropped take loses all that were painted on it. Null when none, or nothing changes.
+ * `chosen` is the take of that patch chosen on the image's take in the game.
+ */
+export function onTopQuestion(
+  row: Pick<ImageRow, 'chosenTake' | 'patches'>,
+  patchId: string,
+  ask: SetAsideAsk,
+  chosen: number | null,
+): OnTopQuestion | null {
+  const patch = row.patches.find((p) => p.id === patchId)
+  const from = ask.kind === 'drop' ? ask.n : chosen
+  if (!patch || from === null || (ask.kind === 'choose' && ask.n === from)) return null
+  const shown = (title: string) =>
+    ask.kind === 'drop' ||
+    (row.chosenTake !== null &&
+      !!row.patches.find((p) => p.title === title)?.chosenOn.includes(row.chosenTake))
+  const leaving = (patch.carries?.[from] ?? []).filter(shown)
+  if (leaving.length === 0) return null
+  return { of: patch.title, from, to: ask.kind === 'choose' ? ask.n : null, leaving }
+}

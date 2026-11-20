@@ -25,6 +25,8 @@ import {
   stackOf,
   choiceOn,
   layerPatch,
+  carriesOf,
+  onTopQuestion,
 } from './imagePatches'
 import type { AreaRow, PatchRow } from './images'
 import type { Pixels } from './imagePixels'
@@ -1193,5 +1195,77 @@ describe('stacked patches in the rest', () => {
     const vines = patch('Vines')
     expect(overlappingPatches([vines, patch('Stick', 'vines')])).toEqual([])
     expect(overlappingPatches([vines, patch('Other')]).length).toBe(1)
+  })
+})
+
+describe('what lies on a take of a patch', () => {
+  const patches = [
+    { id: 'vines', title: 'Vines cut' },
+    { id: 'stick', title: 'Stick', over: 'vines' },
+    { id: 'snare', title: 'Snare', over: 'stick' },
+    { id: 'other', title: 'Other' },
+  ]
+  const choices = {
+    vines: [{ n: 1, on: null }],
+    stick: [
+      { n: 2, on: { patch: 'vines', n: 1 } },
+      { n: 4, on: { patch: 'vines', n: 3 } },
+    ],
+    snare: [{ n: 5, on: { patch: 'stick', n: 2 } }],
+    other: [{ n: 1, on: null }],
+  }
+  it('lists the patches painted on each take, at any depth, in the game’s order', () => {
+    expect(carriesOf(patches, choices)).toEqual({
+      vines: { 1: ['stick', 'snare'], 3: ['stick'] },
+      stick: { 2: ['snare'] },
+    })
+  })
+  it('is empty when nothing lies on anything', () => {
+    expect(carriesOf(patches, { vines: choices.vines })).toEqual({})
+  })
+
+  describe('the question on the patch underneath', () => {
+    const row = (chosenTake: number | null) => ({
+      chosenTake,
+      patches: [
+        { ...base('Vines cut'), id: 'vines', carries: { 1: ['Stick', 'Snare'], 3: ['Stick'] } },
+        { ...base('Stick'), id: 'stick', over: 'vines', chosenOn: [1] },
+        { ...base('Snare'), id: 'snare', over: 'stick', chosenOn: [1] },
+      ] as PatchRow[],
+    })
+    function base(title: string) {
+      return {
+        id: title,
+        title,
+        description: '',
+        words: '',
+        changed: false,
+        gameChanged: false,
+        gameWas: null,
+        chosenOn: [1],
+        chosenOnGone: false,
+        chosenArea: null,
+      }
+    }
+    it('names the patches painted on the take being left, on Choose and Un-choose', () => {
+      expect(onTopQuestion(row(1), 'vines', { kind: 'choose', n: 3 }, 1)).toEqual({
+        of: 'Vines cut',
+        from: 1,
+        to: 3,
+        leaving: ['Stick', 'Snare'],
+      })
+      expect(onTopQuestion(row(1), 'vines', { kind: 'unchoose' }, 1)?.leaving).toEqual([
+        'Stick',
+        'Snare',
+      ])
+    })
+    it('names those painted on a take about to be dropped, whether or not they are shown now', () => {
+      expect(onTopQuestion(row(1), 'vines', { kind: 'drop', n: 3 }, 1)?.leaving).toEqual(['Stick'])
+    })
+    it('asks nothing when no patch lies on the take, or the take is already the chosen one', () => {
+      expect(onTopQuestion(row(1), 'vines', { kind: 'choose', n: 4 }, 2)).toBeNull()
+      expect(onTopQuestion(row(1), 'vines', { kind: 'choose', n: 1 }, 1)).toBeNull()
+      expect(onTopQuestion(row(1), 'stick', { kind: 'unchoose' }, 2)).toBeNull()
+    })
   })
 })

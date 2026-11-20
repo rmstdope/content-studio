@@ -1050,6 +1050,8 @@ export interface PatchRow {
    * own take. Such a take is set aside (the game does not show it).
    */
   stale?: { title: string; n: number } | null | undefined
+  /** The patches painted on each take of this one, by take, titles in the game's order (as-evwv). */
+  carries?: Record<number, string[]> | undefined
 }
 
 /** One named area of an image as its page shows it. */
@@ -1220,6 +1222,8 @@ export interface ImagesInput {
   patchAreas?: Record<string, Record<string, Record<number, PatchArea>>>
   /** By image id then patch id: what a chosen take on the take in the game was painted on, when that is not what lies underneath now. */
   patchStale?: Record<string, Record<string, { title: string; n: number } | null>>
+  /** By image id then patch id: the patches painted on each take of the patch (`carriesOf`), as ids. */
+  patchCarries?: Record<string, Record<string, Record<number, string[]>>>
   /** The takes on each image's board, by image id; an image absent here has a board that was not read. */
   imageTakes?: Record<string, number[]>
 }
@@ -1337,6 +1341,7 @@ export function summarizeImages(input: ImagesInput): {
         const mine = own?.patches?.[patch.id]
         const stack = patch.over === undefined ? null : stackOf(image.patches, patch.id)
         const stale = input.patchStale?.[image.id]?.[patch.id]
+        const carried = input.patchCarries?.[image.id]?.[patch.id]
         const bases = input.patchChoices?.[image.id]?.[patch.id] ?? []
         // An image whose board was not read has takes unknown: nothing counts as dropped.
         const known = input.imageTakes?.[image.id]
@@ -1359,6 +1364,14 @@ export function summarizeImages(input: ImagesInput): {
           }),
           ...(stack && !stack.ok && { problem: stack }),
           ...(stale !== undefined && { stale }),
+          ...(carried && {
+            carries: Object.fromEntries(
+              Object.entries(carried).map(([n, ids]) => [
+                n,
+                ids.map((id) => image.patches.find((p) => p.id === id)?.title ?? id),
+              ]),
+            ),
+          }),
         }
       }),
       areas: image.areas.map((area): AreaRow => {
