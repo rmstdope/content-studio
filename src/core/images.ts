@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { describeLook, lookChanges, lookKey, lookOf, type Look } from './imageLook'
-import type { PatchArea } from './imagePatches'
+import { stackOf, type PatchArea, type StackProblem } from './imagePatches'
 import { lockEntry, type LockRead } from './lockRead'
 import { problemsFrom, type Problem } from './project'
 
@@ -27,6 +27,8 @@ const GamePatchSchema = z
     text: z.string().min(1),
     /** The id of one of the image's named areas this patch covers; the patch starts from its place. */
     area: z.string().regex(SLUG, 'use lower-case letters, digits and - only').optional(),
+    /** The id of the patch of the same image this one lies on top of (as-evwv); the studio follows it, mistakes and all. */
+    over: z.string().min(1).optional(),
   })
   .transform(({ text, ...patch }) => ({ ...patch, description: text }))
 
@@ -959,7 +961,13 @@ const KIND_PHRASE: Record<ConflictKind, string> = {
 function patchesKey(image: GameImage): string {
   return JSON.stringify(
     image.patches
-      .map(({ id, title, description, area }) => [id, title, description, area ?? null])
+      .map(({ id, title, description, area, over }) => [
+        id,
+        title,
+        description,
+        area ?? null,
+        over ?? null,
+      ])
       .sort(([a], [b]) => (a! < b! ? -1 : 1)),
   )
 }
@@ -1030,6 +1038,18 @@ export interface PatchRow {
   chosenOnGone: boolean
   /** The area the patch's chosen take on the image's take in the game was made with; null when it has none there. */
   chosenArea: PatchArea | null
+  /** The id of the patch the game asks this one to lie on top of. */
+  over?: string | undefined
+  /** The title of that patch, or the id as the game wrote it when the image has no such patch. */
+  overTitle?: string | undefined
+  /** Why the game's ask to lie on top of another patch cannot be followed; absent when it can, or when there is none. */
+  problem?: StackProblem | undefined
+  /**
+   * Its chosen take on the image's take in the game was painted on something other than what lies
+   * underneath it now: the title and take of the patch it was painted on, or null for the image's
+   * own take. Such a take is set aside (the game does not show it).
+   */
+  stale?: { title: string; n: number } | null | undefined
 }
 
 /** One named area of an image as its page shows it. */
@@ -1198,6 +1218,8 @@ export interface ImagesInput {
   patchChoices?: Record<string, Record<string, number[]>>
   /** The area each patch's chosen take on each take of an image was made with, by image id, patch id, then take of the image. */
   patchAreas?: Record<string, Record<string, Record<number, PatchArea>>>
+  /** By image id then patch id: what a chosen take on the take in the game was painted on, when that is not what lies underneath now. */
+  patchStale?: Record<string, Record<string, { title: string; n: number } | null>>
   /** The takes on each image's board, by image id; an image absent here has a board that was not read. */
   imageTakes?: Record<string, number[]>
 }
@@ -1313,6 +1335,8 @@ export function summarizeImages(input: ImagesInput): {
       gameWas: own?.gameWas ?? null,
       patches: image.patches.map((patch) => {
         const mine = own?.patches?.[patch.id]
+        const stack = patch.over === undefined ? null : stackOf(image.patches, patch.id)
+        const stale = input.patchStale?.[image.id]?.[patch.id]
         const bases = input.patchChoices?.[image.id]?.[patch.id] ?? []
         // An image whose board was not read has takes unknown: nothing counts as dropped.
         const known = input.imageTakes?.[image.id]
@@ -1329,6 +1353,12 @@ export function summarizeImages(input: ImagesInput): {
             made?.take == null
               ? null
               : (input.patchAreas?.[image.id]?.[patch.id]?.[made.take] ?? null),
+          ...(patch.over !== undefined && {
+            over: patch.over,
+            overTitle: image.patches.find((p) => p.id === patch.over)?.title ?? patch.over,
+          }),
+          ...(stack && !stack.ok && { problem: stack }),
+          ...(stale !== undefined && { stale }),
         }
       }),
       areas: image.areas.map((area): AreaRow => {

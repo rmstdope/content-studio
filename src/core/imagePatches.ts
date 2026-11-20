@@ -30,6 +30,11 @@ export const PatchTakeSchema = z.strictObject({
   n: z.number().int().positive(),
   /** The number of the image's take it was painted on. */
   base: z.number().int().positive(),
+  /**
+   * For a patch the game asks for on top of another (as-evwv): the take of that patch it was
+   * painted over, which itself carries what it lies on. Absent for a take painted straight on the image's take.
+   */
+  under: z.strictObject({ patch: z.string(), n: z.number().int().positive() }).optional(),
   seed: z.number().int(),
   /** The patch's words it was made from. */
   words: z.string(),
@@ -774,16 +779,8 @@ export function markFromArea(
  * is exactly the painted take brought to the look.
  */
 export function gamePatch(take: Pixels, patch: Pixels, look: Look, size: LookSize): Pixels {
-  const blended = new Uint8Array(take.data)
-  for (let i = 0; i < blended.length; i += 4) {
-    const a = patch.data[i + 3]! / 255
-    if (a === 0) continue
-    for (let c = 0; c < 3; c++) {
-      blended[i + c] = Math.round(take.data[i + c]! * (1 - a) + patch.data[i + c]! * a)
-    }
-  }
   const before = bringToLook(take, look, size)
-  const after = bringToLook({ ...take, data: blended }, look, size)
+  const after = bringToLook(layerPatch(take, patch), look, size)
   const data = new Uint8Array(size.width * size.height * 4)
   for (let i = 0; i < data.length; i += 4) {
     if (
@@ -848,7 +845,7 @@ export function makeAgainOf(
   return row.patches.filter(
     (patch) =>
       !(row.chosenTake !== null && patch.chosenOn.includes(row.chosenTake)) &&
-      (patch.chosenOn.length > 0 || patch.chosenOnGone),
+      (patch.chosenOn.length > 0 || patch.chosenOnGone || patch.stale !== undefined),
   )
 }
 
@@ -867,6 +864,12 @@ export function overlappingPatches(patches: readonly PatchRow[]): [PatchRow, Pat
   patches.forEach((first, i) => {
     if (!first.chosenArea) return
     for (const second of patches.slice(i + 1)) {
+      // A patch on top of another is meant to lie over it.
+      const stacked = (a: PatchRow, b: PatchRow) => {
+        const stack = stackOf(patches, a.id)
+        return stack.ok && stack.under.some((p) => p.id === b.id)
+      }
+      if (stacked(first, second) || stacked(second, first)) continue
       if (second.chosenArea && patchBoxesOverlap(first.chosenArea, second.chosenArea)) {
         pairs.push([first, second])
       }
@@ -989,4 +992,129 @@ export function keptBox(pixels: Pixels): PatchArea | null {
   }
   if (right < 0) return null
   return { x: left, y: top, width: right - left + 1, height: bottom - top + 1 }
+}
+
+/** What `stackOf` needs of a patch. */
+export interface Stackable {
+  id: string
+  title: string
+  /** The id of the patch the game asks this one to lie on top of. */
+  over?: string | undefined
+}
+
+/** Why the game's ask for a patch on top of another cannot be followed. */
+export interface StackProblem {
+  kind: 'unknown' | 'itself' | 'loop'
+  /** The red line on the open patch. */
+  text: string
+  /** The words in the act's row, after the patch's title. */
+  rowText: string
+}
+
+/**
+ * What a patch lies on top of: the patches underneath it, the bottom one first (none for a patch
+ * straight on the image), or why the game's ask cannot be followed: a patch the image does not
+ * have, the patch itself, or a loop through it. A mistake of a patch further down is that patch's.
+ */
+export function stackOf<T extends Stackable>(
+  patches: readonly T[],
+  id: string,
+): { ok: true; under: T[] } | ({ ok: false } & StackProblem) {
+  const fix = ' Fix the game’s list, then Refresh from the game.'
+  const byId = new Map(patches.map((p) => [p.id, p]))
+  const under: T[] = []
+  const seen = new Set([id])
+  let at = byId.get(id)?.over
+  while (at !== undefined) {
+    if (at === id) {
+      if (under.length === 0) {
+        return {
+          ok: false,
+          kind: 'itself',
+          text: `The game asks for this on top of itself.${fix}`,
+          rowText: 'the game asks for it on top of itself',
+        }
+      }
+      // The last is the patch asked for; the first is the one that asks for this patch.
+      const next = under[under.length - 1]!
+      const first = under[0]!
+      return {
+        ok: false,
+        kind: 'loop',
+        text: `The game asks for this on top of ${next.title}, and for ${first.title} on top of this.${fix}`,
+        rowText: `the game asks for it on top of ${next.title}, and for ${first.title} on top of it`,
+      }
+    }
+    const patch = byId.get(at)
+    if (!patch) {
+      if (under.length) break
+      return {
+        ok: false,
+        kind: 'unknown',
+        text: `The game asks for this on top of “${at}”, which is not one of this image’s patches.${fix}`,
+        rowText: `the game asks for it on top of “${at}”`,
+      }
+    }
+    if (seen.has(at)) break
+    seen.add(at)
+    under.unshift(patch)
+    at = patch.over
+  }
+  return { ok: true, under }
+}
+
+/** What `choiceOn` reads of a patch's board. */
+export interface ChoiceBoard {
+  chosen: Record<string, number>
+  takes: { n: number; under?: { patch: string; n: number } | undefined }[]
+}
+
+/** A patch's chosen take on a take of the image, and whether it still lies on what is underneath it. */
+export interface Choice {
+  n: number
+  valid: boolean
+  /** What the take was painted on: a take of the patch underneath, or null for the image's own take. */
+  on: { patch: string; n: number } | null
+}
+
+/**
+ * The take a patch has chosen on a take of the image (null when none), and whether the game may
+ * show it: it was painted on exactly what lies underneath it now, the chosen take of the patch it
+ * is on top of, which must itself be valid, at any depth, or straight on the image's take when it
+ * is on top of nothing. Nothing is stored for this: a change underneath, or in the game's list,
+ * sets the take aside and the old choice comes back with what it was painted on.
+ */
+export function choiceOn(
+  patches: readonly Stackable[],
+  boards: Readonly<Record<string, ChoiceBoard | undefined>>,
+  id: string,
+  base: number,
+): Choice | null {
+  const board = boards[id]
+  const n = board?.chosen[String(base)]
+  if (n === undefined) return null
+  const on = board?.takes.find((t) => t.n === n)?.under ?? null
+  const over = patches.find((p) => p.id === id)?.over
+  const stack = stackOf(patches, id)
+  let valid: boolean
+  if (!stack.ok) valid = false
+  else if (over === undefined) valid = on === null
+  else {
+    const below = choiceOn(patches, boards, over, base)
+    valid = !!below?.valid && on?.patch === over && on.n === below.n
+  }
+  return { n, valid, on }
+}
+
+/** The picture with a patch laid over it by the patch's own transparency, as big as the picture. */
+export function layerPatch(take: Pixels, patch: Pixels): Pixels {
+  const data = new Uint8Array(take.data)
+  for (let i = 0; i < data.length; i += 4) {
+    const a = patch.data[i + 3]! / 255
+    if (a === 0) continue
+    for (let c = 0; c < 3; c++) {
+      data[i + c] = Math.round(take.data[i + c]! * (1 - a) + patch.data[i + c]! * a)
+    }
+  }
+  return { ...take, data }
 }

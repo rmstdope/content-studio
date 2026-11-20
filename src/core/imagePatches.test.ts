@@ -22,6 +22,9 @@ import {
   planRemake,
   remakeCovered,
   setAsideQuestion,
+  stackOf,
+  choiceOn,
+  layerPatch,
 } from './imagePatches'
 import type { AreaRow, PatchRow } from './images'
 import type { Pixels } from './imagePixels'
@@ -1055,5 +1058,140 @@ describe('keptBox', () => {
     const p = blank(4, 4)
     put(p, 3, 0, 9)
     expect(keptBox(p)).toEqual({ x: 3, y: 0, width: 1, height: 1 })
+  })
+})
+
+describe('stackOf: what a patch lies on top of', () => {
+  const list = [
+    { id: 'vines', title: 'Vines cut' },
+    { id: 'stick', title: 'Stick', over: 'vines' },
+    { id: 'snare', title: 'Snare', over: 'stick' },
+    { id: 'rope', title: 'Rope', over: 'rope' },
+    { id: 'a', title: 'A', over: 'b' },
+    { id: 'b', title: 'B', over: 'a' },
+    { id: 'lost', title: 'Lost', over: 'ghost' },
+  ]
+  it('is empty for a patch straight on the image', () => {
+    expect(stackOf(list, 'vines')).toEqual({ ok: true, under: [] })
+  })
+  it('lists what lies underneath, bottom first, at any depth', () => {
+    expect(stackOf(list, 'stick')).toEqual({ ok: true, under: [list[0]!] })
+    expect(stackOf(list, 'snare')).toEqual({ ok: true, under: [list[0]!, list[1]!] })
+  })
+  it('says exactly what is wrong when the ask cannot be followed', () => {
+    const fix = ' Fix the game’s list, then Refresh from the game.'
+    expect(stackOf(list, 'lost')).toEqual({
+      ok: false,
+      kind: 'unknown',
+      text:
+        'The game asks for this on top of “ghost”, which is not one of this image’s patches.' + fix,
+      rowText: 'the game asks for it on top of “ghost”',
+    })
+    expect(stackOf(list, 'rope')).toMatchObject({
+      ok: false,
+      kind: 'itself',
+      text: 'The game asks for this on top of itself.' + fix,
+      rowText: 'the game asks for it on top of itself',
+    })
+    expect(stackOf(list, 'a')).toMatchObject({
+      ok: false,
+      kind: 'loop',
+      text: 'The game asks for this on top of B, and for B on top of this.' + fix,
+      rowText: 'the game asks for it on top of B, and for B on top of it',
+    })
+  })
+  it('leaves a mistake of the patch underneath to that patch', () => {
+    const more = [...list, { id: 'on-lost', title: 'On lost', over: 'lost' }]
+    expect(stackOf(more, 'on-lost')).toEqual({ ok: true, under: [list[6]!] })
+  })
+})
+
+describe('choiceOn: whether a chosen take still lies on what is underneath', () => {
+  const patches = [
+    { id: 'vines', title: 'Vines cut' },
+    { id: 'stick', title: 'Stick', over: 'vines' },
+    { id: 'snare', title: 'Snare', over: 'stick' },
+  ]
+  const boards = {
+    vines: { chosen: { '1': 3 }, takes: [{ n: 1 }, { n: 3 }] },
+    stick: { chosen: { '1': 2 }, takes: [{ n: 2, under: { patch: 'vines', n: 3 } }] },
+    snare: { chosen: { '1': 5 }, takes: [{ n: 5, under: { patch: 'stick', n: 2 } }] },
+  }
+  it('is valid for a patch straight on the image and for a stack that agrees at every depth', () => {
+    expect(choiceOn(patches, boards, 'vines', 1)).toEqual({ n: 3, valid: true, on: null })
+    expect(choiceOn(patches, boards, 'snare', 1)).toEqual({
+      n: 5,
+      valid: true,
+      on: { patch: 'stick', n: 2 },
+    })
+  })
+  it('is none for a take of the image with no choice', () => {
+    expect(choiceOn(patches, boards, 'vines', 2)).toBeNull()
+  })
+  it('is not valid once the patch underneath chose another take, and that sets aside everything above', () => {
+    const moved = { ...boards, vines: { ...boards.vines, chosen: { '1': 1 } } }
+    expect(choiceOn(patches, moved, 'stick', 1)).toMatchObject({ valid: false })
+    expect(choiceOn(patches, moved, 'snare', 1)).toMatchObject({ valid: false })
+    const none = { ...boards, vines: { chosen: {}, takes: boards.vines.takes } }
+    expect(choiceOn(patches, none, 'stick', 1)).toMatchObject({ valid: false })
+  })
+  it('is not valid when painted straight on the image but the game now asks for it on top, or the reverse', () => {
+    const straight = { ...boards, stick: { chosen: { '1': 2 }, takes: [{ n: 2 }] } }
+    expect(choiceOn(patches, straight, 'stick', 1)).toEqual({ n: 2, valid: false, on: null })
+    const flat = [
+      { id: 'vines', title: 'Vines cut' },
+      { id: 'stick', title: 'Stick' },
+    ]
+    expect(choiceOn(flat, boards, 'stick', 1)).toMatchObject({ valid: false })
+  })
+  it('is not valid for an ask that cannot be followed', () => {
+    const loop = [
+      { id: 'a', title: 'A', over: 'b' },
+      { id: 'b', title: 'B', over: 'a' },
+    ]
+    const b = { a: { chosen: { '1': 1 }, takes: [{ n: 1 }] }, b: { chosen: {}, takes: [] } }
+    expect(choiceOn(loop, b, 'a', 1)).toMatchObject({ valid: false })
+  })
+})
+
+describe('layerPatch: a patch laid over a picture', () => {
+  it('blends the patch over the picture by its own transparency and keeps the size', () => {
+    const base = plain(2, 1, [0, 0, 0])
+    const patch: Pixels = {
+      width: 2,
+      height: 1,
+      data: new Uint8Array([255, 255, 255, 255, 9, 9, 9, 0]),
+    }
+    const out = layerPatch(base, patch)
+    expect([...out.data]).toEqual([255, 255, 255, 255, 0, 0, 0, 255])
+    expect([...base.data.slice(0, 3)]).toEqual([0, 0, 0])
+  })
+})
+
+describe('stacked patches in the rest', () => {
+  const patch = (title: string, over?: string): PatchRow => ({
+    id: title.toLowerCase(),
+    title,
+    description: '',
+    words: '',
+    changed: false,
+    gameChanged: false,
+    gameWas: null,
+    chosenOn: [1],
+    chosenOnGone: false,
+    chosenArea: { x: 0, y: 0, width: 10, height: 10 },
+    ...(over && { over }),
+  })
+  it('lists a patch set aside as one to make again, though it has a choice on the take in the game', () => {
+    const stale = { ...patch('Stick', 'vines'), chosenOn: [], stale: { title: 'Vines cut', n: 1 } }
+    expect(
+      makeAgainOf({ chosenTake: 1, patches: [patch('Vines'), stale] }, false).map((p) => p.title),
+    ).toEqual(['Stick'])
+    expect(makeAgainOf({ chosenTake: 1, patches: [stale] }, true)).toEqual([])
+  })
+  it('does not warn about a pair of which one lies on top of the other', () => {
+    const vines = patch('Vines')
+    expect(overlappingPatches([vines, patch('Stick', 'vines')])).toEqual([])
+    expect(overlappingPatches([vines, patch('Other')]).length).toBe(1)
   })
 })
