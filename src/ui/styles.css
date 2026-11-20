@@ -5629,6 +5629,10 @@ textarea[aria-disabled='true'][data-why] {
   padding: 4px 10px;
   border-radius: 999px;
 }
+.patch-pick .faint {
+  color: var(--faint);
+  font-size: 12px;
+}
 .patch-bench-left {
   display: flex;
   flex-direction: column;
@@ -5652,6 +5656,9 @@ textarea[aria-disabled='true'][data-why] {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+.patch-takes[hidden] {
+  display: none;
 }
 .patch-takes-head {
   display: flex;

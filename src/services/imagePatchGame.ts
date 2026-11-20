@@ -186,6 +186,21 @@ export async function patchesInGame(
   return entries
 }
 
+/**
+ * The patches whose chosen take on take `base` of the image is set aside: the board is there and
+ * the take no longer lies on what is underneath it. A patch whose board cannot be read (the cache
+ * is not on this computer) is not named: nothing says it is set aside.
+ */
+export async function setAsideOn(
+  image: { root: string; row: Pick<ImageRow, 'id' | 'patches'> },
+  base: number,
+): Promise<string[]> {
+  const boards = await boardsOf(image.root, image.row)
+  return image.row.patches
+    .filter((patch) => choiceOn(image.row.patches, boards, patch.id, base)?.valid === false)
+    .map((patch) => patch.id)
+}
+
 /** The boards of an image's patches that can be read, by patch id. */
 async function boardsOf(
   root: string,
