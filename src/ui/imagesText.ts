@@ -537,3 +537,6 @@ export const onTopQuestionDim = (q: OnTopQuestion) =>
 export function onTopActLine(problems: readonly { title: string; rowText: string }[]): string {
   return `cannot be made: ${problems.map((p) => `${p.title} (${p.rowText})`).join('; ')}`
 }
+
+/** The box that stands where the picture would be while the game's ask for a patch cannot be followed. */
+export const NO_TAKES_UNTIL_FIXED = 'No takes can be made until the game’s list is fixed.'

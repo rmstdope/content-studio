@@ -14,13 +14,16 @@ import {
 import {
   checkPatchArea,
   markFromArea,
+  onTopQuestion,
   type ImagePatchesView,
   type PatchTie,
+  type SetAsideAsk,
   type PatchArea,
   type PatchMakingView,
   type PatchTakeView,
   type PatchWorkView,
 } from '../../../core/imagePatches'
+import type { ImageRow } from '../../../core/images'
 import { EDIT_SETUP_LINE, editModel, type EditModelId } from '../../../core/imageModels'
 import { EditModelMenu } from './EditModelMenu'
 import { rightAfterDrop, stepRight } from '../../../core/imageTakes'
@@ -45,6 +48,11 @@ import {
   STYLE_BROKEN_WHY,
   IMAGE_TAKE_UNKNOWN,
   modelCaption,
+  onTopCaption,
+  onTopQuestionDim,
+  onTopQuestionLead,
+  onTopTake,
+  setAsideTitle,
   modelMissingWhy,
   patchMakeWhy,
   patchMenuWhy,
@@ -80,10 +88,22 @@ function placed(area: PatchArea, take: { width: number; height: number }): CSSPr
 /** The keys a patch hears when focus is inside it. */
 const PATCH_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'c', 'd', 's'])
 
+/**
+ * What the game asks of a patch that lies on top of another (as-evwv): the patches underneath it,
+ * bottom first, each with its chosen take, laid over the image's take in every picture; the line
+ * the open patch shows; or why no takes can be made, with the box that stands in for the picture.
+ */
+export type PatchStack =
+  | { kind: 'problem'; text: string; empty: string }
+  | { kind: 'none'; text: string; empty: string }
+  | { kind: 'on'; under: { id: string; title: string; n: number }[] }
+
 /** Where the pictures of a patch are, as the large view and the close-ups draw them. */
 interface Sources {
   /** The image's chosen take. */
   base: string
+  /** The chosen takes of the patches underneath, bottom first, laid over it. */
+  lower: string[]
   /** A take of the patch laid over it. */
   patch: (n: number, look: PatchTakeView['look']) => string | null
 }
@@ -122,6 +142,15 @@ function CloseUp({
         alt=""
         draggable={false}
       />
+      {sources.lower.map((src) => (
+        <img
+          key={src}
+          src={src}
+          style={{ ...layer, imageRendering: 'pixelated' }}
+          alt=""
+          draggable={false}
+        />
+      ))}
       {over && (
         <img
           src={over}
@@ -189,11 +218,20 @@ export function PatchWorkbench({
   onGame,
   model,
   onModel,
+  stack,
+  imageRow,
+  titleOf,
 }: {
   imageId: string
   patchId: string
   /** The patch's title, as the game names it. */
   title: string
+  /** What the patch lies on top of; null for a patch straight on the image. */
+  stack: PatchStack | null
+  /** The image's takes and patches, for the question on a patch others lie on. */
+  imageRow: Pick<ImageRow, 'chosenTake' | 'patches'>
+  /** The title of a patch of the image by id. */
+  titleOf: (id: string) => string
   view: ImagePatchesView
   work: PatchWorkView
   /** The patch's field of words. */
@@ -226,6 +264,8 @@ export function PatchWorkbench({
   const [showing, setShowing] = useState(true)
   const [count, setCount] = useState(2)
   const [asking, setAsking] = useState(false)
+  // The question on a patch that others lie on top of, before it changes its chosen take.
+  const [onTop, setOnTop] = useState<SetAsideAsk | null>(null)
   const focusOn = usePendingFocus<number | 'heading'>((want) =>
     want === 'heading' ? heading.current : thumbs.current.get(want),
   )
@@ -300,6 +340,14 @@ export function PatchWorkbench({
     base: game
       ? `/api/images/${image}/takes/${take.n}/game?v=${version}`
       : `/api/images/${image}/takes/${take.n}`,
+    lower:
+      stack?.kind === 'on'
+        ? stack.under.map((u) =>
+            game
+              ? `/api/images/${image}/patches/${encodeURIComponent(u.id)}/takes/${u.n}/game?v=${version}`
+              : `/api/images/${image}/patches/${encodeURIComponent(u.id)}/takes/${u.n}`,
+          )
+        : [],
     patch: (n, look) =>
       !game
         ? `/api/images/${image}/patches/${patch}/takes/${n}`
@@ -330,6 +378,7 @@ export function PatchWorkbench({
     making: busy || make.isPending,
     savingWords: waitingForWords,
   })
+  const stackWhy = stack && stack.kind !== 'on' ? stack.text : false
   const canChange = !lockUnread && !choose.isPending && !drop.isPending
   const changeWhy = lockUnread ? IMAGES_LOCK_WHY : WAIT_FOR_CHANGE
   const canChoose = canChange && lookError === null && shown !== null && shown.look !== 'bringing'
@@ -346,6 +395,14 @@ export function PatchWorkbench({
     for (const mutation of [make, choose, drop, unchoose]) mutation.reset()
   }
 
+  // Others lie on top of this patch: what changing its take sets aside, asked first.
+  const chosenN = takes.find((t) => t.chosen)?.n ?? null
+  const askOnTop = (ask: SetAsideAsk) => {
+    if (lockUnread || !onTopQuestion(imageRow, patchId, ask, chosenN)) return false
+    beforeChange()
+    setOnTop(ask)
+    return true
+  }
   const onChoose = (n: number) => {
     beforeChange()
     changing.current = true
@@ -409,12 +466,48 @@ export function PatchWorkbench({
     }
     // Held down, C and D would choose back and forth, or drop take after take.
     if (!shown || event.repeat || changing.current || !canChange) return
-    if (key === 'c' && !shown.chosen && canChoose) onChoose(shown.n)
-    if (key === 'd' && !shown.chosen) onDrop(shown.n)
+    if (key === 'c' && !shown.chosen && canChoose) {
+      if (!askOnTop({ kind: 'choose', n: shown.n })) onChoose(shown.n)
+    }
+    if (key === 'd' && !shown.chosen) {
+      if (!askOnTop({ kind: 'drop', n: shown.n })) onDrop(shown.n)
+    }
   }
 
+  /** What a take was painted on, by title: a take of the patch underneath, or null for the image's take. */
+  const onOf = (t: PatchTakeView) =>
+    t.under ? { title: titleOf(t.under.patch), n: t.under.n } : null
+  const blocked = stack && stack.kind !== 'on' ? stack : null
+  const onTopQ = onTop ? onTopQuestion(imageRow, patchId, onTop, chosenN) : null
   const row =
-    asking && shown ? (
+    onTop && onTopQ ? (
+      <Confirm
+        title={setAsideTitle(onTop, onTopQ.from)}
+        effects={[onTopQuestionLead(onTop, onTopQ)]}
+        note={onTop.kind === 'drop' ? undefined : onTopQuestionDim(onTopQ)}
+        back="Cancel"
+        onBack={() => setOnTop(null)}
+      >
+        <button
+          className="btn btn-primary"
+          type="button"
+          autoFocus
+          onClick={() => {
+            const ask = onTop
+            setOnTop(null)
+            if (ask.kind === 'choose') onChoose(ask.n)
+            else if (ask.kind === 'drop') onDrop(ask.n)
+            else unchoose.mutate(undefined)
+          }}
+        >
+          {onTop.kind === 'choose'
+            ? `Choose take ${onTop.n}`
+            : onTop.kind === 'drop'
+              ? `Drop take ${onTop.n}`
+              : 'Un-choose'}
+        </button>
+      </Confirm>
+    ) : asking && shown ? (
       <Confirm
         title={`Un-choose take ${shown.n}?`}
         effects={[]}
@@ -457,7 +550,11 @@ export function PatchWorkbench({
                 Looking at
               </span>
               <b>Take {shown.n}</b>
-              <span className="faint small">{editModel(shown.model).short}</span>
+              <span className="faint small">
+                {stack || shown.under
+                  ? onTopTake(editModel(shown.model).short, onOf(shown))
+                  : editModel(shown.model).short}
+              </span>
               {shown.chosen && <span className="chip chip-ok">Chosen</span>}
               {shown.chosen && work.oldLook && <span className="chip chip-warn">Old look</span>}
             </>
@@ -480,7 +577,7 @@ export function PatchWorkbench({
                 {...off(!canChange && changeWhy)}
                 onClick={() => {
                   unchoose.reset()
-                  setAsking(true)
+                  if (!askOnTop({ kind: 'unchoose' })) setAsking(true)
                 }}
               >
                 Un-choose
@@ -491,7 +588,9 @@ export function PatchWorkbench({
                   type="button"
                   className="btn btn-ghost"
                   {...off(!canChange && changeWhy)}
-                  onClick={() => onDrop(shown.n)}
+                  onClick={() => {
+                    if (!askOnTop({ kind: 'drop', n: shown.n })) onDrop(shown.n)
+                  }}
                 >
                   Drop <kbd>D</kbd>
                 </button>
@@ -499,7 +598,9 @@ export function PatchWorkbench({
                   type="button"
                   className="btn btn-primary"
                   {...off(!canChoose && chooseWhy)}
-                  onClick={() => onChoose(shown.n)}
+                  onClick={() => {
+                    if (!askOnTop({ kind: 'choose', n: shown.n })) onChoose(shown.n)
+                  }}
                 >
                   Choose <kbd>C</kbd>
                 </button>
@@ -571,6 +672,14 @@ export function PatchWorkbench({
           ? `${view.game.width} × ${view.game.height}`
           : modelCaption(take.width, take.height, take.cropped)}
       </span>
+      {stack?.kind === 'on' && (
+        <span className="faint small">
+          {onTopCaption(
+            title,
+            stack.under.map(({ title: t, n }) => ({ title: t, n })),
+          )}
+        </span>
+      )}
     </>
   )
 
@@ -668,7 +777,7 @@ export function PatchWorkbench({
             <button
               type="button"
               className="btn btn-primary"
-              {...off(makeWhy)}
+              {...off(stackWhy, makeWhy)}
               ref={makeButton}
               onClick={() => {
                 if (!marked) return
@@ -699,14 +808,14 @@ export function PatchWorkbench({
         </div>
       </div>
       <div className="patch-bench-left">
-        {row}
+        {blocked ? null : row}
         {unchooseProblem && <span className="adopt-error">{unchooseProblem}</span>}
         {shown && lookError !== null && (
           <span className="faint small">Fix the style to choose this take.</span>
         )}
-        {picture}
+        {blocked ? <div className="takes-empty patch-blocked">{blocked.empty}</div> : picture}
       </div>
-      <div className="patch-takes">
+      <div className="patch-takes" hidden={blocked !== null}>
         <div className="patch-takes-head">
           <h3>{takes.length === 0 ? 'Takes' : `Takes · ${takes.length}`}</h3>
           <label className="check">
@@ -762,6 +871,13 @@ export function PatchWorkbench({
                     <span className="faint small patch-thumb-model">
                       {editModel(t.model).short}
                     </span>
+                    {(stack || t.under) && (
+                      <span className="faint small patch-thumb-model">
+                        {t.under
+                          ? `on ${titleOf(t.under.patch)} take ${t.under.n}`
+                          : 'on the image’s take'}
+                      </span>
+                    )}
                   </button>
                 ) : (
                   <MakingThumb

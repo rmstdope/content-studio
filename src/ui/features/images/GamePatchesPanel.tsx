@@ -6,6 +6,12 @@ import { WAIT_FOR_CHANGE } from '../../imagesText'
 import { Problems } from '../../components/Problems'
 import {
   makeAgainOpenLine,
+  NO_TAKES_UNTIL_FIXED,
+  onTopEmpty,
+  onTopLine,
+  onTopNoneLine,
+  onTopStale,
+  onTopSuffix,
   OVERLAP_EXPLANATION,
   overlapHeading,
   overlapOpenLine,
@@ -23,7 +29,7 @@ import { progressOf } from '../../musicTakesText'
 import { rowFailed, rowMaking } from '../../remakeText'
 import { patchChosen, patchesHeading, patchLayoutOf, patchStateText } from '../../imageJobs'
 import { patchRowId, RemakeLine } from './RemakeLine'
-import { PatchWorkbench } from './PatchWorkbench'
+import { PatchWorkbench, type PatchStack } from './PatchWorkbench'
 import { WordsField, type SaveWordsNow } from './WordsField'
 
 /**
@@ -48,7 +54,12 @@ function PatchBody({
   onEdit,
   makeAgainLine,
   overlapLine,
+  stack,
+  imageRow,
 }: {
+  /** What the patch lies on top of, once the patches have loaded; null for a patch straight on the image. */
+  stack: PatchStack | null
+  imageRow: Pick<ImageRow, 'chosenTake' | 'patches'>
   imageId: string
   patch: PatchRow
   /** Where the patch was chosen and how to get it back, when it needs making again. */
@@ -134,6 +145,13 @@ function PatchBody({
     <>
       {overlapLine && <div className="line-warn">{overlapLine}</div>}
       {makeAgainLine && <div className="make-again-line">{makeAgainLine}</div>}
+      {patch.problem && <div className="adopt-error">{patch.problem.text}</div>}
+      {stack?.kind === 'none' && <div className="line-warn">{stack.text}</div>}
+      {stack?.kind === 'on' && (
+        <div className="muted small">
+          {onTopLine(stack.under.map(({ title, n }) => ({ title, n })))}
+        </div>
+      )}
       <WordsField
         label="What should change"
         words={patch.words}
@@ -168,6 +186,9 @@ function PatchBody({
           onGame={onGame}
           model={model}
           onModel={onModel}
+          stack={stack}
+          imageRow={imageRow}
+          titleOf={(id) => imageRow.patches.find((p) => p.id === id)?.title ?? id}
         />
       ) : (
         <>
@@ -177,6 +198,37 @@ function PatchBody({
       )}
     </div>
   )
+}
+
+/**
+ * What an open patch lies on top of, from the game's ask and the patches loaded: the patches
+ * underneath with their chosen takes, the red mistake, or that one underneath has no chosen take.
+ * Null for a patch straight on the image, and until the patches have loaded.
+ */
+function stackOfPatch(
+  row: ImageRow,
+  patch: PatchRow,
+  work: PatchWorkView | null,
+): PatchStack | null {
+  if (patch.over === undefined) return null
+  if (patch.problem) {
+    return { kind: 'problem', text: patch.problem.text, empty: NO_TAKES_UNTIL_FIXED }
+  }
+  if (!work?.under) return null
+  const titled = work.under.map((u) => ({
+    id: u.id,
+    title: row.patches.find((p) => p.id === u.id)?.title ?? u.id,
+    n: u.n,
+  }))
+  const lacking = [...titled].reverse().find((u) => u.n === null)
+  if (lacking) {
+    return {
+      kind: 'none',
+      text: onTopNoneLine(lacking.title),
+      empty: onTopEmpty(lacking.title, patch.title),
+    }
+  }
+  return { kind: 'on', under: titled.map((u) => ({ ...u, n: u.n! })) }
 }
 
 /**
@@ -239,6 +291,7 @@ export function GamePatchesPanel({ row }: { row: ImageRow }) {
             <>
               <span className="patch-pick-top">
                 <b>{p.title}</b>
+                {p.overTitle && <span className="faint small">{onTopSuffix(p.overTitle)}</span>}
                 {p.changed && (
                   <span className="game-patch-mark">
                     {p.gameChanged ? 'the game changed its words' : 'changed here'}
@@ -274,7 +327,10 @@ export function GamePatchesPanel({ row }: { row: ImageRow }) {
               {!lockUnread && (
                 <span className={`dot${patchChosen(row, p) ? ' ok' : ''}`} aria-hidden="true" />
               )}
-              {p.title}
+              <span className="pchip-unit">
+                {p.title}
+                {p.overTitle && <span className="faint small"> {onTopSuffix(p.overTitle)}</span>}
+              </span>
               {again.has(p.id) && <span className="chip chip-warn">Make again</span>}
             </>
           )}
@@ -348,8 +404,14 @@ export function GamePatchesPanel({ row }: { row: ImageRow }) {
           onSaved={() => setSaved(true)}
           onEdit={() => setSaved(false)}
           overlapLine={overlapLineOf(patch.id)}
+          stack={lockUnread ? null : stackOfPatch(row, patch, workOf(patch.id))}
+          imageRow={row}
           makeAgainLine={
-            again.has(patch.id) ? makeAgainOpenLine(patch.chosenOn, row.chosenTake) : null
+            again.has(patch.id)
+              ? patch.stale !== undefined
+                ? onTopStale(patch.stale, patch.overTitle ?? '')
+                : makeAgainOpenLine(patch.chosenOn, row.chosenTake)
+              : null
           }
         />
       </div>
