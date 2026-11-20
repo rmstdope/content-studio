@@ -531,6 +531,18 @@ export function createImagePatches({
     const figures = figuresOf(await readTakeTimes(image.projectFile))
     const patches: PatchWorkView[] = []
     const earlier: Record<string, PatchArea> = {}
+    // Before the boards: a take that lands in between then shows as made, never as neither.
+    const reads = new Map(
+      image.row.patches.map((patch) => {
+        const found = patchOf(image, patch)
+        return [
+          patch.id,
+          engine
+            .entriesOf(found.projectFile, found.engineId)
+            .filter((e) => e.base === image.chosen),
+        ] as const
+      }),
+    )
     const boards: Record<string, PatchBoard> = {}
     for (const patch of image.row.patches) {
       const board = await readBoard(patchOf(image, patch))
@@ -539,10 +551,7 @@ export function createImagePatches({
     }
     for (const patch of image.row.patches) {
       const found = patchOf(image, patch)
-      // Before the board: a take that lands in between then shows as made, never as neither.
-      const read = engine
-        .entriesOf(found.projectFile, found.engineId)
-        .filter((e) => e.base === image.chosen)
+      const read = reads.get(patch.id)!
       const board = boards[patch.id]!
       const split = engine.split(read, board.takes)
       // The take chosen on the newest other take of the image that is still on the board.
