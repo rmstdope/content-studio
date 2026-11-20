@@ -34,6 +34,7 @@ import {
   onTopNoneLine,
   onTopEmpty,
   onTopCaption,
+  chosenTakeLabel,
   onTopTake,
   onTopStale,
   onTopQuestionLead,
@@ -621,5 +622,24 @@ describe('patches on top of patches', () => {
       'cannot be made: Stick (the game asks for it on top of “rope”); Snare (the game asks for it on top of itself)',
     )
     expect(joinTitles(['A', 'B', 'C'])).toBe('A, B and C')
+  })
+})
+
+describe('chosenTakeLabel', () => {
+  it('is the plain label with nothing underneath', () => {
+    expect(chosenTakeLabel([])).toBe('The chosen take of the image')
+  })
+  it('names the chosen takes laid in underneath', () => {
+    expect(chosenTakeLabel([{ title: 'Vines cut', n: 1 }])).toBe(
+      'The chosen take of the image, with Vines cut’s chosen take laid in',
+    )
+    expect(
+      chosenTakeLabel([
+        { title: 'Vines cut', n: 1 },
+        { title: 'Moss', n: 2 },
+      ]),
+    ).toBe(
+      'The chosen take of the image, with Vines cut’s chosen take and Moss’s chosen take laid in',
+    )
   })
 })

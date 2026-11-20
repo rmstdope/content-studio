@@ -504,6 +504,14 @@ export function onTopCaption(title: string, under: readonly UnderTake[]): string
   return `${title}, painted on ${top!.title} (take ${top!.n})${lower} on the image’s take`
 }
 
+/** The label over the big picture when no take is shown: the image's chosen take, and the chosen takes of the patches underneath that are laid in. */
+export function chosenTakeLabel(under: readonly UnderTake[]): string {
+  const base = 'The chosen take of the image'
+  return under.length === 0
+    ? base
+    : `${base}, with ${joined(under.map((u) => `${u.title}’s chosen take`))} laid in`
+}
+
 /** What a take was painted on, after the model's name: a take of the patch underneath, or the image's take. */
 export function onTopTake(model: string, on: { title: string; n: number } | null): string {
   return `${model} · ${on ? `on ${on.title} take ${on.n}` : 'on the image’s take'}`

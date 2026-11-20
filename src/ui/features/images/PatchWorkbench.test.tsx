@@ -1762,6 +1762,17 @@ describe('a patch on top of another (as-evwv)', () => {
     expect(host.querySelectorAll('.patch-stage img').length).toBe(2)
   })
 
+  it('labels the picture with the chosen take laid in when the patch has no take yet', async () => {
+    const { host } = await render(
+      [vines, stick()],
+      () => onTop([{ id: 'vines', n: 1 }], []),
+      undefined,
+      { chosenTake: 3 },
+    )
+    await openStick(host)
+    expect(heading(host)).toBe('The chosen take of the image, with Vines cut’s chosen take laid in')
+  })
+
   it('says the patch underneath has no chosen take, turns Make off and shows the empty box instead of the picture', async () => {
     const { host } = await render(
       [vines, stick()],
