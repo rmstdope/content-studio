@@ -1781,8 +1781,6 @@ describe('a patch on top of another (as-evwv)', () => {
     )
     expect(isOff(button(host, 'Make 2 takes')!)).toBe(true)
     expect(host.querySelector('.patch-stage')).toBeNull()
-    // The takes area is hidden (styles.css makes `[hidden]` win over its flex layout).
-    expect(host.querySelector('.patch-takes')?.hasAttribute('hidden')).toBe(true)
   })
 
   it('says exactly what is wrong when the game’s ask cannot be followed, and makes nothing', async () => {

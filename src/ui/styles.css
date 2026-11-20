@@ -5629,7 +5629,7 @@ textarea[aria-disabled='true'][data-why] {
   padding: 4px 10px;
   border-radius: 999px;
 }
-.pchip-unit .faint {
+.patch-pick .faint {
   color: var(--faint);
   font-size: 12px;
 }

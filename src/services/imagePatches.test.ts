@@ -6,6 +6,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -1682,6 +1683,32 @@ describe('a patch the game asks for on top of another', () => {
       writeFileSync(list, JSON.stringify([inn]))
       expect(await sync()).toEqual({ ok: true })
       expect(listed(root)).toEqual(['door', 'sign'])
+    })
+
+    it('keeps what the manifest has when the studio’s cache is gone, and keeps valid stacked patches through a save', async () => {
+      const { root, file } = await stackedAndChosen()
+      const sync = async () => {
+        const opened = await openProject(file)
+        if (!opened.ok) throw new Error('project')
+        return syncImageEntries(file, opened.project, ['inn'])
+      }
+      expect(await sync()).toEqual({ ok: true })
+      expect(listed(root)).toEqual(['door', 'sign'])
+      rmSync(join(root, 'content-studio/cache/image-patches'), { recursive: true })
+      expect(await sync()).toEqual({ ok: true })
+      expect(listed(root)).toEqual(['door', 'sign'])
+    })
+
+    it('answers a clip that cannot be written in the sync’s own words', async () => {
+      const { root, file } = await stackedAndChosen()
+      const opened = await openProject(file)
+      if (!opened.ok) throw new Error('project')
+      const clip = join(root, 'web/images/inn.door.png')
+      rmSync(clip)
+      mkdirSync(clip)
+      const result = await syncImageEntries(file, opened.project, ['inn'])
+      expect(result.ok).toBe(false)
+      if (!result.ok) expect(result.reason).toBe('write')
     })
 
     it('drops the patch on top when the patch underneath is un-chosen', async () => {
