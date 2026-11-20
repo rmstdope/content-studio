@@ -1712,3 +1712,137 @@ describe('the three parts of an open patch', () => {
     expect(button(host, 'Patch off')).not.toBeUndefined()
   })
 })
+
+describe('a patch on top of another (as-evwv)', () => {
+  const vines = patchRow('vines', { title: 'Vines cut', chosenOn: [3] })
+  const stick = (over: Partial<PatchRow> = {}) =>
+    patchRow('stick', { title: 'Stick', over: 'vines', overTitle: 'Vines cut', ...over })
+  const onTop = (under: { id: string; n: number | null }[], takes = [takeOf(1)]) =>
+    view([
+      work('vines', { takes: [takeOf(1, { chosen: true }), takeOf(3)] }),
+      work('stick', { takes, under }),
+    ])
+  const stickTake = (over: object = {}) => takeOf(1, { under: { patch: 'vines', n: 1 }, ...over })
+  const openStick = async (host: Element) => act(async () => rows(host)[1]!.click())
+
+  it('follows the chip’s title with its dim “· on …”', async () => {
+    const { host } = await render(
+      [vines, stick()],
+      () => onTop([{ id: 'vines', n: 1 }]),
+      undefined,
+      {
+        chosenTake: 3,
+      },
+    )
+    expect(text(rows(host)[1])).toBe('Stick · on Vines cut')
+    expect(text(rows(host)[0])).toBe('Vines cut')
+  })
+
+  it('says what the open patch is painted on, lays it in the picture and names it in the captions', async () => {
+    const { host } = await render(
+      [vines, stick()],
+      () => onTop([{ id: 'vines', n: 1 }], [stickTake({ chosen: true })]),
+      undefined,
+      { chosenTake: 3 },
+    )
+    await openStick(host)
+    expect(text(host.querySelector('.game-patch-body'))).toContain(
+      'The game asks for this on top of Vines cut, so it is painted on Vines cut’s chosen take (take 1).',
+    )
+    const stage = host.querySelector('.patch-stage')!
+    expect([...stage.querySelectorAll('img')].map((i) => i.getAttribute('src'))[1]).toContain(
+      '/api/images/inn/patches/vines/takes/1/game',
+    )
+    expect(text(host.querySelector('.patch-bench-left'))).toContain(
+      'Stick, painted on Vines cut (take 1) on the image’s take',
+    )
+    expect(heading(host)).toContain('on Vines cut take 1')
+    // Patch off takes away only the open patch: the patch underneath stays laid in.
+    await key(host.querySelector('.patch-bench')!, 's')
+    expect(host.querySelectorAll('.patch-stage img').length).toBe(2)
+  })
+
+  it('says the patch underneath has no chosen take, turns Make off and shows the empty box instead of the picture', async () => {
+    const { host } = await render(
+      [vines, stick()],
+      () => onTop([{ id: 'vines', n: null }], []),
+      undefined,
+      {
+        chosenTake: 3,
+      },
+    )
+    await openStick(host)
+    const body = text(host.querySelector('.game-patch-body'))
+    expect(body).toContain(
+      'The game asks for this on top of Vines cut, which has no chosen take yet. Choose a take of Vines cut first.',
+    )
+    expect(text(host.querySelector('.patch-blocked'))).toBe(
+      'Nothing to paint on yet: Vines cut has no chosen take. Open Vines cut and choose one; Stick is then painted over it.',
+    )
+    expect(isOff(button(host, 'Make 2 takes')!)).toBe(true)
+    expect(host.querySelector('.patch-stage')).toBeNull()
+  })
+
+  it('says exactly what is wrong when the game’s ask cannot be followed, and makes nothing', async () => {
+    const problem = {
+      kind: 'unknown' as const,
+      text: 'The game asks for this on top of “rope”, which is not one of this image’s patches. Fix the game’s list, then Refresh from the game.',
+      rowText: 'the game asks for it on top of “rope”',
+    }
+    const { host } = await render(
+      [vines, stick({ over: 'rope', overTitle: 'rope', problem })],
+      () => view([work('vines'), work('stick')]),
+      undefined,
+      { chosenTake: 3 },
+    )
+    await openStick(host)
+    expect(text(host.querySelector('.game-patch-body'))).toContain(problem.text)
+    expect(text(rows(host)[1])).toBe('Stick · on rope')
+    expect(text(host.querySelector('.patch-blocked'))).toBe(
+      'No takes can be made until the game’s list is fixed.',
+    )
+    expect(isOff(button(host, 'Make 2 takes')!)).toBe(true)
+  })
+
+  it('marks a chosen take painted on something else as one to make again, and says on what', async () => {
+    const { host } = await render(
+      [vines, stick({ stale: { title: 'Vines cut', n: 1 } })],
+      () => onTop([{ id: 'vines', n: 3 }], [stickTake()]),
+      undefined,
+      { chosenTake: 3 },
+    )
+    expect(text(rows(host)[1])).toContain('Make again')
+    await openStick(host)
+    expect(text(host.querySelector('.game-patch-body'))).toContain(
+      'Painted on take 1 of Vines cut, so the game does not show it now. Make a new one here.',
+    )
+    // Its old take stays in the strip, captioned with what it was painted on.
+    expect(text(thumbs(host)[0])).toContain('on Vines cut take 1')
+  })
+
+  it('asks before the patch underneath changes its take, naming what lies on it', async () => {
+    const lower = patchRow('vines', {
+      title: 'Vines cut',
+      chosenOn: [3],
+      carries: { 1: ['Stick'] },
+    })
+    const upper = stick({ chosenOn: [3] })
+    const { host, sent } = await render(
+      [lower, upper],
+      () => onTop([{ id: 'vines', n: 1 }], [stickTake({ chosen: true })]),
+      undefined,
+      { chosenTake: 3 },
+    )
+    await act(async () => thumbs(host)[1]!.click())
+    await act(async () => button(host, 'Choose')!.click())
+    const ask = text(host.querySelector('.patch-bench-left'))
+    expect(ask).toContain('Choose take 3?')
+    expect(ask).toContain(
+      '1 chosen patch was painted on take 1 of Vines cut: Stick. The game will stop showing it until you make a new one.',
+    )
+    expect(ask).toContain('Choosing take 1 again brings it back.')
+    expect(sent).toEqual([])
+    await act(async () => button(host, 'Choose take 3')!.click())
+    expect(sent.map((s) => s.path)).toEqual(['/api/images/inn/patches/vines/choose'])
+  })
+})

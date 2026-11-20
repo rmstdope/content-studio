@@ -653,6 +653,9 @@ export function PatchWorkbench({
               alt="The chosen take of the image"
               draggable={false}
             />
+            {sources.lower.map((src) => (
+              <img key={src} className="patch-over" src={src} alt="" draggable={false} />
+            ))}
             {overlaid && sources.patch(overlaid.n, overlaid.look) && (
               <img
                 className="patch-over"
