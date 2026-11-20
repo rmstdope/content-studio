@@ -11,6 +11,7 @@ import { ImageManifestSchema } from '../core/imageTakes'
 import type { Problem, Project } from '../core/project'
 import { readResource, writeAtomic, writeFailure } from './files'
 import { readImages } from './imageLists'
+import { patchesInGame, type ManifestPatch } from './imagePatchGame'
 import { choices, sorted } from './musicClips'
 
 /** What passing the placed areas to the game answered: done, or why the manifest could not take them. */
@@ -70,7 +71,10 @@ async function syncNow(
       continue
     }
     const next = withZoom(
-      withEffects(withAreas(entry, areaFractions(row.areas, row)), effectsForGame(row.effects)),
+      withEffects(
+        withAreas(await withPatches(root, config.clips, entry, row), areaFractions(row.areas, row)),
+        effectsForGame(row.effects),
+      ),
       zoomForGame(row.zoom),
     )
     if (JSON.stringify(next) !== JSON.stringify(entry)) {
@@ -85,4 +89,28 @@ async function syncNow(
     return { ok: false, reason: 'write', message: writeFailure(error) }
   }
   return { ok: true }
+}
+
+/**
+ * The entry with the patches the game gets with the image's chosen take as the game's list asks
+ * for them now (as-evwv): a patch whose chosen take no longer lies on what is underneath leaves,
+ * and comes back when the ask goes. Patches the game stopped listing stay, as on choosing a take;
+ * an image with no chosen take, or no patches listed, keeps its entry as it is.
+ */
+async function withPatches<E extends Record<string, unknown>>(
+  root: string,
+  clips: string,
+  entry: E,
+  row: Parameters<typeof patchesInGame>[0]['row'] & { chosenTake: number | null },
+): Promise<E> {
+  if (row.chosenTake === null || row.patches.length === 0) return entry
+  const patches = await patchesInGame({ root, clips, row }, row.chosenTake)
+  const declared = new Set(row.patches.map((patch) => patch.id))
+  for (const [id, listed] of Object.entries(
+    (entry.patches ?? {}) as Record<string, ManifestPatch>,
+  )) {
+    if (!declared.has(id)) patches[id] = listed
+  }
+  const { patches: _old, ...others } = entry
+  return (Object.keys(patches).length ? { ...others, patches } : others) as E
 }
