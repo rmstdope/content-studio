@@ -141,6 +141,7 @@ describe('the MCP endpoint', () => {
     expect(Object.keys(actions).sort()).toEqual([
       'Images',
       'Music and Stingers',
+      'Narration',
       'Scenes',
       'Setup',
       'Sound effects',

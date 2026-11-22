@@ -105,7 +105,7 @@ export const READABLE: readonly Readable[] = [
  */
 export const NOT_READABLE: readonly { path: string; reason: string }[] = []
 
-const SEGMENT = /^[^/?#%\\]+$/
+const SEGMENT = /^[^/?#%\\\s\p{Cc}]+$/u
 
 /**
  * Whether a path (with an optional query string) is the route a template describes, `:name`
