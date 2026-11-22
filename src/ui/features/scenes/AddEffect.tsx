@@ -124,6 +124,9 @@ export function AddEffect({
           }
           role="dialog"
           aria-label="Add a sound effect"
+          // A press on a spot that is not a control focuses the menu rather than the page, so its
+          // keys (Esc above all) still reach the handler above.
+          tabIndex={-1}
         >
           <input
             type="text"
