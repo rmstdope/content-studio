@@ -109,7 +109,10 @@ export function CopyImageDialog({
         className="modal-back"
         onKeyDown={onKeyDown}
         onMouseDown={(event) => {
-          if (event.target === event.currentTarget) onClose()
+          if (event.target !== event.currentTarget) return
+          // Without this the browser moves focus to the page after `onClose` has put it back.
+          event.preventDefault()
+          onClose()
         }}
       >
         <div

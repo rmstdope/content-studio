@@ -163,6 +163,17 @@ describe('the copy window', () => {
     expect(heard).toEqual([])
   })
 
+  it('keeps the browser from moving focus to the page when the backdrop closes it', async () => {
+    // A mousedown's default action moves focus to what was pressed, the body for the backdrop,
+    // after the caller has put focus back on the button that opened the window.
+    await open()
+    const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+    await act(async () => {
+      q('.modal-back')!.dispatchEvent(down)
+    })
+    expect(down.defaultPrevented).toBe(true)
+  })
+
   it('has one tab stop in the grid: the pick, else the first image shown', async () => {
     await open()
     const stops = () => all('[role="option"]').map((c) => c.getAttribute('tabindex'))
