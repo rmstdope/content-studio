@@ -1961,7 +1961,7 @@ describe('copying another image', () => {
     })
     await act(async () => {})
     expect(s.text()).toContain(
-      "Lantern's picture could not be copied: Lantern’s picture is gone from this computer. Nothing was added; try again.",
+      'Lantern’s picture is gone from this computer. Nothing was added; try again.',
     )
     expect(s.container.querySelectorAll('[data-strip] .image-thumb')).toHaveLength(1)
     expect(s.button('Copy another image…').getAttribute('aria-disabled')).toBeNull()

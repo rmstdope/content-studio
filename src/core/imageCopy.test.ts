@@ -4,6 +4,7 @@ import {
   NO_COPY_MATCH,
   copiedLine,
   copyFailure,
+  copyRefusal,
   copyFooter,
   copySources,
   copyWindowTitle,
@@ -81,6 +82,9 @@ describe('the words', () => {
     )
     expect(copyFailure('Lantern', 'the picture is gone')).toBe(
       "Lantern's picture could not be copied: the picture is gone. Nothing was added; try again.",
+    )
+    expect(copyRefusal('Lantern’s picture is gone from this computer.')).toBe(
+      'Lantern’s picture is gone from this computer. Nothing was added; try again.',
     )
     expect(NO_COPY_MATCH('cat')).toBe('No image matches “cat”.')
   })

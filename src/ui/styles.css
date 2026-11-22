@@ -6959,11 +6959,14 @@ textarea[aria-disabled='true'][data-why] {
 /* Copy another image (as-x25u): the entry under Make takes, the window of pictures, and the lines under the band. */
 .takes-copy {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
   padding-top: 8px;
   border-top: 1px dashed var(--line-strong);
+}
+.takes-copy .faint:last-child {
+  min-width: 0;
 }
 .copy-note {
   display: block;
@@ -7007,6 +7010,7 @@ textarea[aria-disabled='true'][data-why] {
 }
 .copy-cell.sel {
   outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 .copy-cell img {
   width: 100%;

@@ -161,4 +161,13 @@ describe('the copy window in a narrow window', () => {
     expect(rule('.modal')).toContain('max-height: 100%')
     expect(rule('.copy-body')).toContain('flex: 1 1 auto')
   })
+
+  it('draws the picked cell outline inside the cell, so the scrolling body never clips it', () => {
+    expect(css).toMatch(/\.copy-cell\.sel \{[^}]*outline-offset: -2px/)
+  })
+
+  it('keeps "No model, nothing spent" beside the button, wrapping inside its own space', () => {
+    expect(rule('.takes-copy')).toContain('flex-wrap: nowrap')
+    expect(rule('.takes-copy .faint:last-child')).toMatch(/min-width:\s*0/)
+  })
 })

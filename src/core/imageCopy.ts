@@ -92,6 +92,9 @@ export const copyingLine = (source: string) => `Copying ${source}'s picture…`
 export const copyFailure = (source: string, reason: string) =>
   `${source}'s picture could not be copied: ${reason}. Nothing was added; try again.`
 
+/** The red line when the studio gave its own sentence, which already names the picture. */
+export const copyRefusal = (sentence: string) => `${sentence} Nothing was added; try again.`
+
 /** The take's caption: where it was copied from. */
 export const copiedFromCaption = (source: string, take: number) =>
   `Copied from ${source} · Take ${take}`
