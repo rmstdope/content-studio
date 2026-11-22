@@ -600,6 +600,32 @@ export function useChooseImageTake(imageId: string) {
   )
 }
 
+/** Copies another image's chosen picture into this image as its next take (the answer says which). */
+export function useCopyImage(imageId: string) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: async (from: string) => {
+      const response = await fetch(`/api/images/${encodeURIComponent(imageId)}/copy`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ from }),
+      })
+      if (!response.ok && response.status !== 409) {
+        throw new Error(`copying the picture answered ${response.status}`)
+      }
+      return (await response.json()) as
+        | { ok: true; n: number }
+        | { ok: false; message: string }
+        | { ok: false; file: string; problems: { message: string }[] }
+    },
+    onSettled: () =>
+      Promise.all([
+        client.invalidateQueries({ queryKey: ['image-takes', imageId] }),
+        client.invalidateQueries({ queryKey: ['image-making'] }),
+      ]),
+  })
+}
+
 /** Takes the image's chosen take back (its picture is deleted from the game). */
 export function useUnchooseImageTake(imageId: string) {
   return useTakeAction<void, NonNullable<ImageTakesAnswer>>(

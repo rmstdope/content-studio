@@ -129,6 +129,17 @@ export interface ImageTakes {
     id: string,
     made: AddedTake,
   ): Promise<{ ok: true; n: number } | ProjectFailure | null>
+  /**
+   * Adds the picture of another image's chosen take as this image's next take, not chosen: no
+   * model runs, and the source, its patches and areas are untouched. The copy is then brought to
+   * this image's look. Null for an image not listed; refused for the image itself, a source with
+   * no chosen take, or a picture that is gone.
+   */
+  copyFrom(
+    projectFile: string,
+    id: string,
+    sourceId: string,
+  ): Promise<{ ok: true; n: number } | { ok: false; message: string } | ProjectFailure | null>
   /** Makes a take the image the game uses: its picture, the manifest entry, then the lock. */
   choose(projectFile: string, id: string, n: number): Promise<ImageTakesAnswer>
   /** Takes the chosen take back: the manifest entry, the picture, then the lock entry; the take stays. */
@@ -783,7 +794,8 @@ export function createImageTakes({
           width: take.width,
           height: take.height,
           model: imageByMflux(take.model),
-          earlier: takeIsEarlier(take.madeFrom, found.row.words),
+          // A copy was not made from this image's words, so it never goes out of date.
+          earlier: !take.copiedFrom && takeIsEarlier(take.madeFrom, found.row.words),
           chosen: chosen === take.n,
           isNew: !take.seen,
           look: bringing.has(`${found.key}\0${take.n}`)
@@ -795,6 +807,9 @@ export function createImageTakes({
                 : 'old',
           cropped: isCropped(take, found.row),
           ...(take.fineTunedFrom ? { fineTunedFrom: take.fineTunedFrom } : {}),
+          ...(take.copiedFrom
+            ? { copiedFrom: { title: take.copiedFrom.title, take: take.copiedFrom.take } }
+            : {}),
         })
       }
       const secondsOf = await secondsFor(projectFile)
@@ -934,6 +949,49 @@ export function createImageTakes({
       })
     },
 
+    async copyFrom(projectFile, id, sourceId) {
+      const found = await resolve(projectFile, id)
+      if (!found || !('row' in found)) return found
+      if (sourceId === id) return { ok: false, message: 'An image cannot be copied into itself.' }
+      const source = await resolve(projectFile, sourceId)
+      if (!source) return { ok: false, message: `${sourceId} is not an image of the game.` }
+      if (!('row' in source)) return source
+      const from = source.row.chosenTake
+      const title = source.row.title
+      if (from === null) return { ok: false, message: `${title} has no picture in the game yet.` }
+      const picture = await Bun.file(resolveInRoot(source.root, pictureOf(sourceId, from)))
+        .bytes()
+        .catch(() => null)
+      if (!picture) return { ok: false, message: `${title}’s picture is gone from this computer.` }
+      const sourceBoard = await readBoard(source)
+      if ('ok' in sourceBoard) return sourceBoard
+      const origin = sourceBoard.takes.find((t) => t.n === from)
+      const mark = (n: number) => `${found.key}\0${n}`
+      const added = await changeBoard(found, async (board) => {
+        const n = board.next
+        const size = pngSize(picture.subarray(0, 33))
+        await writeOrRefuse(found.root, pictureOf(id, n), picture)
+        board.next = n + 1
+        bringing.add(mark(n))
+        board.takes = [
+          ...board.takes,
+          {
+            n,
+            seed: origin?.seed ?? 0,
+            model: origin?.model ?? '',
+            width: size.width,
+            height: size.height,
+            madeFrom: found.row.madeFrom,
+            seen: false,
+            copiedFrom: { image: sourceId, title, take: from },
+          },
+        ]
+        return { ok: true as const, n }
+      })
+      if ('n' in added) await bringTake(found, added.n)
+      return added
+    },
+
     async choose(projectFile, id, n) {
       const found = await resolve(projectFile, id)
       if (!found || !('row' in found)) return found
@@ -969,7 +1027,8 @@ export function createImageTakes({
           previous?.take === n && previous.look === key
             ? null
             : {
-                ...take.madeFrom,
+                // A copy was not made from this image's words: it is as current as the image now.
+                ...(take.copiedFrom ? found.row.madeFrom : take.madeFrom),
                 take: take.n,
                 seed: take.seed,
                 model: take.model,

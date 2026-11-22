@@ -16,6 +16,19 @@ import {
   type SetAsideQuestion,
 } from '../../../core/imagePatches'
 import { fineTuneCaption } from '../../../core/imageFineTunes'
+import {
+  COPYING_WHY,
+  COPY_LOCK_WHY,
+  COPY_STYLE_WHY,
+  NO_OTHER_PICTURE,
+  copiedFromCaption,
+  copiedFromThumb,
+  copiedLine,
+  copyFailure,
+  copyingLine,
+  type CopyGroup,
+  type CopySource,
+} from '../../../core/imageCopy'
 import { forTakesText } from '../../../core/takeTimes'
 import type { ImageRow } from '../../../core/images'
 import {
@@ -29,6 +42,7 @@ import {
 } from '../../../core/imageModels'
 import {
   useChooseImageTake,
+  useCopyImage,
   useDropImageTake,
   useFigures,
   useImageTakes,
@@ -61,6 +75,7 @@ import {
 import { failureLine, progressOf } from '../../musicTakesText'
 import { imageTimeLeftText } from '../../imageTakesText'
 import { routeHref } from '../../route'
+import { CopyImageDialog } from './CopyImageDialog'
 import { TakePicture, gameSource, modelSource, type Showing } from './TakePicture'
 import { scrollWithin } from '../../scrollWithin'
 
@@ -157,8 +172,11 @@ export function TakesSection({
   prompt,
   saveWords,
   active = true,
+  copyGroups = [],
 }: {
   row: ImageRow
+  /** The images that can be copied from, by act (`copySources`); none when no other has a picture. */
+  copyGroups?: CopyGroup[]
   prompt?: ReactNode
   /** Sees the prompt's words saved: whether they were, or null with nothing to save. */
   saveWords?: () => Promise<boolean> | null
@@ -171,6 +189,7 @@ export function TakesSection({
   const make = useMakeImageTakes(id)
   const stop = useStopImageTakes(id)
   const choose = useChooseImageTake(id)
+  const copy = useCopyImage(id)
   const drop = useDropImageTake(id)
   const unchoose = useUnchooseImageTake(id)
   const seen = useMarkImageTakeSeen(id)
@@ -189,6 +208,15 @@ export function TakesSection({
     take: 0,
   })
   const [saved, setSaved] = useState(0)
+  // The copy window, and what the last copy says under the band (this page's, never saved).
+  const [copyOpen, setCopyOpen] = useState(false)
+  const [copyNote, setCopyNote] = useState<
+    | { kind: 'copying'; title: string }
+    | { kind: 'done'; title: string; n: number }
+    | { kind: 'failed'; message: string }
+    | null
+  >(null)
+  const copyButton = useRef<HTMLButtonElement>(null)
   const focusOn = usePendingFocus<'choose' | 'right' | number>((want) =>
     want === 'choose'
       ? chooseButton.current
@@ -247,6 +275,7 @@ export function TakesSection({
       <>
         {null}
         {[]}
+        {null}
         <div className="image-workbench">
           <div className="image-band" data-area="band">
             {prompt}
@@ -297,7 +326,48 @@ export function TakesSection({
   const beforeChange = () => {
     void client.cancelQueries({ queryKey: ['image-takes', id] })
     for (const mutation of [make, choose, drop, unchoose]) mutation.reset()
+    setCopyNote((note) => (note?.kind === 'copying' ? note : null))
   }
+
+  /** Copies another image's picture: the window closes, the copy is the take on the right, focus goes to it. */
+  const onCopy = (source: CopySource) => {
+    setCopyOpen(false)
+    beforeChange()
+    setCopyNote({ kind: 'copying', title: source.title })
+    copy.mutate(source.id, {
+      onSuccess: (answer) => {
+        if (answer.ok) {
+          setCopyNote({ kind: 'done', title: source.title, n: answer.n })
+          setRight(answer.n)
+          focusOn(answer.n, true)
+        } else {
+          setCopyNote({
+            kind: 'failed',
+            message: copyFailure(
+              source.title,
+              'message' in answer
+                ? answer.message.replace(/\.$/, '')
+                : 'the images record cannot be read',
+            ),
+          })
+          copyButton.current?.focus({ preventScroll: true })
+        }
+      },
+      onError: (error) => {
+        setCopyNote({ kind: 'failed', message: copyFailure(source.title, error.message) })
+        copyButton.current?.focus({ preventScroll: true })
+      },
+    })
+  }
+  const copyWhy = lockUnread
+    ? COPY_LOCK_WHY
+    : lookError !== null
+      ? COPY_STYLE_WHY
+      : copy.isPending
+        ? COPYING_WHY
+        : copyGroups.length === 0
+          ? NO_OTHER_PICTURE
+          : null
   const canChoose = (t: ImageTakeView) =>
     !lockUnread &&
     !choose.isPending &&
@@ -394,7 +464,7 @@ export function TakesSection({
   }
   keys.current = (event: KeyboardEvent) => {
     const target = event.target
-    if (event.defaultPrevented || open) return
+    if (event.defaultPrevented || open || copyOpen) return
     if (event.metaKey || event.ctrlKey || event.altKey) return
     if (target instanceof HTMLElement && target.isContentEditable) return
     // Keys typed into a field or menu are its own; a box or button leaves them to the page, but
@@ -465,6 +535,23 @@ export function TakesSection({
       </button>
     </>
   )
+  const copyControls = (
+    <div className="takes-copy">
+      <span className="faint small">or</span>
+      <button
+        type="button"
+        className="btn"
+        ref={copyButton}
+        {...off(copyWhy)}
+        onClick={() => setCopyOpen(true)}
+      >
+        {copy.isPending ? 'Copying…' : 'Copy another image…'}
+      </button>
+      <span className="faint small">
+        {copyGroups.length === 0 ? NO_OTHER_PICTURE : 'No model, nothing spent'}
+      </span>
+    </div>
+  )
   const problem =
     refusal(make.data) ?? refusal(choose.data) ?? refusal(drop.data) ?? refusal(unchoose.data)
   const error = make.error ?? choose.error ?? drop.error ?? unchoose.error ?? stop.error
@@ -508,6 +595,17 @@ export function TakesSection({
           </button>
         </div>
       ))}
+      {copyOpen && (
+        <CopyImageDialog
+          title={row.title}
+          groups={copyGroups}
+          onCopy={onCopy}
+          onClose={() => {
+            setCopyOpen(false)
+            copyButton.current?.focus()
+          }}
+        />
+      )}
       <div className="image-workbench">
         <div className="image-band" data-area="band">
           {prompt}
@@ -538,6 +636,7 @@ export function TakesSection({
             <span className="faint small">
               1 to {MAX_IMAGE_TAKES_AT_ONCE} at a time · {forTakesText(figures[model], count)}
             </span>
+            {copyControls}
             {!none && (
               <div className="image-tools-foot">
                 <label className="check">
@@ -555,6 +654,21 @@ export function TakesSection({
             )}
           </section>
         </div>
+        {copyNote?.kind === 'copying' && (
+          <span className="faint small copy-note" role="status">
+            {copyingLine(copyNote.title)}
+          </span>
+        )}
+        {copyNote?.kind === 'done' && (
+          <span className="saved copy-note" role="status">
+            {copiedLine(copyNote.title, copyNote.n)}
+          </span>
+        )}
+        {copyNote?.kind === 'failed' && (
+          <span className="adopt-error copy-note" role="alert">
+            {copyNote.message}
+          </span>
+        )}
         <section
           className="panel image-stage-panel"
           data-area="stage"
@@ -655,6 +769,7 @@ export function TakesSection({
                     <ModelName id={rightTake.model} />
                     {rightTake.earlier && <span className="faint small">earlier words</span>}
                     <FineTunedFrom take={rightTake} />
+                    <CopiedFrom take={rightTake} />
                     <div className="image-take-actions">
                       <button
                         type="button"
@@ -772,6 +887,9 @@ export function TakesSection({
                         : `Take ${t.fineTunedFrom.take}`}
                     </span>
                   )}
+                  {t.copiedFrom && (
+                    <span className="faint">{copiedFromThumb(t.copiedFrom.title)}</span>
+                  )}
                   {t.isNew && <span className="chip chip-new">new</span>}
                 </span>
               )
@@ -817,6 +935,16 @@ function FineTunedFrom({ take }: { take: ImageTakeView }) {
   return (
     <span className="faint small fine-tuned-from">
       {fineTuneCaption(take.fineTunedFrom.take, take.fineTunedFrom.words)}
+    </span>
+  )
+}
+
+/** Where a copied take came from; nothing for a take made by a model. */
+function CopiedFrom({ take }: { take: ImageTakeView }) {
+  if (!take.copiedFrom) return null
+  return (
+    <span className="faint small fine-tuned-from">
+      {copiedFromCaption(take.copiedFrom.title, take.copiedFrom.take)}
     </span>
   )
 }
@@ -882,6 +1010,7 @@ function LeftSide({
           {row.looksOld && <span className="chip chip-warn">Old look</span>}
           <ModelName id={chosen.model} />
           <FineTunedFrom take={chosen} />
+          <CopiedFrom take={chosen} />
           <div className="image-take-actions">
             <button
               type="button"

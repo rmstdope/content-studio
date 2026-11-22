@@ -6955,3 +6955,78 @@ textarea[aria-disabled='true'][data-why] {
     flex-basis: 100%;
   }
 }
+
+/* Copy another image (as-x25u): the entry under Make takes, the window of pictures, and the lines under the band. */
+.takes-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line-strong);
+}
+.copy-note {
+  display: block;
+}
+.copy-modal {
+  max-width: 880px;
+}
+.copy-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.copy-body {
+  flex: 1 1 auto;
+  min-height: 120px;
+}
+.copy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+.copy-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.copy-cell:hover,
+.copy-cell.sel {
+  background: var(--raised);
+}
+.copy-cell.sel {
+  outline: 2px solid var(--accent);
+}
+.copy-cell img {
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+.copy-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.copy-cropped {
+  color: var(--warn);
+}
+.copy-foot {
+  align-items: center;
+  margin-top: 8px;
+}
+.modal-back:has(.copy-modal) {
+  padding: 16px;
+}

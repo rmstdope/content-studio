@@ -30,6 +30,31 @@ describe('takeSize', () => {
   })
 })
 
+describe('a copied take on the board', () => {
+  it('keeps where it was copied from, and a take that was not copied has none', () => {
+    const take = {
+      n: 1,
+      seed: 7,
+      model: 'flux2-klein-4b',
+      width: 1024,
+      height: 640,
+      madeFrom: { words: 'w', style: 's', width: 320, height: 200 },
+    }
+    const copied = { image: 'lantern', title: 'Lantern', take: 3 }
+    const board = ImageBoardSchema.parse({
+      takes: [
+        { ...take, copiedFrom: copied },
+        { ...take, n: 2 },
+      ],
+    })
+    expect(board.takes[0]!.copiedFrom).toEqual(copied)
+    expect(board.takes[1]!.copiedFrom).toBeUndefined()
+    expect(
+      ImageBoardSchema.safeParse({ takes: [{ ...take, copiedFrom: { image: 'x' } }] }).success,
+    ).toBe(false)
+  })
+})
+
 describe('the board', () => {
   it('reads a board of takes and refuses a take without a number', () => {
     const take = {
