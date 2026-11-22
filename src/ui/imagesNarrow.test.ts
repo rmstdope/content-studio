@@ -166,7 +166,12 @@ describe('the copy window in a narrow window', () => {
     expect(css).toMatch(/\.copy-cell\.sel \{[^}]*outline-offset: -2px/)
   })
 
-  it('keeps "No model, nothing spent" beside the button', () => {
-    expect(rule('.takes-copy')).toContain('flex-wrap: nowrap')
+  it('keeps "No model, nothing spent" on one line, beside the button when it fits', () => {
+    expect(rule('.takes-copy')).toContain('flex-wrap: wrap')
+    expect(rule('.takes-copy-hint')).toContain('white-space: nowrap')
+  })
+
+  it('gives a long reason the whole row under the button, never a column narrower than it', () => {
+    expect(rule('.takes-copy-why')).toMatch(/flex:\s*1 1 100%/)
   })
 })

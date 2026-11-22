@@ -546,9 +546,11 @@ export function TakesSection({
       >
         {copy.isPending ? 'Copying…' : 'Copy another image…'}
       </button>
-      <span className="faint small">
-        {copyWhy !== null && copyWhy !== COPYING_WHY ? copyWhy : 'No model, nothing spent'}
-      </span>
+      {copyWhy !== null && copyWhy !== COPYING_WHY ? (
+        <span className="faint small takes-copy-why">{copyWhy}</span>
+      ) : (
+        <span className="faint small takes-copy-hint">No model, nothing spent</span>
+      )}
     </div>
   )
   const problem =

@@ -1892,6 +1892,13 @@ describe('copying another image', () => {
     expect(s.button('Copy another image…').getAttribute('aria-disabled')).toBeNull()
   })
 
+  it('marks the usual line as a hint and a reason as a reason, for the layout', async () => {
+    const s = await show(view(), {}, undefined, { ok: true }, groups)
+    const box = s.container.querySelector('.takes-copy')!
+    expect(box.querySelector('.takes-copy-hint')!.textContent).toBe('No model, nothing spent')
+    expect(box.querySelector('.takes-copy-why')).toBeNull()
+  })
+
   it('is off with its line when no other image has a picture', async () => {
     const s = await show(view())
     expect(s.container.querySelector('.takes-copy')!.textContent).toContain(
