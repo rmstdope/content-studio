@@ -181,6 +181,21 @@ describe('the copy window', () => {
     expect(heard).toEqual([])
   })
 
+  it('closes on Esc after a press on a spot inside the window that is not a control', async () => {
+    // A browser moves focus on a press to the nearest focusable ancestor of what was pressed,
+    // and to the page's body when there is none; happy-dom does not, so this does it by hand.
+    const { closed, heard } = await open()
+    for (const spot of [q('#copy-image-title')!, q('.copy-head')!, q('.copy-foot')!]) {
+      const focusable = spot.closest<HTMLElement>('[tabindex], button, input')
+      if (focusable) focusable.focus()
+      else (document.activeElement as HTMLElement | null)?.blur()
+      await press(document.activeElement ?? document.body, 'Escape')
+    }
+    expect(closed()).toBe(3)
+    await press(document.activeElement ?? document.body, 'c')
+    expect(heard).toEqual([])
+  })
+
   it('keeps the browser from moving focus to the page when the backdrop closes it', async () => {
     // A mousedown's default action moves focus to what was pressed, the body for the backdrop,
     // after the caller has put focus back on the button that opened the window.

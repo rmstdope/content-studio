@@ -121,6 +121,9 @@ export function CopyImageDialog({
           role="dialog"
           aria-modal="true"
           aria-labelledby="copy-image-title"
+          // A press on a spot that is not a control focuses the window rather than the page, so
+          // its keys (Esc above all) still reach `onKeyDown`.
+          tabIndex={-1}
           ref={root}
         >
           <div className="copy-head">
