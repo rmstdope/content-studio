@@ -1910,6 +1910,13 @@ describe('copying another image', () => {
     expect(line).not.toContain('No other image has a picture yet.')
   })
 
+  it('says beside the button that the style needs fixing, not that nothing is spent', async () => {
+    const s = await show(view({ lookError: 'bad style' }), {}, undefined, { ok: true }, groups)
+    const line = s.container.querySelector('.takes-copy')!.textContent
+    expect(line).toContain('The style needs fixing first. Fix it to copy a picture.')
+    expect(line).not.toContain('No model, nothing spent')
+  })
+
   it('is off while the lock cannot be read or the style needs fixing', async () => {
     for (const over of [{ lockUnread: true }, { lookError: 'bad style' }]) {
       const s = await show(view(over), {}, undefined, { ok: true }, groups)
