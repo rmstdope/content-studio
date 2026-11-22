@@ -549,9 +549,11 @@ export function TakesSection({
       <span className="faint small">
         {lockUnread
           ? COPY_LOCK_WHY
-          : copyGroups.length === 0
-            ? NO_OTHER_PICTURE
-            : 'No model, nothing spent'}
+          : lookError !== null
+            ? COPY_STYLE_WHY
+            : copyGroups.length === 0
+              ? NO_OTHER_PICTURE
+              : 'No model, nothing spent'}
       </span>
     </div>
   )
