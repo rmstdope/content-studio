@@ -100,6 +100,9 @@ describe('the copy window', () => {
     const cell = all('[role="option"]')[0]!
     expect(cell.textContent).toBe('Small map160 × 100 · will be scaled to fit')
     expect(cell.querySelector('.copy-cropped')).toBeNull()
+    expect(cell.querySelector('.faint.small')!.textContent).toBe(
+      '160 × 100 · will be scaled to fit',
+    )
   })
 
   it('keeps Copy as a take off until a cell is picked, then names the source in the footer', async () => {

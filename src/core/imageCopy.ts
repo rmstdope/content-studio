@@ -51,13 +51,14 @@ export function copySources(
     for (const r of act.rows) {
       if (r.id === imageId || r.chosenTake === null || seen.has(r.id)) continue
       seen.add(r.id)
+      const cropped = isCropped(r, into)
       images.push({
         id: r.id,
         title: r.title,
         take: r.chosenTake,
         size: `${r.width} × ${r.height}`,
-        cropped: isCropped(r, into),
-        scaled: !isCropped(r, into) && (r.width !== into.width || r.height !== into.height),
+        cropped,
+        scaled: !cropped && (r.width !== into.width || r.height !== into.height),
       })
     }
     if (images.length) groups.push({ id: act.id, title: act.title, images })
