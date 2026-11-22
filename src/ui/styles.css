@@ -6965,9 +6965,6 @@ textarea[aria-disabled='true'][data-why] {
   padding-top: 8px;
   border-top: 1px dashed var(--line-strong);
 }
-.takes-copy .faint:last-child {
-  min-width: 0;
-}
 .copy-note {
   display: block;
 }

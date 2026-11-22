@@ -166,8 +166,7 @@ describe('the copy window in a narrow window', () => {
     expect(css).toMatch(/\.copy-cell\.sel \{[^}]*outline-offset: -2px/)
   })
 
-  it('keeps "No model, nothing spent" beside the button, wrapping inside its own space', () => {
+  it('keeps "No model, nothing spent" beside the button', () => {
     expect(rule('.takes-copy')).toContain('flex-wrap: nowrap')
-    expect(rule('.takes-copy .faint:last-child')).toMatch(/min-width:\s*0/)
   })
 })

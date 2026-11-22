@@ -346,7 +346,7 @@ export function TakesSection({
             kind: 'failed',
             message:
               'message' in answer
-                ? copyRefusal(answer.message)
+                ? copyRefusal(source.title, answer.message)
                 : copyFailure(source.title, `${answer.file} could not be read`),
           })
           copyButton.current?.focus({ preventScroll: true })
