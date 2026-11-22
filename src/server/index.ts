@@ -7,9 +7,10 @@ import { type ImageGenerator } from '../services/images'
 import { type Transcriber } from '../services/transcriber'
 import index from '../ui/index.html'
 import { allowedHosts, notFound } from './shared'
-import { createContext } from './context'
+import { createContext, type RouteContext } from './context'
 import { effectsRoutes } from './routes/effects'
 import { imagesRoutes } from './routes/images'
+import { mcpRoutes } from './mcp'
 import { musicRoutes } from './routes/music'
 import { narrationRoutes } from './routes/narration'
 import { scenesRoutes } from './routes/scenes'
@@ -40,6 +41,22 @@ export interface ServerOptions {
 
 export { allowedHosts }
 
+/** Every route of the studio: the UI, the JSON API and the MCP endpoint. */
+export function studioRoutes(context: RouteContext) {
+  const { guard } = context
+  return {
+    '/': index,
+    ...setupRoutes(context),
+    ...narrationRoutes(context),
+    ...musicRoutes(context),
+    ...imagesRoutes(context),
+    ...effectsRoutes(context),
+    ...scenesRoutes(context),
+    ...mcpRoutes(context),
+    '/api/*': guard(notFound),
+  }
+}
+
 /**
  * The studio's local server: the UI, and a JSON API over the project. It listens on 127.0.0.1
  * only, reads the project from disk on every request, so edits show up on reload, and takes
@@ -51,18 +68,7 @@ export { allowedHosts }
 export function startServer(options: ServerOptions) {
   const { port, development = false } = options
   const context = createContext(options)
-  const { guard } = context
-
-  const routes = {
-    '/': index,
-    ...setupRoutes(context),
-    ...narrationRoutes(context),
-    ...musicRoutes(context),
-    ...imagesRoutes(context),
-    ...effectsRoutes(context),
-    ...scenesRoutes(context),
-    '/api/*': guard(notFound),
-  }
+  const routes = studioRoutes(context)
 
   const server = Bun.serve({
     hostname: '127.0.0.1',
