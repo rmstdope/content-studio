@@ -1971,10 +1971,30 @@ describe('copying another image', () => {
     })
     await act(async () => {})
     expect(s.text()).toContain(
-      "Lantern's picture could not be copied: Lantern’s picture is gone from this computer. Nothing was added; try again.",
+      'Lantern’s picture is gone from this computer. Nothing was added; try again.',
     )
     expect(s.container.querySelectorAll('[data-strip] .image-thumb')).toHaveLength(1)
     expect(s.button('Copy another image…').getAttribute('aria-disabled')).toBeNull()
+  })
+
+  it('keeps the opening for a refusal that does not name the picture', async () => {
+    const s = await show(
+      view({ takes: [take(1)] }),
+      {},
+      undefined,
+      { ok: false, message: 'content-studio/cache/images/lantern.json could not be written.' },
+      groups,
+    )
+    await s.click(s.button('Copy another image…'))
+    await act(async () => {
+      document.body
+        .querySelector('[role="option"]')!
+        .dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+    })
+    await act(async () => {})
+    expect(s.text()).toContain(
+      "Lantern's picture could not be copied: content-studio/cache/images/lantern.json could not be written. Nothing was added; try again.",
+    )
   })
 
   it('closes with Esc and gives focus back to the button; the page keys are not heard while open', async () => {

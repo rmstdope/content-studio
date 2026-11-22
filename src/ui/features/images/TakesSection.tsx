@@ -25,6 +25,7 @@ import {
   copiedFromThumb,
   copiedLine,
   copyFailure,
+  copyRefusal,
   copyingLine,
   type CopyGroup,
   type CopySource,
@@ -343,12 +344,10 @@ export function TakesSection({
         } else {
           setCopyNote({
             kind: 'failed',
-            message: copyFailure(
-              source.title,
+            message:
               'message' in answer
-                ? answer.message.replace(/\.$/, '')
-                : `${answer.file} could not be read`,
-            ),
+                ? copyRefusal(source.title, answer.message)
+                : copyFailure(source.title, `${answer.file} could not be read`),
           })
           copyButton.current?.focus({ preventScroll: true })
         }

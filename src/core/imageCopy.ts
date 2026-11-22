@@ -92,6 +92,15 @@ export const copyingLine = (source: string) => `Copying ${source}'s picture…`
 export const copyFailure = (source: string, reason: string) =>
   `${source}'s picture could not be copied: ${reason}. Nothing was added; try again.`
 
+/**
+ * The red line for the studio's own sentence: one that already starts with the source's name is
+ * shown as it is, so the name is not said twice; any other keeps the opening.
+ */
+export const copyRefusal = (source: string, sentence: string) =>
+  sentence.startsWith(source)
+    ? `${sentence} Nothing was added; try again.`
+    : copyFailure(source, sentence.replace(/\.$/, ''))
+
 /** The take's caption: where it was copied from. */
 export const copiedFromCaption = (source: string, take: number) =>
   `Copied from ${source} · Take ${take}`
