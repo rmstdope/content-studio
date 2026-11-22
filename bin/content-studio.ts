@@ -85,6 +85,9 @@ if (state.contentStudioStarted) {
     console.warn('Note: ffmpeg is not installed; recording lines needs it (brew install ffmpeg).')
   }
   console.log(`Open ${server.url}  (Ctrl+C to stop)${values.dev ? '  · reloading on changes' : ''}`)
+  console.log(
+    `Agents: claude mcp add --transport http content-studio ${new URL('/mcp', server.url).href}`,
+  )
   if (!values['no-open']) openBrowser(server.url.href)
 }
 
