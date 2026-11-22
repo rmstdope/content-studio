@@ -57,7 +57,7 @@ const TOOLS = [
   {
     name: 'studio_act',
     description:
-      'Does a step of a page of the web UI (Sound effects and Scenes so far), through the same route the page uses, so every check holds: the body is the one the page sends. A step marked `confirm` in studio_pages needs `confirmed: true`, set only once the user has agreed to what it says.',
+      'Does a step of a page of the web UI (Images, Sound effects and Scenes so far), through the same route the page uses, so every check holds: the body is the one the page sends. A step marked `confirm` in studio_pages needs `confirmed: true`, set only once the user has agreed to what it says.',
     inputSchema: {
       type: 'object',
       properties: {

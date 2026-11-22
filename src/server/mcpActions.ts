@@ -1,8 +1,9 @@
 import { EFFECTS_AND_SCENES_ACTIONS } from './mcpActionsEffectsScenes'
+import { IMAGE_ACTIONS } from './mcpActionsImages'
 import { fitsTemplate } from './mcpReadable'
 
 /** The pages of the web UI an agent can act on so far. */
-export type ActionPage = 'Sound effects' | 'Scenes'
+export type ActionPage = 'Images' | 'Sound effects' | 'Scenes'
 
 /** One thing an agent may do: a change the studio's own routes take. */
 export interface Action {
@@ -23,7 +24,7 @@ export interface Action {
  * listed. A test holds this to the server's route table, so a new route is classified here
  * before it passes. The agent acts through the same routes as the web UI, so every check stays.
  */
-export const ACTIONS: readonly Action[] = [...EFFECTS_AND_SCENES_ACTIONS]
+export const ACTIONS: readonly Action[] = [...IMAGE_ACTIONS, ...EFFECTS_AND_SCENES_ACTIONS]
 
 /** The action for a method and path (with an optional query), or null for anything else. */
 export function matchAction(method: string, path: string): Action | null {
