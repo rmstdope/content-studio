@@ -123,7 +123,7 @@ export const EFFECTS_AND_SCENES_ACTIONS: readonly Action[] = [
     method: 'POST',
     path: '/api/scene-loudness/:part',
     about: "measure the loudness of a part's scenes",
-    body: '{ open?: { scene, entry } }',
+    body: '{ open?: { scene, entry } }; send {} for none',
   },
   {
     page: 'Scenes',

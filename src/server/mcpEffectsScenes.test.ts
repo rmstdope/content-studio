@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from 'bun:test'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { projectJson, tempRepo } from '../../test/helpers'
 import { createFakeEffects } from '../services/effectsFake'
@@ -70,9 +71,12 @@ describe('an agent doing the Sound effects and Scenes steps through the MCP', ()
     throw new Error('never finished')
   }
   const listing = (dir: string) =>
-    (readdirSync(dir, { recursive: true }) as string[])
-      .sort()
-      .map((f) => `${f} ${statSync(join(dir, f)).size}`)
+    (readdirSync(dir, { recursive: true }) as string[]).sort().map((f) => {
+      const path = join(dir, f)
+      return statSync(path).isFile()
+        ? `${f} ${createHash('sha256').update(readFileSync(path)).digest('hex')}`
+        : f
+    })
 
   it('refreshes the list, describes an effect, makes takes, chooses and adjusts one', async () => {
     const refreshed = await act({ method: 'POST', path: '/api/effects/refresh' })
@@ -148,7 +152,43 @@ describe('an agent doing the Sound effects and Scenes steps through the MCP', ()
     expect((await settled('bell')).takes.length).toBeGreaterThan(0)
   })
 
-  it('measures the part and saves a scene’s mix', async () => {
+  it('reaches the other steps through the same routes', async () => {
+    const file = (await read('/api/effects/door/takes')).takes[0].file as string
+    const reached = async (args: Record<string, unknown>) => {
+      const answer = await act(args)
+      expect(text(answer)).not.toContain('Not something to do')
+      return answer
+    }
+    expect(
+      (await reached({ method: 'POST', path: '/api/effects/coins/keep-mine' })).isError,
+    ).toBeUndefined()
+    expect(
+      (
+        await reached({
+          method: 'PUT',
+          path: `/api/effects/door/takes/${file}/level`,
+          body: { level: 1.4 },
+        })
+      ).isError,
+    ).toBeUndefined()
+    await reached({ method: 'DELETE', path: `/api/effects/door/takes/${file}/fades` })
+    await reached({ method: 'POST', path: '/api/effects/door/trim', body: { file } })
+    await reached({ method: 'POST', path: '/api/effects/door/accept' })
+    await reached({ method: 'POST', path: '/api/effects/door/stop' })
+    await reached({ method: 'POST', path: '/api/effects/batch/close' })
+    await reached({ method: 'POST', path: '/api/effects/stop-all' })
+  })
+
+  it('measures a part’s loudness with the empty body the page sends', async () => {
+    const measured = await act({ method: 'POST', path: '/api/scene-loudness/act1', body: {} })
+    expect(text(measured)).not.toContain('Not something to do')
+    expect(text(measured)).not.toContain('400')
+    const unknown = await act({ method: 'POST', path: '/api/scene-loudness/nope', body: {} })
+    expect(unknown.isError).toBe(true)
+    expect(text(unknown)).toContain('404')
+  })
+
+  it('saves a scene’s mix', async () => {
     const mix = { music: { track: null, level: 1 }, effects: [] }
     expect(
       (

@@ -16,8 +16,6 @@ export interface Action {
   body?: string
   /** Set where the web UI asks the person to confirm: what is being confirmed. */
   confirm?: string
-  /** It can spend credit; the body carries the amounts confirmed, as the UI sends them. */
-  spends?: true
 }
 
 /**

@@ -36,7 +36,7 @@ const TOOLS = [
   {
     name: 'studio_pages',
     description:
-      "Lists what can be read of the studio, by the page of the web UI that shows it: each path's route, whether it answers state (JSON) or a file (an image or a sound), and what it shows.",
+      "Lists what can be read of the studio, by the page of the web UI that shows it (each path's route, whether it answers state (JSON) or a file (an image or a sound), and what it shows), and under `actions` the steps studio_act can do, with the ones that need the user's confirmation.",
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true },
   },
@@ -45,6 +45,7 @@ const TOOLS = [
     description:
       'Reads the state a page of the web UI shows, as JSON: a `state` path from studio_pages. Changes nothing.',
     inputSchema: pathArgument,
+    annotations: { readOnlyHint: true },
   },
   {
     name: 'studio_fetch',
@@ -56,7 +57,7 @@ const TOOLS = [
   {
     name: 'studio_act',
     description:
-      'Does a step of a page of the web UI (Sound effects and Scenes so far), through the same route the page uses, so every check holds: the body is the one the page sends (a spending step carries confirmedCost / confirmedCredits from its plan). A step marked `confirm` in studio_pages needs `confirmed: true`, set only once the user has agreed to what it says. `files` carries recordings for a form.',
+      'Does a step of a page of the web UI (Sound effects and Scenes so far), through the same route the page uses, so every check holds: the body is the one the page sends. A step marked `confirm` in studio_pages needs `confirmed: true`, set only once the user has agreed to what it says.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -66,22 +67,7 @@ const TOOLS = [
           description:
             'A path from the actions of studio_pages, with its :names filled in, and an optional query.',
         },
-        body: { type: 'object', description: 'The JSON body; for a form, its text fields.' },
-        files: {
-          type: 'array',
-          description:
-            'Files for a form body: the field they go under, name, type and base64 bytes.',
-          items: {
-            type: 'object',
-            properties: {
-              field: { type: 'string' },
-              name: { type: 'string' },
-              type: { type: 'string' },
-              base64: { type: 'string' },
-            },
-            required: ['field', 'name', 'base64'],
-          },
-        },
+        body: { type: 'object', description: 'The JSON body, the one the page sends.' },
         confirmed: { type: 'boolean' },
       },
       required: ['method', 'path'],
@@ -135,7 +121,7 @@ export function mcpRoutes(c: RouteContext) {
   }
 
   async function act(args: Record<string, unknown>): Promise<ToolResult> {
-    const { method, path, body, files, confirmed } = args
+    const { method, path, body, confirmed } = args
     const action =
       typeof method === 'string' && typeof path === 'string' ? matchAction(method, path) : null
     if (!action) {
@@ -148,26 +134,20 @@ export function mcpRoutes(c: RouteContext) {
         `Needs the user's confirmation first: this ${action.confirm}. Once the user has agreed, call again with confirmed: true.`,
       )
     }
-    const own = `http://127.0.0.1:${listening.port}`
-    const headers: Record<string, string> = { host: `127.0.0.1:${listening.port}`, origin: own }
-    let payload: string | FormData | undefined
-    if (Array.isArray(files) && files.length) {
-      const form = new FormData()
-      for (const [name, value] of Object.entries((body ?? {}) as Record<string, unknown>)) {
-        form.append(name, String(value))
-      }
-      for (const f of files as { field: string; name: string; type?: string; base64: string }[]) {
-        form.append(
-          f.field,
-          new File([Buffer.from(f.base64, 'base64')], f.name, { type: f.type ?? '' }),
-        )
-      }
-      payload = form
-    } else if (body !== undefined) {
+    const headers: Record<string, string> = {
+      host: `127.0.0.1:${listening.port}`,
+      origin: own(),
+    }
+    let payload: string | undefined
+    if (body !== undefined) {
       headers['content-type'] = 'application/json'
       payload = JSON.stringify(body)
     }
-    const response = await fetch(`${own}${path}`, { method: action.method, headers, body: payload })
+    const response = await fetch(`${own()}${path}`, {
+      method: action.method,
+      headers,
+      body: payload,
+    })
     const answer = await response.text()
     if (!response.ok) return failed(`${response.status} ${answer}`)
     return { content: [{ type: 'text', text: answer || 'Done.' }] }
@@ -230,8 +210,9 @@ export function mcpRoutes(c: RouteContext) {
 
   return {
     '/mcp': {
-      // An MCP client is no browser and sends no Origin; the tools only read. A browser page
-      // (any Origin that is not the studio's own) is refused, like a change from another site.
+      // An MCP client is no browser and sends no Origin, and a browser always sends one
+      // on a cross-site POST: any Origin that is not the studio's own is refused, so no web page
+      // can reach a change through it.
       POST: guard(async (request: Request) => {
         const origin = request.headers.get('origin')
         if (origin && !allowedHosts(listening.port!).some((host) => origin === `http://${host}`)) {
