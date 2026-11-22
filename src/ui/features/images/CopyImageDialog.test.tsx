@@ -163,6 +163,16 @@ describe('the copy window', () => {
     expect(heard).toEqual([])
   })
 
+  it('has one tab stop in the grid: the pick, else the first image shown', async () => {
+    await open()
+    const stops = () => all('[role="option"]').map((c) => c.getAttribute('tabindex'))
+    expect(stops()).toEqual(['0', '-1', '-1'])
+    await click(all('[role="option"]')[1]!)
+    expect(stops()).toEqual(['-1', '0', '-1'])
+    await type(q('input') as HTMLInputElement, 'hall')
+    expect(stops()).toEqual(['0'])
+  })
+
   it('wraps Tab inside the window', async () => {
     await open()
     const last = all('.modal-actions button').at(-1)!

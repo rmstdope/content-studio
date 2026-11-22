@@ -31,18 +31,25 @@ const acts = [
 
 describe('copySources', () => {
   it('lists the images with a chosen take, by act in the game order, never the image itself', () => {
-    const groups = copySources(acts, 'lantern-lit')
+    const groups = copySources(acts, 'lantern-lit', { width: 320, height: 200 })
     expect(groups.map((g) => [g.title, g.images.map((i) => i.id)])).toEqual([
       ['Act One', ['lantern', 'door']],
       ['Act Three', ['wide']],
     ])
   })
   it('leaves the image itself out and an act with nothing to copy', () => {
-    expect(copySources(acts, 'lantern').map((g) => g.title)).toEqual(['Act One', 'Act Three'])
-    expect(copySources(acts, 'lantern')[0]!.images.map((i) => i.id)).toEqual(['door'])
+    expect(copySources(acts, 'lantern', { width: 320, height: 200 }).map((g) => g.title)).toEqual([
+      'Act One',
+      'Act Three',
+    ])
+    expect(
+      copySources(acts, 'lantern', { width: 320, height: 200 })[0]!.images.map((i) => i.id),
+    ).toEqual(['door'])
   })
   it('lists a shared image once, under the first act that lists it', () => {
-    const all = copySources(acts, 'x').flatMap((g) => g.images.map((i) => i.id))
+    const all = copySources(acts, 'x', { width: 320, height: 200 }).flatMap((g) =>
+      g.images.map((i) => i.id),
+    )
     expect(all.filter((id) => id === 'lantern')).toHaveLength(1)
   })
   it('says which take is in the game and marks another shape as cropped', () => {
@@ -55,7 +62,7 @@ describe('copySources', () => {
 })
 
 describe('filterCopySources', () => {
-  const groups = copySources(acts, 'lantern-lit')
+  const groups = copySources(acts, 'lantern-lit', { width: 320, height: 200 })
   it('narrows by title, case-insensitively, and drops acts left with no match', () => {
     expect(filterCopySources(groups, 'WIDE').map((g) => g.title)).toEqual(['Act Three'])
     expect(filterCopySources(groups, '  ').length).toBe(2)

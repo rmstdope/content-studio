@@ -347,7 +347,7 @@ export function TakesSection({
               source.title,
               'message' in answer
                 ? answer.message.replace(/\.$/, '')
-                : 'the images record cannot be read',
+                : `${answer.file} could not be read`,
             ),
           })
           copyButton.current?.focus({ preventScroll: true })

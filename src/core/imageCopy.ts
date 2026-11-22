@@ -40,7 +40,7 @@ export interface CopyGroup {
 export function copySources(
   acts: readonly { id: string; title: string; rows: readonly CopySourceRow[] }[],
   imageId: string,
-  into: { width: number; height: number } = { width: 1, height: 1 },
+  into: { width: number; height: number },
 ): CopyGroup[] {
   const seen = new Set<string>()
   const groups: CopyGroup[] = []

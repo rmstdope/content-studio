@@ -46,7 +46,7 @@ import {
 } from '../core/images'
 import { resolveInRoot } from '../core/paths'
 import { IMAGES_LOCK_FILE, type Problem } from '../core/project'
-import { readResource, writeOrRefuse } from './files'
+import { readResource, WriteRefused, writeOrRefuse } from './files'
 import { freeGpu, gpuQueue } from './gpu'
 import { IMAGE_BOARD_DIR, IMAGE_TAKES_DIR, readImages, readStyleLook } from './imageLists'
 import { adoptImageAreas } from './imageEdits'
@@ -793,7 +793,8 @@ export function createImageTakes({
           n: take.n,
           width: take.width,
           height: take.height,
-          model: imageByMflux(take.model),
+          // A copy was made by no model of this image's: no model name.
+          model: take.copiedFrom ? null : imageByMflux(take.model),
           // A copy was not made from this image's words, so it never goes out of date.
           earlier: !take.copiedFrom && takeIsEarlier(take.madeFrom, found.row.words),
           chosen: chosen === take.n,
@@ -972,7 +973,6 @@ export function createImageTakes({
         const size = pngSize(picture.subarray(0, 33))
         await writeOrRefuse(found.root, pictureOf(id, n), picture)
         board.next = n + 1
-        bringing.add(mark(n))
         board.takes = [
           ...board.takes,
           {
@@ -987,8 +987,16 @@ export function createImageTakes({
           },
         ]
         return { ok: true as const, n }
+      }).catch((error: unknown) => {
+        // A file or board that cannot be written is refused with its name (as-90la), nothing is added.
+        if (error instanceof WriteRefused)
+          return { ok: false as const, message: `${error.message}: ${error.reason}.` }
+        throw error
       })
-      if ('n' in added) await bringTake(found, added.n)
+      if ('n' in added) {
+        bringing.add(mark(added.n))
+        await bringTake(found, added.n)
+      }
       return added
     },
 

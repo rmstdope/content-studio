@@ -38,6 +38,9 @@ export function CopyImageDialog({
   const everything = groups.flatMap((g) => g.images)
   const source = everything.find((i) => i.id === picked) ?? null
   const empty = everything.length === 0
+  // Tab enters the grid once, at the pick or else the first image shown; the arrows move inside it.
+  const visible = shown.flatMap((g) => g.images)
+  const tabStop = (visible.some((i) => i.id === picked) ? picked : visible[0]?.id) ?? null
 
   useEffect(() => search.current?.focus(), [])
   // A pick that left the list (the list was refreshed underneath) is forgotten.
@@ -142,6 +145,7 @@ export function CopyImageDialog({
                   <div className="copy-grid">
                     {group.images.map((image) => (
                       <button
+                        tabIndex={tabStop === image.id ? 0 : -1}
                         key={image.id}
                         type="button"
                         role="option"

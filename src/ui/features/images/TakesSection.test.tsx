@@ -1930,6 +1930,21 @@ describe('copying another image', () => {
     expect(document.activeElement?.textContent).toContain('Take 4')
   })
 
+  it('while copying, reads "Copying…" with the button off and says which picture', async () => {
+    const s = await show(view({ takes: [take(1)] }), {}, undefined, { ok: true, n: 2 }, groups)
+    globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch
+    await s.click(s.button('Copy another image…'))
+    await act(async () => {
+      document.body
+        .querySelector('[role="option"]')!
+        .dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+    })
+    expect(isOff(s.button('Copying…'))).toBe(true)
+    expect(s.text()).toContain("Copying Lantern's picture…")
+    expect(s.buttons('Make 4 takes')).toHaveLength(1)
+    expect(isOff(s.button('Make 4 takes'))).toBe(false)
+  })
+
   it('says why a copy failed, adds nothing, and leaves the button on to try again', async () => {
     const s = await show(
       view({ takes: [take(1)] }),
