@@ -41,9 +41,17 @@ export const READABLE: readonly Readable[] = [
   state('Setup', '/api/elevenlabs/account', 'the ElevenLabs account'),
   state('Setup', '/api/elevenlabs/voices/freeable', 'ElevenLabs voices that can be freed'),
   state('Narration', '/api/narration/progress', 'how far the narration is, per part'),
-  state('Narration', '/api/parts/:part', 'a part: its lines, takes and what is stale'),
+  state(
+    'Narration',
+    '/api/parts/:part',
+    'a part: its lines, takes and what is stale; ?language= reads another language',
+  ),
   state('Narration', '/api/parts/:part/lines/:key/heard', 'what was last heard of a line'),
-  state('Narration', '/api/parts/:part/plan', 'what generating the part would do and cost'),
+  state(
+    'Narration',
+    '/api/parts/:part/plan',
+    'what generating the part would do and cost; ?language=, ?stage=final, ?speaker=, ?weak=1',
+  ),
   state('Narration', '/api/parts/:part/jobs/latest', 'the latest generation job of a part'),
   state('Narration', '/api/parts/:part/lines/:key/takes', "a line's takes"),
   state('Narration', '/api/characters/:id/cleaned-lines', "a voice's lines cleaned in the game"),
@@ -52,7 +60,7 @@ export const READABLE: readonly Readable[] = [
   state('Narration', '/api/characters/:id/voice', "a character's cast voice"),
   state('Narration', '/api/auditions/:id', "a character's audition"),
   state('Narration', '/api/auditions/:id/sitting', "a character's audition sitting"),
-  file('Narration', '/api/parts/:part/clips/:file', "a line's clip in the game"),
+  file('Narration', '/api/parts/:part/clips/:file', "a line's clip in the game; ?language="),
   file('Narration', '/api/parts/:part/originals/:file', 'the original of a cleaned line'),
   file('Narration', '/api/parts/:part/lines/:key/takes/:file', 'a take of a line'),
   file('Narration', '/api/cleaned/:file', 'a cleaned copy made for hearing'),
@@ -89,6 +97,13 @@ export const READABLE: readonly Readable[] = [
   file('Sound effects', '/api/effects/clips/:file', 'a sound effect clip in the game'),
   state('Scenes', '/api/scene-loudness', 'the scenes being measured now'),
 ]
+
+/**
+ * GET routes of the API an agent may not read, each with its reason. None for now: every GET
+ * route only reads. A route that spends credit or changes anything goes here, and the test that
+ * holds this file to the route table then still passes.
+ */
+export const NOT_READABLE: readonly { path: string; reason: string }[] = []
 
 const SEGMENT = /^[^/?#%\\]+$/
 

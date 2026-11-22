@@ -5,12 +5,29 @@ import { projectJson, tempRepo } from '../../test/helpers'
 import { fakePng } from '../services/imagesFake'
 import { createContext } from './context'
 import { startServer, studioRoutes } from './index'
-import { READABLE } from './mcpReadable'
+import { NOT_READABLE, READABLE } from './mcpReadable'
 import { startBase } from './test-support'
+
+/** What a JSON-RPC answer holds, as far as the tests look. */
+interface Result {
+  protocolVersion: string
+  capabilities: unknown
+  serverInfo: { name: string }
+  tools: { name: string }[]
+  isError?: true
+  content: { type: string; text: string; data: string; mimeType: string }[]
+}
+
+/** A JSON-RPC answer; a batch's is an array of these. */
+interface Answer {
+  id: number
+  result: Result
+  error: { code: number }
+}
 
 interface Reply {
   status: number
-  body: any
+  body: Answer & Answer[]
 }
 
 /** Sends one JSON-RPC message (or a batch) to the studio's MCP endpoint. */
@@ -25,7 +42,7 @@ function client(base: URL, headers: Record<string, string> = {}) {
     return { status: response.status, body: text ? JSON.parse(text) : null }
   }
   let id = 0
-  const call = async (name: string, args: unknown) =>
+  const call = async (name: string, args: unknown): Promise<Result> =>
     (
       await post({
         jsonrpc: '2.0',
@@ -73,7 +90,9 @@ describe('the MCP endpoint', () => {
     expect((await mcp.post({ jsonrpc: '2.0', method: 'notifications/initialized' })).status).toBe(
       202,
     )
-    expect((await mcp.post({ jsonrpc: '2.0', id: 3, method: 'ping' })).body.result).toEqual({})
+    expect((await mcp.post({ jsonrpc: '2.0', id: 3, method: 'ping' })).body.result).toEqual(
+      {} as never,
+    )
   })
 
   it('refuses what it does not understand', async () => {
@@ -113,7 +132,7 @@ describe('the MCP endpoint', () => {
 
   it('tells the pages and what each shows', async () => {
     const result = await mcp.call('studio_pages', {})
-    const pages = JSON.parse(result.content[0].text)
+    const pages = JSON.parse(result.content[0]!.text)
     expect(Object.keys(pages).sort()).toEqual([
       'Images',
       'Music and Stingers',
@@ -130,14 +149,35 @@ describe('the MCP endpoint', () => {
       const result = await mcp.call('studio_read', { path })
       const direct = await (await fetch(new URL(path, server.url))).json()
       expect(result.isError).toBeUndefined()
-      expect(JSON.parse(result.content[0].text)).toEqual(direct)
+      expect(JSON.parse(result.content[0]!.text)).toEqual(direct)
     }
+  })
+
+  it('reads the state of each page', async () => {
+    for (const path of [
+      '/api/setup',
+      '/api/music/making',
+      '/api/images/making',
+      '/api/effects/making',
+      '/api/scene-loudness',
+    ]) {
+      const result = await mcp.call('studio_read', { path })
+      expect(result.isError).toBeUndefined()
+      expect(JSON.parse(result.content[0]!.text)).toEqual(
+        await (await fetch(new URL(path, server.url))).json(),
+      )
+    }
+  })
+
+  it('answers an empty batch, and a client answer', async () => {
+    expect((await mcp.post([])).status).toBe(400)
+    expect((await mcp.post({ jsonrpc: '2.0', id: 9, result: {} })).status).toBe(202)
   })
 
   it('says why a read failed, and refuses a path that is not listed', async () => {
     const missing = await mcp.call('studio_read', { path: '/api/parts/nope' })
     expect(missing.isError).toBe(true)
-    expect(missing.content[0].text).toContain('404')
+    expect(missing.content[0]!.text).toContain('404')
     for (const path of ['/api/nothing', '/api/parts/act1/clips/a.mp3', '/api/parts/../project']) {
       const refused = await mcp.call('studio_read', { path })
       expect(refused.isError).toBe(true)
@@ -150,8 +190,8 @@ describe('the MCP endpoint', () => {
     const result = await mcp.call('studio_fetch', { path: '/api/parts/act1/clips/a.mp3' })
     expect(result.isError).toBeUndefined()
     const audio = result.content.find((c: { type: string }) => c.type === 'audio')
-    expect(audio.mimeType).toStartWith('audio/')
-    expect(Buffer.from(audio.data, 'base64').toString()).toBe('ID3-not-really-audio')
+    expect(audio!.mimeType).toStartWith('audio/')
+    expect(Buffer.from(audio!.data, 'base64').toString()).toBe('ID3-not-really-audio')
     expect((await mcp.call('studio_fetch', { path: '/api/project' })).isError).toBe(true)
     expect((await mcp.call('studio_fetch', { path: '/api/parts/act1/clips/zz.mp3' })).isError).toBe(
       true,
@@ -221,9 +261,9 @@ describe('the MCP endpoint and images', () => {
     for (const path of ['/api/images/inn/takes/1', '/api/images/inn/current']) {
       const result = await mcp.call('studio_fetch', { path })
       const image = result.content.find((c: { type: string }) => c.type === 'image')
-      expect(image.mimeType).toBe('image/png')
+      expect(image!.mimeType).toBe('image/png')
       const direct = new Uint8Array(await (await fetch(new URL(path, studio.url))).arrayBuffer())
-      expect(new Uint8Array(Buffer.from(image.data, 'base64'))).toEqual(direct)
+      expect(new Uint8Array(Buffer.from(image!.data, 'base64'))).toEqual(direct)
     }
   })
 })
@@ -239,6 +279,8 @@ describe('what an agent may read, against the server', () => {
     .sort()
 
   it('lists every GET route of the API, and only those', () => {
-    expect(READABLE.map((r) => r.path).sort()).toEqual(gets.filter((p) => p.startsWith('/api/')))
+    const listed = [...READABLE, ...NOT_READABLE].map((r) => r.path).sort()
+    expect(listed).toEqual(gets.filter((p) => p.startsWith('/api/')))
+    expect(READABLE.filter((r) => NOT_READABLE.some((n) => n.path === r.path))).toEqual([])
   })
 })

@@ -1,5 +1,5 @@
 import type { RouteContext } from './context'
-import { forbidden } from './shared'
+import { allowedHosts, forbidden } from './shared'
 import { READABLE, matchReadable, type ReadablePage } from './mcpReadable'
 
 /** The largest file `studio_fetch` hands over, in bytes. */
@@ -120,7 +120,8 @@ export function mcpRoutes(c: RouteContext) {
       return refusal(null, -32600, 'expected a JSON-RPC message')
     }
     const { id, method, params } = message as { id?: unknown; method?: unknown; params?: unknown }
-    if (id === undefined) return null
+    // A notification, or a client's answer to a request (it has no method): nothing to reply.
+    if (id === undefined || method === undefined) return null
     const given = params as {
       name?: unknown
       arguments?: unknown
@@ -152,11 +153,7 @@ export function mcpRoutes(c: RouteContext) {
       // (any Origin that is not the studio's own) is refused, like a change from another site.
       POST: guard(async (request: Request) => {
         const origin = request.headers.get('origin')
-        if (
-          origin &&
-          origin !== `http://127.0.0.1:${listening.port}` &&
-          origin !== `http://localhost:${listening.port}`
-        ) {
+        if (origin && !allowedHosts(listening.port!).some((host) => origin === `http://${host}`)) {
           return forbidden('requests from other pages are not accepted')
         }
         let body: unknown
@@ -166,6 +163,8 @@ export function mcpRoutes(c: RouteContext) {
           return Response.json(refusal(null, -32700, 'not JSON'), { status: 400 })
         }
         if (Array.isArray(body)) {
+          if (!body.length)
+            return Response.json(refusal(null, -32600, 'an empty batch'), { status: 400 })
           const answers = (await Promise.all(body.map(handle))).filter((a) => a !== null)
           return answers.length ? Response.json(answers) : new Response(null, { status: 202 })
         }
