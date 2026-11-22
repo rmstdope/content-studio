@@ -534,6 +534,7 @@ export function TakesSection({
       </button>
     </>
   )
+  const reason = copyWhy !== null && copyWhy !== COPYING_WHY ? copyWhy : null
   const copyControls = (
     <div className="takes-copy">
       <span className="faint small">or</span>
@@ -546,8 +547,10 @@ export function TakesSection({
       >
         {copy.isPending ? 'Copying…' : 'Copy another image…'}
       </button>
-      <span className="faint small">
-        {copyWhy !== null && copyWhy !== COPYING_WHY ? copyWhy : 'No model, nothing spent'}
+      <span
+        className={reason === null ? 'faint small takes-copy-hint' : 'faint small takes-copy-why'}
+      >
+        {reason ?? 'No model, nothing spent'}
       </span>
     </div>
   )

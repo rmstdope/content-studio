@@ -1892,12 +1892,24 @@ describe('copying another image', () => {
     expect(s.button('Copy another image…').getAttribute('aria-disabled')).toBeNull()
   })
 
+  it('marks the usual line as a hint and a reason as a reason, for the layout', async () => {
+    const s = await show(view(), {}, undefined, { ok: true }, groups)
+    const box = s.container.querySelector('.takes-copy')!
+    expect(box.querySelector('.takes-copy-hint')!.textContent).toBe('No model, nothing spent')
+    expect(box.querySelector('.takes-copy-why')).toBeNull()
+  })
+
   it('is off with its line when no other image has a picture', async () => {
     const s = await show(view())
     expect(s.container.querySelector('.takes-copy')!.textContent).toContain(
       'No other image has a picture yet.',
     )
     expect(isOff(s.button('Copy another image…'))).toBe(true)
+    const box = s.container.querySelector('.takes-copy')!
+    expect(box.querySelector('.takes-copy-why')!.textContent).toBe(
+      'No other image has a picture yet.',
+    )
+    expect(box.querySelector('.takes-copy-hint')).toBeNull()
   })
 
   it('says beside the button that the lock cannot be read, not that no image has a picture', async () => {

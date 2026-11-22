@@ -6959,11 +6959,19 @@ textarea[aria-disabled='true'][data-why] {
 /* Copy another image (as-x25u): the entry under Make takes, the window of pictures, and the lines under the band. */
 .takes-copy {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding-top: 8px;
   border-top: 1px dashed var(--line-strong);
+}
+/* The usual line stays on one line, beside the button when it fits and under it when it does not;
+   a reason sits beside it only with room for a readable column, else it wraps across the row under. */
+.takes-copy-hint {
+  white-space: nowrap;
+}
+.takes-copy-why {
+  flex: 1 1 14em;
 }
 .copy-note {
   display: block;
