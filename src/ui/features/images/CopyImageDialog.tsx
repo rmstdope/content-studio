@@ -5,6 +5,7 @@ import {
   copyFooter,
   copyWindowTitle,
   croppedLine,
+  scaledLine,
   filterCopySources,
   type CopyGroup,
   type CopySource,
@@ -166,6 +167,8 @@ export function CopyImageDialog({
                         <span className="copy-title">{image.title}</span>
                         {image.cropped ? (
                           <span className="small copy-cropped">{croppedLine(image.size)}</span>
+                        ) : image.scaled ? (
+                          <span className="faint small">{scaledLine(image.size)}</span>
                         ) : (
                           <span className="faint small">Take {image.take} in the game</span>
                         )}
