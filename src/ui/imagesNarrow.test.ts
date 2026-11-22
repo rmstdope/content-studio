@@ -171,7 +171,7 @@ describe('the copy window in a narrow window', () => {
     expect(rule('.takes-copy-hint')).toContain('white-space: nowrap')
   })
 
-  it('gives a long reason the whole row under the button, never a column narrower than it', () => {
-    expect(rule('.takes-copy-why')).toMatch(/flex:\s*1 1 100%/)
+  it('gives a reason a basis of 14em, so it wraps across the row under the button rather than into a narrow column', () => {
+    expect(rule('.takes-copy-why')).toMatch(/flex:\s*1 1 14em/)
   })
 })

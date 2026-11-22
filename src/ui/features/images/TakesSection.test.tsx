@@ -1905,6 +1905,11 @@ describe('copying another image', () => {
       'No other image has a picture yet.',
     )
     expect(isOff(s.button('Copy another image…'))).toBe(true)
+    const box = s.container.querySelector('.takes-copy')!
+    expect(box.querySelector('.takes-copy-why')!.textContent).toBe(
+      'No other image has a picture yet.',
+    )
+    expect(box.querySelector('.takes-copy-hint')).toBeNull()
   })
 
   it('says beside the button that the lock cannot be read, not that no image has a picture', async () => {
