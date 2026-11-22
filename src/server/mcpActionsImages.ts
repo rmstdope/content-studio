@@ -19,7 +19,7 @@ const asking = (action: Action, confirm: string): Action => ({ ...action, confir
  */
 export const IMAGE_ACTIONS: readonly Action[] = [
   images(
-    'refresh the act from the game (runs the project’s refresh.part; pass the act’s id as :part)',
+    'refresh an act from the game, for its images, music or scenes too (runs the project’s refresh.part; pass the act’s id as :part)',
     'POST',
     '/api/parts/:part/refresh',
   ),
@@ -99,7 +99,10 @@ export const IMAGE_ACTIONS: readonly Action[] = [
   images('accept the take the game already has', 'POST', '/api/images/:id/accept'),
   images('stop the image’s takes being made', 'POST', '/api/images/:id/stop'),
   images('copy another image’s picture to this one', 'POST', '/api/images/:id/copy', '{ from }'),
-  images('make every image of an act', 'POST', '/api/image-acts/:id/make-all'),
+  asking(
+    images('make every image of an act', 'POST', '/api/image-acts/:id/make-all'),
+    'makes four takes for every image of the act with no chosen take, and the model runs for a while',
+  ),
   images('close the finished making of an act', 'POST', '/api/image-acts/:id/batch/close'),
   images('stop making an act’s images', 'POST', '/api/image-acts/:id/stop'),
   images('bring every image in from the game', 'POST', '/api/images/bring-all'),
@@ -119,7 +122,7 @@ export const IMAGE_ACTIONS: readonly Action[] = [
   ),
   asking(
     images('drop a patch’s take', 'DELETE', '/api/images/:id/patches/:patch/takes/:n'),
-    DELETES,
+    `${DELETES} and may set aside the patches lying on top of it`,
   ),
   images('mark a patch’s take as seen', 'POST', '/api/images/:id/patches/:patch/takes/:n/seen'),
   asking(
@@ -129,11 +132,11 @@ export const IMAGE_ACTIONS: readonly Action[] = [
       '/api/images/:id/patches/:patch/choose',
       '{ n }',
     ),
-    'puts this take of the patch on the image in the game',
+    'puts this take of the patch on the image in the game, and may set aside the patches lying on top of it',
   ),
   asking(
     images('un-choose a patch’s take', 'POST', '/api/images/:id/patches/:patch/unchoose'),
-    'takes this patch off the image in the game until another take is chosen; the take stays among the takes',
+    'takes this patch off the image in the game until another take is chosen, may set aside the patches lying on top of it, and the take stays among the takes',
   ),
   images('stop making takes of a patch', 'POST', '/api/images/:id/patches/:patch/stop'),
   images(

@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { projectJson, tempRepo } from '../../test/helpers'
 import { createContext } from './context'
 import { studioRoutes } from './index'
-import { matchAction } from './mcpActions'
+import { ACTIONS, matchAction } from './mcpActions'
 import { IMAGE_ACTIONS } from './mcpActionsImages'
 
 describe('the Images steps an agent may do', () => {
@@ -39,6 +39,7 @@ describe('the Images steps an agent may do', () => {
       ['POST', '/api/images/door/patches/p1/unchoose'],
       ['DELETE', '/api/images/door/patches/p1/takes/2'],
       ['DELETE', '/api/images/door/fine-tunes/2'],
+      ['POST', '/api/image-acts/act1/make-all'],
     ] as const) {
       expect(matchAction(method, path)?.confirm).toBeTruthy()
     }
@@ -50,6 +51,13 @@ describe('the Images steps an agent may do', () => {
     ] as const) {
       expect(matchAction(method, path)?.confirm).toBeUndefined()
     }
+  })
+})
+
+describe('the registry as a whole', () => {
+  it('lists no step twice', () => {
+    const keys = ACTIONS.map((a) => `${a.method} ${a.path}`)
+    expect(keys.filter((k, i) => keys.indexOf(k) !== i)).toEqual([])
   })
 })
 

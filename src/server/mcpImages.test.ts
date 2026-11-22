@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from 'bun:test'
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { projectJson, tempRepo } from '../../test/helpers'
 import { fakePng } from '../services/imagesFake'
@@ -156,10 +156,7 @@ describe('an agent doing the Images steps through the MCP', () => {
         })
       ).isError,
     ).toBeUndefined()
-    expect(
-      existsSync(join(root, 'web/images/inn.png')) ||
-        (await read('/api/images/inn/takes')).takes[0].chosen,
-    ).toBeTruthy()
+    expect((await read('/api/images/inn/takes')).takes[0].chosen).toBe(true)
     const refused = await act({
       method: 'DELETE',
       path: '/api/images/inn/takes/1',
@@ -192,5 +189,20 @@ describe('an agent doing the Images steps through the MCP', () => {
     expect((await act({ method: 'POST', path: '/api/parts/act1/refresh' })).isError).toBeUndefined()
     const rows = (await summary()).acts[0].rows.map((r: { id: string }) => r.id)
     expect(rows).toContain('well')
+    // The other steps reach their routes: a refusal names its reason, never "not something to do".
+    for (const args of [
+      { method: 'PUT', path: '/api/images/inn/effects', body: { effects: {} } },
+      { method: 'POST', path: '/api/images/inn/copy', body: { from: 'well' } },
+      { method: 'POST', path: '/api/images/inn/fine-tunes/use', body: { n: 1 } },
+      {
+        method: 'POST',
+        path: '/api/images/inn/patches/lamp/choose',
+        body: { n: 1 },
+        confirmed: true,
+      },
+      { method: 'POST', path: '/api/image-acts/act1/make-all', confirmed: true },
+    ]) {
+      expect(text(await act(args))).not.toContain('Not something to do')
+    }
   })
 })
