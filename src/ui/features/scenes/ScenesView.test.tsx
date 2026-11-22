@@ -1106,6 +1106,24 @@ describe('adding a sound effect', () => {
     expect(document.activeElement).toBe(add(page))
   })
 
+  it('closes on Escape after a press on a spot inside the menu that is not a control', () => {
+    // A browser moves focus on a press to the nearest focusable ancestor of what was pressed,
+    // and to the page's body when there is none; happy-dom does not, so this does it by hand.
+    const page = render(open)
+    act(() => add(page).click())
+    const spot = page.querySelector<HTMLElement>('.scene-add-list')!
+    const focusable = spot.closest<HTMLElement>('[tabindex], button, input')
+    if (focusable) focusable.focus()
+    else (document.activeElement as HTMLElement | null)?.blur()
+    act(() => {
+      ;(document.activeElement ?? document.body).dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+      )
+    })
+    expect(page.querySelector('.scene-add-list')).toBeNull()
+    expect(document.activeElement).toBe(add(page))
+  })
+
   it('reopens with an empty find box and every effect after a click outside closed it', () => {
     const page = render(open)
     act(() => add(page).click())
