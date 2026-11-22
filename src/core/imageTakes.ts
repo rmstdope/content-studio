@@ -45,6 +45,10 @@ export const BoardTakeSchema = z.object({
   fineTunedFrom: z
     .object({ take: z.number().int().positive().nullable(), words: z.string() })
     .optional(),
+  /** Set on a take that is a copy of another image's picture: that image, its title then and its take. */
+  copiedFrom: z
+    .object({ image: z.string(), title: z.string(), take: z.number().int().positive() })
+    .optional(),
 })
 
 /** An image's board, `content-studio/cache/images/<id>.json`: the takes made, and the next number. */
@@ -106,6 +110,8 @@ export interface ImageTakeView {
   cropped: boolean
   /** Set on a fine-tuned take: what it was fine-tuned from (null take: the game's own image) and the words. */
   fineTunedFrom?: { take: number | null; words: string }
+  /** Set on a copy of another image's picture: the image's title and the take copied. */
+  copiedFrom?: { title: string; take: number }
 }
 
 /** A take waiting or being made. */

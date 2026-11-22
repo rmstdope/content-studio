@@ -369,6 +369,7 @@ describe('the image takes routes', () => {
       ['POST', '/api/images/inn/takes', { count: 1 }],
       ['DELETE', '/api/images/inn/takes/1', undefined],
       ['POST', '/api/images/inn/choose', { n: 1 }],
+      ['POST', '/api/images/inn/copy', { from: 'hall' }],
       ['POST', '/api/images/inn/unchoose', undefined],
       ['POST', '/api/images/inn/accept', undefined],
       ['POST', '/api/images/inn/stop', undefined],
@@ -863,5 +864,79 @@ describe('the motion renderer route', () => {
     const answer = await (await fetch(new URL('/api/images/motion', studio.url))).json()
     expect(answer).toMatchObject({ named: true, ok: false, file: 'web/motion.ts' })
     expect(answer.message).toContain('web/motion.ts: ')
+  })
+})
+
+describe('the image copy route', () => {
+  const root = tempRepo({
+    'content-studio.json': projectJson({
+      images: {
+        from: { part: 'tts/{part}/images.json' },
+        clips: 'web/images',
+        manifest: 'web/images/manifest.json',
+      },
+    }),
+    'tts/act1/images.json': [
+      { id: 'inn', title: 'Inn', text: 'a low inn', width: 320, height: 200 },
+      { id: 'hall', title: 'Hall', text: 'a hall', width: 320, height: 200 },
+    ],
+    'content-studio/images/edits.json': {
+      style: { look: 'pixel art', keepOut: 'text', palette: ['#000000'] },
+      images: {},
+    },
+  })
+  const studio = startServer({
+    projectFile: join(root, 'content-studio.json'),
+    port: 0,
+    transcriber: null,
+    images: {
+      ready: () => ({ ok: true }),
+      installed: () => true,
+      generate: async (request) => ({
+        png: fakePng(request.width, request.height, request.seed),
+        seed: request.seed,
+      }),
+    },
+  })
+  afterAll(() => studio.stop(true))
+  const send = (method: string, path: string, body?: unknown, origin = studio.url.origin) =>
+    fetch(new URL(path, studio.url), {
+      method,
+      headers: { origin, 'content-type': 'application/json' },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    })
+  const view = async (id: string) =>
+    (await fetch(new URL(`/api/images/${id}/takes`, studio.url))).json()
+  async function settled(id: string) {
+    for (let i = 0; i < 200; i++) {
+      const v = await view(id)
+      if (v.takes.length && v.takes.every((t: { look: string }) => t.look === 'ready')) return v
+      await new Promise((resolve) => setTimeout(resolve, 5))
+    }
+    throw new Error('never finished')
+  }
+
+  it('copies another image’s chosen picture as a take, and refuses what cannot be copied', async () => {
+    expect((await send('POST', '/api/images/inn/copy', { from: 5 })).status).toBe(400)
+    expect((await send('POST', '/api/images/ghost/copy', { from: 'hall' })).status).toBe(404)
+    // Hall has no chosen take yet.
+    const refused = await send('POST', '/api/images/inn/copy', { from: 'hall' })
+    expect(refused.status).toBe(409)
+    expect(await refused.json()).toEqual({
+      ok: false,
+      message: 'Hall has no picture in the game yet.',
+    })
+    await send('POST', '/api/images/hall/takes', { count: 1 })
+    await settled('hall')
+    await send('POST', '/api/images/hall/choose', { n: 1 })
+    const answer = await send('POST', '/api/images/inn/copy', { from: 'hall' })
+    expect(answer.status).toBe(200)
+    const copied = await answer.json()
+    expect(copied.ok).toBe(true)
+    const v = await settled('inn')
+    expect(v.takes.find((t: { n: number }) => t.n === copied.n)).toMatchObject({
+      chosen: false,
+      copiedFrom: { title: 'Hall', take: 1 },
+    })
   })
 })

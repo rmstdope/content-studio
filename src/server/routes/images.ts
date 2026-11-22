@@ -1,5 +1,6 @@
 import { MakeFineTunesBody, UseFineTuneBody } from '../../core/imageFineTunes'
 import { ChoosePatchTakeBody, MakePatchTakesBody, RemakePatchesBody } from '../../core/imagePatches'
+import { CopyImageBody } from '../../core/imageCopy'
 import { ChooseImageTakeBody, MakeImageTakesBody } from '../../core/imageTakes'
 import {
   resolveImageCompare,
@@ -319,6 +320,15 @@ export function imagesRoutes(c: RouteContext) {
         const body = ChooseImageTakeBody.safeParse(await request.json().catch(() => null))
         if (!body.success) return Response.json({ error: 'expected { n }' }, { status: 400 })
         return imageAnswer(await imageTakes.choose(projectFile, request.params.id, body.data.n))
+      }),
+    },
+    '/api/images/:id/copy': {
+      POST: fromOwnPage(async (request) => {
+        const body = CopyImageBody.safeParse(await request.json().catch(() => null))
+        if (!body.success) return Response.json({ error: 'expected { from }' }, { status: 400 })
+        return imageAnswer(
+          await imageTakes.copyFrom(projectFile, request.params.id, body.data.from),
+        )
       }),
     },
     '/api/images/:id/current': {

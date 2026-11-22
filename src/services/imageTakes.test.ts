@@ -1548,3 +1548,127 @@ describe('adding a fine-tuned take', () => {
     expect(await takes.addTake(file, 'nowhere', { ...made, from: null })).toBeNull()
   })
 })
+
+describe('copying another image', () => {
+  /** A project where Hall has a chosen take, ready to be copied into Inn. */
+  async function withHallChosen() {
+    const s = setup()
+    await s.takes.make(s.file, 'hall', { count: 2 })
+    await s.settled('hall')
+    expect(await s.takes.choose(s.file, 'hall', 2)).toEqual({ ok: true })
+    s.requests.length = 0
+    return s
+  }
+  const boardOf = (read: (p: string) => string, id: string) =>
+    JSON.parse(read(`content-studio/cache/images/${id}.json`))
+
+  it('adds the source’s chosen picture as the next take, not chosen, with no model run', async () => {
+    const { takes, file, read, requests, settled, root } = await withHallChosen()
+    const lockBefore = read(LOCK)
+    const sourceBoard = read('content-studio/cache/images/hall.json')
+    const manifest = read('web/images/manifest.json')
+    expect(await takes.copyFrom(file, 'inn', 'hall')).toEqual({ ok: true, n: 1 })
+    expect(requests).toEqual([])
+    const view = await settled('inn')
+    if (!view || !('ok' in view) || !view.ok) throw new Error('view')
+    expect(view.takes).toHaveLength(1)
+    expect(view.takes[0]).toMatchObject({
+      n: 1,
+      chosen: false,
+      isNew: true,
+      earlier: false,
+      look: 'ready',
+      copiedFrom: { title: 'Hall', take: 2 },
+      model: null,
+    })
+    const copied = readFileSync(join(root, 'content-studio/cache/image-takes/inn/1.png'))
+    const source = readFileSync(join(root, 'content-studio/cache/image-takes/hall/2.png'))
+    expect(copied.equals(source)).toBe(true)
+    // Nothing of the source, the lock or the game's files changed.
+    expect(read('content-studio/cache/images/hall.json')).toBe(sourceBoard)
+    expect(read(LOCK)).toBe(lockBefore)
+    expect(read('web/images/manifest.json')).toBe(manifest)
+    expect(boardOf(read, 'inn').next).toBe(2)
+    // The next copy is the next number.
+    expect(await takes.copyFrom(file, 'inn', 'hall')).toEqual({ ok: true, n: 2 })
+  })
+
+  it('never goes out of date when the image’s words change, and choosing it records the words then', async () => {
+    const { takes, file, settled, read, root, row } = await withHallChosen()
+    await takes.copyFrom(file, 'inn', 'hall')
+    await settled('inn')
+    await setImageWords(file, 'inn', 'a different inn')
+    const view = await settled('inn')
+    if (!view || !('ok' in view) || !view.ok) throw new Error('view')
+    expect(view.takes[0]!.earlier).toBe(false)
+    expect(await takes.choose(file, 'inn', 1)).toEqual({ ok: true })
+    expect(JSON.parse(read(LOCK)).inn.inputs.text).toBe('a different inn')
+    expect((await row('inn')).status).not.toBe('out-of-date')
+    expect(existsSync(join(root, 'web/images/inn.png'))).toBe(true)
+  })
+
+  it('refuses an unknown image, the image itself, and one with no chosen take, adding nothing', async () => {
+    const { takes, file, read } = await withHallChosen()
+    expect(await takes.copyFrom(file, 'nowhere', 'hall')).toBeNull()
+    expect(await takes.copyFrom(file, 'inn', 'inn')).toEqual({
+      ok: false,
+      message: 'An image cannot be copied into itself.',
+    })
+    expect(await takes.copyFrom(file, 'hall', 'inn')).toMatchObject({
+      ok: false,
+      message: 'Inn has no picture in the game yet.',
+    })
+    expect(await takes.copyFrom(file, 'inn', 'gone')).toEqual({
+      ok: false,
+      message: 'gone is not an image of the game.',
+    })
+    expect(existsSync(join(dirname(file), 'content-studio/cache/images/inn.json'))).toBe(false)
+    expect(read(LOCK)).toContain('hall')
+  })
+
+  it('copies a picture of another size as it is; the take is marked as cropped', async () => {
+    const { takes, file, settled } = setup(undefined, {
+      'tts/act1/images.json': [
+        inn,
+        { id: 'wide', title: 'Wide', text: 'a hall', width: 640, height: 200 },
+      ],
+    })
+    await takes.make(file, 'wide', { count: 1 })
+    await settled('wide')
+    await takes.choose(file, 'wide', 1)
+    expect(await takes.copyFrom(file, 'inn', 'wide')).toEqual({ ok: true, n: 1 })
+    const view = await settled('inn')
+    if (!view || !('ok' in view) || !view.ok) throw new Error('view')
+    expect(view.takes[0]).toMatchObject({ cropped: true, look: 'ready' })
+  })
+
+  it.skipIf(process.getuid?.() === 0)(
+    'names the file when it cannot be written, and adds no take',
+    async () => {
+      const { takes, file, root, settled } = await withHallChosen()
+      mkdirSync(join(root, 'content-studio/cache/image-takes/inn'), { recursive: true })
+      chmodSync(join(root, 'content-studio/cache/image-takes/inn'), 0o555)
+      try {
+        const answer = await takes.copyFrom(file, 'inn', 'hall')
+        expect(answer).toMatchObject({ ok: false })
+        expect((answer as { message: string }).message).toContain(
+          'content-studio/cache/image-takes/inn/1.png could not be written',
+        )
+      } finally {
+        chmodSync(join(root, 'content-studio/cache/image-takes/inn'), 0o755)
+      }
+      const view = await settled('inn')
+      if (!view || !('ok' in view) || !view.ok) throw new Error('view')
+      expect(view.takes).toEqual([])
+    },
+  )
+
+  it('refuses when the source’s picture is gone', async () => {
+    const { takes, file, root } = await withHallChosen()
+    rmSync(join(root, 'content-studio/cache/image-takes/hall/2.png'))
+    expect(await takes.copyFrom(file, 'inn', 'hall')).toEqual({
+      ok: false,
+      message: 'Hall’s picture is gone from this computer.',
+    })
+  })
+})

@@ -30,6 +30,7 @@ import { NamedAreasPanel } from './NamedAreasPanel'
 import { FineTunePanel } from './FineTunePanel'
 import { GamePatchesPanel } from './GamePatchesPanel'
 import { MovementPanel } from './MovementPanel'
+import { copySources } from '../../../core/imageCopy'
 import { TakesSection } from './TakesSection'
 import { WordsField, type SaveWordsNow } from './WordsField'
 
@@ -220,6 +221,7 @@ export function ImagePage({
         <TakesSection
           active={job === 'make'}
           row={row}
+          copyGroups={copySources(images.acts, row.id, row)}
           saveWords={() => saveNow.current?.() ?? null}
           prompt={
             <section className="panel brief-panel" aria-label="Prompt">

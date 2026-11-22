@@ -2,6 +2,7 @@ import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { ImageRow } from '../../../core/images'
+import type { CopyGroup } from '../../../core/imageCopy'
 import type { ImageTakeView, ImageTakesView } from '../../../core/imageTakes'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
@@ -99,6 +100,7 @@ async function show(
   over: Partial<ImageRow> = {},
   prompt?: ReturnType<typeof createElement>,
   answer: unknown = { ok: true },
+  copyGroups: CopyGroup[] = [],
 ) {
   const calls: { url: string; method: string; body: unknown }[] = []
   globalThis.fetch = (async (url: string, init?: RequestInit) => {
@@ -124,7 +126,12 @@ async function show(
         createElement(
           QueryClientProvider,
           { client },
-          createElement(TakesSection, { row: { ...row, ...over, ...now }, prompt, active }),
+          createElement(TakesSection, {
+            row: { ...row, ...over, ...now },
+            prompt,
+            active,
+            copyGroups,
+          }),
         ),
       ),
     )
@@ -1854,5 +1861,128 @@ describe('the Make frame', () => {
         ),
     )
     expect(reaching).toEqual([])
+  })
+})
+
+describe('copying another image', () => {
+  const groups: CopyGroup[] = [
+    {
+      id: 'act1',
+      title: 'Act One',
+      images: [{ id: 'lantern', title: 'Lantern', take: 3, size: '320 × 200', cropped: false }],
+    },
+  ]
+  const copiedTake = take(4, { copiedFrom: { title: 'Lantern', take: 3 }, isNew: true })
+
+  it('puts "or", the button and "No model, nothing spent" under Make takes', async () => {
+    const s = await show(view(), {}, undefined, { ok: true }, groups)
+    const box = s.container.querySelector('.takes-copy')!
+    expect(box.textContent).toBe(
+      'orCopy another imageNo model, nothing spent'.replace('image', 'image…'),
+    )
+    expect(s.button('Copy another image…').getAttribute('aria-disabled')).toBeNull()
+  })
+
+  it('is off with its line when no other image has a picture', async () => {
+    const s = await show(view())
+    expect(s.container.querySelector('.takes-copy')!.textContent).toContain(
+      'No other image has a picture yet.',
+    )
+    expect(isOff(s.button('Copy another image…'))).toBe(true)
+  })
+
+  it('is off while the lock cannot be read or the style needs fixing', async () => {
+    for (const over of [{ lockUnread: true }, { lookError: 'bad style' }]) {
+      const s = await show(view(over), {}, undefined, { ok: true }, groups)
+      expect(isOff(s.button('Copy another image…'))).toBe(true)
+    }
+  })
+
+  it('opens the window, copies the picked image, and says so', async () => {
+    const s = await show(view({ takes: [take(1)] }), {}, undefined, { ok: true, n: 4 }, groups)
+    await s.click(s.button('Copy another image…'))
+    expect(document.body.querySelector('[role="dialog"] h3')!.textContent).toBe(
+      'Copy another image into Inn',
+    )
+    await act(async () => {
+      document.body.querySelector<HTMLElement>('[role="option"]')!.click()
+    })
+    s.client.setQueryData(['image-takes', 'inn'], view({ takes: [take(1), copiedTake] }))
+    await act(async () => {
+      ;[...document.body.querySelectorAll('button')]
+        .find((b) => b.textContent === 'Copy as a take')!
+        .click()
+    })
+    await act(async () => {})
+    expect(s.calls.find((c) => c.url.endsWith('/copy'))).toEqual({
+      url: '/api/images/inn/copy',
+      method: 'POST',
+      body: { from: 'lantern' },
+    })
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull()
+    expect(s.text()).toContain(
+      "Copied Lantern's picture as Take 4. Choose it, then fine-tune it on the Fine-tune tab.",
+    )
+    expect(s.right()).toBe('Take 4')
+    expect(s.text()).toContain('Copied from Lantern · Take 3')
+    expect(s.text()).toContain('copied from Lantern')
+    expect(s.text()).toContain('new')
+    expect(document.activeElement?.textContent).toContain('Take 4')
+  })
+
+  it('while copying, reads "Copying…" with the button off and says which picture', async () => {
+    const s = await show(view({ takes: [take(1)] }), {}, undefined, { ok: true, n: 2 }, groups)
+    globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch
+    await s.click(s.button('Copy another image…'))
+    await act(async () => {
+      document.body
+        .querySelector('[role="option"]')!
+        .dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+    })
+    expect(isOff(s.button('Copying…'))).toBe(true)
+    expect(s.text()).toContain("Copying Lantern's picture…")
+    expect(s.buttons('Make 4 takes')).toHaveLength(1)
+    expect(isOff(s.button('Make 4 takes'))).toBe(false)
+  })
+
+  it('says why a copy failed, adds nothing, and leaves the button on to try again', async () => {
+    const s = await show(
+      view({ takes: [take(1)] }),
+      {},
+      undefined,
+      { ok: false, message: 'Lantern’s picture is gone from this computer.' },
+      groups,
+    )
+    await s.click(s.button('Copy another image…'))
+    await act(async () => {
+      document.body
+        .querySelector('[role="option"]')!
+        .dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+    })
+    await act(async () => {})
+    expect(s.text()).toContain(
+      "Lantern's picture could not be copied: Lantern’s picture is gone from this computer. Nothing was added; try again.",
+    )
+    expect(s.container.querySelectorAll('[data-strip] .image-thumb')).toHaveLength(1)
+    expect(s.button('Copy another image…').getAttribute('aria-disabled')).toBeNull()
+  })
+
+  it('closes with Esc and gives focus back to the button; the page keys are not heard while open', async () => {
+    const s = await show(view({ takes: three }), {}, undefined, { ok: true }, groups)
+    await s.click(s.button('Copy another image…'))
+    const before = s.right()
+    await act(async () => {
+      document.body
+        .querySelector('[role="dialog"] input')!
+        .dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+    })
+    expect(s.right()).toBe(before)
+    await act(async () => {
+      document.body
+        .querySelector('[role="dialog"] input')!
+        .dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    })
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull()
+    expect(document.activeElement).toBe(s.button('Copy another image…'))
   })
 })

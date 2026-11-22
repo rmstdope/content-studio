@@ -152,3 +152,13 @@ describe('the Fine-tune tab’s layout (as-uucl.2)', () => {
     )
   })
 })
+
+describe('the copy window in a narrow window', () => {
+  it('has a 16 px gutter, a grid of cells at least 130 px wide, and a body that scrolls between a fixed header and footer', () => {
+    expect(css).toMatch(/\.modal-back:has\(\.copy-modal\) \{\s*padding: 16px;/)
+    expect(rule('.copy-grid')).toContain('minmax(130px, 1fr)')
+    expect(rule('.modal-list')).toContain('overflow-y: auto')
+    expect(rule('.modal')).toContain('max-height: 100%')
+    expect(rule('.copy-body')).toContain('flex: 1 1 auto')
+  })
+})
