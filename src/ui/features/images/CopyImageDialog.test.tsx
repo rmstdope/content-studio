@@ -14,12 +14,19 @@ const cleanups: (() => void)[] = []
 afterEach(() => cleanups.splice(0).forEach((c) => c()))
 afterAll(() => GlobalRegistrator.unregister())
 
-const src = (id: string, title: string, take: number, cropped = false): CopySource => ({
+const src = (
+  id: string,
+  title: string,
+  take: number,
+  cropped = false,
+  scaled = false,
+): CopySource => ({
   id,
   title,
   take,
   size: '640 × 200',
   cropped,
+  scaled,
 })
 const groups: CopyGroup[] = [
   { id: 'a1', title: 'Act One', images: [src('lantern', 'Lantern', 3), src('door', 'Door', 1)] },
@@ -85,6 +92,17 @@ describe('the copy window', () => {
     ])
     expect(cells[0]!.querySelector('img')!.getAttribute('src')).toBe('/api/images/lantern/takes/3')
     expect(cells[0]!.getAttribute('title')).toBe('Lantern')
+  })
+
+  it('says a same-shape source of another size will be scaled, in the plain colour', async () => {
+    const small = { ...src('map', 'Small map', 1, false, true), size: '160 × 100' }
+    await open([{ id: 'a1', title: 'Act One', images: [small] }])
+    const cell = all('[role="option"]')[0]!
+    expect(cell.textContent).toBe('Small map160 × 100 · will be scaled to fit')
+    expect(cell.querySelector('.copy-cropped')).toBeNull()
+    expect(cell.querySelector('.faint.small')!.textContent).toBe(
+      '160 × 100 · will be scaled to fit',
+    )
   })
 
   it('keeps Copy as a take off until a cell is picked, then names the source in the footer', async () => {

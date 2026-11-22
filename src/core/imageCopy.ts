@@ -23,6 +23,8 @@ export interface CopySource {
   size: string
   /** Its shape is not this image's, so the copy is cropped to fit. */
   cropped: boolean
+  /** Its shape is this image's but its size is not, so the copy is scaled to fit. */
+  scaled: boolean
 }
 
 /** The copyable images of one act, in the game's order. */
@@ -49,12 +51,14 @@ export function copySources(
     for (const r of act.rows) {
       if (r.id === imageId || r.chosenTake === null || seen.has(r.id)) continue
       seen.add(r.id)
+      const cropped = isCropped(r, into)
       images.push({
         id: r.id,
         title: r.title,
         take: r.chosenTake,
         size: `${r.width} × ${r.height}`,
-        cropped: isCropped(r, into),
+        cropped,
+        scaled: !cropped && (r.width !== into.width || r.height !== into.height),
       })
     }
     if (images.length) groups.push({ id: act.id, title: act.title, images })
@@ -80,6 +84,9 @@ export const copyFooter = (source: string, take: number) =>
 
 /** The line under a cell for another size. */
 export const croppedLine = (size: string) => `${size} · will be cropped to fit`
+
+/** The line under a cell for the same shape in another size. */
+export const scaledLine = (size: string) => `${size} · will be scaled to fit`
 
 /** The green line after a copy. */
 export const copiedLine = (source: string, n: number) =>

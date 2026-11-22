@@ -1869,7 +1869,16 @@ describe('copying another image', () => {
     {
       id: 'act1',
       title: 'Act One',
-      images: [{ id: 'lantern', title: 'Lantern', take: 3, size: '320 × 200', cropped: false }],
+      images: [
+        {
+          id: 'lantern',
+          title: 'Lantern',
+          take: 3,
+          size: '320 × 200',
+          cropped: false,
+          scaled: false,
+        },
+      ],
     },
   ]
   const copiedTake = take(4, { copiedFrom: { title: 'Lantern', take: 3 }, isNew: true })

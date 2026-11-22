@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   CopyImageBody,
   NO_COPY_MATCH,
+  scaledLine,
   copiedLine,
   copyFailure,
   copyRefusal,
@@ -59,6 +60,22 @@ describe('copySources', () => {
     expect(
       copySources(acts, 'lantern-lit', { width: 320, height: 200 })[0]!.images[0]!.cropped,
     ).toBe(false)
+  })
+})
+
+describe('scaled sources', () => {
+  const into = { width: 320, height: 200 }
+  const one = (w: number, h: number) =>
+    copySources([{ id: 'a', title: 'A', rows: [row('s', 1, w, h)] }], 'x', into)[0]!.images[0]!
+  it('marks a same-shape source of another size as scaled, not cropped', () => {
+    expect(one(160, 100)).toMatchObject({ scaled: true, cropped: false })
+  })
+  it('marks another shape as cropped only, and the same size as neither', () => {
+    expect(one(640, 200)).toMatchObject({ scaled: false, cropped: true })
+    expect(one(320, 200)).toMatchObject({ scaled: false, cropped: false })
+  })
+  it('words the line', () => {
+    expect(scaledLine('160 × 100')).toBe('160 × 100 · will be scaled to fit')
   })
 })
 
