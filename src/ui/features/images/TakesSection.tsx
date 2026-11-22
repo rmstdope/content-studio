@@ -547,13 +547,7 @@ export function TakesSection({
         {copy.isPending ? 'Copying…' : 'Copy another image…'}
       </button>
       <span className="faint small">
-        {lockUnread
-          ? COPY_LOCK_WHY
-          : lookError !== null
-            ? COPY_STYLE_WHY
-            : copyGroups.length === 0
-              ? NO_OTHER_PICTURE
-              : 'No model, nothing spent'}
+        {copyWhy !== null && copyWhy !== COPYING_WHY ? copyWhy : 'No model, nothing spent'}
       </span>
     </div>
   )
