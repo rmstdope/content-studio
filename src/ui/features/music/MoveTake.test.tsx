@@ -401,6 +401,22 @@ describe('the Move dialog', () => {
     expect(dialog()).toBeNull()
   })
 
+  it('closes on Esc after a press on a spot inside the dialog that is not a control', async () => {
+    // A browser moves focus on a press to the nearest focusable ancestor of what was pressed,
+    // and to the page's body when there is none; happy-dom does not, so this does it by hand.
+    const page = render(village, view([take(3)]))
+    for (const spot of ['#move-take-title', '.modal .muted', '.modal-actions .grow']) {
+      await click(page.buttons('Move…')[0])
+      const pressed = document.querySelector<HTMLElement>(spot)!
+      const focusable = pressed.closest<HTMLElement>('[tabindex], button, input')
+      if (focusable) focusable.focus()
+      else (document.activeElement as HTMLElement | null)?.blur()
+      page.key(document.activeElement ?? document.body, 'Escape')
+      await act(async () => {})
+      expect(dialog()).toBeNull()
+    }
+  })
+
   it('moves with Up, Down and Enter, and closes with Esc, focus back on Move…', async () => {
     const page = render(village, view([take(3)]))
     const opener = page.buttons('Move…')[0]!
