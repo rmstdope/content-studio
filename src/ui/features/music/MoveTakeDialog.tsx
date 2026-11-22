@@ -187,6 +187,9 @@ export function MoveTakeDialog({
           role="dialog"
           aria-modal="true"
           aria-labelledby="move-take-title"
+          // A press on a spot that is not a control focuses the dialog rather than the page, so
+          // its keys (Esc above all) still reach `onKeyDown`.
+          tabIndex={-1}
           ref={root}
         >
           <h3 id="move-take-title">{moveTitle(take.n, kind)}</h3>
