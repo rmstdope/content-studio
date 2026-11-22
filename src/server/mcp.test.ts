@@ -134,7 +134,7 @@ describe('the MCP endpoint', () => {
   it('tells the pages and what each shows', async () => {
     const result = await mcp.call('studio_pages', {})
     const { read: pages, actions } = JSON.parse(result.content[0]!.text)
-    expect(Object.keys(actions).sort()).toEqual(['Scenes', 'Sound effects'])
+    expect(Object.keys(actions).sort()).toEqual(['Images', 'Scenes', 'Sound effects'])
     expect(Object.keys(pages).sort()).toEqual([
       'Images',
       'Music and Stingers',
