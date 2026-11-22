@@ -1,5 +1,6 @@
 import type { RouteContext } from './context'
 import { allowedHosts, forbidden } from './shared'
+import { ACTIONS, matchAction, type ActionPage } from './mcpActions'
 import { READABLE, matchReadable, type ReadablePage } from './mcpReadable'
 
 /** The largest file `studio_fetch` hands over, in bytes. */
@@ -37,6 +38,7 @@ const TOOLS = [
     description:
       "Lists what can be read of the studio, by the page of the web UI that shows it: each path's route, whether it answers state (JSON) or a file (an image or a sound), and what it shows.",
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    annotations: { readOnlyHint: true },
   },
   {
     name: 'studio_read',
@@ -49,13 +51,50 @@ const TOOLS = [
     description:
       'Fetches an image or a sound the web UI can show or play, so it can be looked at or listened to: a `file` path from studio_pages. Changes nothing.',
     inputSchema: pathArgument,
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: 'studio_act',
+    description:
+      'Does a step of a page of the web UI (Sound effects and Scenes so far), through the same route the page uses, so every check holds: the body is the one the page sends (a spending step carries confirmedCost / confirmedCredits from its plan). A step marked `confirm` in studio_pages needs `confirmed: true`, set only once the user has agreed to what it says. `files` carries recordings for a form.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        method: { type: 'string', enum: ['POST', 'PUT', 'PATCH', 'DELETE'] },
+        path: {
+          type: 'string',
+          description:
+            'A path from the actions of studio_pages, with its :names filled in, and an optional query.',
+        },
+        body: { type: 'object', description: 'The JSON body; for a form, its text fields.' },
+        files: {
+          type: 'array',
+          description:
+            'Files for a form body: the field they go under, name, type and base64 bytes.',
+          items: {
+            type: 'object',
+            properties: {
+              field: { type: 'string' },
+              name: { type: 'string' },
+              type: { type: 'string' },
+              base64: { type: 'string' },
+            },
+            required: ['field', 'name', 'base64'],
+          },
+        },
+        confirmed: { type: 'boolean' },
+      },
+      required: ['method', 'path'],
+      additionalProperties: false,
+    },
+    annotations: { destructiveHint: true },
   },
 ]
 
 /**
- * The studio's MCP endpoint (§9): stateless Streamable HTTP, JSON-RPC over POST, with tools that
- * only read. They reach the studio's own GET routes over the loopback, so an agent sees exactly
- * what the web UI gets, through the same checks.
+ * The studio's MCP endpoint (§9): stateless Streamable HTTP, JSON-RPC over POST. Its tools reach
+ * the studio's own routes over the loopback, so an agent sees and does exactly what the web UI
+ * does, through the same checks: reads on the GET routes, changes only the registered ones.
  */
 export function mcpRoutes(c: RouteContext) {
   const { guard, listening } = c
@@ -95,13 +134,55 @@ export function mcpRoutes(c: RouteContext) {
     }
   }
 
+  async function act(args: Record<string, unknown>): Promise<ToolResult> {
+    const { method, path, body, files, confirmed } = args
+    const action =
+      typeof method === 'string' && typeof path === 'string' ? matchAction(method, path) : null
+    if (!action) {
+      return failed(
+        `Not something to do: ${String(method)} ${String(path)}. studio_pages lists what is.`,
+      )
+    }
+    if (action.confirm && confirmed !== true) {
+      return failed(
+        `Needs the user's confirmation first: this ${action.confirm}. Once the user has agreed, call again with confirmed: true.`,
+      )
+    }
+    const own = `http://127.0.0.1:${listening.port}`
+    const headers: Record<string, string> = { host: `127.0.0.1:${listening.port}`, origin: own }
+    let payload: string | FormData | undefined
+    if (Array.isArray(files) && files.length) {
+      const form = new FormData()
+      for (const [name, value] of Object.entries((body ?? {}) as Record<string, unknown>)) {
+        form.append(name, String(value))
+      }
+      for (const f of files as { field: string; name: string; type?: string; base64: string }[]) {
+        form.append(
+          f.field,
+          new File([Buffer.from(f.base64, 'base64')], f.name, { type: f.type ?? '' }),
+        )
+      }
+      payload = form
+    } else if (body !== undefined) {
+      headers['content-type'] = 'application/json'
+      payload = JSON.stringify(body)
+    }
+    const response = await fetch(`${own}${path}`, { method: action.method, headers, body: payload })
+    const answer = await response.text()
+    if (!response.ok) return failed(`${response.status} ${answer}`)
+    return { content: [{ type: 'text', text: answer || 'Done.' }] }
+  }
+
   async function callTool(name: unknown, args: unknown): Promise<ToolResult> {
     const path = (args as { path?: unknown } | null)?.path
     if (name === 'studio_pages') {
-      const pages: Partial<Record<ReadablePage, unknown[]>> = {}
-      for (const { page, ...rest } of READABLE) (pages[page] ??= []).push(rest)
-      return { content: [{ type: 'text', text: JSON.stringify(pages, null, 2) }] }
+      const read: Partial<Record<ReadablePage, unknown[]>> = {}
+      for (const { page, ...rest } of READABLE) (read[page] ??= []).push(rest)
+      const actions: Partial<Record<ActionPage, unknown[]>> = {}
+      for (const { page, ...rest } of ACTIONS) (actions[page] ??= []).push(rest)
+      return { content: [{ type: 'text', text: JSON.stringify({ read, actions }, null, 2) }] }
     }
+    if (name === 'studio_act') return act((args ?? {}) as Record<string, unknown>)
     if (name === 'studio_read') return read(path, 'state')
     if (name === 'studio_fetch') return read(path, 'file')
     return failed(`No tool called ${String(name)}.`)

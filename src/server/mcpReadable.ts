@@ -108,22 +108,25 @@ export const NOT_READABLE: readonly { path: string; reason: string }[] = []
 const SEGMENT = /^[^/?#%\\]+$/
 
 /**
- * The readable entry for a path (with an optional query string), or null for anything else:
- * a path not listed, one that climbs out with `..`, or one with an encoded slash or dot.
+ * Whether a path (with an optional query string) is the route a template describes, `:name`
+ * standing for one segment: a path that climbs out with `..` or hides a slash or dot is none.
  */
-export function matchReadable(path: string): Readable | null {
-  if (!path.startsWith('/api/') || path.includes('#')) return null
+export function fitsTemplate(template: string, path: string): boolean {
+  if (!path.startsWith('/api/') || path.includes('#')) return false
   const route = path.split('?')[0]!.split('/').slice(1)
-  for (const entry of READABLE) {
-    const template = entry.path.split('/').slice(1)
-    if (template.length !== route.length) continue
-    const fits = template.every((part, i) => {
+  const parts = template.split('/').slice(1)
+  return (
+    parts.length === route.length &&
+    parts.every((part, i) => {
       const segment = route[i]!
       return part.startsWith(':')
         ? SEGMENT.test(segment) && segment !== '..' && segment !== '.'
         : part === segment
     })
-    if (fits) return entry
-  }
-  return null
+  )
+}
+
+/** The readable entry for a path (with an optional query string), or null for anything else. */
+export function matchReadable(path: string): Readable | null {
+  return READABLE.find((entry) => fitsTemplate(entry.path, path)) ?? null
 }

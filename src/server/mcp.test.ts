@@ -121,18 +121,20 @@ describe('the MCP endpoint', () => {
     expect((await mcp.post(ping, { host: 'evil.test' })).status).toBe(403)
   })
 
-  it('lists three tools', async () => {
+  it('lists four tools', async () => {
     const list = await mcp.post({ jsonrpc: '2.0', id: 1, method: 'tools/list' })
     expect(list.body.result.tools.map((t: { name: string }) => t.name)).toEqual([
       'studio_pages',
       'studio_read',
       'studio_fetch',
+      'studio_act',
     ])
   })
 
   it('tells the pages and what each shows', async () => {
     const result = await mcp.call('studio_pages', {})
-    const pages = JSON.parse(result.content[0]!.text)
+    const { read: pages, actions } = JSON.parse(result.content[0]!.text)
+    expect(Object.keys(actions).sort()).toEqual(['Scenes', 'Sound effects'])
     expect(Object.keys(pages).sort()).toEqual([
       'Images',
       'Music and Stingers',
