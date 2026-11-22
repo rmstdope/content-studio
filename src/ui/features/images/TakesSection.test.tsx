@@ -1891,6 +1891,16 @@ describe('copying another image', () => {
     expect(isOff(s.button('Copy another image…'))).toBe(true)
   })
 
+  it('says beside the button that the lock cannot be read, not that no image has a picture', async () => {
+    // With the lock unreadable the server reports no other picture, so the groups are empty.
+    const s = await show(view({ lockUnread: true }))
+    const line = s.container.querySelector('.takes-copy')!.textContent
+    expect(line).toContain(
+      'The images lock cannot be read, so a picture cannot be copied. Fix the lock file, then reload.',
+    )
+    expect(line).not.toContain('No other image has a picture yet.')
+  })
+
   it('is off while the lock cannot be read or the style needs fixing', async () => {
     for (const over of [{ lockUnread: true }, { lookError: 'bad style' }]) {
       const s = await show(view(over), {}, undefined, { ok: true }, groups)
