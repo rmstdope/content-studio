@@ -11,6 +11,7 @@ import {
   FileNotWritten,
   gainClip,
   levelClip,
+  measureSound,
 } from './audio'
 import { quietestStretch } from '../core/cleanup'
 import { levelDb } from '../core/level'
@@ -450,4 +451,39 @@ describe.skipIf(!hasFfmpeg || !Bun.which('ffprobe'))('gainClip', () => {
     },
     SLOW,
   )
+})
+
+/** A tone as a WAV: `seconds` long at 16 kHz, mono. */
+function tone(seconds: number, amplitude = 0.5): Uint8Array {
+  const samples = new Int16Array(Math.round(16000 * seconds))
+  for (let i = 0; i < samples.length; i++) {
+    samples[i] = Math.round(amplitude * 32767 * Math.sin((2 * Math.PI * 440 * i) / 16000))
+  }
+  return writeWav({
+    format: { channels: 1, sampleRate: 16000, bitsPerSample: 16 },
+    data: new Uint8Array(samples.buffer),
+  })
+}
+
+describe.skipIf(!hasFfmpeg)('measureSound', () => {
+  it('gives the length and the loudness of a sound, a louder one measuring higher', async () => {
+    const quiet = await measureSound(tone(3, 0.05))
+    const loud = await measureSound(tone(3, 0.5))
+    expect(quiet.seconds).toBeCloseTo(3, 1)
+    expect(loud.lufs!).toBeGreaterThan(quiet.lufs! + 10)
+    expect(loud.lufs!).toBeLessThan(0)
+    expect(loud.wav.length).toBeGreaterThan(1000)
+  })
+
+  it('gives no loudness for a silent sound', async () => {
+    const silent = writeWav({
+      format: { channels: 1, sampleRate: 16000, bitsPerSample: 16 },
+      data: new Uint8Array(16000 * 2 * 2),
+    })
+    expect((await measureSound(silent)).lufs).toBeNull()
+  })
+
+  it('says so for bytes that are no sound', async () => {
+    await expect(measureSound(new TextEncoder().encode('not audio'))).rejects.toThrow('ffmpeg')
+  })
 })

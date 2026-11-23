@@ -1,5 +1,7 @@
 import { constants } from 'node:fs'
-import { access, mkdir, rename, rm } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { access, mkdir, rename, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { pyFixed } from '../core/pyformat'
 import { cleanupFilter, CLEANUP, noiseFirstFile, quietestStretch } from '../core/cleanup'
@@ -215,6 +217,30 @@ export async function decodeClip(
   const { format, data } = readWav(wav)
   const frame = (format.bitsPerSample / 8) * format.channels
   return { wav, seconds: data.length / frame / format.sampleRate }
+}
+
+/**
+ * What can be told of a sound without hearing it: its decoded WAV, its length in seconds and its
+ * integrated loudness in LUFS (null when it is too short or silent to measure). The bytes are
+ * written to a temporary file outside any project and removed again; nothing is changed.
+ */
+export async function measureSound(
+  bytes: Uint8Array,
+  { timeoutMs = 120_000 }: { timeoutMs?: number } = {},
+): Promise<{ wav: Uint8Array; seconds: number; lufs: number | null }> {
+  const file = join(tmpdir(), `content-studio-measure-${randomUUID()}`)
+  await writeFile(file, bytes)
+  try {
+    const decoded = await decodeClip(file, { timeoutMs })
+    const lufs = await loudness(file, timeoutMs)
+    return { ...decoded, lufs: Number.isFinite(lufs) ? lufs : null }
+  } catch (error) {
+    // The temporary file is gone by the time anyone reads this: do not name it.
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(message.replaceAll(file, 'the sound'))
+  } finally {
+    await rm(file, { force: true }).catch(() => {})
+  }
 }
 
 /** level.py's constants: the true-peak ceiling, the loudness range, and the encodes allowed. */
