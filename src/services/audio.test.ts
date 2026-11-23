@@ -484,6 +484,8 @@ describe.skipIf(!hasFfmpeg)('measureSound', () => {
   })
 
   it('says so for bytes that are no sound', async () => {
-    await expect(measureSound(new TextEncoder().encode('not audio'))).rejects.toThrow('ffmpeg')
+    await expect(measureSound(new TextEncoder().encode('not audio'))).rejects.toThrow(
+      'the file is not audio ffmpeg can read',
+    )
   })
 })

@@ -181,6 +181,13 @@ export async function cleanWav(
 /** The encoder the studio uses: ffmpeg, stopped after two minutes to encode and two to level. */
 export const ffmpegEncoder: Encoder = createFfmpegEncoder({ timeoutMs: 120_000 })
 
+/** ffmpeg could not decode a clip; the message carries what it said. */
+export class UnreadableClip extends Error {
+  constructor(log: string) {
+    super(`ffmpeg could not read the clip: ${log}`)
+  }
+}
+
 /**
  * A clip decoded by ffmpeg to WAV at its own rate, and its length in seconds from its frames: what
  * narrate.py `--retime` transcribes and measures (Whisper hears a WAV and an MP3 of the same clip
@@ -210,7 +217,7 @@ export async function decodeClip(
     throw new Error(`ffmpeg took longer than ${timeoutMs / 1000} s to decode the clip`)
   }
   if (code !== 0) {
-    throw new Error(`ffmpeg could not read the clip: ${message.trim() || `exit code ${code}`}`)
+    throw new UnreadableClip(message.trim() || `exit code ${code}`)
   }
   // Piped, ffmpeg cannot fill in the sizes in the header (0xFFFFFFFF); readWav reads to the end.
   const wav = new Uint8Array(bytes)
@@ -235,6 +242,8 @@ export async function measureSound(
     const lufs = await loudness(file, timeoutMs)
     return { ...decoded, lufs: Number.isFinite(lufs) ? lufs : null }
   } catch (error) {
+    // ffmpeg's log is three lines with a memory address: say it in a few plain words.
+    if (error instanceof UnreadableClip) throw new Error('the file is not audio ffmpeg can read')
     // The temporary file is gone by the time anyone reads this: do not name it.
     const message = error instanceof Error ? error.message : String(error)
     throw new Error(message.replaceAll(file, 'the sound'))
