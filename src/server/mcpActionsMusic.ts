@@ -1,3 +1,4 @@
+import { FADE_SHAPES } from '../core/fades'
 import type { Action } from './mcpActions'
 
 const MUSIC = 'Music and Stingers' as const
@@ -40,7 +41,7 @@ export const MUSIC_ACTIONS: readonly Action[] = [
   change(
     'PUT',
     '/api/music/tracks/:id/takes/:file/fades',
-    '{ in, out, shape }',
+    `{ in: seconds, 0 or more; out: seconds, 0 or more; shape: ${FADE_SHAPES.map((x) => `"${x}"`).join(' | ')} }; in and out together no longer than the take`,
     "saves a take's fades",
   ),
   change('DELETE', '/api/music/tracks/:id/takes/:file/fades', '', "removes a take's fades"),

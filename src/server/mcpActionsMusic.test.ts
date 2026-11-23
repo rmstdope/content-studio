@@ -35,6 +35,13 @@ describe('the Music and Stingers steps an agent may do', () => {
   })
 })
 
+describe('what the body of a music take’s fades says', () => {
+  it('names the lengths and the shapes', () => {
+    const text = matchAction('PUT', '/api/music/tracks/hall/takes/a.mp3/fades')?.body ?? ''
+    for (const word of ['seconds', 'smooth', 'straight']) expect(text).toContain(word)
+  })
+})
+
 describe('the Music and Stingers steps, against the server', () => {
   const root = tempRepo({ 'content-studio.json': projectJson() })
   const routes = studioRoutes(

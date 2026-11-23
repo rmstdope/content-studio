@@ -1,3 +1,4 @@
+import { FishTierSchema } from '../core/project'
 import type { Action } from './mcpActions'
 
 /**
@@ -18,7 +19,7 @@ export const SETUP_AND_NARRATION_ACTIONS: readonly Action[] = [
     method: 'PATCH',
     path: '/api/fish-tier',
     about: 'choose the Fish tier',
-    body: '{ tier }',
+    body: `{ tier: ${FishTierSchema.options.map((t) => `"${t}"`).join(' | ')} | null (clears it) }`,
   },
   {
     page: 'Setup',
@@ -102,7 +103,7 @@ export const SETUP_AND_NARRATION_ACTIONS: readonly Action[] = [
     method: 'POST',
     path: '/api/parts/:part/jobs',
     about: 'record lines of a part (a batch)',
-    body: '{ kind, stage, speaker, keys, orphans, retakeWeak, confirmedCost, confirmedCredits }',
+    body: '{ kind?: record | measure | check (measure and check use Whisper alone, no credit), stage?: draft | final, speaker: character id, or null for all (required), keys: [line key], orphans: [line key] (removed with a record job), retakeWeak?: boolean, confirmedCost?, confirmedCredits? }. keys and orphans are the lines and orphans you read in the part, only those still due are done',
   },
   {
     page: 'Narration',
@@ -158,7 +159,7 @@ export const SETUP_AND_NARRATION_ACTIONS: readonly Action[] = [
     method: 'PATCH',
     path: '/api/pronounce',
     about: 'save the pronunciation table',
-    body: '{ table, was }',
+    body: '{ table: [[word, said]], was: [[word, said]] }: the whole table, and the table as you read it ([] if it had none); read the table as summary.pronounce of studio_read /api/project',
   },
   {
     page: 'Narration',

@@ -342,7 +342,11 @@ describe('server, the Fish tier', () => {
 
   it('saves the tier from its own page, and the setup then shows it', async () => {
     expect((await patch({ tier: '100' }, 'http://evil.test')).status).toBe(403)
-    expect((await patch({ tier: '50' })).status).toBe(400)
+    const refused = await patch({ tier: '50' })
+    expect(refused.status).toBe(400)
+    const { error } = await refused.json()
+    for (const word of ['expected { tier }', 'tier', 'under-100', '1000'])
+      expect(error).toContain(word)
     expect((await patch({})).status).toBe(400)
     const saved = await patch({ tier: '100' })
     expect([saved.status, await saved.json()]).toEqual([200, { ok: true }])

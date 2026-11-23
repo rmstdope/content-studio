@@ -325,6 +325,14 @@ describe('server, generating a part', () => {
       })
       expect(response.status).toBe(400)
     }
+    const refused = await fetch(at('/api/parts/act1/jobs'), {
+      method: 'POST',
+      headers: own,
+      body: JSON.stringify({ kind: 'listen', speaker: null, keys: [], orphans: [] }),
+    })
+    const { error } = await refused.json()
+    for (const word of ['kind', 'record', 'measure', 'check', 'draft', 'final'])
+      expect(error).toContain(word)
   })
 
   it('takes jobs and cancels only from the studio’s own page', async () => {

@@ -98,6 +98,9 @@ import {
   fileRoute,
   CleanedBody,
   notFound,
+  badBody,
+  JOB_ALLOWED,
+  PRONOUNCE_ALLOWED,
   parseOrNull,
 } from '../shared'
 
@@ -289,12 +292,10 @@ export function narrationRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = JobBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json(
-            {
-              error:
-                'expected { kind, stage, speaker, keys, orphans, retakeWeak, confirmedCost, confirmedCredits }',
-            },
-            { status: 400 },
+          return badBody(
+            '{ kind, stage, speaker, keys, orphans, retakeWeak, confirmedCost, confirmedCredits }',
+            body.error,
+            JOB_ALLOWED,
           )
         }
         const { part } = request.params
@@ -600,7 +601,7 @@ export function narrationRoutes(c: RouteContext) {
       PATCH: fromOwnPage(async (request) => {
         const body = PronounceBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { table, was }' }, { status: 400 })
+          return badBody('{ table, was }', body.error, PRONOUNCE_ALLOWED)
         }
         const result = await setPronunciations(
           projectFile,
