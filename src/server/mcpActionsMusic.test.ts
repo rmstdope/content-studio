@@ -10,7 +10,8 @@ describe('the Music and Stingers steps an agent may do', () => {
   it('matches each step by method and route, under its page', () => {
     expect(matchAction('PATCH', '/api/music/tracks/hall')?.page).toBe('Music and Stingers')
     expect(matchAction('POST', '/api/music/stingers/refresh')?.page).toBe('Music and Stingers')
-    expect(matchAction('POST', '/api/parts/act1/refresh')?.page).toBe('Music and Stingers')
+    // An act's Refresh from the game is the part route, which the Images entries list once.
+    expect(matchAction('POST', '/api/parts/act1/refresh')).not.toBeNull()
     expect(matchAction('PUT', '/api/music/model')?.page).toBe('Setup')
   })
 
@@ -40,7 +41,7 @@ describe('the Music and Stingers steps, against the server', () => {
     createContext({ projectFile: join(root, 'content-studio.json'), port: 0 }),
   ) as unknown as Record<string, Record<string, unknown>>
   const changes = Object.entries(routes)
-    .filter(([path]) => path.startsWith('/api/music/') || path === '/api/parts/:part/refresh')
+    .filter(([path]) => path.startsWith('/api/music/'))
     .flatMap(([path, methods]) =>
       Object.keys(methods)
         .filter((method) => method !== 'GET')

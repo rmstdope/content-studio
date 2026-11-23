@@ -88,10 +88,4 @@ export const MUSIC_ACTIONS: readonly Action[] = [
     '',
     "Refresh from the game on the Stingers page: runs the project's refresh.shared command",
   ),
-  change(
-    'POST',
-    '/api/parts/:part/refresh',
-    '',
-    "Refresh from the game on an act's Music page (the act is the part): runs the project's refresh.part command",
-  ),
 ]

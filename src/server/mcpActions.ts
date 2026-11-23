@@ -4,12 +4,7 @@ import { MUSIC_ACTIONS } from './mcpActionsMusic'
 import { fitsTemplate } from './mcpReadable'
 
 /** The pages of the web UI an agent can act on so far. */
-export type ActionPage =
-  | 'Images'
-  | 'Music and Stingers'
-  | 'Scenes'
-  | 'Setup'
-  | 'Sound effects'
+export type ActionPage = 'Images' | 'Music and Stingers' | 'Scenes' | 'Setup' | 'Sound effects'
 
 /** One thing an agent may do: a change the studio's own routes take. */
 export interface Action {
