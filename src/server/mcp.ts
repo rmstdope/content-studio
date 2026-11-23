@@ -3,6 +3,8 @@ import { allowedHosts, forbidden } from './shared'
 import { MUSIC_MODEL_IDS, perMinuteWords } from '../core/musicModels'
 import { ACTIONS, matchAction, type Action, type ActionPage } from './mcpActions'
 import { READABLE, matchReadable, type ReadablePage } from './mcpReadable'
+import { describeSound, soundFacts, type WhisperAsk } from '../services/soundFacts'
+import { openProject } from '../services/workspace'
 
 /** The largest file `studio_fetch` hands over, in bytes. */
 const MAX_FILE = 64 * 1024 * 1024
@@ -131,11 +133,41 @@ export function mcpRoutes(c: RouteContext) {
     const bytes = new Uint8Array(await response.arrayBuffer())
     if (bytes.byteLength > MAX_FILE)
       return failed(`${path} is too large to hand over (${bytes.byteLength} bytes).`)
+    const facts: ToolResult['content'] = []
+    if (type === 'audio') {
+      facts.push({ type: 'text', text: await soundText(bytes, entry.page, path) })
+    }
     return {
       content: [
         { type: 'text', text: `${path}: ${mimeType}, ${bytes.byteLength} bytes` },
+        ...facts,
         { type, data: Buffer.from(bytes).toString('base64'), mimeType },
       ],
+    }
+  }
+
+  /**
+   * What an agent that cannot hear a sound reads instead: its length and loudness, and on the
+   * Narration page's sounds (lines and auditions) the words Whisper heard, in the `?language=`
+   * asked. A sound that cannot be measured is said so; the fetch still hands the file over.
+   */
+  async function soundText(bytes: Uint8Array, page: ReadablePage, path: string): Promise<string> {
+    try {
+      let whisper: WhisperAsk | undefined
+      if (page === 'Narration') {
+        const opened = await openProject(c.projectFile)
+        const language = new URL(path, 'http://studio').searchParams.get('language') ?? undefined
+        const model = opened.ok ? opened.project.narration.generate.whisperModel : ''
+        const off = !opened.ok || opened.project.narration.generate.transcriber === 'none'
+        whisper = {
+          transcriber: off ? null : await c.transcriberFor(),
+          model,
+          ...(language ? { language } : {}),
+        }
+      }
+      return describeSound(await soundFacts(bytes, { whisper }))
+    } catch (error) {
+      return `Could not measure it: ${error instanceof Error ? error.message : String(error)}.`
     }
   }
 
