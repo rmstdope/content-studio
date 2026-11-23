@@ -708,7 +708,7 @@ async function keepWhatWasHeard(
 }
 
 /** What Whisper heard in a WAV: written to a temporary file outside the game, then removed. */
-async function transcribeWav(
+export async function transcribeWav(
   transcriber: Transcriber,
   model: string,
   wav: Uint8Array,

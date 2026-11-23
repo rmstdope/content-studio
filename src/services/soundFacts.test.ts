@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { writeWav } from '../core/wav'
-import { describeSound, soundFacts } from './soundFacts'
+import { describeSound, soundFacts, whisperLanguage } from './soundFacts'
 import type { Transcriber } from './transcriber'
 
 const hasFfmpeg = Bun.which('ffmpeg') !== null
@@ -26,6 +26,18 @@ describe('describeSound', () => {
     expect(describeSound({ seconds: 1, lufs: -20, heard: { off: 'Whisper is off.' } })).toBe(
       'Duration 1.0 s, loudness -20.0 LUFS. Whisper is off.',
     )
+  })
+})
+
+describe('whisperLanguage', () => {
+  it('tells nothing in a single-language project, whatever is asked', () => {
+    expect(whisperLanguage(['en'], 'sv')).toBeUndefined()
+    expect(whisperLanguage(['en'], null)).toBeUndefined()
+  })
+  it('tells the language asked if the project has it, else the source language', () => {
+    expect(whisperLanguage(['en', 'sv'], 'sv')).toBe('sv')
+    expect(whisperLanguage(['en', 'sv'], null)).toBe('en')
+    expect(whisperLanguage(['en', 'sv'], 'de')).toBe('en')
   })
 })
 
@@ -66,7 +78,10 @@ describe.skipIf(!hasFfmpeg)('soundFacts', () => {
   })
 
   it('says why there are no words when Whisper is off or fails', async () => {
-    expect((await soundFacts(wav, { whisper: { transcriber: null, model: 'm' } })).heard).toEqual({
+    expect(
+      (await soundFacts(wav, { whisper: { off: 'Whisper is off, so no words were heard.' } }))
+        .heard,
+    ).toEqual({
       off: 'Whisper is off, so no words were heard.',
     })
     const broken: Transcriber = {

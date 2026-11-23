@@ -234,6 +234,10 @@ export async function measureSound(
     const decoded = await decodeClip(file, { timeoutMs })
     const lufs = await loudness(file, timeoutMs)
     return { ...decoded, lufs: Number.isFinite(lufs) ? lufs : null }
+  } catch (error) {
+    // The temporary file is gone by the time anyone reads this: do not name it.
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(message.replaceAll(file, 'the sound'))
   } finally {
     await rm(file, { force: true }).catch(() => {})
   }

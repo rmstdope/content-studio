@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from 'bun:test'
-import { mkdirSync, readdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { projectJson, tempRepo } from '../../test/helpers'
@@ -7,6 +7,7 @@ import { writeWav } from '../core/wav'
 import type { Transcriber } from '../services/transcriber'
 import { startServer } from './index'
 
+const realTmp = tmpdir()
 const hasFfmpeg = Bun.which('ffmpeg') !== null
 
 /** A second of a quiet tone, as bytes ffmpeg can read. */
@@ -19,6 +20,12 @@ function tone(): Uint8Array {
     format: { channels: 1, sampleRate: 16000, bitsPerSample: 16 },
     data: new Uint8Array(samples.buffer),
   })
+}
+
+/** The sample project's narration with its `generate.transcriber` set to "none". */
+function noWhisper() {
+  const narration = projectJson().narration as { generate?: object }
+  return { ...narration, generate: { ...narration.generate, transcriber: 'none' } }
 }
 
 const asked: { language?: string }[] = []
@@ -79,7 +86,8 @@ describe.skipIf(!hasFfmpeg)('studio_fetch tells a sound in words', () => {
     expect(result.content[1]!.text).toMatch(
       /^Duration 1\.0 s, loudness -?\d+\.\d LUFS\. Whisper heard: "Once"$/,
     )
-    expect(asked.at(-1)).toEqual({ language: 'sv' })
+    // A project of one language is not told one, whatever the path asks.
+    expect(asked.at(-1)).toEqual({ language: undefined })
   })
 
   it('gives a music clip its length and loudness, without asking Whisper', async () => {
@@ -97,10 +105,55 @@ describe.skipIf(!hasFfmpeg)('studio_fetch tells a sound in words', () => {
     expect(result.content[1]!.text).toStartWith('Could not measure it: ')
   })
 
-  it('leaves no temporary file behind', async () => {
-    await fetchSound('/api/parts/act1/clips/a.mp3')
-    expect(readdirSync(tmpdir()).filter((f) => /^content-studio-(measure|heard)-/.test(f))).toEqual(
-      [],
-    )
+  it('leaves no temporary file behind, measured or not', async () => {
+    const own = mkdtempSync(join(realTmp, 'sound-facts-'))
+    process.env.TMPDIR = own
+    try {
+      await fetchSound('/api/parts/act1/clips/a.mp3')
+      await fetchSound('/api/parts/act1/clips/bad.mp3')
+      await fetchSound('/api/music/clips/hall.mp3')
+    } finally {
+      process.env.TMPDIR = realTmp
+    }
+    expect(readdirSync(own)).toEqual([])
+  })
+
+  it('names no temporary file when it cannot measure', async () => {
+    const result = await fetchSound('/api/parts/act1/clips/bad.mp3')
+    expect(result.content[1]!.text).not.toContain('content-studio-measure')
+  })
+})
+
+describe.skipIf(!hasFfmpeg)('studio_fetch when Whisper is switched off in the project', () => {
+  const root = tempRepo({
+    'content-studio.json': projectJson({ narration: noWhisper() }),
+    'content-studio/narration/cast.json': { speakers: { narrator: { voice: 'v1' } } },
+    'tts/act1/script.json': [{ id: 'a', speaker: 'narrator', text: 'Once.' }],
+    'audio/act1/manifest.json': { a: { file: 'a.mp3' } },
+  })
+  writeFileSync(join(root, 'audio/act1/a.mp3'), tone())
+  const server = startServer({
+    projectFile: join(root, 'content-studio.json'),
+    port: 0,
+    transcriber,
+    elevenlabs: null,
+  })
+  afterAll(() => server.stop(true))
+
+  it('says so, and does not ask Whisper', async () => {
+    const before = asked.length
+    const response = await fetch(new URL('/mcp', server.url), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'studio_fetch', arguments: { path: '/api/parts/act1/clips/a.mp3' } },
+      }),
+    })
+    const result = (await response.json()).result as { content: { text: string }[] }
+    expect(result.content[1]!.text).toEndWith('Whisper is off (generate.transcriber is "none").')
+    expect(asked.length).toBe(before)
   })
 })

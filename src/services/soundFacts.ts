@@ -1,8 +1,5 @@
-import { randomUUID } from 'node:crypto'
-import { rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { measureSound } from './audio'
+import { transcribeWav } from './narration'
 import type { Transcriber } from './transcriber'
 
 /** What can be told of a sound without hearing it. `heard` is the words, or why there are none. */
@@ -14,12 +11,9 @@ export interface SoundFacts {
   heard: string | { off: string } | undefined
 }
 
-/** Whether and how Whisper listens: `transcriber` null when it is off. */
-export interface WhisperAsk {
-  transcriber: Transcriber | null
-  model: string
-  language?: string
-}
+/** How Whisper listens, or `off` with the reason it does not. */
+export type WhisperAsk =
+  { off: string } | { transcriber: Transcriber; model: string; language?: string }
 
 /**
  * The length, the loudness and (when `whisper` is given) the words heard in a sound's bytes, for an
@@ -32,13 +26,9 @@ export async function soundFacts(
 ): Promise<SoundFacts> {
   const { wav, seconds, lufs } = await measureSound(bytes)
   if (!whisper) return { seconds, lufs, heard: undefined }
-  if (!whisper.transcriber) {
-    return { seconds, lufs, heard: { off: 'Whisper is off, so no words were heard.' } }
-  }
-  const file = join(tmpdir(), `content-studio-heard-${randomUUID()}.wav`)
+  if ('off' in whisper) return { seconds, lufs, heard: { off: whisper.off } }
   try {
-    await writeFile(file, wav)
-    const segments = await whisper.transcriber.transcribe(whisper.model, file, whisper.language)
+    const segments = await transcribeWav(whisper.transcriber, whisper.model, wav, whisper.language)
     const text = segments
       .flatMap((s) => s.words ?? [])
       .map((w) => w.word.trim())
@@ -47,8 +37,6 @@ export async function soundFacts(
   } catch (error) {
     const why = error instanceof Error ? error.message : String(error)
     return { seconds, lufs, heard: { off: `Whisper could not listen: ${why}` } }
-  } finally {
-    await rm(file, { force: true }).catch(() => {})
   }
 }
 
@@ -59,4 +47,17 @@ export function describeSound({ seconds, lufs, heard }: SoundFacts): string {
   if (heard === undefined) return base
   if (typeof heard === 'object') return `${base} ${heard.off}`
   return heard === '' ? `${base} Whisper heard nothing.` : `${base} Whisper heard: "${heard}"`
+}
+
+/**
+ * The language Whisper is told for a clip fetched with `?language=asked`: as the studio's own
+ * check does, only in a project with several languages, and the one asked if the project has it,
+ * else its source language (the first).
+ */
+export function whisperLanguage(
+  languages: readonly string[],
+  asked: string | null,
+): string | undefined {
+  if (languages.length < 2) return undefined
+  return languages.find((l) => l === asked) ?? languages[0]
 }

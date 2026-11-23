@@ -3,7 +3,7 @@ import { allowedHosts, forbidden } from './shared'
 import { MUSIC_MODEL_IDS, perMinuteWords } from '../core/musicModels'
 import { ACTIONS, matchAction, type Action, type ActionPage } from './mcpActions'
 import { READABLE, matchReadable, type ReadablePage } from './mcpReadable'
-import { describeSound, soundFacts, type WhisperAsk } from '../services/soundFacts'
+import { describeSound, soundFacts, whisperLanguage, type WhisperAsk } from '../services/soundFacts'
 import { openProject } from '../services/workspace'
 
 /** The largest file `studio_fetch` hands over, in bytes. */
@@ -156,13 +156,25 @@ export function mcpRoutes(c: RouteContext) {
       let whisper: WhisperAsk | undefined
       if (page === 'Narration') {
         const opened = await openProject(c.projectFile)
-        const language = new URL(path, 'http://studio').searchParams.get('language') ?? undefined
-        const model = opened.ok ? opened.project.narration.generate.whisperModel : ''
-        const off = !opened.ok || opened.project.narration.generate.transcriber === 'none'
-        whisper = {
-          transcriber: off ? null : await c.transcriberFor(),
-          model,
-          ...(language ? { language } : {}),
+        if (!opened.ok) {
+          whisper = { off: 'Whisper did not listen: the project file could not be read.' }
+        } else if (opened.project.narration.generate.transcriber === 'none') {
+          whisper = { off: 'Whisper is off (generate.transcriber is "none").' }
+        } else {
+          const transcriber = await c.transcriberFor()
+          // Told the language only in a project with several, as the studio's own check is: the
+          // one asked for if the project has it, else its source language.
+          const language = whisperLanguage(
+            opened.project.languages,
+            new URL(path, 'http://studio').searchParams.get('language'),
+          )
+          whisper = transcriber
+            ? {
+                transcriber,
+                model: opened.project.narration.generate.whisperModel,
+                ...(language ? { language } : {}),
+              }
+            : { off: 'Whisper did not listen: no transcriber is running.' }
         }
       }
       return describeSound(await soundFacts(bytes, { whisper }))
