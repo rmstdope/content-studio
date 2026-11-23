@@ -1,9 +1,15 @@
 import { EFFECTS_AND_SCENES_ACTIONS } from './mcpActionsEffectsScenes'
 import { IMAGE_ACTIONS } from './mcpActionsImages'
+import { MUSIC_ACTIONS } from './mcpActionsMusic'
 import { fitsTemplate } from './mcpReadable'
 
 /** The pages of the web UI an agent can act on so far. */
-export type ActionPage = 'Images' | 'Sound effects' | 'Scenes'
+export type ActionPage =
+  | 'Images'
+  | 'Music and Stingers'
+  | 'Scenes'
+  | 'Setup'
+  | 'Sound effects'
 
 /** One thing an agent may do: a change the studio's own routes take. */
 export interface Action {
@@ -17,6 +23,12 @@ export interface Action {
   body?: string
   /** Set where the web UI asks the person to confirm: what is being confirmed. */
   confirm?: string
+  /**
+   * Set where the step can spend ElevenLabs credit on the paid music model, which the web UI shows
+   * as a price on its button: `takes` runs on the model the body, a failed take or the project names,
+   * `make-all` on the project's. Such a step needs the confirmation too.
+   */
+  spends?: 'takes' | 'make-all'
 }
 
 /**
@@ -24,7 +36,11 @@ export interface Action {
  * listed. A test holds this to the server's route table, so a new route is classified here
  * before it passes. The agent acts through the same routes as the web UI, so every check stays.
  */
-export const ACTIONS: readonly Action[] = [...IMAGE_ACTIONS, ...EFFECTS_AND_SCENES_ACTIONS]
+export const ACTIONS: readonly Action[] = [
+  ...IMAGE_ACTIONS,
+  ...EFFECTS_AND_SCENES_ACTIONS,
+  ...MUSIC_ACTIONS,
+]
 
 /** The action for a method and path (with an optional query), or null for anything else. */
 export function matchAction(method: string, path: string): Action | null {
