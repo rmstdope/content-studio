@@ -294,3 +294,78 @@ describe('an agent making music on a paid project model', () => {
     expect(snapshot(root)).toEqual(before)
   })
 })
+
+describe.each([
+  ['eleven', true],
+  ['quick', false],
+] as const)('an agent retrying a music take on the %s model', (model, paid) => {
+  const root = tempRepo({
+    'content-studio.json': projectJson({
+      music: {
+        model,
+        from: { part: 'tts/{part}/music.json' },
+        clips: 'audio/music',
+        manifest: 'audio/music/manifest.json',
+      },
+    }),
+    'content-studio/narration/cast.json': { speakers: {} },
+    'tts/act1/music.json': [{ id: 'hall', title: 'Hall', text: 'warm lute', seconds: 5 }],
+  })
+  const studio = startServer({
+    projectFile: join(root, 'content-studio.json'),
+    port: 0,
+    fish,
+    encode,
+    transcriber: null,
+    music: {
+      ready: () => ({ ok: true }),
+      installed: () => true,
+      async generate() {
+        throw new Error('the generator broke')
+      },
+      close() {},
+    },
+  })
+  afterAll(() => studio.stop(true))
+  const call = async (name: string, args: unknown): Promise<Result> => {
+    const response = await fetch(new URL('/mcp', studio.url), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name, arguments: args },
+      }),
+    })
+    return ((await response.json()) as { result: Result }).result
+  }
+  const path = '/api/music/tracks/hall/takes'
+  const retry = (n: number, confirmed?: boolean) =>
+    call('studio_act', { method: 'POST', path, body: { retry: n }, confirmed })
+
+  it('says there is no failed take, and asks nothing, for a take that did not fail', async () => {
+    const answer = await retry(9)
+    expect(answer.isError).toBe(true)
+    expect(answer.content[0]!.text).toBe('There is no failed take 9 to retry on hall.')
+  })
+
+  it('still treats a take that failed as a retry, asking only when it is paid', async () => {
+    await call('studio_act', { method: 'POST', path, body: { count: 1 }, confirmed: true })
+    let n: number | undefined
+    for (let i = 0; i < 300 && n === undefined; i++) {
+      const view = JSON.parse((await call('studio_read', { path })).content[0]!.text)
+      n = view.failed[0]?.n
+      if (n === undefined) await new Promise((resolve) => setTimeout(resolve, 10))
+    }
+    expect(n).toBeDefined()
+    const answer = await retry(n!)
+    if (paid) {
+      expect(answer.isError).toBe(true)
+      expect(answer.content[0]!.text).toMatch(/ElevenLabs credit.*confirmed: true/)
+    } else {
+      expect(answer.content[0]!.text).not.toContain('confirmed: true')
+      expect(answer.content[0]!.text).not.toContain('no failed take')
+    }
+  })
+})

@@ -139,18 +139,27 @@ export function mcpRoutes(c: RouteContext) {
     }
   }
 
+  /** The failed takes of the track a takes route names, null when its view cannot be read. */
+  async function failedTakes(path: string): Promise<{ n: number; modelId: unknown }[] | null> {
+    const view = await (await fetch(`${own()}${path}`)).json().catch(() => null)
+    return Array.isArray(view?.failed) ? view.failed : null
+  }
+
   /** The music model a spending step would run on: the body's for new takes, a failed take's for a retry, else the project's; null when it cannot be told. */
-  async function spendingModel(action: Action, path: string, body: unknown) {
+  async function spendingModel(
+    action: Action,
+    body: unknown,
+    failedOnes: { n: number; modelId: unknown }[] | null,
+  ) {
     const given = (body as { model?: unknown; retry?: unknown } | null) ?? {}
     const known = (id: unknown) => MUSIC_MODEL_IDS.find((m) => m === id) ?? null
-    const json = async (url: string) => (await fetch(`${own()}${url}`)).json().catch(() => null)
     if (action.spends === 'takes' && known(given.model)) return known(given.model)
     if (action.spends === 'takes' && typeof given.retry === 'number') {
-      const failed = ((await json(path))?.failed ?? []) as { n: number; modelId: unknown }[]
-      return known(failed.find((f) => f.n === given.retry)?.modelId)
+      return known(failedOnes?.find((f) => f.n === given.retry)?.modelId)
     }
     // Make all takes no body: it always runs on the project's model.
-    return known((await json('/api/music/model-state'))?.model)
+    const state = await (await fetch(`${own()}/api/music/model-state`)).json().catch(() => null)
+    return known(state?.model)
   }
 
   async function act(args: Record<string, unknown>): Promise<ToolResult> {
@@ -163,22 +172,17 @@ export function mcpRoutes(c: RouteContext) {
       )
     }
     let confirm = action.confirm
-    if (action.spends === 'takes') {
-      const retry = (body as { retry?: unknown } | null | undefined)?.retry
-      const track = String(path).split('?')[0]!
-      if (typeof retry === 'number') {
-        const view = await (await fetch(`${own()}${track}`)).json().catch(() => null)
-        const failedTakes = view?.failed as { n: number }[] | undefined
-        // Nothing to retry: say so, rather than asking about a spend that cannot happen.
-        if (Array.isArray(failedTakes) && !failedTakes.some((f) => f.n === retry)) {
-          return failed(
-            `There is no failed take ${retry} to retry on ${track.split('/').at(-2) ?? track}.`,
-          )
-        }
-      }
-    }
     if (action.spends) {
-      const model = await spendingModel(action, String(path).split('?')[0]!, body)
+      const track = String(path).split('?')[0]!
+      const retry = (body as { retry?: unknown } | null | undefined)?.retry
+      const failedOnes =
+        action.spends === 'takes' && typeof retry === 'number' ? await failedTakes(track) : null
+      // Nothing to retry: say so, rather than asking about a spend that cannot happen.
+      if (failedOnes && !failedOnes.some((f) => f.n === retry)) {
+        const id = decodeURIComponent(track.split('/').at(-2)!)
+        return failed(`There is no failed take ${String(retry)} to retry on ${id}.`)
+      }
+      const model = await spendingModel(action, body, failedOnes)
       // A model that cannot be told is asked about, never let through.
       const price = model ? perMinuteWords(model) : 'the model could not be found'
       if (price) {
