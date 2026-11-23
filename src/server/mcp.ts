@@ -163,6 +163,20 @@ export function mcpRoutes(c: RouteContext) {
       )
     }
     let confirm = action.confirm
+    if (action.spends === 'takes') {
+      const retry = (body as { retry?: unknown } | null | undefined)?.retry
+      const track = String(path).split('?')[0]!
+      if (typeof retry === 'number') {
+        const view = await (await fetch(`${own()}${track}`)).json().catch(() => null)
+        const failedTakes = view?.failed as { n: number }[] | undefined
+        // Nothing to retry: say so, rather than asking about a spend that cannot happen.
+        if (Array.isArray(failedTakes) && !failedTakes.some((f) => f.n === retry)) {
+          return failed(
+            `There is no failed take ${retry} to retry on ${track.split('/').at(-2) ?? track}.`,
+          )
+        }
+      }
+    }
     if (action.spends) {
       const model = await spendingModel(action, String(path).split('?')[0]!, body)
       // A model that cannot be told is asked about, never let through.

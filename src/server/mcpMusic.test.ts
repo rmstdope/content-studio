@@ -270,13 +270,27 @@ describe('an agent making music on a paid project model', () => {
     expect(snapshot(root)).toEqual(before)
   })
 
-  it('asks before new takes without a model, and before a retry it cannot place', async () => {
+  it('asks before new takes without a model', async () => {
     const before = snapshot(root)
-    for (const body of [{ count: 1 }, { retry: 3 }]) {
-      const asked = await act({ method: 'POST', path: '/api/music/tracks/hall/takes', body })
-      expect(asked.isError).toBe(true)
-      expect(asked.content[0]!.text).toContain('confirmed: true')
-    }
+    const asked = await act({
+      method: 'POST',
+      path: '/api/music/tracks/hall/takes',
+      body: { count: 1 },
+    })
+    expect(asked.isError).toBe(true)
+    expect(asked.content[0]!.text).toContain('confirmed: true')
+    expect(snapshot(root)).toEqual(before)
+  })
+
+  it('says there is no failed take to retry instead of asking about credit', async () => {
+    const before = snapshot(root)
+    const answer = await act({
+      method: 'POST',
+      path: '/api/music/tracks/hall/takes',
+      body: { retry: 3 },
+    })
+    expect(answer.isError).toBe(true)
+    expect(answer.content[0]!.text).toBe('There is no failed take 3 to retry on hall.')
     expect(snapshot(root)).toEqual(before)
   })
 })
