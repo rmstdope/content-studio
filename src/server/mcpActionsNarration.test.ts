@@ -92,3 +92,17 @@ describe('what the bodies of the tier, the pronunciation table and the record jo
     ).toBe(true)
   })
 })
+
+describe('what an agent reads of the five model saves', () => {
+  it.each([
+    ['/api/image-model', ['"klein"', '"qwen-image"']],
+    ['/api/effect-model', ['"small-sfx"', '"open-1"']],
+    ['/api/models/draft', ['"s2.1-pro"', '"drama-3"']],
+    ['/api/models/elevenlabs/draft', ['"eleven_v3"']],
+  ])('%s names its model ids and where was is read', (path, ids) => {
+    const body = matchAction('PUT', path)?.body ?? ''
+    for (const word of ['{ model, was }', 'GET /api/models', ...ids]) {
+      expect(body).toContain(word)
+    }
+  })
+})

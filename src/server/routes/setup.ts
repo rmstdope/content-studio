@@ -7,6 +7,7 @@ import {
   switchRetiredModels,
 } from '../../services/models'
 import { modelsView } from '../../services/modelsView'
+import { modelAllowed } from '../../core/modelBodies'
 import { setFishTier } from '../../services/fishTier'
 import { setTakeFade } from '../../services/takeFade'
 import { checkSetup } from '../../services/setup'
@@ -119,7 +120,7 @@ export function setupRoutes(c: RouteContext) {
       PUT: fromOwnPage(async (request) => {
         const body = StageModelBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { model, was }' }, { status: 400 })
+          return badBody('{ model, was }', body.error, modelAllowed('images'))
         }
         const result = await setImageModel(projectFile, body.data.model, body.data.was)
         return Response.json(result, { status: result.ok ? 200 : 409 })
@@ -129,7 +130,7 @@ export function setupRoutes(c: RouteContext) {
       PUT: fromOwnPage(async (request) => {
         const body = StageModelBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { model, was }' }, { status: 400 })
+          return badBody('{ model, was }', body.error, modelAllowed('effects'))
         }
         const result = await setEffectModel(projectFile, body.data.model, body.data.was)
         return Response.json(result, { status: result.ok ? 200 : 409 })
@@ -137,12 +138,18 @@ export function setupRoutes(c: RouteContext) {
     },
     '/api/models/:stage': {
       PUT: fromOwnPage((request) =>
-        putStageModel(request, request.params.stage, 'narration.models', setStageModel),
+        putStageModel(request, request.params.stage, 'narration.models', 'fish', setStageModel),
       ),
     },
     '/api/models/elevenlabs/:stage': {
       PUT: fromOwnPage((request) =>
-        putStageModel(request, request.params.stage, 'narration.models.elevenlabs', setElevenModel),
+        putStageModel(
+          request,
+          request.params.stage,
+          'narration.models.elevenlabs',
+          'elevenlabs',
+          setElevenModel,
+        ),
       ),
     },
     // The plan's account and what running recordings and auditions hold of it, for the board.

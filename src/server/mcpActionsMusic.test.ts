@@ -60,3 +60,12 @@ describe('the Music and Stingers steps, against the server', () => {
     expect(MUSIC_ACTIONS.map((a) => `${a.method} ${a.path}`).sort()).toEqual(changes)
   })
 })
+
+describe('what an agent reads of the music model save', () => {
+  it('/api/music/model names its model ids and where was is read', () => {
+    const body = matchAction('PUT', '/api/music/model')?.body ?? ''
+    for (const word of ['{ model, was }', 'GET /api/models', '"balanced"', '"eleven"']) {
+      expect(body).toContain(word)
+    }
+  })
+})

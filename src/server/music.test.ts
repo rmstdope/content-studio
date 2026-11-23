@@ -701,7 +701,11 @@ describe('server, the music model', () => {
   it('saves the default from its own page only, and the page then shows it', async () => {
     const body = { model: 'careful', was: 'balanced' }
     expect((await send('PUT', '/api/music/model', body, 'http://evil.test')).status).toBe(403)
-    expect((await send('PUT', '/api/music/model', { model: 'careful' })).status).toBe(400)
+    const wrong = await send('PUT', '/api/music/model', { model: 'careful' })
+    expect(wrong.status).toBe(400)
+    const { error } = await wrong.json()
+    for (const word of ['expected { model, was }', 'was: ', '"balanced"', 'GET /api/models'])
+      expect(error).toContain(word)
     const saved = await send('PUT', '/api/music/model', body)
     expect([saved.status, await saved.json()]).toEqual([200, { ok: true }])
     expect((await send('PUT', '/api/music/model', body)).status).toBe(409)
