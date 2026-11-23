@@ -139,9 +139,13 @@ export function mcpRoutes(c: RouteContext) {
     }
   }
 
-  /** The failed takes of the track a takes route names, null when its view cannot be read. */
-  async function failedTakes(path: string): Promise<{ n: number; modelId: unknown }[] | null> {
-    const view = await (await fetch(`${own()}${path}`)).json().catch(() => null)
+  /** The failed takes of the track a takes route names: 'unknown' when there is no such track, null when its view cannot be read. */
+  async function failedTakes(
+    path: string,
+  ): Promise<{ n: number; modelId: unknown }[] | 'unknown' | null> {
+    const response = await fetch(`${own()}${path}`)
+    if (response.status === 404) return 'unknown'
+    const view = await response.json().catch(() => null)
     return Array.isArray(view?.failed) ? view.failed : null
   }
 
@@ -175,11 +179,12 @@ export function mcpRoutes(c: RouteContext) {
     if (action.spends) {
       const track = String(path).split('?')[0]!
       const retry = (body as { retry?: unknown } | null | undefined)?.retry
-      const failedOnes =
-        action.spends === 'takes' && typeof retry === 'number' ? await failedTakes(track) : null
-      // Nothing to retry: say so, rather than asking about a spend that cannot happen.
+      const takes = action.spends === 'takes' ? await failedTakes(track) : null
+      const id = decodeURIComponent(track.split('/').at(-2)!)
+      // No such track, or nothing to retry: say so, rather than asking about a spend that cannot happen.
+      if (takes === 'unknown') return failed(`There is no track ${id}.`)
+      const failedOnes = typeof retry === 'number' ? takes : null
       if (failedOnes && !failedOnes.some((f) => f.n === retry)) {
-        const id = decodeURIComponent(track.split('/').at(-2)!)
         return failed(`There is no failed take ${String(retry)} to retry on ${id}.`)
       }
       const model = await spendingModel(action, body, failedOnes)
