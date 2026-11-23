@@ -99,11 +99,17 @@ export const READABLE: readonly Readable[] = [
 ]
 
 /**
- * GET routes of the API an agent may not read, each with its reason. None for now: every GET
- * route only reads. A route that spends credit or changes anything goes here, and the test that
- * holds this file to the route table then still passes.
+ * GET routes of the API an agent may not read, each with its reason. A route that spends
+ * credit or changes anything, or is plumbing of the page, goes here, and the test that holds
+ * this file to the route table then still passes.
  */
-export const NOT_READABLE: readonly { path: string; reason: string }[] = []
+export const NOT_READABLE: readonly { path: string; reason: string }[] = [
+  {
+    path: '/api/agent-changes',
+    reason:
+      'the count open pages poll to read again after an agent’s step; it shows nothing of the project',
+  },
+]
 
 const SEGMENT = /^[^/?#%\\\s\p{Cc}]+$/u
 

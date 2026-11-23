@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { retiringTakes } from '../core/retirement'
-import { useProject } from './api'
+import { useAgentChanges, useProject } from './api'
 import { WhyTip } from './components/WhyTip'
 import type { Problem } from '../core/project'
 import { Problems } from './components/Problems'
@@ -23,6 +23,7 @@ import { useRoute } from './route'
 
 /** The studio: loads the project and shows the page for the current route. */
 export function App() {
+  useAgentChanges()
   const project = useProject()
   const route = useRoute()
   // Not now: kept here, so it lasts across pages and is gone when the page is opened again.

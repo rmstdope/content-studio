@@ -102,7 +102,7 @@ const TOOLS = [
  * does, through the same checks: reads on the GET routes, changes only the registered ones.
  */
 export function mcpRoutes(c: RouteContext) {
-  const { guard, listening } = c
+  const { guard, listening, agentChanges } = c
 
   const own = () => `http://127.0.0.1:${listening.port}`
 
@@ -234,6 +234,7 @@ export function mcpRoutes(c: RouteContext) {
     })
     const answer = await response.text()
     if (!response.ok) return failed(`${response.status} ${answer}`)
+    agentChanges.count++
     return { content: [{ type: 'text', text: answer || 'Done.' }] }
   }
 
@@ -293,6 +294,8 @@ export function mcpRoutes(c: RouteContext) {
   const notAllowed = () => new Response(null, { status: 405, headers: { allow: 'POST' } })
 
   return {
+    // What open pages poll to read again after an agent's step: not a page's state, so not in READABLE.
+    '/api/agent-changes': { GET: guard(() => Response.json({ count: agentChanges.count })) },
     '/mcp': {
       // An MCP client is no browser and sends no Origin, and a browser always sends one
       // on a cross-site POST: any Origin that is not the studio's own is refused, so no web page

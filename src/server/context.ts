@@ -165,6 +165,8 @@ export function createContext({
 }: ServerOptions) {
   /** The port the server listens on, set once it does: the guards need it. */
   const listening: { port?: number } = {}
+  /** How many steps an agent has done through the MCP since the studio started: open pages poll it to know when to read again. */
+  const agentChanges = { count: 0 }
   function hosts(): string[] {
     return allowedHosts(listening.port!)
   }
@@ -902,6 +904,7 @@ export function createContext({
     forgetShownAccount,
     freshSitting,
     fromOwnPage,
+    agentChanges,
     guard,
     holdCredits,
     imageFineTunes,
