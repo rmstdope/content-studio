@@ -75,7 +75,7 @@ export function setStageModel(
       return refuse('the model in the file changed since the page was read; reload the studio')
     }
     if (!isPriced(model) || model === RETIRED_MODEL) {
-      return refuse(`${model} is not a model the studio can switch to ${modelAllowed('fish')}`)
+      return refuse(`${model} is not a model the studio can switch to. ${modelAllowed('fish')}`)
     }
     const models = within(rawNarration(opened.raw), 'models')
     models.fish = {
@@ -112,7 +112,7 @@ export function setMusicModel(
     if (!(MUSIC_MODEL_IDS as readonly string[]).includes(model)) {
       return refuse(
         'music.model',
-        `${model} is not a music model the studio knows ${modelAllowed('music')}`,
+        `${model} is not a music model the studio knows. ${modelAllowed('music')}`,
       )
     }
     if ((opened.project.music.model ?? DEFAULT_MUSIC_MODEL) !== was) {
@@ -154,7 +154,7 @@ export function setImageModel(
     if (!(IMAGE_MODEL_IDS as readonly string[]).includes(model)) {
       return refuse(
         'images.model',
-        `${model} is not an image model the studio knows ${modelAllowed('images')}`,
+        `${model} is not an image model the studio knows. ${modelAllowed('images')}`,
       )
     }
     if ((opened.project.images.model ?? DEFAULT_IMAGE_MODEL) !== was) {
@@ -196,7 +196,7 @@ export function setEffectModel(
     if (!(EFFECT_MODEL_IDS as readonly string[]).includes(model)) {
       return refuse(
         'effects.model',
-        `${model} is not a sound-effects model the studio knows ${modelAllowed('effects')}`,
+        `${model} is not a sound-effects model the studio knows. ${modelAllowed('effects')}`,
       )
     }
     if ((opened.project.effects.model ?? DEFAULT_EFFECT_MODEL) !== was) {
@@ -240,7 +240,7 @@ export function setElevenModel(
     })
     if (!isElevenModel(model)) {
       return refuse(
-        `${model} is not an ElevenLabs speech model the studio knows ${modelAllowed('elevenlabs')}`,
+        `${model} is not an ElevenLabs speech model the studio knows. ${modelAllowed('elevenlabs')}`,
       )
     }
     const { elevenlabs } = opened.project.narration.models
