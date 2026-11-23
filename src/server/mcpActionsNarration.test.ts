@@ -14,7 +14,7 @@ describe('what an agent may do on Setup and Narration', () => {
   it('refuses the wrong method and what is not listed, however it is written', () => {
     expect(matchAction('GET', '/api/take-fade')).toBeNull()
     expect(matchAction('POST', '/api/take-fade')).toBeNull()
-    expect(matchAction('POST', '/api/images/castle/takes')).toBeNull()
+    expect(matchAction('POST', '/api/nothing/castle')).toBeNull()
     for (const path of [
       '/api/parts/../take-fade',
       '/api/parts/%2e%2e/adopt',

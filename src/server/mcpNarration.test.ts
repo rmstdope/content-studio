@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { projectJson, tempRepo } from '../../test/helpers'
 import { createContext } from './context'
+import { matchAction } from './mcpActions'
 import { SETUP_AND_NARRATION_ACTIONS } from './mcpActionsNarration'
 import { musicRoutes } from './routes/music'
 import { narrationRoutes } from './routes/narration'
@@ -64,7 +65,11 @@ describe('what an agent may do, against the server', () => {
 
   it('lists every change of Setup and Narration, and only those', () => {
     const listed = SETUP_AND_NARRATION_ACTIONS.map((a) => `${a.method} ${a.path}`).sort()
-    expect(listed).toEqual(changes)
+    // The part's Refresh dialog route is one entry, listed with the Images steps, for both pages.
+    const shared = 'POST /api/parts/:part/refresh'
+    expect(listed).toEqual(changes.filter((c) => c !== shared))
+    expect(changes).toContain(shared)
+    expect(matchAction('POST', '/api/parts/act1/refresh')).not.toBeNull()
   })
 })
 

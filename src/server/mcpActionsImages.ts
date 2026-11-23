@@ -19,7 +19,7 @@ const asking = (action: Action, confirm: string): Action => ({ ...action, confir
  */
 export const IMAGE_ACTIONS: readonly Action[] = [
   images(
-    'refresh an act from the game, for its images, music or scenes too (runs the project’s refresh.part; pass the act’s id as :part)',
+    'Refresh dialog of a part, and refresh an act from the game for its images, music or scenes (runs the project’s refresh.part; pass the act’s id as :part)',
     'POST',
     '/api/parts/:part/refresh',
   ),
