@@ -181,9 +181,9 @@ export async function cleanWav(
 /** The encoder the studio uses: ffmpeg, stopped after two minutes to encode and two to level. */
 export const ffmpegEncoder: Encoder = createFfmpegEncoder({ timeoutMs: 120_000 })
 
-/** ffmpeg could not decode a clip; `log` is what it said, for callers that show it. */
+/** ffmpeg could not decode a clip; the message carries what it said. */
 export class UnreadableClip extends Error {
-  constructor(readonly log: string) {
+  constructor(log: string) {
     super(`ffmpeg could not read the clip: ${log}`)
   }
 }
