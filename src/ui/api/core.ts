@@ -145,7 +145,7 @@ export function useRemakeChange(imageId: string, what: 'stop' | 'close') {
 /**
  * Keeps an open page current with what an agent does through the MCP: polls the count of steps it
  * has done every `every` ms (not while the tab is hidden) and, when the count differs from the
- * one first seen, reads every query again. Used once, by the app, so every page is covered.
+ * last one seen, reads every query again, except the Fish credit, which each read charges a call to Fish for and which only spending changes. Used once, by the app, so every page is covered.
  */
 export function useAgentChanges(every = 2000) {
   const client = useQueryClient()
@@ -160,6 +160,7 @@ export function useAgentChanges(every = 2000) {
     if (count === null) return
     const before = seen.current
     seen.current = count
-    if (before !== null && before !== count) void client.invalidateQueries()
+    if (before !== null && before !== count)
+      void client.invalidateQueries({ predicate: (q) => q.queryKey[0] !== 'credit' })
   }, [count, client])
 }

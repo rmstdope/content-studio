@@ -99,8 +99,9 @@ export const READABLE: readonly Readable[] = [
 ]
 
 /**
- * GET routes of the API an agent may not read, each with its reason. A route that spends credit or changes anything, or is plumbing of the page, goes here, and the test that
- * holds this file to the route table then still passes.
+ * GET routes of the API an agent may not read, each with its reason. A route that spends
+ * credit or changes anything, or is plumbing of the page, goes here, and the test that holds
+ * this file to the route table then still passes.
  */
 export const NOT_READABLE: readonly { path: string; reason: string }[] = [
   {

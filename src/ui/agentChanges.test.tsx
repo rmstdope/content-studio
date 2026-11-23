@@ -12,13 +12,20 @@ const { useAgentChanges } = await import('./api/core')
 
 afterAll(() => GlobalRegistrator.unregister())
 
+const realFetch = globalThis.fetch
+
 describe('an open page after an agent changed something through the MCP', () => {
   it('reads its queries again when the count changed, and not before', async () => {
     let count = 0
     let projectReads = 0
+    let creditReads = 0
     const fake = (async (url: string) =>
       Response.json(
-        url === '/api/agent-changes' ? { count } : { reads: ++projectReads },
+        url === '/api/agent-changes'
+          ? { count }
+          : url === '/api/credit'
+            ? { reads: ++creditReads }
+            : { reads: ++projectReads },
       )) as unknown as typeof fetch
     globalThis.fetch = fake
     window.fetch = fake
@@ -28,6 +35,12 @@ describe('an open page after an agent changed something through the MCP', () => 
       useQuery({
         queryKey: ['project'],
         queryFn: async () => (await fetch('/api/project')).json(),
+      })
+      // The Fish credit is asked for at most every five minutes, since each read calls Fish.
+      useQuery({
+        queryKey: ['credit'],
+        queryFn: async () => (await fetch('/api/credit')).json(),
+        staleTime: 5 * 60_000,
       })
       return null
     }
@@ -48,8 +61,14 @@ describe('an open page after an agent changed something through the MCP', () => 
     count = 1
     await wait(100)
     expect(projectReads).toBe(2)
+    expect(creditReads).toBe(1)
 
     await wait(100)
     expect(projectReads).toBe(2)
+
+    await act(async () => root.unmount())
+    client.clear()
+    globalThis.fetch = realFetch
+    window.fetch = realFetch
   })
 })
