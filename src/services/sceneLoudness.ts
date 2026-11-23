@@ -83,11 +83,15 @@ interface ScenePlan {
   stateNames: (string | null)[]
 }
 
-/** Finds the files a scene's entry plays and which sounds are left out (and why). */
+/**
+ * Finds the files a scene's entry plays and which sounds are left out (and why). With `forState`,
+ * an effect is left out only if it would play in that state (the wording still names all its states).
+ */
 async function planScene(
   scene: SceneRow,
   entry: SceneMix | null,
   around: Omit<Around, 'now'>,
+  forState?: string | null,
 ): Promise<ScenePlan> {
   const { act, choices, audio, files, found } = around
   const without: string[] = []
@@ -122,7 +126,7 @@ async function planScene(
     if (!file) {
       // Named only if the measured minute would have played it, and in which states.
       const playing = statesPlaying({ play: row.play, state: row.state ?? null }, stateNames)
-      if (playing.length > 0) {
+      if (playing.length > 0 && (forState === undefined || playing.includes(forState))) {
         const soFar = silent.get(row.id) ?? { states: new Set<string | null>(), why: '' }
         playing.forEach((s) => soFar.states.add(s))
         soFar.why = choice.silent ? NO_TAKE : NO_FILE
@@ -248,7 +252,7 @@ export async function measureScenes(input: {
 
 /** What rendering a scene answered: the WAV, or why not (`state`: no such state; `silent`: nothing plays). */
 export type SceneRendered =
-  | { ok: true; wav: Uint8Array }
+  | { ok: true; wav: Uint8Array; without: string[] }
   | { ok: false; kind: 'unknown' | 'state' | 'silent' | 'broken'; message: string }
 
 /**
@@ -279,13 +283,18 @@ export async function renderSceneMix(input: {
     }
   }
   const state = input.state ?? names[0]!
-  const { music, effects, paths, without } = await planScene(scene, scene.entry, {
-    act: input.act,
-    choices: new Map(input.effects.map((c) => [c.id, c])),
-    audio: input.audio,
-    files: input.files,
-    found: { effect: new Map(), music: new Map(), seconds: new Map() },
-  })
+  const { music, effects, paths, without } = await planScene(
+    scene,
+    scene.entry,
+    {
+      act: input.act,
+      choices: new Map(input.effects.map((c) => [c.id, c])),
+      audio: input.audio,
+      files: input.files,
+      found: { effect: new Map(), music: new Map(), seconds: new Map() },
+    },
+    state,
+  )
   const parts = planStateMix({ music, effects, state }).map((part): RenderPart => ({
     ...part,
     file: paths.get(`${part.source.kind}:${part.source.id}`)!,
@@ -295,7 +304,7 @@ export async function renderSceneMix(input: {
     const why = without.length > 0 ? `: ${without.join('; ')}` : ''
     return { ok: false, kind: 'silent', message: `${scene.id} plays nothing${where}${why}` }
   }
-  return { ok: true, wav: await input.render(parts, WINDOW_SECONDS) }
+  return { ok: true, wav: await input.render(parts, WINDOW_SECONDS), without }
 }
 
 /** `renderSceneMix` for a scene of the project's act, with the real ffmpeg and the game's clips. */

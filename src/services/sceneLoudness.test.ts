@@ -592,13 +592,49 @@ describe('renderSceneMix', () => {
 
   it("renders the minute of the scene's first state when none is asked for", async () => {
     const { asked, result } = render('inn', undefined)
-    expect(await result).toEqual({ ok: true, wav })
+    expect(await result).toEqual({ ok: true, wav, without: [] })
     expect(asked).toHaveLength(1)
     expect(asked[0]!.seconds).toBe(60)
     expect(asked[0]!.parts.map((p) => [p.source.id, p.level, p.file])).toEqual([
       ['theme', 0.8, '/music/theme.mp3'],
       ['door', 1, '/clips/door.mp3'],
     ])
+  })
+
+  it('names what the asked state leaves out, and only that', async () => {
+    const none = { silent: true, playable: false, clip: null }
+    const rainy = actOf(
+      [declared('inn', ['dim', 'rainy'])],
+      {
+        inn: {
+          music: { track: 'theme', level: 1 },
+          effects: [
+            { id: 'rain', play: { mode: 'loop' }, state: 'rainy', level: 1 },
+            { id: 'fire', play: { mode: 'loop' }, level: 1 },
+          ],
+        },
+      },
+      [choice('rain', none), choice('fire', none)],
+    )
+    const ask = (state: string) =>
+      renderSceneMix({
+        ...rainy,
+        sceneId: 'inn',
+        state,
+        audio: fakeAudio().audio,
+        files,
+        render: async () => wav,
+      })
+    expect(await ask('rainy')).toEqual({
+      ok: true,
+      wav,
+      without: ['rain in rainy, which has no take chosen', 'fire, which has no take chosen'],
+    })
+    expect(await ask('dim')).toEqual({
+      ok: true,
+      wav,
+      without: ['fire, which has no take chosen'],
+    })
   })
 
   it('plays what the asked state plays', async () => {

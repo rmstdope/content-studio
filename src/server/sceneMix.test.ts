@@ -20,7 +20,10 @@ describe.skipIf(!hasFfmpeg)('server, a scene’s mix as a sound', () => {
       scenes: { from: { part: 'tts/{part}/scenes.json' }, mix: 'game/scenes/{part}.mix.json' },
     }),
     'content-studio/narration/cast.json': { speakers: {} },
-    'tts/effects.json': [{ id: 'wind', text: 'Wind', seconds: 1 }],
+    'tts/effects.json': [
+      { id: 'wind', text: 'Wind', seconds: 1 },
+      { id: 'rain', text: 'Rain', seconds: 1 },
+    ],
     'tts/act1/scenes.json': [
       { id: 'hall', title: 'Hall', states: ['calm', 'storm'], triggers: [] },
       { id: 'attic', title: 'Attic', states: [], triggers: [] },
@@ -94,6 +97,27 @@ describe.skipIf(!hasFfmpeg)('server, a scene’s mix as a sound', () => {
     expect(fetched.content[0]!.text).toContain('audio/wav')
     expect(fetched.content[1]!.text).toMatch(/Duration 60\.\d s, loudness -?\d+\.\d LUFS/)
     expect(listing(root)).toEqual(before)
+  })
+
+  // Builds on the test above: wind's take is chosen and the scene is saved there.
+  it('tells an agent fetching the mix what it leaves out, as the Scenes page does', async () => {
+    const wind = { id: 'wind', play: { mode: 'loop' }, state: 'storm', level: 1 }
+    const rain = { id: 'rain', play: { mode: 'loop' }, state: 'storm', level: 1 }
+    let was: object = { effects: [wind] }
+    const put = async (effects: object[]) => {
+      const saved = await send('PUT', '/api/scenes/act1/hall', { scene: { effects }, was })
+      was = { effects }
+      return saved
+    }
+    expect((await put([wind, rain])).status).toBe(200)
+    const left = await fetchTool('/api/scenes/act1/hall/mix?state=storm')
+    expect(left.content.map((c) => c.type)).toEqual(['text', 'text', 'text', 'audio'])
+    expect(left.content[2]!.text).toBe(
+      'Left out of this mix: rain in storm, which has no take chosen.',
+    )
+    expect((await put([wind])).status).toBe(200)
+    const whole = await fetchTool('/api/scenes/act1/hall/mix?state=storm')
+    expect(whole.content.map((c) => c.type)).toEqual(['text', 'text', 'audio'])
   })
 
   async function fetchTool(path: string) {
