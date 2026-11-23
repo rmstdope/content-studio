@@ -161,7 +161,7 @@ describe('takeRoutes', () => {
       request({ id: 'a', file: 'f' }, { in: 0, out: 0, shape: 'linear' }),
     )
     const linearLine = ((await linear.json()) as { error: string }).error
-    expect(linearLine).toContain('shape')
+    expect(linearLine).toContain('shape: ')
     expect(linearLine).toContain('smooth')
     expect(linearLine).toContain('straight')
     const trim = await routes['/api/things/:id/trim']!.POST!(request({ id: 'a' }, {}))

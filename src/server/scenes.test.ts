@@ -85,10 +85,10 @@ describe('server, saving a scene', () => {
     const mode = await (
       await put('/api/scenes/act1/store', effect({ play: { mode: 'sometimes' } }))
     ).json()
-    for (const word of ['effects', 'play', 'loop', 'random', 'once', 'trigger'])
+    for (const word of ['scene.effects.0.play.mode', 'loop', 'random', 'once', 'trigger'])
       expect(mode.error).toContain(word)
     const level = await (await put('/api/scenes/act1/store', effect({ level: 5 }))).json()
-    expect(level.error).toContain('level')
+    expect(level.error).toContain('scene.effects.0.level')
     expect(level.error).toContain('3')
   })
 
@@ -133,7 +133,9 @@ describe('server, measuring the loudness of scenes', () => {
 
   it('answers 404 for an act it does not know and 400 for a body that is not an open scene', async () => {
     expect((await post('/api/scene-loudness/act9', {})).status).toBe(404)
-    expect((await post('/api/scene-loudness/act1', { open: { scene: 'store' } })).status).toBe(400)
+    const bad = await post('/api/scene-loudness/act1', { open: { scene: 'store' } })
+    expect(bad.status).toBe(400)
+    expect(((await bad.json()) as { error: string }).error).toContain('open.entry')
   })
 
   it('measures the act, which shows with the project and then is no longer being made', async () => {
