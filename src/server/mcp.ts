@@ -58,7 +58,7 @@ const TOOLS = [
   {
     name: 'studio_act',
     description:
-      'Does a step of a page of the web UI (Images, Music and Stingers, Sound effects and Scenes so far), through the same route the page uses, so every check holds: the body is the one the page sends. A step marked `confirm` in studio_pages needs `confirmed: true`, set only once the user has agreed to what it says.',
+      'Does a step of a page of the web UI (Setup, Narration, Images, Music and Stingers, Sound effects and Scenes so far), through the same route the page uses, so every check holds: the body is the one the page sends (a spending step carries the amount confirmed, as its body says: confirmedCost / confirmedCredits from its plan, or spendUpTo / creditsUpTo). A step marked `confirm` in studio_pages needs `confirmed: true`, set only once the user has agreed to what it says.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -68,7 +68,25 @@ const TOOLS = [
           description:
             'A path from the actions of studio_pages, with its :names filled in, and an optional query.',
         },
-        body: { type: 'object', description: 'The JSON body, the one the page sends.' },
+        body: {
+          type: 'object',
+          description: 'The JSON body, the one the page sends; for a form, its text fields.',
+        },
+        files: {
+          type: 'array',
+          description:
+            'Recordings for a form body (clone-voice): the field, name, type and base64 bytes of each.',
+          items: {
+            type: 'object',
+            properties: {
+              field: { type: 'string' },
+              name: { type: 'string' },
+              type: { type: 'string' },
+              base64: { type: 'string' },
+            },
+            required: ['field', 'name', 'base64'],
+          },
+        },
         confirmed: { type: 'boolean' },
       },
       required: ['method', 'path'],
@@ -136,7 +154,7 @@ export function mcpRoutes(c: RouteContext) {
   }
 
   async function act(args: Record<string, unknown>): Promise<ToolResult> {
-    const { method, path, body, confirmed } = args
+    const { method, path, body, files, confirmed } = args
     const action =
       typeof method === 'string' && typeof path === 'string' ? matchAction(method, path) : null
     if (!action) {
@@ -159,12 +177,35 @@ export function mcpRoutes(c: RouteContext) {
         `Needs the user's confirmation first: this ${confirm}. Once the user has agreed, call again with confirmed: true.`,
       )
     }
+    // However the path was written, it must reach the route it matched: the URL is not rewritten.
+    if (new URL(String(path), own()).pathname !== String(path).split('?')[0]) {
+      return failed(`Not something to do: ${String(path)}.`)
+    }
     const headers: Record<string, string> = {
       host: `127.0.0.1:${listening.port}`,
       origin: own(),
     }
-    let payload: string | undefined
-    if (body !== undefined) {
+    let payload: string | FormData | undefined
+    if (Array.isArray(files) && files.length) {
+      const form = new FormData()
+      for (const [name, value] of Object.entries((body ?? {}) as Record<string, unknown>)) {
+        if (typeof value !== 'string') return failed(`The form field ${name} must be text.`)
+        form.append(name, value)
+      }
+      for (const f of files) {
+        const { field, name, type, base64 } = (f ?? {}) as Record<string, unknown>
+        if (typeof field !== 'string' || typeof name !== 'string' || typeof base64 !== 'string') {
+          return failed('Each of files needs a field, a name and base64 bytes.')
+        }
+        form.append(
+          field,
+          new File([Buffer.from(base64, 'base64')], name, {
+            type: typeof type === 'string' ? type : '',
+          }),
+        )
+      }
+      payload = form
+    } else if (body !== undefined) {
       headers['content-type'] = 'application/json'
       payload = JSON.stringify(body)
     }

@@ -1,10 +1,12 @@
 import { EFFECTS_AND_SCENES_ACTIONS } from './mcpActionsEffectsScenes'
 import { IMAGE_ACTIONS } from './mcpActionsImages'
 import { MUSIC_ACTIONS } from './mcpActionsMusic'
+import { SETUP_AND_NARRATION_ACTIONS } from './mcpActionsNarration'
 import { fitsTemplate } from './mcpReadable'
 
 /** The pages of the web UI an agent can act on so far. */
-export type ActionPage = 'Images' | 'Music and Stingers' | 'Scenes' | 'Setup' | 'Sound effects'
+export type ActionPage =
+  'Images' | 'Music and Stingers' | 'Narration' | 'Scenes' | 'Setup' | 'Sound effects'
 
 /** One thing an agent may do: a change the studio's own routes take. */
 export interface Action {
@@ -32,6 +34,7 @@ export interface Action {
  * before it passes. The agent acts through the same routes as the web UI, so every check stays.
  */
 export const ACTIONS: readonly Action[] = [
+  ...SETUP_AND_NARRATION_ACTIONS,
   ...IMAGE_ACTIONS,
   ...EFFECTS_AND_SCENES_ACTIONS,
   ...MUSIC_ACTIONS,
