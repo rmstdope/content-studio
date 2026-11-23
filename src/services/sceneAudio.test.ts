@@ -134,6 +134,15 @@ describe.skipIf(!hasFfmpeg)('ffmpegSceneRender', () => {
     expect(heard.lufs!).toBeCloseTo(measured!, 0)
   })
 
+  it('fills the whole window when nothing loops, without changing the loudness', async () => {
+    const root = tempRepo({})
+    const file = tone(root, 'a.wav', 1, 0.2)
+    const parts = [part(file, { loop: false, starts: [2] })]
+    const heard = await measureSound(await ffmpegSceneRender(root)(parts, 10))
+    expect(heard.seconds).toBeCloseTo(10, 0)
+    expect(heard.lufs!).toBeCloseTo((await ffmpegSceneAudio(root).loudness(parts, 10))!, 0)
+  })
+
   it('names an unreadable clip by its project path', async () => {
     const root = tempRepo({})
     writeFileSync(join(root, 'bad.mp3'), 'not audio')

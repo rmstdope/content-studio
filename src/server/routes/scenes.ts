@@ -42,7 +42,14 @@ export function scenesRoutes(c: RouteContext) {
         if (result.kind === 'unknown') return notFound()
         return Response.json(
           { ok: false, message: result.message },
-          { status: result.kind === 'state' ? 400 : result.kind === 'silent' ? 409 : 500 },
+          {
+            status:
+              result.kind === 'state'
+                ? 400
+                : result.kind === 'silent' || result.kind === 'broken'
+                  ? 409
+                  : 500,
+          },
         )
       }),
     },

@@ -90,9 +90,22 @@ function mixFilter(parts: RenderPart[], window: number, ending: 'measure' | 'ren
   })
   chains.push(
     `${labels.join('')}amix=inputs=${labels.length}:normalize=0:duration=longest,atrim=0:${window}` +
-      (ending === 'measure' ? ',loudnorm=I=-16.0:TP=-1.5:LRA=11:print_format=json[mix]' : '[mix]'),
+      (ending === 'measure'
+        ? ',loudnorm=I=-16.0:TP=-1.5:LRA=11:print_format=json[mix]'
+        : `,apad=whole_dur=${window},atrim=0:${window}[mix]`),
   )
   return chains.join(';')
+}
+
+/** The ffmpeg arguments up to the mix of `parts`: their inputs (loops repeated) and the filter, mapped. */
+function mixArgs(parts: RenderPart[], window: number, ending: 'measure' | 'render'): string[] {
+  const args = ['-hide_banner', '-nostats']
+  for (const part of parts) {
+    if (part.loop) args.push('-stream_loop', '-1')
+    args.push('-i', part.file)
+  }
+  args.push('-filter_complex', mixFilter(parts, window, ending), '-map', '[mix]')
+  return args
 }
 
 /** The mix of `parts` over `windowSeconds` as the bytes of a WAV (48 kHz, stereo). */
@@ -105,12 +118,7 @@ export type SceneRender = (parts: RenderPart[], windowSeconds: number) => Promis
 export function ffmpegSceneRender(root: string): SceneRender {
   return async (parts, window) => {
     const out = join(tmpdir(), `content-studio-scene-${randomUUID()}.wav`)
-    const args = ['-hide_banner', '-nostats']
-    for (const part of parts) {
-      if (part.loop) args.push('-stream_loop', '-1')
-      args.push('-i', part.file)
-    }
-    args.push('-filter_complex', mixFilter(parts, window, 'render'), '-map', '[mix]')
+    const args = mixArgs(parts, window, 'render')
     args.push('-t', String(window), '-c:a', 'pcm_s16le', '-f', 'wav', out)
     try {
       await run(root, 'ffmpeg', args, [...new Set(parts.map((p) => p.file))])
@@ -138,12 +146,7 @@ export function ffmpegSceneAudio(root: string): SceneAudio {
 
     async loudness(parts, window) {
       if (parts.length === 0) return null
-      const args = ['-hide_banner', '-nostats']
-      for (const part of parts) {
-        if (part.loop) args.push('-stream_loop', '-1')
-        args.push('-i', part.file)
-      }
-      args.push('-filter_complex', mixFilter(parts, window, 'measure'), '-map', '[mix]')
+      const args = mixArgs(parts, window, 'measure')
       args.push('-t', String(window), '-f', 'null', '-')
       const { stderr } = await run(root, 'ffmpeg', args, [...new Set(parts.map((p) => p.file))])
       const json = stderr.match(/\{[^{}]*\}/g)?.at(-1)

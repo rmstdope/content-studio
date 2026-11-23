@@ -99,7 +99,7 @@ export const READABLE: readonly Readable[] = [
   file(
     'Scenes',
     '/api/scenes/:part/:id/mix',
-    "a scene's mix as saved, one minute as the game plays it; ?state= picks a sound state",
+    "a scene's mix as it plays, one minute; ?state= picks a sound state",
   ),
 ]
 

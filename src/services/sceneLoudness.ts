@@ -87,7 +87,7 @@ interface ScenePlan {
 async function planScene(
   scene: SceneRow,
   entry: SceneMix | null,
-  around: Around,
+  around: Omit<Around, 'now'>,
 ): Promise<ScenePlan> {
   const { act, choices, audio, files, found } = around
   const without: string[] = []
@@ -249,7 +249,7 @@ export async function measureScenes(input: {
 /** What rendering a scene answered: the WAV, or why not (`state`: no such state; `silent`: nothing plays). */
 export type SceneRendered =
   | { ok: true; wav: Uint8Array }
-  | { ok: false; kind: 'unknown' | 'state' | 'silent'; message: string }
+  | { ok: false; kind: 'unknown' | 'state' | 'silent' | 'broken'; message: string }
 
 /**
  * Renders one minute of a scene as it is saved, in `state` (the scene's first when `state` is
@@ -284,7 +284,6 @@ export async function renderSceneMix(input: {
     choices: new Map(input.effects.map((c) => [c.id, c])),
     audio: input.audio,
     files: input.files,
-    now: () => new Date(),
     found: { effect: new Map(), music: new Map(), seconds: new Map() },
   })
   const parts = planStateMix({ music, effects, state }).map((part): RenderPart => ({
@@ -309,7 +308,10 @@ export async function renderScene(
 ): Promise<SceneRendered> {
   const loaded = await loadProject(projectFile)
   const act = loaded.ok ? loaded.summary.scenes?.acts.find((a) => a.id === part) : undefined
-  if (!loaded.ok || !act) return { ok: false, kind: 'unknown', message: `${part} has no scenes` }
+  if (!loaded.ok) {
+    return { ok: false, kind: 'broken', message: 'the project file cannot be read' }
+  }
+  if (!act) return { ok: false, kind: 'unknown', message: `${part} has no scenes` }
   const root = dirname(projectFile)
   return renderSceneMix({
     act,
