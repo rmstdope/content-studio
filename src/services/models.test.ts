@@ -11,6 +11,7 @@ import {
   setStageModel,
   switchRetiredModels,
 } from './models'
+import { modelAllowed } from '../core/modelBodies'
 import { setSoundAlike } from './soundAlike'
 
 function projectWith(models: Record<string, string>) {
@@ -432,5 +433,49 @@ describe('setElevenSettings', () => {
       ],
     })
     expect(read()).toBe(before)
+  })
+})
+
+describe('an unknown model id', () => {
+  const project = projectJson({
+    music: {
+      from: { part: 'tts/{part}/music.json', shared: 'tts/stingers.json' },
+      clips: 'audio/music',
+      manifest: 'audio/music/manifest.json',
+    },
+    images: {
+      from: { part: 'tts/{part}/images.json' },
+      clips: 'web/images',
+      manifest: 'web/images/manifest.json',
+    },
+    effects: {
+      from: { shared: 'tts/effects.json' },
+      clips: 'audio/effects',
+      manifest: 'audio/effects/manifest.json',
+    },
+  })
+
+  async function messageOf(refusal: Promise<unknown>): Promise<string> {
+    const result = (await refusal) as { ok: boolean; problems: { message: string }[] }
+    expect(result.ok).toBe(false)
+    return result.problems[0]?.message ?? ''
+  }
+
+  it('is refused naming the models it could have been, on each of the five saves', async () => {
+    const { projectFile } = repo(project)
+    const ends = (message: string, kind: Parameters<typeof modelAllowed>[0]) =>
+      expect(message.endsWith(` ${modelAllowed(kind)}`)).toBe(true)
+    ends(await messageOf(setStageModel(projectFile, 'draft', 's1', 's2.1-pro-free')), 'fish')
+    ends(await messageOf(setMusicModel(projectFile, 'huge', 'balanced')), 'music')
+    ends(await messageOf(setImageModel(projectFile, 'dalle', 'klein')), 'images')
+    ends(await messageOf(setEffectModel(projectFile, 'huge', 'small-sfx')), 'effects')
+    ends(await messageOf(setElevenModel(projectFile, 'draft', 's2-pro', 'eleven_v3')), 'elevenlabs')
+  })
+
+  it('still says which id it was', async () => {
+    const { projectFile } = repo(project)
+    expect(await messageOf(setImageModel(projectFile, 'dalle', 'klein'))).toStartWith(
+      'dalle is not an image model the studio knows',
+    )
   })
 })

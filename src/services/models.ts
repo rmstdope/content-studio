@@ -4,6 +4,7 @@ import { sameSettings, type Stage } from '../core/models'
 import { DEFAULT_IMAGE_MODEL, IMAGE_MODEL_IDS } from '../core/imageModels'
 import { DEFAULT_EFFECT_MODEL, EFFECT_MODEL_IDS } from '../core/effectModels'
 import { MUSIC_MODEL_IDS, DEFAULT_MUSIC_MODEL } from '../core/musicModels'
+import { modelAllowed } from '../core/modelBodies'
 import { isElevenModel } from '../core/elevenSpeech'
 import { isPriced } from '../core/prices'
 import { REPLACEMENT_MODEL, RETIRED_MODEL, retiringTakes, type Take } from '../core/retirement'
@@ -74,7 +75,7 @@ export function setStageModel(
       return refuse('the model in the file changed since the page was read; reload the studio')
     }
     if (!isPriced(model) || model === RETIRED_MODEL) {
-      return refuse(`${model} is not a model the studio can switch to`)
+      return refuse(`${model} is not a model the studio can switch to. ${modelAllowed('fish')}`)
     }
     const models = within(rawNarration(opened.raw), 'models')
     models.fish = {
@@ -109,7 +110,10 @@ export function setMusicModel(
     })
     if (!opened.project.music) return refuse('music', 'the project has no music section')
     if (!(MUSIC_MODEL_IDS as readonly string[]).includes(model)) {
-      return refuse('music.model', `${model} is not a music model the studio knows`)
+      return refuse(
+        'music.model',
+        `${model} is not a music model the studio knows. ${modelAllowed('music')}`,
+      )
     }
     if ((opened.project.music.model ?? DEFAULT_MUSIC_MODEL) !== was) {
       return refuse(
@@ -148,7 +152,10 @@ export function setImageModel(
     })
     if (!opened.project.images) return refuse('images', 'the project has no images section')
     if (!(IMAGE_MODEL_IDS as readonly string[]).includes(model)) {
-      return refuse('images.model', `${model} is not an image model the studio knows`)
+      return refuse(
+        'images.model',
+        `${model} is not an image model the studio knows. ${modelAllowed('images')}`,
+      )
     }
     if ((opened.project.images.model ?? DEFAULT_IMAGE_MODEL) !== was) {
       return refuse(
@@ -187,7 +194,10 @@ export function setEffectModel(
     })
     if (!opened.project.effects) return refuse('effects', 'the project has no effects section')
     if (!(EFFECT_MODEL_IDS as readonly string[]).includes(model)) {
-      return refuse('effects.model', `${model} is not a sound-effects model the studio knows`)
+      return refuse(
+        'effects.model',
+        `${model} is not a sound-effects model the studio knows. ${modelAllowed('effects')}`,
+      )
     }
     if ((opened.project.effects.model ?? DEFAULT_EFFECT_MODEL) !== was) {
       return refuse(
@@ -229,7 +239,9 @@ export function setElevenModel(
       problems: [{ file, path, message }],
     })
     if (!isElevenModel(model)) {
-      return refuse(`${model} is not an ElevenLabs speech model the studio knows`)
+      return refuse(
+        `${model} is not an ElevenLabs speech model the studio knows. ${modelAllowed('elevenlabs')}`,
+      )
     }
     const { elevenlabs } = opened.project.narration.models
     if (elevenlabs[stage] !== was) {
