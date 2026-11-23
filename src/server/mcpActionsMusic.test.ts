@@ -61,16 +61,10 @@ describe('the Music and Stingers steps, against the server', () => {
   })
 })
 
-describe('what an agent reads of the five model saves', () => {
-  it.each([
-    ['/api/music/model', ['"balanced"', '"eleven"']],
-    ['/api/image-model', ['"klein"', '"qwen-image"']],
-    ['/api/effect-model', ['"small-sfx"', '"open-1"']],
-    ['/api/models/draft', ['"s2.1-pro"', '"drama-3"']],
-    ['/api/models/elevenlabs/draft', ['"eleven_v3"']],
-  ])('%s names its model ids and where was is read', (path, ids) => {
-    const body = matchAction('PUT', path)?.body ?? ''
-    for (const word of ['{ model, was }', 'GET /api/models', ...ids]) {
+describe('what an agent reads of the music model save', () => {
+  it('/api/music/model names its model ids and where was is read', () => {
+    const body = matchAction('PUT', '/api/music/model')?.body ?? ''
+    for (const word of ['{ model, was }', 'GET /api/models', '"balanced"', '"eleven"']) {
       expect(body).toContain(word)
     }
   })

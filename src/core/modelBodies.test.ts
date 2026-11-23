@@ -20,9 +20,10 @@ describe('model bodies', () => {
     })
   }
 
-  test('a default is named only where the file may name none', () => {
+  test('each save names the default for a file that names no model', () => {
     expect(modelAllowed('music')).toContain('"balanced" when the project file names none')
     expect(modelAllowed('elevenlabs')).toContain('"eleven_v3" when the project file names none')
+    expect(modelAllowed('fish')).toContain('"s2.1-pro-free" when the project file names none')
   })
 
   test('fish leaves out the retired s1, which the save refuses', () => {

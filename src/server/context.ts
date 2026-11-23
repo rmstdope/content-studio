@@ -49,7 +49,7 @@ import { createLevelJobs } from '../services/levelJobs'
 import { createJobs } from '../services/jobs'
 import { appendMusic, createSpendLog } from '../services/spending'
 import { type ModelsChange } from '../services/models'
-import { modelAllowed } from '../core/modelBodies'
+import { modelAllowed, type ModelKind } from '../core/modelBodies'
 import type { Stage } from '../core/models'
 import type { Busy } from '../core/models'
 import { type RuledOutResult } from '../services/ruledOut'
@@ -824,7 +824,7 @@ export function createContext({
     request: Request,
     asked: string,
     path: string,
-    kind: 'fish' | 'elevenlabs',
+    kind: Extract<ModelKind, 'fish' | 'elevenlabs'>,
     save: (projectFile: string, stage: Stage, model: string, was: string) => Promise<ModelsChange>,
   ): Promise<Response> {
     const stage = StageParam.safeParse(asked)

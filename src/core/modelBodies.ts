@@ -2,14 +2,15 @@ import { DEFAULT_EFFECT_MODEL, EFFECT_MODEL_IDS } from './effectModels'
 import { DEFAULT_ELEVEN_MODEL, ELEVEN_MODEL_IDS } from './elevenSpeech'
 import { DEFAULT_IMAGE_MODEL, IMAGE_MODEL_IDS } from './imageModels'
 import { DEFAULT_MUSIC_MODEL, MUSIC_MODEL_IDS } from './musicModels'
+import { FREE_MODELS } from './project'
 import { pricedModels } from './prices'
 import { RETIRED_MODEL } from './retirement'
 
 /** The five model saves: the Music, Images and Sound effects models, and a stage's Fish or ElevenLabs model. */
 export type ModelKind = 'music' | 'images' | 'effects' | 'fish' | 'elevenlabs'
 
-/** Each save's ids, the default when the file names none (null: the file always names one), and where `was` is read. */
-function facts(kind: ModelKind): { ids: readonly string[]; fallback: string | null; was: string } {
+/** Each save's ids, the default when the file names none, and where `was` is read. */
+function facts(kind: ModelKind): { ids: readonly string[]; fallback: string; was: string } {
   switch (kind) {
     case 'music':
       return { ids: MUSIC_MODEL_IDS, fallback: DEFAULT_MUSIC_MODEL, was: 'music.model' }
@@ -20,7 +21,7 @@ function facts(kind: ModelKind): { ids: readonly string[]; fallback: string | nu
     case 'fish':
       return {
         ids: pricedModels().filter((m) => m !== RETIRED_MODEL),
-        fallback: null,
+        fallback: FREE_MODELS[0],
         was: 'models.<stage>',
       }
     case 'elevenlabs':
@@ -32,7 +33,7 @@ function facts(kind: ModelKind): { ids: readonly string[]; fallback: string | nu
 export function modelAllowed(kind: ModelKind): string {
   const { ids, fallback, was } = facts(kind)
   const named = ids.map((id) => `"${id}"`).join(', ')
-  const none = fallback ? ` ("${fallback}" when the project file names none)` : ''
+  const none = ` ("${fallback}" when the project file names none)`
   return `Allowed: model is one of ${named}; was is the model now in force, as GET /api/models shows it (${was})${none}.`
 }
 
