@@ -2,8 +2,9 @@ import type { Action } from './mcpActions'
 
 /**
  * The Setup and Narration steps an agent may do: one entry per change route of those pages, bar
- * two the Music and Images lists carry (the Music model, and the part's Refresh dialog). A step that can spend credit has the
- * amount confirmed in its body, as the page sends it (named in `body`).
+ * two that the Images and Music lists carry (the part's Refresh dialog, and the Music model). A
+ * step that can spend credit has the amount confirmed in its body, as the page sends it (named in
+ * `body`).
  */
 export const SETUP_AND_NARRATION_ACTIONS: readonly Action[] = [
   {
@@ -46,13 +47,6 @@ export const SETUP_AND_NARRATION_ACTIONS: readonly Action[] = [
     method: 'PUT',
     path: '/api/effect-model',
     about: 'save the Sound effects model',
-    body: '{ model, was }',
-  },
-  {
-    page: 'Setup',
-    method: 'PUT',
-    path: '/api/music/model',
-    about: 'save the Music model',
     body: '{ model, was }',
   },
   {
@@ -151,12 +145,6 @@ export const SETUP_AND_NARRATION_ACTIONS: readonly Action[] = [
     path: '/api/characters/:id',
     about: 'change a character: keywords, phrase, style, speed or clean',
     body: '{ keywords } or { phrase } or { style } or { speed } or { clean }',
-  },
-  {
-    page: 'Narration',
-    method: 'POST',
-    path: '/api/parts/:part/refresh',
-    about: "Refresh dialog: run the game's part command",
   },
   {
     page: 'Narration',

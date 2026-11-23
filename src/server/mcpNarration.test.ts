@@ -65,11 +65,12 @@ describe('what an agent may do, against the server', () => {
 
   it('lists every change of Setup and Narration, and only those', () => {
     const listed = SETUP_AND_NARRATION_ACTIONS.map((a) => `${a.method} ${a.path}`).sort()
-    // The part's Refresh dialog route is one entry, listed with the Images steps, for both pages.
-    const shared = 'POST /api/parts/:part/refresh'
-    expect(listed).toEqual(changes.filter((c) => c !== shared))
-    expect(changes).toContain(shared)
+    // The part's Refresh dialog route is one entry, listed with the Images and Music steps, for both pages.
+    const shared = ['POST /api/parts/:part/refresh', 'PUT /api/music/model']
+    expect(listed).toEqual(changes.filter((c) => !shared.includes(c)))
+    expect(changes).toEqual(expect.arrayContaining(shared))
     expect(matchAction('POST', '/api/parts/act1/refresh')).not.toBeNull()
+    expect(matchAction('PUT', '/api/music/model')).not.toBeNull()
   })
 })
 
