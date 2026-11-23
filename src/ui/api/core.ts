@@ -141,3 +141,25 @@ export function useRemakeChange(imageId: string, what: 'stop' | 'close') {
     onSettled: () => client.invalidateQueries({ queryKey: ['image-patches', imageId] }),
   })
 }
+
+/**
+ * Keeps an open page current with what an agent does through the MCP: polls the count of steps it
+ * has done every `every` ms (not while the tab is hidden) and, when the count differs from the
+ * one first seen, reads every query again. Used once, by the app, so every page is covered.
+ */
+export function useAgentChanges(every = 2000) {
+  const client = useQueryClient()
+  const { data } = useQuery({
+    queryKey: ['agent-changes'],
+    queryFn: () => getJson<{ count: number }>('/api/agent-changes'),
+    refetchInterval: every,
+  })
+  const seen = useRef<number | null>(null)
+  const count = data?.count ?? null
+  useEffect(() => {
+    if (count === null) return
+    const before = seen.current
+    seen.current = count
+    if (before !== null && before !== count) void client.invalidateQueries()
+  }, [count, client])
+}
