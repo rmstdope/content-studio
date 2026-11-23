@@ -120,6 +120,17 @@ export function badBody(shape: string, error: z.ZodError, allowed: string): Resp
 export const SCENE_ALLOWED =
   'Allowed: play.mode is loop, random (with everySeconds: [from, to]), once (with afterSeconds) or trigger (with trigger); level is 0 to 3.'
 
+/** The values the Fish tier takes where a guess goes wrong. */
+export const FISH_TIER_ALLOWED = `Allowed: tier is ${FishTierSchema.options.map((t) => `"${t}"`).join(', ')} or null (to clear it).`
+
+/** The shape of the pronunciation table where a guess goes wrong. */
+export const PRONOUNCE_ALLOWED =
+  'Allowed: table and was are lists of [word, said] pairs of text; was is the table as you read it, [] if it had none.'
+
+/** The values a record job takes where a guess goes wrong. */
+export const JOB_ALLOWED =
+  'Allowed: kind is record, measure or check; stage is draft or final; speaker is a character id, or null for all; keys and orphans are lists of line keys; retakeWeak is true or false; confirmedCost (dollars) and confirmedCredits are numbers, 0 or more.'
+
 /** A scene as the page saves it, and the entry it was read as (null: the mix had none). */
 export const SceneBody = z
   .object({

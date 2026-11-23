@@ -12,7 +12,15 @@ import { setTakeFade } from '../../services/takeFade'
 import { checkSetup } from '../../services/setup'
 import { loadProject } from '../../services/workspace'
 import type { RouteContext } from '../context'
-import { FishTierBody, ModelsBody, StageModelBody, TakeFadeBody, notFound } from '../shared'
+import {
+  FISH_TIER_ALLOWED,
+  FishTierBody,
+  ModelsBody,
+  StageModelBody,
+  TakeFadeBody,
+  badBody,
+  notFound,
+} from '../shared'
 
 /** The setup routes. */
 export function setupRoutes(c: RouteContext) {
@@ -70,7 +78,7 @@ export function setupRoutes(c: RouteContext) {
       PATCH: fromOwnPage(async (request) => {
         const body = FishTierBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { tier }' }, { status: 400 })
+          return badBody('{ tier }', body.error, FISH_TIER_ALLOWED)
         }
         const result = await setFishTier(projectFile, body.data.tier)
         return Response.json(result, { status: result.ok ? 200 : 409 })

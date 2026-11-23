@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { matchAction } from './mcpActions'
+import { FishTierBody, JobBody, PronounceBody } from './shared'
 import { SETUP_AND_NARRATION_ACTIONS } from './mcpActionsNarration'
 
 describe('what an agent may do on Setup and Narration', () => {
@@ -56,5 +57,38 @@ describe('what an agent may do on Setup and Narration', () => {
   it('lists each method and route once', () => {
     const keys = SETUP_AND_NARRATION_ACTIONS.map((a) => `${a.method} ${a.path}`)
     expect(new Set(keys).size).toBe(keys.length)
+  })
+})
+
+describe('what the bodies of the tier, the pronunciation table and the record job say', () => {
+  const body = (method: string, path: string) => matchAction(method, path)?.body ?? ''
+  it('names the Fish tiers', () => {
+    const text = body('PATCH', '/api/fish-tier')
+    for (const word of ['under-100', '"100"', '1000', 'null']) expect(text).toContain(word)
+    expect(FishTierBody.safeParse({ tier: 'under-100' }).success).toBe(true)
+  })
+  it('describes the pronunciation table as pairs, and the table it replaces', () => {
+    const text = body('PATCH', '/api/pronounce')
+    for (const word of ['table', 'was', '[word, said]', 'perLanguage']) expect(text).toContain(word)
+    expect(PronounceBody.safeParse({ table: [['Mara', 'Mahra']], was: [] }).success).toBe(true)
+  })
+  it('describes the record job', () => {
+    const text = body('POST', '/api/parts/act1/jobs')
+    for (const word of [
+      'record',
+      'measure',
+      'check',
+      'draft',
+      'final',
+      'speaker',
+      'null',
+      'keys',
+      'orphans',
+    ])
+      expect(text).toContain(word)
+    expect(
+      JobBody.safeParse({ kind: 'check', stage: 'final', speaker: null, keys: [], orphans: [] })
+        .success,
+    ).toBe(true)
   })
 })

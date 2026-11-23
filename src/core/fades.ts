@@ -4,6 +4,9 @@ import type { Wav } from './wav'
 /** The two shapes a fade can have: a curve that sounds even to the ear, or an even change in volume. */
 export const FADE_SHAPES = ['smooth', 'straight'] as const
 
+/** What a fades body takes, in words, for an agent that reads the studio's list of actions. */
+export const FADES_BODY_TEXT = `{ in: seconds, 0 or more; out: seconds, 0 or more; shape: ${FADE_SHAPES.map((s) => `"${s}"`).join(' | ')} }; in and out together no longer than the take`
+
 /** The fades of a stinger take: how long it fades in and out (0 is no fade) and the shape of both. */
 export const FadesSchema = z.object({
   in: z.number().finite().min(0),

@@ -1,4 +1,4 @@
-import { FADE_SHAPES } from '../core/fades'
+import { FADES_BODY_TEXT } from '../core/fades'
 import type { Action } from './mcpActions'
 
 /** The Sound effects and Scenes steps an agent may do: one entry per change route of those pages. */
@@ -69,7 +69,7 @@ export const EFFECTS_AND_SCENES_ACTIONS: readonly Action[] = [
     method: 'PUT',
     path: '/api/effects/:id/takes/:file/fades',
     about: "set a take's fades",
-    body: `{ in: seconds, 0 or more; out: seconds, 0 or more; shape: ${FADE_SHAPES.map((s) => `"${s}"`).join(' | ')} }; in and out together no longer than the take`,
+    body: FADES_BODY_TEXT,
   },
   {
     page: 'Sound effects',
