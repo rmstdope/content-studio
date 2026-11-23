@@ -4,6 +4,7 @@ import { projectJson, tempRepo } from '../../test/helpers'
 import { createContext } from './context'
 import { studioRoutes } from './index'
 import { matchAction } from './mcpActions'
+import { SceneBody } from './shared'
 import { EFFECTS_AND_SCENES_ACTIONS } from './mcpActionsEffectsScenes'
 
 describe('the Sound effects and Scenes steps an agent may do', () => {
@@ -49,6 +50,48 @@ describe('the Sound effects and Scenes steps an agent may do', () => {
     ] as const) {
       expect(matchAction(method, path)?.confirm).toBeUndefined()
     }
+  })
+})
+
+describe('what the bodies of the fades and the scene mix say', () => {
+  const body = (method: string, path: string) => matchAction(method, path)?.body ?? ''
+  it('names the fade shapes and the lengths', () => {
+    const text = body('PUT', '/api/effects/door/takes/a.wav/fades')
+    for (const word of ['smooth', 'straight', 'seconds']) expect(text).toContain(word)
+  })
+  it('is about a body the route takes', () => {
+    const effects = [
+      { id: 'a', play: { mode: 'loop' }, level: 1 },
+      { id: 'b', play: { mode: 'random', everySeconds: [1, 2] }, state: 's', level: 2 },
+      { id: 'c', play: { mode: 'once', afterSeconds: 3 }, level: 0 },
+      { id: 'd', play: { mode: 'trigger', trigger: 't' }, level: 3 },
+    ]
+    const body = {
+      scene: { music: { track: null, level: 1 }, effects },
+      was: null,
+      moved: { db: 1, measuredAt: '2026-01-01T00:00:00Z' },
+    }
+    expect(SceneBody.safeParse(body).success).toBe(true)
+  })
+  it('describes the scene mix down to an effect entry', () => {
+    const text = body('PUT', '/api/scenes/act1/door')
+    for (const word of [
+      'music',
+      'track',
+      'effects',
+      'play',
+      'loop',
+      'random',
+      'everySeconds',
+      'once',
+      'afterSeconds',
+      'trigger',
+      'state',
+      'level',
+      'was',
+      'moved',
+    ])
+      expect(text).toContain(word)
   })
 })
 

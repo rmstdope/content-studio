@@ -1,7 +1,7 @@
 import { saveScene } from '../../services/scenes'
 import { making as measuring, startMeasure } from '../../services/sceneLoudness'
 import type { RouteContext } from '../context'
-import { MeasureBody, SceneBody, notFound } from '../shared'
+import { MeasureBody, SCENE_ALLOWED, SceneBody, badBody, notFound } from '../shared'
 
 /** The scenes routes. */
 export function scenesRoutes(c: RouteContext) {
@@ -14,7 +14,7 @@ export function scenesRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = MeasureBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { open?: { scene, entry } }' }, { status: 400 })
+          return badBody('{ open?: { scene, entry } }', body.error, SCENE_ALLOWED)
         }
         const result = await startMeasure(projectFile, request.params.part, body.data.open ?? null)
         if (result.ok) return Response.json({ ok: true })
@@ -26,7 +26,11 @@ export function scenesRoutes(c: RouteContext) {
       PUT: fromOwnPage(async (request) => {
         const body = SceneBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { scene, was }' }, { status: 400 })
+          return badBody(
+            '{ scene: { music?: { track, level }, effects: [{ id, play, state?, level }] }, was, moved? }',
+            body.error,
+            SCENE_ALLOWED,
+          )
         }
         const result = await saveScene(
           projectFile,

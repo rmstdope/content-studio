@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { z } from 'zod'
+import { FadesSchema, type Fades } from '../core/fades'
 import { takeListRoutes, takeRoutes, type TakeService } from './takeRoutes'
 import type { RouteRequest } from './shared'
 
@@ -24,7 +25,7 @@ function setup(answer: unknown) {
     unchoose: record('unchoose'),
     accept: record('accept'),
     stop: record('stop'),
-  } as unknown as TakeService<{ count: number }, { in: number }>
+  } as unknown as TakeService<{ count: number }, Fades>
   const routes = takeRoutes(
     { projectFile: 'p', guard: (h) => h, fromOwnPage: (h) => h },
     {
@@ -32,7 +33,7 @@ function setup(answer: unknown) {
       service,
       bodies: {
         make: z.object({ count: z.number() }),
-        fades: z.object({ in: z.number() }),
+        fades: FadesSchema,
         choose: z.object({ file: z.string() }),
         trim: z.object({ file: z.string(), undo: z.boolean().optional() }),
       },
@@ -107,7 +108,7 @@ describe('takeRoutes', () => {
     await routes['/api/things/:id/takes']!.POST!(request({ id: 'a' }, { count: 2 }))
     await routes['/api/things/:id/takes/:file']!.DELETE!(request({ id: 'a', file: 'f' }))
     await routes['/api/things/:id/takes/:file/fades']!.PUT!(
-      request({ id: 'a', file: 'f' }, { in: 1 }),
+      request({ id: 'a', file: 'f' }, { in: 1, out: 0, shape: 'smooth' }),
     )
     await routes['/api/things/:id/takes/:file/fades']!.DELETE!(request({ id: 'a', file: 'f' }))
     await routes['/api/things/:id/trim']!.POST!(request({ id: 'a' }, { file: 'f' }))
@@ -116,7 +117,7 @@ describe('takeRoutes', () => {
     expect(calls).toEqual([
       ['make', 'a', { count: 2 }],
       ['drop', 'a', 'f'],
-      ['setFades', 'a', 'f', { in: 1 }],
+      ['setFades', 'a', 'f', { in: 1, out: 0, shape: 'smooth' }],
       ['setFades', 'a', 'f', null],
       ['trim', 'a', 'f', false],
       ['unchoose', 'a'],
@@ -154,7 +155,15 @@ describe('takeRoutes', () => {
     const fades = await routes['/api/things/:id/takes/:file/fades']!.PUT!(
       request({ id: 'a', file: 'f' }, {}),
     )
-    expect(await fades.json()).toEqual({ error: 'expected { in, out, shape }' })
+    const fadesBody = ((await fades.json()) as { error: string }).error
+    expect(fadesBody).toStartWith('expected { in, out, shape }: ')
+    const linear = await routes['/api/things/:id/takes/:file/fades']!.PUT!(
+      request({ id: 'a', file: 'f' }, { in: 0, out: 0, shape: 'linear' }),
+    )
+    const linearLine = ((await linear.json()) as { error: string }).error
+    expect(linearLine).toContain('shape: ')
+    expect(linearLine).toContain('smooth')
+    expect(linearLine).toContain('straight')
     const trim = await routes['/api/things/:id/trim']!.POST!(request({ id: 'a' }, {}))
     expect(await trim.json()).toEqual({ error: 'expected { file, undo? }' })
   })

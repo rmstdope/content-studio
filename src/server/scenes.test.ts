@@ -77,6 +77,21 @@ describe('server, saving a scene', () => {
     expect((await put('/api/scenes/act9/store', { scene: entry(1), was: null })).status).toBe(404)
   })
 
+  it('names the allowed values when a play mode or a level is wrong', async () => {
+    const effect = (over: object) => ({
+      scene: { effects: [{ id: 'door', play: { mode: 'loop' }, level: 1, ...over }] },
+      was: null,
+    })
+    const mode = await (
+      await put('/api/scenes/act1/store', effect({ play: { mode: 'sometimes' } }))
+    ).json()
+    for (const word of ['scene.effects.0.play.mode', 'loop', 'random', 'once', 'trigger'])
+      expect(mode.error).toContain(word)
+    const level = await (await put('/api/scenes/act1/store', effect({ level: 5 }))).json()
+    expect(level.error).toContain('scene.effects.0.level')
+    expect(level.error).toContain('3')
+  })
+
   it('shows the saved scene in the project summary', async () => {
     const body = await (await fetch(new URL('/api/project', studio.url))).json()
     const scene = body.summary.scenes.acts[0].scenes[0]
@@ -118,7 +133,9 @@ describe('server, measuring the loudness of scenes', () => {
 
   it('answers 404 for an act it does not know and 400 for a body that is not an open scene', async () => {
     expect((await post('/api/scene-loudness/act9', {})).status).toBe(404)
-    expect((await post('/api/scene-loudness/act1', { open: { scene: 'store' } })).status).toBe(400)
+    const bad = await post('/api/scene-loudness/act1', { open: { scene: 'store' } })
+    expect(bad.status).toBe(400)
+    expect(((await bad.json()) as { error: string }).error).toContain('open.entry')
   })
 
   it('measures the act, which shows with the project and then is no longer being made', async () => {

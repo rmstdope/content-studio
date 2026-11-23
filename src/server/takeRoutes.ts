@@ -1,6 +1,7 @@
 import type { ZodType } from 'zod'
 import type { RouteContext } from './context'
-import { notFound, takeResponse, type RouteRequest } from './shared'
+import { FADE_SHAPES } from '../core/fades'
+import { badBody, notFound, takeResponse, type RouteRequest } from './shared'
 
 /** What a take service answers: nothing when the thing is not there, else a result that may refuse. */
 type Answer = { ok?: boolean } | null | undefined
@@ -152,7 +153,12 @@ export function takeRoutes<Make, Fades>(
     [`${base}/:id/takes/:file/fades`]: {
       PUT: fromOwnPage(async (request: RouteRequest) => {
         const body = bodies.fades.safeParse(await json(request))
-        if (!body.success) return expected('{ in, out, shape }')
+        if (!body.success)
+          return badBody(
+            '{ in, out, shape }',
+            body.error,
+            `Allowed: in and out are seconds, 0 or more; shape is ${FADE_SHAPES.map((s) => `"${s}"`).join(' or ')}.`,
+          )
         return resultResponse(await fades(request, body.data))
       }),
       DELETE: fromOwnPage(async (request: RouteRequest) =>
