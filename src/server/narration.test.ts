@@ -330,6 +330,7 @@ describe('server, generating a part', () => {
       headers: own,
       body: JSON.stringify({ kind: 'listen', speaker: null, keys: [], orphans: [] }),
     })
+    expect(refused.status).toBe(400)
     const { error } = await refused.json()
     for (const word of ['kind', 'record', 'measure', 'check', 'draft', 'final'])
       expect(error).toContain(word)

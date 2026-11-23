@@ -159,7 +159,7 @@ export const SETUP_AND_NARRATION_ACTIONS: readonly Action[] = [
     method: 'PATCH',
     path: '/api/pronounce',
     about: 'save the pronunciation table',
-    body: '{ table: [[word, said]], was: [[word, said]] }: the whole table, and the table as you read it ([] if it had none); read the table as summary.pronounce of studio_read /api/project',
+    body: '{ table: [[word, said]], was: [[word, said]] }: the whole table, and the table as you read it ([] if it had none); read the table as summary.pronounce of studio_read /api/project (for ?language=<code>, summary.perLanguage.<code>.pronounce)',
   },
   {
     page: 'Narration',

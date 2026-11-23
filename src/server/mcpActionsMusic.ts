@@ -1,4 +1,4 @@
-import { FADE_SHAPES } from '../core/fades'
+import { FADES_BODY_TEXT } from '../core/fades'
 import type { Action } from './mcpActions'
 
 const MUSIC = 'Music and Stingers' as const
@@ -38,12 +38,7 @@ export const MUSIC_ACTIONS: readonly Action[] = [
   }),
   change('POST', '/api/music/tracks/:id/accept', '', 'accepts a changed brief for the track'),
   change('DELETE', '/api/music/tracks/:id/takes/:file', '', 'drops a take from the board'),
-  change(
-    'PUT',
-    '/api/music/tracks/:id/takes/:file/fades',
-    `{ in: seconds, 0 or more; out: seconds, 0 or more; shape: ${FADE_SHAPES.map((x) => `"${x}"`).join(' | ')} }; in and out together no longer than the take`,
-    "saves a take's fades",
-  ),
+  change('PUT', '/api/music/tracks/:id/takes/:file/fades', FADES_BODY_TEXT, "saves a take's fades"),
   change('DELETE', '/api/music/tracks/:id/takes/:file/fades', '', "removes a take's fades"),
   change(
     'POST',

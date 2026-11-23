@@ -69,7 +69,7 @@ describe('what the bodies of the tier, the pronunciation table and the record jo
   })
   it('describes the pronunciation table as pairs, and the table it replaces', () => {
     const text = body('PATCH', '/api/pronounce')
-    for (const word of ['table', 'was', '[word, said]']) expect(text).toContain(word)
+    for (const word of ['table', 'was', '[word, said]', 'perLanguage']) expect(text).toContain(word)
     expect(PronounceBody.safeParse({ table: [['Mara', 'Mahra']], was: [] }).success).toBe(true)
   })
   it('describes the record job', () => {
