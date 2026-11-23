@@ -1,7 +1,7 @@
 import { saveScene } from '../../services/scenes'
 import { making as measuring, renderScene, startMeasure } from '../../services/sceneLoudness'
 import type { RouteContext } from '../context'
-import { MeasureBody, SCENE_ALLOWED, SceneBody, badBody, notFound } from '../shared'
+import { MeasureBody, SCENE_ALLOWED, SceneBody, WITHOUT_HEADER, badBody, notFound } from '../shared'
 
 /** The scenes routes. */
 export function scenesRoutes(c: RouteContext) {
@@ -37,7 +37,12 @@ export function scenesRoutes(c: RouteContext) {
           message: error instanceof Error ? error.message : String(error),
         }))
         if (result.ok) {
-          return new Response(Buffer.from(result.wav), { headers: { 'content-type': 'audio/wav' } })
+          // What the mix leaves out rides along as a header, for studio_fetch to say in words.
+          const headers: Record<string, string> = { 'content-type': 'audio/wav' }
+          if (result.without.length > 0) {
+            headers[WITHOUT_HEADER] = encodeURIComponent(JSON.stringify(result.without))
+          }
+          return new Response(Buffer.from(result.wav), { headers })
         }
         if (result.kind === 'unknown') return notFound()
         return Response.json(

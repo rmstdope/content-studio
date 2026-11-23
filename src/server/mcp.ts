@@ -1,10 +1,25 @@
 import type { RouteContext } from './context'
-import { allowedHosts, forbidden } from './shared'
+import { allowedHosts, forbidden, WITHOUT_HEADER } from './shared'
 import { MUSIC_MODEL_IDS, perMinuteWords } from '../core/musicModels'
 import { ACTIONS, matchAction, type Action, type ActionPage } from './mcpActions'
 import { READABLE, matchReadable, type ReadablePage } from './mcpReadable'
 import { describeSound, soundFacts, whisperLanguage, type WhisperAsk } from '../services/soundFacts'
 import { openProject } from '../services/workspace'
+
+/**
+ * The line an agent reads for what a fetched scene mix leaves out, from the header the mix route
+ * sets (a URI-encoded JSON list of the Scenes page's phrases); null when nothing, or nothing legible.
+ */
+function leftOut(header: string | null): string | null {
+  if (!header) return null
+  try {
+    const list: unknown = JSON.parse(decodeURIComponent(header))
+    const phrases = Array.isArray(list) ? list.filter((p) => typeof p === 'string') : []
+    return phrases.length > 0 ? `Left out of this mix: ${phrases.join('; ')}.` : null
+  } catch {
+    return null
+  }
+}
 
 /** The largest file `studio_fetch` hands over, in bytes. */
 const MAX_FILE = 64 * 1024 * 1024
@@ -137,6 +152,8 @@ export function mcpRoutes(c: RouteContext) {
     if (type === 'audio') {
       facts.push({ type: 'text', text: await soundText(bytes, entry.page, path) })
     }
+    const left = leftOut(response.headers.get(WITHOUT_HEADER))
+    if (left) facts.push({ type: 'text', text: left })
     return {
       content: [
         { type: 'text', text: `${path}: ${mimeType}, ${bytes.byteLength} bytes` },

@@ -15,6 +15,9 @@ import { type EffectEditResult } from '../services/effectWords'
 import { SceneMixSchema } from '../core/scenes'
 import { type ImageMakeAllAnswer, type ImageTakesAnswer } from '../services/imageTakes'
 
+/** The header a scene's mix answers with when it leaves parts out: a URI-encoded JSON list of why. */
+export const WITHOUT_HEADER = 'x-studio-without'
+
 /**
  * A change to a character: its keywords, its own audition phrase (null for the standard one), its
  * style, its own speed (null for the project's), or whether its voice is cleaned of noise.
