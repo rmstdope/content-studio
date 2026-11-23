@@ -5,7 +5,8 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 GlobalRegistrator.register()
 const { act, createElement } = await import('react')
 const { createRoot } = await import('react-dom/client')
-const { QueryClient, QueryClientProvider, useQuery } = await import('@tanstack/react-query')
+const { QueryClient, QueryClientProvider, focusManager, useQuery } =
+  await import('@tanstack/react-query')
 const { useAgentChanges } = await import('./api/core')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -27,6 +28,8 @@ describe('an open page after an agent changed something through the MCP', () => 
             ? { reads: ++creditReads }
             : { reads: ++projectReads },
       )) as unknown as typeof fetch
+    // Interval reads wait while the tab is hidden; what earlier test files left says nothing here.
+    focusManager.setFocused(true)
     globalThis.fetch = fake
     window.fetch = fake
 
@@ -74,6 +77,7 @@ describe('an open page after an agent changed something through the MCP', () => 
       client.clear()
       globalThis.fetch = realFetch
       window.fetch = realFetch
+      focusManager.setFocused(undefined)
     }
   }, 20_000)
 })
