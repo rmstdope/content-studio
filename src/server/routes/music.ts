@@ -14,7 +14,8 @@ import { musicClipFile, musicCurrentFile } from '../../services/workspace'
 import type { RouteContext } from '../context'
 import { makeAllRoutes } from '../makeAllRoutes'
 import { takeRoutes } from '../takeRoutes'
-import { StageModelBody, fileRoute, notFound } from '../shared'
+import { modelAllowed } from '../../core/modelBodies'
+import { StageModelBody, badBody, fileRoute, notFound } from '../shared'
 
 /** The music routes. */
 export function musicRoutes(c: RouteContext) {
@@ -113,7 +114,7 @@ export function musicRoutes(c: RouteContext) {
       PUT: fromOwnPage(async (request) => {
         const body = StageModelBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { model, was }' }, { status: 400 })
+          return badBody('{ model, was }', body.error, modelAllowed('music'))
         }
         const result = await setMusicModel(projectFile, body.data.model, body.data.was)
         return Response.json(result, { status: result.ok ? 200 : 409 })

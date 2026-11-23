@@ -1,3 +1,4 @@
+import { modelBody } from '../core/modelBodies'
 import { FishTierSchema } from '../core/project'
 import type { Action } from './mcpActions'
 
@@ -41,14 +42,14 @@ export const SETUP_AND_NARRATION_ACTIONS: readonly Action[] = [
     method: 'PUT',
     path: '/api/image-model',
     about: 'save the Images model',
-    body: '{ model, was }',
+    body: modelBody('images'),
   },
   {
     page: 'Setup',
     method: 'PUT',
     path: '/api/effect-model',
     about: 'save the Sound effects model',
-    body: '{ model, was }',
+    body: modelBody('effects'),
   },
   {
     page: 'Setup',
@@ -56,7 +57,7 @@ export const SETUP_AND_NARRATION_ACTIONS: readonly Action[] = [
     path: '/api/models/:stage',
     about: 'save a Fish narration model for a stage (audition, draft, final)',
     confirm: 'may change the model that recorded lines were made with',
-    body: '{ model, was }',
+    body: modelBody('fish'),
   },
   {
     page: 'Setup',
@@ -64,7 +65,7 @@ export const SETUP_AND_NARRATION_ACTIONS: readonly Action[] = [
     path: '/api/models/elevenlabs/:stage',
     about: 'save an ElevenLabs narration model for a stage',
     confirm: 'may change the model that recorded lines were made with',
-    body: '{ model, was }',
+    body: modelBody('elevenlabs'),
   },
   {
     page: 'Narration',

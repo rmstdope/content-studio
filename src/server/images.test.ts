@@ -807,7 +807,11 @@ describe('the image model routes', () => {
   it('saves the main model from its own page only, and the page then shows it', async () => {
     const body = { model: 'z-image-turbo', was: 'klein' }
     expect((await send('PUT', '/api/image-model', body, 'http://evil.test')).status).toBe(403)
-    expect((await send('PUT', '/api/image-model', { model: 'klein' })).status).toBe(400)
+    const wrong = await send('PUT', '/api/image-model', { model: 'klein' })
+    expect(wrong.status).toBe(400)
+    const { error } = await wrong.json()
+    for (const word of ['expected { model, was }', 'was: ', '"qwen-image"', 'GET /api/models'])
+      expect(error).toContain(word)
     const saved = await send('PUT', '/api/image-model', body)
     expect([saved.status, await saved.json()]).toEqual([200, { ok: true }])
     expect((await send('PUT', '/api/image-model', body)).status).toBe(409)

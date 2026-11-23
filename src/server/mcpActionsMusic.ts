@@ -1,4 +1,5 @@
 import { FADES_BODY_TEXT } from '../core/fades'
+import { modelBody } from '../core/modelBodies'
 import type { Action } from './mcpActions'
 
 const MUSIC = 'Music and Stingers' as const
@@ -65,7 +66,7 @@ export const MUSIC_ACTIONS: readonly Action[] = [
   change(
     'PUT',
     '/api/music/model',
-    '{ model, was }',
+    modelBody('music'),
     "saves the project's music model (the Music row of Setup's Models panel)",
     { page: 'Setup' },
   ),

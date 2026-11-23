@@ -60,3 +60,18 @@ describe('the Music and Stingers steps, against the server', () => {
     expect(MUSIC_ACTIONS.map((a) => `${a.method} ${a.path}`).sort()).toEqual(changes)
   })
 })
+
+describe('what an agent reads of the five model saves', () => {
+  it.each([
+    ['/api/music/model', ['"balanced"', '"eleven"']],
+    ['/api/image-model', ['"klein"', '"qwen-image"']],
+    ['/api/effect-model', ['"small-sfx"', '"open-1"']],
+    ['/api/models/draft', ['"s2.1-pro"', '"drama-3"']],
+    ['/api/models/elevenlabs/draft', ['"eleven_v3"']],
+  ])('%s names its model ids and where was is read', (path, ids) => {
+    const body = matchAction('PUT', path)?.body ?? ''
+    for (const word of ['{ model, was }', 'GET /api/models', ...ids]) {
+      expect(body).toContain(word)
+    }
+  })
+})

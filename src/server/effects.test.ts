@@ -38,7 +38,11 @@ describe('server, the sound effects', () => {
   it('saves the main sound-effects model from its own page only, and the models page then shows it', async () => {
     const body = { model: 'open-1', was: 'small-sfx' }
     expect((await send('PUT', '/api/effect-model', body, 'https://evil.example')).status).toBe(403)
-    expect((await send('PUT', '/api/effect-model', { model: 'open-1' })).status).toBe(400)
+    const wrong = await send('PUT', '/api/effect-model', { model: 'open-1' })
+    expect(wrong.status).toBe(400)
+    const { error } = await wrong.json()
+    for (const word of ['expected { model, was }', 'was: ', '"small-sfx"', 'GET /api/models'])
+      expect(error).toContain(word)
     const saved = await send('PUT', '/api/effect-model', body)
     expect([saved.status, await saved.json()]).toEqual([200, { ok: true }])
     expect((await send('PUT', '/api/effect-model', body)).status).toBe(409)

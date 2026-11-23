@@ -49,6 +49,7 @@ import { createLevelJobs } from '../services/levelJobs'
 import { createJobs } from '../services/jobs'
 import { appendMusic, createSpendLog } from '../services/spending'
 import { type ModelsChange } from '../services/models'
+import { modelAllowed } from '../core/modelBodies'
 import type { Stage } from '../core/models'
 import type { Busy } from '../core/models'
 import { type RuledOutResult } from '../services/ruledOut'
@@ -83,6 +84,7 @@ import {
   CharacterBody,
   SHOWN_ACCOUNT_MS,
   StageModelBody,
+  badBody,
   StageParam,
   forbidden,
   languageOf,
@@ -814,7 +816,7 @@ export function createContext({
   }
 
   /**
-   * Saves one stage's model with `save` (Fish's or ElevenLabs'), from the body's `{ model, was }`:
+   * Saves one stage's model with `save` (Fish's or ElevenLabs'), from the body's `{ model, was }` (`kind` says whose models a refusal names):
    * 404 for a stage that is not one, and refused while a part records or a character auditions,
    * naming it, so no recording changes model under its feet.
    */
@@ -822,13 +824,14 @@ export function createContext({
     request: Request,
     asked: string,
     path: string,
+    kind: 'fish' | 'elevenlabs',
     save: (projectFile: string, stage: Stage, model: string, was: string) => Promise<ModelsChange>,
   ): Promise<Response> {
     const stage = StageParam.safeParse(asked)
     if (!stage.success) return notFound()
     const body = StageModelBody.safeParse(await request.json().catch(() => null))
     if (!body.success) {
-      return Response.json({ error: 'expected { model, was }' }, { status: 400 })
+      return badBody('{ model, was }', body.error, modelAllowed(kind))
     }
     const busy = await busyRefusal(`${path}.${stage.data}`)
     if (busy) return busy
