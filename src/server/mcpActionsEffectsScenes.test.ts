@@ -52,6 +52,34 @@ describe('the Sound effects and Scenes steps an agent may do', () => {
   })
 })
 
+describe('what the bodies of the fades and the scene mix say', () => {
+  const body = (method: string, path: string) => matchAction(method, path)?.body ?? ''
+  it('names the fade shapes and the lengths', () => {
+    const text = body('PUT', '/api/effects/door/takes/a.wav/fades')
+    for (const word of ['smooth', 'straight', 'seconds']) expect(text).toContain(word)
+  })
+  it('describes the scene mix down to an effect entry', () => {
+    const text = body('PUT', '/api/scenes/act1/door')
+    for (const word of [
+      'music',
+      'track',
+      'effects',
+      'play',
+      'loop',
+      'random',
+      'everySeconds',
+      'once',
+      'afterSeconds',
+      'trigger',
+      'state',
+      'level',
+      'was',
+      'moved',
+    ])
+      expect(text).toContain(word)
+  })
+})
+
 describe('the Sound effects and Scenes steps, against the server', () => {
   const root = tempRepo({ 'content-studio.json': projectJson() })
   const routes = studioRoutes(

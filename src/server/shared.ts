@@ -105,6 +105,21 @@ export function imageAnswer(
   return Response.json(result, { status: result.ok ? 200 : 409 })
 }
 
+/**
+ * A 400 for a body that did not fit: `expected <shape>`, then the first problem with its path, then
+ * the values allowed, so a caller that guessed can put it right at once.
+ */
+export function badBody(shape: string, error: z.ZodError, allowed: string): Response {
+  const issue = error.issues[0]
+  const where = issue?.path.length ? `${issue.path.join('.')}: ` : ''
+  const line = `expected ${shape}: ${where}${issue?.message ?? 'not valid'}. ${allowed}`
+  return Response.json({ error: line }, { status: 400 })
+}
+
+/** The values a scene's mix takes where a guess goes wrong. */
+export const SCENE_ALLOWED =
+  'Allowed: play.mode is loop, random (with everySeconds: [from, to]), once (with afterSeconds) or trigger (with trigger); level is 0 to 3.'
+
 /** A scene as the page saves it, and the entry it was read as (null: the mix had none). */
 export const SceneBody = z
   .object({

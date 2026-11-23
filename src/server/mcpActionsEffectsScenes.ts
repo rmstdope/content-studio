@@ -1,3 +1,4 @@
+import { FADE_SHAPES } from '../core/fades'
 import type { Action } from './mcpActions'
 
 /** The Sound effects and Scenes steps an agent may do: one entry per change route of those pages. */
@@ -68,7 +69,7 @@ export const EFFECTS_AND_SCENES_ACTIONS: readonly Action[] = [
     method: 'PUT',
     path: '/api/effects/:id/takes/:file/fades',
     about: "set a take's fades",
-    body: '{ in, out, shape }',
+    body: `{ in: seconds, 0 or more; out: seconds, 0 or more; shape: ${FADE_SHAPES.map((s) => `"${s}"`).join(' | ')} }; in and out together no longer than the take`,
   },
   {
     page: 'Sound effects',
@@ -130,6 +131,6 @@ export const EFFECTS_AND_SCENES_ACTIONS: readonly Action[] = [
     method: 'PUT',
     path: '/api/scenes/:part/:id',
     about: "save a scene's mix",
-    body: '{ scene, was, moved? }',
+    body: '{ scene: SceneMix, was: SceneMix | null, moved? }. SceneMix: { music?: { track: id | null, level }, effects: [Effect] }. Effect: { id, play, state?, level }, level 0 to 3 (1 as made), state one of the scene\'s states. play: { mode: "loop" } | { mode: "random", everySeconds: [from, to] } | { mode: "once", afterSeconds } | { mode: "trigger", trigger }. was: the scene\'s mix as you read it, null if it had none. moved: { db, measuredAt }, only after Make louder or quieter',
   },
 ]
