@@ -82,7 +82,15 @@ export function Menu({
         {face}
       </button>
       {open && (
-        <div className="menu-list" id={id} role="listbox" aria-label={label}>
+        <div
+          className="menu-list"
+          id={id}
+          role="listbox"
+          aria-label={label}
+          // A press on a spot that is not an option focuses the list rather than the page, so its
+          // keys (Esc above all) still reach the handler on the menu.
+          tabIndex={-1}
+        >
           {options.map((option) => (
             <button
               key={option.value ?? ''}
