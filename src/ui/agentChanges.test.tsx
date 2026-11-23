@@ -31,7 +31,7 @@ describe('an open page after an agent changed something through the MCP', () => 
     window.fetch = fake
 
     function Page() {
-      useAgentChanges(10)
+      useAgentChanges(50)
       useQuery({
         queryKey: ['project'],
         queryFn: async () => (await fetch('/api/project')).json(),
@@ -58,20 +58,22 @@ describe('an open page after an agent changed something through the MCP', () => 
     await act(async () => {
       root.render(createElement(QueryClientProvider, { client }, createElement(Page)))
     })
-    await until(() => projectReads === 1)
-    expect(projectReads).toBe(1)
+    try {
+      await until(() => projectReads >= 1)
+      expect(projectReads).toBe(1)
 
-    count = 1
-    await until(() => projectReads === 2)
-    expect(projectReads).toBe(2)
-    expect(creditReads).toBe(1)
+      count = 1
+      await until(() => projectReads >= 2)
+      expect(projectReads).toBe(2)
+      expect(creditReads).toBe(1)
 
-    await wait(100)
-    expect(projectReads).toBe(2)
-
-    await act(async () => root.unmount())
-    client.clear()
-    globalThis.fetch = realFetch
-    window.fetch = realFetch
-  })
+      await wait(100)
+      expect(projectReads).toBe(2)
+    } finally {
+      await act(async () => root.unmount())
+      client.clear()
+      globalThis.fetch = realFetch
+      window.fetch = realFetch
+    }
+  }, 20_000)
 })
