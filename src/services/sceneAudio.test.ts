@@ -3,7 +3,8 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tempRepo } from '../../test/helpers'
 import { writeWav } from '../core/wav'
-import { ffmpegSceneAudio } from './sceneAudio'
+import { measureSound } from './audio'
+import { ffmpegSceneAudio, ffmpegSceneRender } from './sceneAudio'
 import type { RenderPart } from './sceneLoudness'
 
 const hasFfmpeg = Bun.which('ffmpeg') !== null
@@ -116,5 +117,30 @@ describe.skipIf(!hasFfmpeg)('ffmpegSceneAudio', () => {
     const mix = await audio.loudness([part(a), part(b)], 60).catch((e: Error) => e.message)
     expect(mix).toContain('could not read content-studio/cache/effect-takes/a.mp3, b.mp3:')
     expect(mix).not.toContain(root)
+  })
+})
+
+describe.skipIf(!hasFfmpeg)('ffmpegSceneRender', () => {
+  setDefaultTimeout(30_000)
+
+  it('renders a mix as a WAV of the window, as loud as it measures', async () => {
+    const root = tempRepo({})
+    const file = tone(root, 'a.wav', 3, 0.2)
+    const parts = [part(file)]
+    const wav = await ffmpegSceneRender(root)(parts, 10)
+    const heard = await measureSound(wav)
+    expect(heard.seconds).toBeCloseTo(10, 0)
+    const measured = await ffmpegSceneAudio(root).loudness(parts, 10)
+    expect(heard.lufs!).toBeCloseTo(measured!, 0)
+  })
+
+  it('names an unreadable clip by its project path', async () => {
+    const root = tempRepo({})
+    writeFileSync(join(root, 'bad.mp3'), 'not audio')
+    const message = await ffmpegSceneRender(root)([part(join(root, 'bad.mp3'))], 10).catch(
+      (e: Error) => e.message,
+    )
+    expect(message).toContain('ffmpeg could not read bad.mp3')
+    expect(message).not.toContain(root)
   })
 })

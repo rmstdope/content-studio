@@ -96,6 +96,11 @@ export const READABLE: readonly Readable[] = [
   file('Sound effects', '/api/effects/:id/current', 'the chosen sound effect'),
   file('Sound effects', '/api/effects/clips/:file', 'a sound effect clip in the game'),
   state('Scenes', '/api/scene-loudness', 'the scenes being measured now'),
+  file(
+    'Scenes',
+    '/api/scenes/:part/:id/mix',
+    "a scene's mix as saved, one minute as the game plays it; ?state= picks a sound state",
+  ),
 ]
 
 /**

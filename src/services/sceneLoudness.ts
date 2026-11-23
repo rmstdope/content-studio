@@ -17,7 +17,7 @@ import {
   type SceneMix,
   type SceneRow,
 } from '../core/scenes'
-import { ffmpegSceneAudio } from './sceneAudio'
+import { ffmpegSceneAudio, ffmpegSceneRender, type SceneRender } from './sceneAudio'
 import { keepMeasure, measuresBroken } from './sceneMeasures'
 import { dirname } from 'node:path'
 import { scenesLockFile } from '../core/project'
@@ -73,12 +73,22 @@ async function once<T>(cache: Map<string, T>, id: string, find: () => Promise<T>
   return cache.get(id)!
 }
 
-/** One scene measured: a figure for each of its states, from the entry as it is (or is on the page). */
-async function measureScene(
+/** What a scene plays and where each sound is: the shared first half of measuring and rendering. */
+interface ScenePlan {
+  chosen: { track: string | null; level: number } | null
+  paths: Map<string, string>
+  music: PlanMusic | null
+  effects: PlanEffect[]
+  without: string[]
+  stateNames: (string | null)[]
+}
+
+/** Finds the files a scene's entry plays and which sounds are left out (and why). */
+async function planScene(
   scene: SceneRow,
   entry: SceneMix | null,
   around: Around,
-): Promise<SceneMeasure> {
+): Promise<ScenePlan> {
   const { act, choices, audio, files, found } = around
   const without: string[] = []
   const left = (name: string, why: string) => {
@@ -141,6 +151,21 @@ async function measureScene(
     )
   }
 
+  return { chosen, paths, music, effects, without, stateNames }
+}
+
+/** One scene measured: a figure for each of its states, from the entry as it is (or is on the page). */
+async function measureScene(
+  scene: SceneRow,
+  entry: SceneMix | null,
+  around: Around,
+): Promise<SceneMeasure> {
+  const { act, choices, audio } = around
+  const { chosen, paths, music, effects, without, stateNames } = await planScene(
+    scene,
+    entry,
+    around,
+  )
   const states: StateLoudness[] = []
   for (const state of stateNames) {
     const parts = planStateMix({ music, effects, state }).map((part): RenderPart => ({
@@ -219,6 +244,85 @@ export async function measureScenes(input: {
     input.progress(measured + failed, scenes.length)
   }
   return { measured, failed }
+}
+
+/** What rendering a scene answered: the WAV, or why not (`state`: no such state; `silent`: nothing plays). */
+export type SceneRendered =
+  | { ok: true; wav: Uint8Array }
+  | { ok: false; kind: 'unknown' | 'state' | 'silent'; message: string }
+
+/**
+ * Renders one minute of a scene as it is saved, in `state` (the scene's first when `state` is
+ * undefined), as the game plays it: the same minute the measure takes, so its loudness is the
+ * figure the Scenes page shows. Writes nothing.
+ */
+export async function renderSceneMix(input: {
+  act: SceneAct
+  effects: SceneEffectChoice[]
+  sceneId: string
+  state: string | null | undefined
+  audio: SceneAudio
+  files: SceneFiles
+  render: SceneRender
+}): Promise<SceneRendered> {
+  const scene = input.act.scenes.find((s) => s.id === input.sceneId && !s.unreadable)
+  if (!scene) return { ok: false, kind: 'unknown', message: `${input.sceneId} is not a scene` }
+  const names = sceneStateNames(scene)
+  if (input.state != null && !names.includes(input.state)) {
+    return {
+      ok: false,
+      kind: 'state',
+      message:
+        scene.states.length === 0
+          ? `${scene.id} has no states, so none can be asked for`
+          : `${scene.id} has no state "${input.state}": its states are ${scene.states.join(', ')}`,
+    }
+  }
+  const state = input.state ?? names[0]!
+  const { music, effects, paths, without } = await planScene(scene, scene.entry, {
+    act: input.act,
+    choices: new Map(input.effects.map((c) => [c.id, c])),
+    audio: input.audio,
+    files: input.files,
+    now: () => new Date(),
+    found: { effect: new Map(), music: new Map(), seconds: new Map() },
+  })
+  const parts = planStateMix({ music, effects, state }).map((part): RenderPart => ({
+    ...part,
+    file: paths.get(`${part.source.kind}:${part.source.id}`)!,
+  }))
+  if (parts.length === 0) {
+    const where = state === null ? '' : ` in its ${state} state`
+    const why = without.length > 0 ? `: ${without.join('; ')}` : ''
+    return { ok: false, kind: 'silent', message: `${scene.id} plays nothing${where}${why}` }
+  }
+  return { ok: true, wav: await input.render(parts, WINDOW_SECONDS) }
+}
+
+/** `renderSceneMix` for a scene of the project's act, with the real ffmpeg and the game's clips. */
+export async function renderScene(
+  projectFile: string,
+  part: string,
+  sceneId: string,
+  state: string | null | undefined,
+  deps: { audio?: SceneAudio; render?: SceneRender; files?: SceneFiles } = {},
+): Promise<SceneRendered> {
+  const loaded = await loadProject(projectFile)
+  const act = loaded.ok ? loaded.summary.scenes?.acts.find((a) => a.id === part) : undefined
+  if (!loaded.ok || !act) return { ok: false, kind: 'unknown', message: `${part} has no scenes` }
+  const root = dirname(projectFile)
+  return renderSceneMix({
+    act,
+    effects: loaded.summary.scenes!.effects,
+    sceneId,
+    state,
+    audio: deps.audio ?? ffmpegSceneAudio(root),
+    render: deps.render ?? ffmpegSceneRender(root),
+    files: deps.files ?? {
+      effect: (id) => effectCurrentFile(projectFile, id),
+      music: (id) => musicCurrentFile(projectFile, id),
+    },
+  })
 }
 
 /** The acts being measured, by project and act: how far each has got. */

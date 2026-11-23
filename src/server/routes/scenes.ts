@@ -1,5 +1,5 @@
 import { saveScene } from '../../services/scenes'
-import { making as measuring, startMeasure } from '../../services/sceneLoudness'
+import { making as measuring, renderScene, startMeasure } from '../../services/sceneLoudness'
 import type { RouteContext } from '../context'
 import { MeasureBody, SCENE_ALLOWED, SceneBody, badBody, notFound } from '../shared'
 
@@ -20,6 +20,30 @@ export function scenesRoutes(c: RouteContext) {
         if (result.ok) return Response.json({ ok: true })
         if (result.kind === 'unknown') return notFound()
         return Response.json({ ok: false, message: result.message }, { status: 409 })
+      }),
+    },
+    '/api/scenes/:part/:id/mix': {
+      // One minute of the scene as saved, as a WAV (§8.11): what an agent fetches to judge a mix.
+      GET: guard(async (request) => {
+        const state = new URL(request.url).searchParams.get('state')
+        const result = await renderScene(
+          projectFile,
+          request.params.part,
+          request.params.id,
+          state ?? undefined,
+        ).catch((error: unknown) => ({
+          ok: false as const,
+          kind: 'failed' as const,
+          message: error instanceof Error ? error.message : String(error),
+        }))
+        if (result.ok) {
+          return new Response(Buffer.from(result.wav), { headers: { 'content-type': 'audio/wav' } })
+        }
+        if (result.kind === 'unknown') return notFound()
+        return Response.json(
+          { ok: false, message: result.message },
+          { status: result.kind === 'state' ? 400 : result.kind === 'silent' ? 409 : 500 },
+        )
       }),
     },
     '/api/scenes/:part/:id': {
