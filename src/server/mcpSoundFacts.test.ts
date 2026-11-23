@@ -102,7 +102,9 @@ describe.skipIf(!hasFfmpeg)('studio_fetch tells a sound in words', () => {
     const result = await fetchSound('/api/parts/act1/clips/bad.mp3')
     expect(result.isError).toBeUndefined()
     expect(result.content.map((c) => c.type)).toEqual(['text', 'text', 'audio'])
-    expect(result.content[1]!.text).toStartWith('Could not measure it: ')
+    expect(result.content[1]!.text).toBe(
+      'Could not measure it: the file is not audio ffmpeg can read.',
+    )
   })
 
   it('leaves no temporary file behind, measured or not', async () => {
