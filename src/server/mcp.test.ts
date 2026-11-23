@@ -97,7 +97,11 @@ describe('the MCP endpoint', () => {
 
   it('refuses what it does not understand', async () => {
     expect((await mcp.post({ jsonrpc: '2.0', id: 1, method: 'nope' })).body.error.code).toBe(-32601)
-    const bad = await fetch(new URL('/mcp', server.url), { method: 'POST', body: '{' })
+    const bad = await fetch(new URL('/mcp', server.url), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{',
+    })
     expect([bad.status, (await bad.json()).error.code]).toEqual([400, -32700])
     expect((await mcp.post(42)).body.error.code).toBe(-32600)
     for (const method of ['GET', 'DELETE']) {
@@ -134,7 +138,13 @@ describe('the MCP endpoint', () => {
   it('tells the pages and what each shows', async () => {
     const result = await mcp.call('studio_pages', {})
     const { read: pages, actions } = JSON.parse(result.content[0]!.text)
-    expect(Object.keys(actions).sort()).toEqual(['Images', 'Scenes', 'Sound effects'])
+    expect(Object.keys(actions).sort()).toEqual([
+      'Images',
+      'Music and Stingers',
+      'Scenes',
+      'Setup',
+      'Sound effects',
+    ])
     expect(Object.keys(pages).sort()).toEqual([
       'Images',
       'Music and Stingers',

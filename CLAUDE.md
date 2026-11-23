@@ -129,7 +129,7 @@ bundle breaks.
 - Write JSON with stable key order and small diffs (`formatLock` for narration's locks, `formatEntriesPerLine` for the
   scenes', `formatMusicLock` and `formatBriefs` for music's, `formatImageLock` and
   `formatImageEdits` for images', `formatEffectLock` for effects').
-- Never delete clips without the user confirming it in the UI.
+- Never delete clips without the user confirming it in the UI; through the MCP, the same steps are done only on a call with `confirmed: true`, which the agent sets once the person has agreed.
 - Only changes from the studio's own page are accepted (the Origin check on every POST, PUT, PATCH and DELETE route); the one exception is `POST /mcp` (an agent's MCP client, which is no browser and sends no Origin), which carries changes only by calling the studio's own routes for the steps its registry lists, with the same checks as the page, and refuses any Origin that is not the studio's own, so no web page can reach it (§9).
 
 ## Commands

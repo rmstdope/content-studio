@@ -1,6 +1,7 @@
 import type { RouteContext } from './context'
 import { allowedHosts, forbidden } from './shared'
-import { ACTIONS, matchAction, type ActionPage } from './mcpActions'
+import { MUSIC_MODEL_IDS, perMinuteWords } from '../core/musicModels'
+import { ACTIONS, matchAction, type Action, type ActionPage } from './mcpActions'
 import { READABLE, matchReadable, type ReadablePage } from './mcpReadable'
 
 /** The largest file `studio_fetch` hands over, in bytes. */
@@ -57,7 +58,7 @@ const TOOLS = [
   {
     name: 'studio_act',
     description:
-      'Does a step of a page of the web UI (Images, Sound effects and Scenes so far), through the same route the page uses, so every check holds: the body is the one the page sends. A step marked `confirm` in studio_pages needs `confirmed: true`, set only once the user has agreed to what it says.',
+      'Does a step of a page of the web UI (Images, Music and Stingers, Sound effects and Scenes so far), through the same route the page uses, so every check holds: the body is the one the page sends. A step marked `confirm` in studio_pages needs `confirmed: true`, set only once the user has agreed to what it says.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -120,6 +121,20 @@ export function mcpRoutes(c: RouteContext) {
     }
   }
 
+  /** The music model a spending step would run on: the body's for new takes, a failed take's for a retry, else the project's; null when it cannot be told. */
+  async function spendingModel(action: Action, path: string, body: unknown) {
+    const given = (body as { model?: unknown; retry?: unknown } | null) ?? {}
+    const known = (id: unknown) => MUSIC_MODEL_IDS.find((m) => m === id) ?? null
+    const json = async (url: string) => (await fetch(`${own()}${url}`)).json().catch(() => null)
+    if (action.spends === 'takes' && known(given.model)) return known(given.model)
+    if (action.spends === 'takes' && typeof given.retry === 'number') {
+      const failed = ((await json(path))?.failed ?? []) as { n: number; modelId: unknown }[]
+      return known(failed.find((f) => f.n === given.retry)?.modelId)
+    }
+    // Make all takes no body: it always runs on the project's model.
+    return known((await json('/api/music/model-state'))?.model)
+  }
+
   async function act(args: Record<string, unknown>): Promise<ToolResult> {
     const { method, path, body, confirmed } = args
     const action =
@@ -129,9 +144,19 @@ export function mcpRoutes(c: RouteContext) {
         `Not something to do: ${String(method)} ${String(path)}. studio_pages lists what is.`,
       )
     }
-    if (action.confirm && confirmed !== true) {
+    let confirm = action.confirm
+    if (action.spends) {
+      const model = await spendingModel(action, String(path).split('?')[0]!, body)
+      // A model that cannot be told is asked about, never let through.
+      const price = model ? perMinuteWords(model) : 'the model could not be found'
+      if (price) {
+        const spend = `might spend ElevenLabs credit (${price})`
+        confirm = confirm ? `${confirm}; ${spend}` : spend
+      }
+    }
+    if (confirm && confirmed !== true) {
       return failed(
-        `Needs the user's confirmation first: this ${action.confirm}. Once the user has agreed, call again with confirmed: true.`,
+        `Needs the user's confirmation first: this ${confirm}. Once the user has agreed, call again with confirmed: true.`,
       )
     }
     const headers: Record<string, string> = {
@@ -217,6 +242,10 @@ export function mcpRoutes(c: RouteContext) {
         const origin = request.headers.get('origin')
         if (origin && !allowedHosts(listening.port!).some((host) => origin === `http://${host}`)) {
           return forbidden('requests from other pages are not accepted')
+        }
+        // A page of another site cannot send JSON without a preflight this server never answers.
+        if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) {
+          return Response.json(refusal(null, -32600, 'send application/json'), { status: 415 })
         }
         let body: unknown
         try {
