@@ -350,6 +350,18 @@ describe.each([
     expect(answer.content[0]!.text).toBe('There is no failed take 9 to retry on hall.')
   })
 
+  it('says there is no such track, and asks nothing, for a track the studio does not know', async () => {
+    for (const body of [{ retry: 1 }, { count: 1 }]) {
+      const answer = await call('studio_act', {
+        method: 'POST',
+        path: '/api/music/tracks/nope/takes',
+        body,
+      })
+      expect(answer.isError).toBe(true)
+      expect(answer.content[0]!.text).toBe('There is no track nope.')
+    }
+  })
+
   it('still treats a take that failed as a retry, asking only when it is paid', async () => {
     await call('studio_act', { method: 'POST', path, body: { count: 1 }, confirmed: true })
     let n: number | undefined
