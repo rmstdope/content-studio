@@ -15,6 +15,7 @@ import { keepMeasure } from './sceneMeasures'
 import {
   making,
   measureScenes,
+  renderSceneMix,
   startMeasure,
   type RenderPart,
   type SceneAudio,
@@ -551,5 +552,92 @@ describe('the kept figures', () => {
       saved: null,
       draft: null,
     })
+  })
+})
+
+describe('renderSceneMix', () => {
+  const built = actOf(
+    [declared('inn', ['dim', 'lit']), declared('bare')],
+    {
+      inn: {
+        music: { track: 'theme', level: 0.8 },
+        effects: [
+          { id: 'wind', play: { mode: 'loop' }, state: 'lit', level: 0.5 },
+          { id: 'door', play: { mode: 'once', afterSeconds: 5 }, level: 1 },
+          { id: 'bell', play: { mode: 'trigger', trigger: 'ring' }, level: 1 },
+        ],
+      },
+    },
+    [choice('wind', { loops: true }), choice('door'), choice('bell')],
+  )
+  const wav = new Uint8Array([1, 2, 3])
+
+  function render(sceneId: string, state: string | null | undefined) {
+    const asked: { parts: RenderPart[]; seconds: number }[] = []
+    return {
+      asked,
+      result: renderSceneMix({
+        ...built,
+        sceneId,
+        state,
+        audio: fakeAudio().audio,
+        files,
+        render: async (parts, seconds) => {
+          asked.push({ parts, seconds })
+          return wav
+        },
+      }),
+    }
+  }
+
+  it("renders the minute of the scene's first state when none is asked for", async () => {
+    const { asked, result } = render('inn', undefined)
+    expect(await result).toEqual({ ok: true, wav })
+    expect(asked).toHaveLength(1)
+    expect(asked[0]!.seconds).toBe(60)
+    expect(asked[0]!.parts.map((p) => [p.source.id, p.level, p.file])).toEqual([
+      ['theme', 0.8, '/music/theme.mp3'],
+      ['door', 1, '/clips/door.mp3'],
+    ])
+  })
+
+  it('plays what the asked state plays', async () => {
+    const { asked, result } = render('inn', 'lit')
+    expect((await result).ok).toBe(true)
+    expect(asked[0]!.parts.map((p) => p.source.id)).toEqual(['theme', 'wind', 'door'])
+  })
+
+  it('refuses a state the scene does not have, naming the ones it has', async () => {
+    const { asked, result } = render('inn', 'storm')
+    expect(await result).toEqual({
+      ok: false,
+      kind: 'state',
+      message: 'inn has no state "storm": its states are dim, lit',
+    })
+    expect(asked).toEqual([])
+  })
+
+  it('refuses a state for a scene that has none', async () => {
+    const { result } = render('bare', 'dim')
+    expect(await result).toEqual({
+      ok: false,
+      kind: 'state',
+      message: 'bare has no states, so none can be asked for',
+    })
+  })
+
+  it('knows no scene that is not in the act', async () => {
+    const { result } = render('attic', undefined)
+    expect(await result).toMatchObject({ ok: false, kind: 'unknown' })
+  })
+
+  it('says nothing plays when nothing does', async () => {
+    const { asked, result } = render('bare', undefined)
+    expect(await result).toEqual({
+      ok: false,
+      kind: 'silent',
+      message: 'bare plays nothing',
+    })
+    expect(asked).toEqual([])
   })
 })
