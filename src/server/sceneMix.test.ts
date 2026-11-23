@@ -99,6 +99,7 @@ describe.skipIf(!hasFfmpeg)('server, a scene’s mix as a sound', () => {
     expect(listing(root)).toEqual(before)
   })
 
+  // Builds on the test above: wind's take is chosen and the scene is saved there.
   it('tells an agent fetching the mix what it leaves out, as the Scenes page does', async () => {
     const wind = { id: 'wind', play: { mode: 'loop' }, state: 'storm', level: 1 }
     const rain = { id: 'rain', play: { mode: 'loop' }, state: 'storm', level: 1 }
