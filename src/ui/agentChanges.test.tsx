@@ -48,6 +48,9 @@ describe('an open page after an agent changed something through the MCP', () => 
       defaultOptions: { queries: { retry: false, networkMode: 'always' } },
     })
     const root = createRoot(document.body.appendChild(document.createElement('div')))
+    const until = async (done: () => boolean) => {
+      for (let i = 0; i < 100 && !done(); i++) await wait(50)
+    }
     const wait = (ms: number) =>
       act(async () => {
         await new Promise((r) => setTimeout(r, ms))
@@ -55,11 +58,11 @@ describe('an open page after an agent changed something through the MCP', () => 
     await act(async () => {
       root.render(createElement(QueryClientProvider, { client }, createElement(Page)))
     })
-    await wait(100)
+    await until(() => projectReads === 1)
     expect(projectReads).toBe(1)
 
     count = 1
-    await wait(100)
+    await until(() => projectReads === 2)
     expect(projectReads).toBe(2)
     expect(creditReads).toBe(1)
 
