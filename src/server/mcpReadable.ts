@@ -77,6 +77,11 @@ export const READABLE: readonly Readable[] = [
   state('Images', '/api/images/take-times', 'how long image takes took here'),
   state('Images', '/api/images/model-state', 'the image model and its state'),
   state('Images', '/api/images/bring-all', 'the run that brings every image in'),
+  state(
+    'Images',
+    '/api/image-acts/:id',
+    "an act's images: each one's status, the patches and named areas it still lacks, and why it is out of date",
+  ),
   state('Images', '/api/image-acts/:id/batch', 'the making of an act of images'),
   state('Images', '/api/images/:id/takes', "an image's takes"),
   state('Images', '/api/images/:id/patches', "an image's patches"),
