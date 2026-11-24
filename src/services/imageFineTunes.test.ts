@@ -442,7 +442,7 @@ describe('using a fine-tune', () => {
     await tunes.make(file, 'inn', { count: 3, words: 'Add a cat', area: null })
     await settled()
     const answer = await tunes.use(file, 'inn', 2)
-    expect(answer).toEqual({ ok: true, take: 4, from: 3, carried: { areas: 1, patches: 1 } })
+    expect(answer).toMatchObject({ ok: true, take: 4, from: 3, carried: { areas: 1, patches: 1 } })
     const taken = await takes.view(file, 'inn')
     if (!taken || !('takes' in taken)) throw new Error('no view')
     expect(taken.takes.find((t) => t.n === 4)).toMatchObject({
@@ -479,6 +479,56 @@ describe('using a fine-tune', () => {
     expect(after.tunes).toEqual([])
     expect(existsSync(join(root, FOLDER, '1.png'))).toBe(false)
     expect(existsSync(join(root, FOLDER, '3.png'))).toBe(false)
+  })
+
+  it('counts the new take as up to date when only the style was behind, unless asked not to', async () => {
+    for (const accept of [true, false]) {
+      const { file, tunes, settled, read } = setup()
+      await tunes.make(file, 'inn', { count: 1, words: 'Add a cat', area: null })
+      await settled()
+      const answer = await tunes.use(file, 'inn', 1, { accept })
+      expect(answer).toMatchObject({ ok: true, take: 4, accepted: accept })
+      if (!answer || !answer.ok) throw new Error('no answer')
+      expect(answer.behind).toEqual(['the style'])
+      expect(JSON.parse(read(LOCK)).inn.inputs.style !== undefined).toBe(accept)
+    }
+  })
+
+  it('accepts nothing when the size is behind, and names every reason', async () => {
+    const { file, tunes, settled, read } = setup({
+      extra: { 'tts/act1/images.json': [{ ...inn, width: 160 }] },
+    })
+    await tunes.make(file, 'inn', { count: 1, words: 'Add a cat', area: null })
+    await settled()
+    const before = read(LOCK)
+    const answer = await tunes.use(file, 'inn', 1)
+    expect(answer).toMatchObject({ ok: true, accepted: false })
+    if (!answer || !answer.ok) throw new Error('no answer')
+    expect(answer.behind).toContain('the size')
+    expect(JSON.parse(read(LOCK)).inn.inputs.width).toBe(JSON.parse(before).inn.inputs.width)
+  })
+
+  it('says nothing was behind when the picture is current, and leaves the lock as it is', async () => {
+    const style = { look: 'pixel art', keepOut: 'text', part: null }
+    const { file, tunes, settled, read } = setup({
+      extra: {
+        [LOCK]: { inn: { ...lock.inn, inputs: { ...lock.inn.inputs, style } } },
+        'content-studio/cache/images/inn.json': {
+          ...board,
+          takes: [
+            {
+              ...board.takes[0],
+              madeFrom: { ...madeFrom, style: JSON.stringify(['pixel art', 'text', null]) },
+            },
+          ],
+        },
+      },
+    })
+    await tunes.make(file, 'inn', { count: 1, words: 'Add a cat', area: null })
+    await settled()
+    const answer = await tunes.use(file, 'inn', 1)
+    expect(answer).toMatchObject({ ok: true, behind: [], accepted: false })
+    expect(JSON.parse(read(LOCK)).inn.take).toBe(4)
   })
 
   it('stops what is still waiting or being made, and nothing of it lands afterwards', async () => {
@@ -542,7 +592,7 @@ describe('using a fine-tune', () => {
     const own = readFileSync(join(root, 'web/images/inn-own.png'))
     await tunes.make(file, 'inn', { count: 1, words: 'Add a cat', area: null })
     await settled()
-    expect(await tunes.use(file, 'inn', 1)).toEqual({
+    expect(await tunes.use(file, 'inn', 1)).toMatchObject({
       ok: true,
       take: 1,
       from: null,

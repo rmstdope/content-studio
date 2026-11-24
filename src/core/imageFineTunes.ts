@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { EDIT_MODEL_IDS, type EditModelId, type ImageDownload } from './imageModels'
 import { PatchAreaSchema, type PatchArea } from './imagePatches'
+import type { ImageReason, ImageRow } from './images'
 import type { ImageTakeView } from './imageTakes'
 
 /** How many characters of the words the take's caption keeps. */
@@ -49,7 +50,11 @@ export const MakeFineTunesBody = z.union([
 ])
 
 /** The body of using a fine-tune. */
-export const UseFineTuneBody = z.strictObject({ n: z.number().int().positive() })
+export const UseFineTuneBody = z.strictObject({
+  n: z.number().int().positive(),
+  /** Count the new take as up to date when only its words or styles are behind; true when absent. */
+  accept: z.boolean().optional(),
+})
 
 /** The words as a caption shows them: on one line, shortened with an ellipsis. */
 export function shortened(words: string): string {
@@ -82,6 +87,27 @@ export function cameAlongLine(
   ].filter((p): p is string => p !== null)
   if (parts.length === 0) return `Take ${take} is in the game now.`
   return `Take ${take} is in the game now. Its ${parts.join(' and ')} came along from Take ${from}.`
+}
+
+/**
+ * What an agent is told about counting a used fine-tune as up to date: that it was, or why it was
+ * not. Null when nothing was behind.
+ */
+export function acceptNote(answer: Extract<UseFineTuneAnswer, { ok: true }>): string | null {
+  const { behind, from } = answer
+  if (behind.length === 0) return null
+  const named =
+    behind.length < 2 ? behind[0] : `${behind.slice(0, -1).join(', ')} and ${behind.at(-1)}`
+  if (answer.accepted) {
+    return `Accepted: counted as up to date with ${named}, which changed after Take ${from} was made.`
+  }
+  if (behind.includes('the size')) {
+    return `Not accepted: out of date for ${named}; a changed size needs a new take.`
+  }
+  if (answer.acceptFailed !== undefined) {
+    return `Not accepted: ${answer.acceptFailed} The image is out of date for ${named}.`
+  }
+  return `Not accepted as asked: the image is out of date for ${named}.`
 }
 
 /** A fine-tune as the page shows it. */
@@ -139,7 +165,20 @@ export interface FineTunesView {
 
 /** What using a fine-tune answered: the new take and what came along, or why not. */
 export type UseFineTuneAnswer =
-  | { ok: true; take: number; from: number | null; carried: { areas: number; patches: number } }
+  | {
+      ok: true
+      take: number
+      from: number | null
+      carried: { areas: number; patches: number }
+      /** What the new take was behind by when chosen: the words, the size, the styles; none when current. */
+      behind: ImageReason[]
+      /** The act style's change for a shared image, as the image's row says it, for naming `behind`. */
+      actStyleChange: ImageRow['actStyleChange']
+      /** The take was counted as up to date in the same step. */
+      accepted: boolean
+      /** Why counting it as up to date failed, the take being in the game all the same. */
+      acceptFailed?: string
+    }
   | { ok: false; message: string }
 
 /** One step of a picture's history: the game's own image, or a take. */

@@ -97,6 +97,7 @@ export const IMAGE_ACTIONS: readonly Action[] = [
     `un-chooses the take the game uses and ${SET_ASIDE}`,
   ),
   images('accept the take the game already has', 'POST', '/api/images/:id/accept'),
+  images('put an accepted take back out of date', 'POST', '/api/images/:id/unaccept'),
   images('stop the image’s takes being made', 'POST', '/api/images/:id/stop'),
   images('copy another image’s picture to this one', 'POST', '/api/images/:id/copy', '{ from }'),
   asking(
@@ -147,10 +148,10 @@ export const IMAGE_ACTIONS: readonly Action[] = [
   ),
   images('stop making fine-tunes', 'POST', '/api/images/:id/fine-tunes/stop'),
   images(
-    'use a fine-tune as the image’s next take, chosen',
+    'use a fine-tune as the image’s next take, chosen; when only its words or styles are behind it is also counted as up to date, unless accept is false',
     'POST',
     '/api/images/:id/fine-tunes/use',
-    '{ n }',
+    '{ n, accept? }',
   ),
   asking(images('drop a fine-tune', 'DELETE', '/api/images/:id/fine-tunes/:n'), DELETES),
   images('mark a fine-tune as seen', 'POST', '/api/images/:id/fine-tunes/:n/seen'),

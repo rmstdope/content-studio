@@ -749,6 +749,24 @@ describe('choosing', () => {
     expect(read('web/images/inn.png')).toBe(picture)
   })
 
+  it('puts an accepted take back out of date: the words and style it was made from, picture untouched', async () => {
+    const { takes, file, root, read, row } = await made()
+    await takes.choose(file, 'inn', 1)
+    expect(await takes.unaccept(file, 'inn')).toEqual({
+      ok: false,
+      message: 'Nothing was accepted for this take.',
+    })
+    const picture = read('web/images/inn.png')
+    await setImageWords(file, 'inn', 'a high inn')
+    writeStyle(root, { look: 'oil paint', keepOut: 'text', palette: ['#000000'], parts: {} })
+    await takes.accept(file, 'inn')
+    expect((await row()).status).toBe('chosen')
+    expect(await takes.unaccept(file, 'inn')).toEqual({ ok: true })
+    expect((await row()).reasons).toEqual(['the words', 'the style'])
+    expect(JSON.parse(read(LOCK)).inn.take).toBe(1)
+    expect(read('web/images/inn.png')).toBe(picture)
+  })
+
   it('writes nothing while the lock cannot be read', async () => {
     const { takes, file, root, read } = await made()
     await takes.choose(file, 'inn', 1)
