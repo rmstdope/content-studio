@@ -273,7 +273,12 @@ export function ImagePage({
         />
       </Job>
       <Job job="fine-tune" open={job}>
-        <FineTunePanel key={`fine-tune-${row.id}`} row={row} />
+        <FineTunePanel
+          key={`fine-tune-${row.id}`}
+          row={row}
+          actName={shortTitle(act.title)}
+          actNameOf={actName}
+        />
       </Job>
       <Job job="patches" open={job}>
         <GamePatchesPanel key={`patches-${row.id}`} row={row} />

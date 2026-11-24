@@ -46,10 +46,13 @@ const view = (over: Partial<FineTunesView> = {}): FineTunesView => ({
   ...over,
 })
 
+/** What a change answers: its status and body. */
+type PostedAnswer = { status: number; body: unknown }
+
 /** Renders the panel of image `inn` over a server answering `current()` and every change `posted`. */
 async function render(
   current: () => FineTunesView | ProjectFailure,
-  posted: { status: number; body: unknown } = { status: 200, body: { ok: true } },
+  postedAs: PostedAnswer | ((path: string) => PostedAnswer) = { status: 200, body: { ok: true } },
   takes: () => unknown = () => ({}),
   open = true,
 ) {
@@ -69,6 +72,7 @@ async function render(
       path: String(path),
       body: init?.body ? JSON.parse(String(init.body)) : null,
     })
+    const posted = typeof postedAs === 'function' ? postedAs(String(path)) : postedAs
     return Response.json(posted.body, { status: posted.status })
   }) as unknown as typeof fetch
   const host = document.createElement('div')
@@ -425,10 +429,99 @@ describe('looking at, dropping and using fine-tunes', () => {
     ])
   })
 
+  describe('the line after Choose counts the take as up to date', () => {
+    const used = (rest: object) => ({
+      status: 200,
+      body: {
+        ok: true,
+        take: 4,
+        from: 3,
+        carried: { areas: 0, patches: 0 },
+        behind: [],
+        actStyleChange: null,
+        accepted: false,
+        ...rest,
+      },
+    })
+    const line = (host: Element) => text(host.querySelector('[role=status]'))
+
+    it('says what was counted, and Undo accept puts it back out of date', async () => {
+      const { host, sent } = await render(ready, (p) =>
+        p.endsWith('/unaccept')
+          ? { status: 200, body: { ok: true } }
+          : used({ accepted: true, behind: ['the style'] }),
+      )
+      await choose(host, 1)
+      await settle()
+      expect(line(host)).toBe(
+        'Take 4 is in the game now. Counted as up to date with the image style, which changed after Take 3 was made. Undo accept Close',
+      )
+      await act(async () => button(host, 'Undo accept')!.click())
+      await settle()
+      expect(sent.some((s) => s.path === '/api/images/inn/unaccept')).toBe(true)
+      expect(line(host)).toBe('Take 4 is in the game now. Left out of date: the image style. Close')
+    })
+
+    it('keeps Undo accept and says why in red when it failed', async () => {
+      const { host } = await render(ready, (p) =>
+        p.endsWith('/unaccept')
+          ? { status: 409, body: { ok: false, message: 'Nothing was accepted for this take.' } }
+          : used({ accepted: true, behind: ['the style'] }),
+      )
+      await choose(host, 1)
+      await settle()
+      await act(async () => button(host, 'Undo accept')!.click())
+      await settle()
+      expect(line(host)).toContain('Counted as up to date with the image style')
+      expect(host.querySelector('.adopt-error')?.textContent).toBe(
+        'It could not be put back out of date: Nothing was accepted for this take.',
+      )
+      expect(button(host, 'Undo accept')).not.toBeNull()
+    })
+
+    it('says a changed size was not accepted, with no Undo accept', async () => {
+      const { host } = await render(ready, () => used({ behind: ['the style', 'the size'] }))
+      await choose(host, 1)
+      await settle()
+      expect(line(host)).toBe(
+        'Take 4 is in the game now. It is still out of date: its size changed, which needs a new take. Close',
+      )
+    })
+
+    it('says why in red when the take went in but the accept failed', async () => {
+      const { host } = await render(ready, () =>
+        used({ behind: ['the style'], acceptFailed: 'The images lock could not be read.' }),
+      )
+      await choose(host, 1)
+      await settle()
+      expect(host.querySelector('.adopt-error')?.textContent).toBe(
+        'It could not be counted as up to date: The images lock could not be read.',
+      )
+      expect(line(host)).toContain(
+        'It is out of date for the image style; Accept is at the top of the page.',
+      )
+    })
+
+    it('adds nothing when nothing was behind', async () => {
+      const { host } = await render(ready, () => used({}))
+      await choose(host, 1)
+      await settle()
+      expect(line(host)).toBe('Take 4 is in the game now. Close')
+    })
+  })
+
   it('uses one at once, says what came along, empties the words, and Close puts the line away', async () => {
     const { host, sent } = await render(ready, {
       status: 200,
-      body: { ok: true, take: 4, from: 3, carried: { areas: 3, patches: 1 } },
+      body: {
+        ok: true,
+        take: 4,
+        from: 3,
+        carried: { areas: 3, patches: 1 },
+        behind: [],
+        actStyleChange: null,
+        accepted: false,
+      },
     })
     await type(wordsBox(host), 'leftover words')
     await choose(host, 1)
@@ -449,7 +542,15 @@ describe('looking at, dropping and using fine-tunes', () => {
     let served = ready()
     const { host, client } = await render(() => served, {
       status: 200,
-      body: { ok: true, take: 4, from: 3, carried: { areas: 3, patches: 1 } },
+      body: {
+        ok: true,
+        take: 4,
+        from: 3,
+        carried: { areas: 3, patches: 1 },
+        behind: [],
+        actStyleChange: null,
+        accepted: false,
+      },
     })
     await choose(host, 1)
     await settle()
@@ -498,7 +599,15 @@ describe('a late click meant for Stop', () => {
     let served = view({ making })
     const { host, sent, client } = await render(() => served, {
       status: 200,
-      body: { ok: true, take: 4, from: 3, carried: { areas: 0, patches: 0 } },
+      body: {
+        ok: true,
+        take: 4,
+        from: 3,
+        carried: { areas: 0, patches: 0 },
+        behind: [],
+        actStyleChange: null,
+        accepted: false,
+      },
     })
     served = view({ tunes: [tune(1)], making: [] })
     await finish(client)
@@ -637,7 +746,15 @@ describe('the screen: Choose, the count and the keys', () => {
   it('chooses with C and drops with D, S flicks, ← → step, with focus anywhere', async () => {
     const { host, sent } = await render(ready, {
       status: 200,
-      body: { ok: true, take: 9, from: 8, carried: { areas: 0, patches: 0 } },
+      body: {
+        ok: true,
+        take: 9,
+        from: 8,
+        carried: { areas: 0, patches: 0 },
+        behind: [],
+        actStyleChange: null,
+        accepted: false,
+      },
     })
     await settle()
     await act(async () => await new Promise((r) => setTimeout(r, 1050)))
@@ -660,7 +777,18 @@ describe('the screen: Choose, the count and the keys', () => {
   it('undoes with Z right after a choose, without clicking out of the words box', async () => {
     const { host, sent } = await render(
       ready,
-      { status: 200, body: { ok: true, take: 9, from: 8, carried: { areas: 0, patches: 0 } } },
+      {
+        status: 200,
+        body: {
+          ok: true,
+          take: 9,
+          from: 8,
+          carried: { areas: 0, patches: 0 },
+          behind: [],
+          actStyleChange: null,
+          accepted: false,
+        },
+      },
       () => takesView(8, CHAIN),
     )
     await settle()
@@ -735,7 +863,18 @@ describe('History and Undo', () => {
     let chosen = 3
     const { host, client } = await render(
       () => served,
-      { status: 200, body: { ok: true, take: 4, from: 3, carried: { areas: 0, patches: 0 } } },
+      {
+        status: 200,
+        body: {
+          ok: true,
+          take: 4,
+          from: 3,
+          carried: { areas: 0, patches: 0 },
+          behind: [],
+          actStyleChange: null,
+          accepted: false,
+        },
+      },
       () =>
         takesView(chosen, [
           [3, undefined],
@@ -762,7 +901,18 @@ describe('History and Undo', () => {
     let chosen = 1
     const { host, sent } = await render(
       () => view({ picture: picture(chosen), tunes: [tune(1)] }),
-      { status: 200, body: { ok: true, take: 6, from: 1, carried: { areas: 0, patches: 0 } } },
+      {
+        status: 200,
+        body: {
+          ok: true,
+          take: 6,
+          from: 1,
+          carried: { areas: 0, patches: 0 },
+          behind: [],
+          actStyleChange: null,
+          accepted: false,
+        },
+      },
       () =>
         takesView(chosen, [
           [1, undefined],
@@ -788,7 +938,15 @@ describe('History and Undo', () => {
     let served = view({ picture: picture(3), tunes: [tune(1)] })
     const { host, client } = await render(() => served, {
       status: 200,
-      body: { ok: true, take: 4, from: 3, carried: { areas: 0, patches: 0 } },
+      body: {
+        ok: true,
+        take: 4,
+        from: 3,
+        carried: { areas: 0, patches: 0 },
+        behind: [],
+        actStyleChange: null,
+        accepted: false,
+      },
     })
     await choose(host, 0)
     await settle()

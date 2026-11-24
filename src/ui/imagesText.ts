@@ -35,6 +35,22 @@ export function listSeparator(index: number, count: number): string {
   return index === 0 ? '' : index === count - 1 ? ' and ' : ', '
 }
 
+/** The reasons an image is out of date, each named; the act's style with the act's name, or its change for a shared image. */
+function namedReasons(
+  reasons: ImageRow['reasons'],
+  actName: string,
+  change?: { now: string | null; was: string | null } | null,
+): string[] {
+  const actStyle = !change
+    ? `${actName}'s style`
+    : change.now !== null
+      ? `${change.now}'s style${change.was !== null && change.was !== change.now ? ` instead of ${change.was}'s` : ''}`
+      : change.was !== null
+        ? `${change.was}'s style left out`
+        : 'the act style'
+  return reasons.map((r) => (r === 'the act style' ? actStyle : r))
+}
+
 /**
  * What an out-of-date image changed since it was chosen; the act's style is named with the act's
  * short name, or for a shared image with the acts it was taken from now and when it was chosen.
@@ -44,15 +60,61 @@ export function outOfDateText(
   actName: string,
   change?: { now: string | null; was: string | null } | null,
 ): string {
-  const actStyle = !change
-    ? `${actName}'s style`
-    : change.now !== null
-      ? `${change.now}'s style${change.was !== null && change.was !== change.now ? ` instead of ${change.was}'s` : ''}`
-      : change.was !== null
-        ? `${change.was}'s style left out`
-        : 'the act style'
-  const named = reasons.map((r) => (r === 'the act style' ? actStyle : r))
-  return `Out of date since it was chosen: ${joined(named)}.`
+  return `Out of date since it was chosen: ${joined(namedReasons(reasons, actName, change))}.`
+}
+
+/** The reasons as the green line names them: the style is the image style there. */
+function lineReasons(
+  reasons: ImageRow['reasons'],
+  actName: string,
+  change?: { now: string | null; was: string | null } | null,
+): string {
+  return joined(
+    namedReasons(reasons, actName, change).map((r) => (r === 'the style' ? 'the image style' : r)),
+  )
+}
+
+/** The green line's second sentence when the chosen fine-tune was counted as up to date. */
+export function acceptedLineText(
+  reasons: ImageRow['reasons'],
+  from: number | null,
+  actName: string,
+  change?: { now: string | null; was: string | null } | null,
+): string {
+  const was = from === null ? 'it was made' : `Take ${from} was made`
+  return `Counted as up to date with ${lineReasons(reasons, actName, change)}, which changed after ${was}.`
+}
+
+/** The green line's second sentence after Undo accept. */
+export function leftOutOfDateText(
+  reasons: ImageRow['reasons'],
+  actName: string,
+  change?: { now: string | null; was: string | null } | null,
+): string {
+  return `Left out of date: ${lineReasons(reasons, actName, change)}.`
+}
+
+/** The green line's second sentence when a changed size kept the take from being accepted. */
+export function sizeStillOutText(): string {
+  return 'It is still out of date: its size changed, which needs a new take.'
+}
+
+/** The green line when the take went in but counting it as up to date failed: the reason (shown red), then what is left. */
+export function acceptFailedText(
+  why: string,
+  reasons: ImageRow['reasons'],
+  actName: string,
+  change?: { now: string | null; was: string | null } | null,
+): { why: string; rest: string } {
+  return {
+    why: `It could not be counted as up to date: ${why}`,
+    rest: `It is out of date for ${lineReasons(reasons, actName, change)}; Accept is at the top of the page.`,
+  }
+}
+
+/** The green line when Undo accept failed (shown red). */
+export function undoAcceptFailedText(why: string): string {
+  return `It could not be put back out of date: ${why}`
 }
 
 /** What an image whose lists disagree says: which acts, and about what. */

@@ -629,7 +629,8 @@ export function createImageFineTunes({
     }
     const counted = await takes.accept(projectFile, id)
     if (counted && counted.ok) return { ...done, behind, actStyleChange, accepted: true }
-    const acceptFailed = counted && 'message' in counted ? counted.message : 'It could not be saved.'
+    const acceptFailed =
+      counted && 'message' in counted ? counted.message : 'It could not be saved.'
     return { ...done, behind, actStyleChange, accepted: false, acceptFailed }
   }
 }

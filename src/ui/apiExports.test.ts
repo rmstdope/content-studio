@@ -16,6 +16,7 @@ const names = [
   'useAcceptEffect',
   'useAcceptImageChange',
   'useAcceptTrackChange',
+  'useUnacceptImageChange',
   'useAdopt',
   'useAllowVoices',
   'useAuditionsGoingOn',
