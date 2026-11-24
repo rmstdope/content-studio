@@ -1574,6 +1574,17 @@ describe('adding a fine-tuned take', () => {
     expect((await row()).reasons).toEqual([])
     expect((await row()).status).toBe('chosen')
   })
+  it('of a take not in the game keeps that take’s own words and style, whatever was accepted', async () => {
+    const { takes, file, read, settled } = setup()
+    await takes.make(file, 'inn', { count: 2 })
+    await settled('inn')
+    await takes.choose(file, 'inn', 1)
+    await setImageWords(file, 'inn', 'a high inn')
+    expect(await takes.accept(file, 'inn')).toEqual({ ok: true })
+    expect(await takes.addTake(file, 'inn', { ...made, from: 2 })).toEqual({ ok: true, n: 3 })
+    const board = JSON.parse(read('content-studio/cache/images/inn.json'))
+    expect(board.takes[2].madeFrom).toEqual(board.takes[1].madeFrom)
+  })
   it('of the chosen take after an accept, still shows a size changed since as the only reason', async () => {
     const { takes, file, row, settled, root } = setup()
     await takes.make(file, 'inn', { count: 1 })

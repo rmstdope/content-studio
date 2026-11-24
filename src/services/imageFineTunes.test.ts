@@ -527,6 +527,19 @@ describe('using a fine-tune', () => {
     }
   })
 
+  it('finds nothing behind on the next fine-tune once the take it came from was accepted', async () => {
+    const { file, tunes, settled, takes } = setup()
+    expect(await takes.accept(file, 'inn')).toEqual({ ok: true })
+    await tunes.make(file, 'inn', { count: 1, words: 'Add a cat', area: null })
+    await settled()
+    const answer = await tunes.use(file, 'inn', 1)
+    expect(answer).toMatchObject({ ok: true, take: 4, behind: [], accepted: false })
+    expect(await takes.unaccept(file, 'inn')).toEqual({
+      ok: false,
+      message: 'Nothing was accepted for this take.',
+    })
+  })
+
   it('keeps the take in the game and says why when counting it as up to date fails', async () => {
     const { file, settled, read, deps, takes, tunes } = setup()
     await tunes.make(file, 'inn', { count: 1, words: 'Add a cat', area: null })
