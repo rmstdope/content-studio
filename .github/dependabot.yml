@@ -1,9 +1,11 @@
 # Dependabot opens pull requests that keep Content Studio's dependencies current.
 #
 # Policy:
-# - Minor and patch updates arrive together, once a week, in one grouped pull
-#   request per ecosystem. CI is the safety net.
-# - Each major update arrives in its own pull request.
+# - Dependabot checks every day. Every upgrade, minor, patch or major, arrives
+#   in its own pull request, so a red one names the package that broke. CI is
+#   the safety net.
+# - No cap on open pull requests: Dependabot has no unlimited setting, so
+#   open-pull-requests-limit is 100, far above any backlog.
 # - A release must be at least a few days old before Dependabot proposes it,
 #   so a broken release has time to be pulled.
 # - Security updates ignore the schedule and the cooldown. Turn them on under
@@ -23,34 +25,23 @@ updates:
   - package-ecosystem: bun
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: daily
     cooldown:
       default-days: 5
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 100
     commit-message:
       prefix: chore(deps)
     # The Bun types follow the Bun that CI pins, bumped together by hand.
     ignore:
       - dependency-name: '@types/bun'
-    groups:
-      minor-and-patch:
-        update-types:
-          - minor
-          - patch
 
   # The actions the CI workflow uses.
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: daily
     cooldown:
       default-days: 5
+    open-pull-requests-limit: 100
     commit-message:
       prefix: chore(ci)
-    groups:
-      minor-and-patch:
-        update-types:
-          - minor
-          - patch
