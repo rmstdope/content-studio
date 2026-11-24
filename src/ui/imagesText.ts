@@ -99,6 +99,9 @@ export function sizeStillOutText(): string {
   return 'It is still out of date: its size changed, which needs a new take.'
 }
 
+/** A reason from the server as the end of a sentence: with one full stop. */
+const sentence = (why: string) => (why.endsWith('.') ? why : `${why}.`)
+
 /** The green line when the take went in but counting it as up to date failed: the reason (shown red), then what is left. */
 export function acceptFailedText(
   why: string,
@@ -107,14 +110,14 @@ export function acceptFailedText(
   change?: { now: string | null; was: string | null } | null,
 ): { why: string; rest: string } {
   return {
-    why: `It could not be counted as up to date: ${why}`,
+    why: `It could not be counted as up to date: ${sentence(why)}`,
     rest: `It is out of date for ${lineReasons(reasons, actName, change)}; Accept is at the top of the page.`,
   }
 }
 
 /** The green line when Undo accept failed (shown red). */
 export function undoAcceptFailedText(why: string): string {
-  return `It could not be put back out of date: ${why}`
+  return `It could not be put back out of date: ${sentence(why)}`
 }
 
 /** What an image whose lists disagree says: which acts, and about what. */

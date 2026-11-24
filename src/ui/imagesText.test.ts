@@ -671,6 +671,9 @@ describe('the green line after a fine-tune is chosen', () => {
       why: 'It could not be counted as up to date: The lock is broken.',
       rest: 'It is out of date for the image style; Accept is at the top of the page.',
     })
+    expect(undoAcceptFailedText('changing the takes answered 500')).toBe(
+      'It could not be put back out of date: changing the takes answered 500.',
+    )
     expect(undoAcceptFailedText('Nothing was accepted for this take.')).toBe(
       'It could not be put back out of date: Nothing was accepted for this take.',
     )

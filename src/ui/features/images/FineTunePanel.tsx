@@ -188,6 +188,7 @@ export function FineTunePanel({
   const unaccept = useUnacceptImageChange(row.id)
   // Undo accept was pressed on the line and went through.
   const [undone, setUndone] = useState(false)
+  const closeButton = useRef<HTMLButtonElement>(null)
   const choose = useChooseImageTake(row.id)
   const takesQuery = useImageTakes(row.id)
   const seen = useMarkFineTuneSeen(row.id)
@@ -531,7 +532,11 @@ export function FineTunePanel({
                 onClick={() =>
                   unaccept.mutate(undefined, {
                     onSuccess: (answer) => {
-                      if (answer && answer.ok) setUndone(true)
+                      if (answer && answer.ok) {
+                        setUndone(true)
+                        // The button that had focus is gone: Close is the line's next control.
+                        setTimeout(() => closeButton.current?.focus())
+                      }
                     },
                   })
                 }
@@ -539,7 +544,12 @@ export function FineTunePanel({
                 Undo accept
               </button>
             )}
-            <button type="button" className="btn btn-ghost" onClick={() => setCame(null)}>
+            <button
+              ref={closeButton}
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setCame(null)}
+            >
               Close
             </button>
           </div>

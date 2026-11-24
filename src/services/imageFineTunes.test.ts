@@ -122,7 +122,7 @@ function setup({
     throw new Error('never finished')
   }
   const read = (path: string) => readFileSync(join(root, path), 'utf8')
-  return { root, file, tunes, takes, patches, requests, settled, read }
+  return { root, file, tunes, takes, patches, requests, settled, read, deps }
 }
 
 describe('a fine-tune the model made but the studio cannot save', () => {
@@ -492,6 +492,30 @@ describe('using a fine-tune', () => {
       expect(answer.behind).toEqual(['the style'])
       expect(JSON.parse(read(LOCK)).inn.inputs.style !== undefined).toBe(accept)
     }
+  })
+
+  it('keeps the take in the game and says why when counting it as up to date fails', async () => {
+    const { file, settled, read, deps, takes, tunes } = setup()
+    await tunes.make(file, 'inn', { count: 1, words: 'Add a cat', area: null })
+    await settled()
+    const refusing = createImageFineTunes({
+      ...deps,
+      takes: {
+        addTake: takes.addTake,
+        choose: takes.choose,
+        drop: takes.drop,
+        accept: async () => ({ ok: false, message: 'The images lock could not be read.' }),
+      },
+    })
+    const answer = await refusing.use(file, 'inn', 1)
+    expect(answer).toMatchObject({
+      ok: true,
+      take: 4,
+      accepted: false,
+      behind: ['the style'],
+      acceptFailed: 'The images lock could not be read.',
+    })
+    expect(JSON.parse(read(LOCK)).inn.take).toBe(4)
   })
 
   it('accepts nothing when the size is behind, and names every reason', async () => {

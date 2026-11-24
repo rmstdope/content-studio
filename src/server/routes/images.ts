@@ -274,7 +274,9 @@ export function imagesRoutes(c: RouteContext) {
     '/api/images/:id/fine-tunes/use': {
       POST: fromOwnPage(async (request) => {
         const body = UseFineTuneBody.safeParse(await request.json().catch(() => null))
-        if (!body.success) return Response.json({ error: 'expected { n }' }, { status: 400 })
+        if (!body.success) {
+          return Response.json({ error: 'expected { n, accept? }' }, { status: 400 })
+        }
         const result = await imageFineTunes.use(projectFile, request.params.id, body.data.n, {
           accept: body.data.accept ?? true,
         })
