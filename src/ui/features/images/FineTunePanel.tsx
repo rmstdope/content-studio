@@ -750,6 +750,7 @@ export function FineTunePanel({
             event.preventDefault()
             event.currentTarget.setPointerCapture(event.pointerId)
             start.current = { x: event.clientX, y: event.clientY }
+            setAnnounced('')
           }}
           onPointerMove={dragTo}
           onPointerUp={(event) => {

@@ -279,7 +279,11 @@ describe('making fine-tunes', () => {
       'Changed very little',
       '',
     ])
-    expect(cards[2]!.classList.contains('patch-thumb-flagged')).toBe(false)
+    expect(cards.map((c) => c.classList.contains('patch-thumb-flagged'))).toEqual([
+      true,
+      true,
+      false,
+    ])
     await act(async () => (cards[0]!.querySelector('.fine-card-pick') as HTMLElement).click())
     const bar = host.querySelector('.fine-bar')!
     expect(text(bar.querySelector('.change-badge'))).toBe('Changed nothing')
