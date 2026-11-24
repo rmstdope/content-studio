@@ -1561,6 +1561,37 @@ describe('adding a fine-tuned take', () => {
     expect(board.takes[1].madeFrom).toEqual(board.takes[0].madeFrom)
     expect(board.takes[1].fineTunedFrom).toEqual({ take: 1, words: 'Add a cat' })
   })
+  it('of the chosen take after an accept, is made from what was accepted: choosing it leaves the image up to date', async () => {
+    const { takes, file, root, row, settled } = setup()
+    await takes.make(file, 'inn', { count: 1 })
+    await settled('inn')
+    await takes.choose(file, 'inn', 1)
+    await setImageWords(file, 'inn', 'a high inn')
+    writeStyle(root, { look: 'oil paint', keepOut: 'text', palette: ['#000000'], parts: {} })
+    expect(await takes.accept(file, 'inn')).toEqual({ ok: true })
+    expect(await takes.addTake(file, 'inn', { ...made, from: 1 })).toEqual({ ok: true, n: 2 })
+    expect(await takes.choose(file, 'inn', 2)).toEqual({ ok: true })
+    expect((await row()).reasons).toEqual([])
+    expect((await row()).status).toBe('chosen')
+  })
+  it('of the chosen take after an accept, still shows a size changed since as the only reason', async () => {
+    const { takes, file, row, settled, root } = setup()
+    await takes.make(file, 'inn', { count: 1 })
+    await settled('inn')
+    await takes.choose(file, 'inn', 1)
+    await setImageWords(file, 'inn', 'a high inn')
+    expect(await takes.accept(file, 'inn')).toEqual({ ok: true })
+    writeFileSync(
+      join(root, 'tts/act1/images.json'),
+      JSON.stringify([
+        { ...inn, text: 'a high inn', width: 160 },
+        { ...inn, id: 'hall', title: 'Hall' },
+      ]),
+    )
+    expect(await takes.addTake(file, 'inn', { ...made, from: 1 })).toEqual({ ok: true, n: 2 })
+    expect(await takes.choose(file, 'inn', 2)).toEqual({ ok: true })
+    expect((await row()).reasons).toEqual(['the size'])
+  })
   it('is null for an image the game does not list', async () => {
     const { takes, file } = setup()
     expect(await takes.addTake(file, 'nowhere', { ...made, from: null })).toBeNull()

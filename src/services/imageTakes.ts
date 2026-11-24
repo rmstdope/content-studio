@@ -932,9 +932,13 @@ export function createImageTakes({
     async addTake(projectFile, id, made) {
       const found = await resolve(projectFile, id)
       if (!found || !('row' in found)) return found
+      // A take in the game that was accepted counts as made from the words and style accepted.
+      const chosen = made.from === null ? undefined : (await lockNow(found, []))?.[id]
       return changeBoard(found, async (board) => {
         const n = board.next
         const size = pngSize(made.png.subarray(0, 33))
+        const source = board.takes.find((t) => t.n === made.from)?.madeFrom ?? found.row.madeFrom
+        const accepted = chosen?.take === made.from ? chosen : undefined
         // The picture first: a take is on the board only once its file is there.
         await writeOrRefuse(found.root, pictureOf(id, n), made.png)
         board.next = n + 1
@@ -946,7 +950,9 @@ export function createImageTakes({
             model: made.model,
             width: size.width,
             height: size.height,
-            madeFrom: board.takes.find((t) => t.n === made.from)?.madeFrom ?? found.row.madeFrom,
+            madeFrom: accepted
+              ? { ...source, words: accepted.words, style: accepted.style }
+              : source,
             seen: false,
             fineTunedFrom: { take: made.from, words: made.words },
           },
