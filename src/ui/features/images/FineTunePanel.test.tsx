@@ -254,6 +254,40 @@ describe('making fine-tunes', () => {
     expect(button(host, 'Clear the mark')).toBeUndefined()
   })
 
+  it('warns beside a mark under 50 × 50 on the fine-tune tab, and never without a mark', async () => {
+    const { host } = await render(() => view())
+    expect(host.querySelector('.mark-tag')).toBeNull()
+    await drag(stageOf(host), [100, 50], [136, 80])
+    expect(host.querySelector('.patch-mark')!.classList.contains('patch-mark-small')).toBe(true)
+    expect(text(host.querySelector('.mark-tag'))).toBe(
+      'Too small: 36 × 30. Make it at least 50 × 50, or the model may change nothing.',
+    )
+    expect(text(host.querySelector('.sr-only[aria-live]'))).toContain('Too small: 36 × 30.')
+    await drag(stageOf(host), [100, 50], [300, 250])
+    expect(host.querySelector('.mark-tag')).toBeNull()
+  })
+
+  it('flags a fine-tune that changed nothing or very little, on its card and on the row', async () => {
+    const { host } = await render(() =>
+      view({
+        tunes: [tune(1, { changed: 'nothing' }), tune(2, { changed: 'little' }), tune(3)],
+      }),
+    )
+    const cards = [...host.querySelectorAll('.fine-card')]
+    expect(cards.map((c) => text(c.querySelector('.change-badge')))).toEqual([
+      'Changed nothing',
+      'Changed very little',
+      '',
+    ])
+    expect(cards[2]!.classList.contains('patch-thumb-flagged')).toBe(false)
+    await act(async () => (cards[0]!.querySelector('.fine-card-pick') as HTMLElement).click())
+    const bar = host.querySelector('.fine-bar')!
+    expect(text(bar.querySelector('.change-badge'))).toBe('Changed nothing')
+    expect(text(bar)).toContain('The model left the marked area as it was. Try a bigger mark.')
+    await act(async () => (cards[2]!.querySelector('.fine-card-pick') as HTMLElement).click())
+    expect(host.querySelector('.fine-bar .change-badge')).toBeNull()
+  })
+
   it('shows what is being made or waiting, with a time left, and Stop stops them all', async () => {
     const { host, sent } = await render(() =>
       view({

@@ -257,6 +257,39 @@ describe('making fine-tunes', () => {
     expect(kept.data[3]).toBe(0)
   })
 
+  it('flags a marked fine-tune whose model left the picture as it was, and never a whole-picture one', async () => {
+    const { file, tunes, settled } = setup({
+      makes: (request) => new Uint8Array(readFileSync(request.editing!)),
+    })
+    await tunes.make(file, 'inn', { count: 1, words: 'Make it white', area: farArea })
+    expect((await settled()).tunes[0]!.changed).toBe('nothing')
+    await tunes.drop(file, 'inn', 1)
+    await tunes.make(file, 'inn', { count: 1, words: 'Make it white', area: null })
+    expect((await settled()).tunes[0]!.changed).toBeUndefined()
+  })
+
+  it('warns of a mark under 50 × 50, and of no other mark, when asked for fine-tunes', async () => {
+    const { file, tunes, settled } = setup()
+    expect(
+      await tunes.make(file, 'inn', {
+        count: 1,
+        words: 'Add a cat',
+        area: { x: 10, y: 10, width: 36, height: 30 },
+      }),
+    ).toEqual({
+      ok: true,
+      warning: 'Too small: 36 × 30. Make it at least 50 × 50, or the model may change nothing.',
+    })
+    await settled()
+    expect(await tunes.make(file, 'inn', { count: 1, words: 'Add a cat', area: farArea })).toEqual({
+      ok: true,
+    })
+    await settled()
+    expect(await tunes.make(file, 'inn', { count: 1, words: 'Add a cat', area: null })).toEqual({
+      ok: true,
+    })
+  })
+
   it('fine-tunes the game’s own image when no take is chosen, at the take size', async () => {
     const { file, tunes, requests, settled } = setup({ chosen: false })
     await tunes.make(file, 'inn', { count: 1, words: 'Add a cat', area: null })

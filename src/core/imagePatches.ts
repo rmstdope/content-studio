@@ -1,3 +1,4 @@
+import type { TakeChange } from './imageSmallMark'
 import { z } from 'zod'
 import { EDIT_MODEL_IDS, type EditModelId, type ImageDownload } from './imageModels'
 import type { AreaBox, AreaRow, ImageRow, PatchRow } from './images'
@@ -103,6 +104,8 @@ export interface PatchTakeView {
   under?: { patch: string; n: number } | undefined
   /** The box round what the take keeps, in the model's pixels; none when nothing is kept or its picture cannot be read. */
   kept: PatchArea | null
+  /** Nothing, or only a few specks, kept: the model left the marked area (nearly) as it was; absent for a take that changed something or whose picture cannot be read. */
+  changed?: TakeChange
 }
 
 /** A take of a patch waiting or being made. */

@@ -285,6 +285,70 @@ describe('an open patch with no takes', () => {
     expect(text(host)).not.toContain('Drag over the picture')
   })
 
+  it('warns beside a mark under 50 × 50, in amber, and says so after the drag', async () => {
+    const { host } = await render([patchRow('a')], none)
+    await open(host)
+    await drag(stageOf(host), [100, 50], [136, 80])
+    expect(host.querySelector('.patch-mark')!.classList.contains('patch-mark-small')).toBe(true)
+    const tag = host.querySelector('.mark-tag')!
+    expect(text(tag)).toBe(
+      'Too small: 36 × 30. Make it at least 50 × 50, or the model may change nothing.',
+    )
+    expect(tag.getAttribute('data-side')).toBe('right')
+    expect(tag.hasAttribute('tabindex')).toBe(false)
+    expect(text(host.querySelector('.sr-only[aria-live]'))).toContain('Too small: 36 × 30.')
+    // Make still works.
+    expect(isOff(button(host, 'Make 2 takes')!)).toBe(false)
+  })
+
+  it('shows no tag for a mark of 50 × 50 or more, and drops it when the mark grows', async () => {
+    const { host } = await render([patchRow('a')], none)
+    await open(host)
+    const stage = stageOf(host)
+    await drag(stage, [100, 50], [136, 80])
+    expect(host.querySelector('.mark-tag')).not.toBeNull()
+    await drag(stage, [100, 50], [150, 100])
+    expect(host.querySelector('.mark-tag')).toBeNull()
+    expect(host.querySelector('.patch-mark')!.classList.contains('patch-mark-small')).toBe(false)
+    expect(text(host.querySelector('.sr-only[aria-live]'))).toBe('')
+  })
+
+  it('flips the tag to the left of a mark at the picture’s right edge', async () => {
+    const { host } = await render([patchRow('a')], none)
+    await open(host)
+    await drag(stageOf(host), [980, 100], [1024, 130])
+    expect(host.querySelector('.mark-tag')!.getAttribute('data-side')).toBe('left')
+  })
+
+  it('flags a take that changed nothing or very little, in the strip and on its row', async () => {
+    const { host } = await render([patchRow('a')], () =>
+      view([
+        work('a', {
+          takes: [takeOf(1, { changed: 'little' }), takeOf(2, { changed: 'nothing' }), takeOf(3)],
+        }),
+      ]),
+    )
+    await open(host)
+    const thumbs = [...host.querySelectorAll('.patch-thumb')]
+    expect(thumbs.map((t) => text(t.querySelector('.change-badge')))).toEqual([
+      'Changed very little',
+      'Changed nothing',
+      '',
+    ])
+    expect(thumbs[0]!.classList.contains('patch-thumb-flagged')).toBe(true)
+    expect(thumbs[2]!.classList.contains('patch-thumb-flagged')).toBe(false)
+    await act(async () => (thumbs[1] as HTMLElement).click())
+    const row = host.querySelector('.patch-row')!
+    expect(text(row.querySelector('.change-badge'))).toBe('Changed nothing')
+    expect(text(row)).toContain('The model left the marked area as it was. Try a bigger mark.')
+    await act(async () => (thumbs[0] as HTMLElement).click())
+    expect(text(host.querySelector('.patch-row'))).toContain(
+      'The model changed only a few specks. Try a bigger mark.',
+    )
+    await act(async () => (thumbs[2] as HTMLElement).click())
+    expect(host.querySelector('.patch-row .change-badge')).toBeNull()
+  })
+
   it('replaces the mark by a new drag, and keeps it through a click', async () => {
     const { host } = await render([patchRow('a')], none)
     await open(host)
