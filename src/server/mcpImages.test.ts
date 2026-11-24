@@ -38,6 +38,14 @@ describe('an agent doing the Images steps through the MCP', () => {
     'tts/more.json': [
       { id: 'inn', title: 'Inn', text: 'a low inn', width: 320, height: 200, areas: [] },
       { id: 'well', title: 'Well', text: 'a stone well', width: 320, height: 200 },
+      {
+        id: 'gate',
+        title: 'Gate',
+        text: 'an iron gate',
+        width: 320,
+        height: 200,
+        areas: [{ id: 'lock', title: 'Lock' }],
+      },
     ],
     'content-studio/images/edits.json': {
       style: { look: 'pixel art', keepOut: 'text', palette: ['#000000'] },
@@ -238,17 +246,38 @@ describe('an agent doing the Images steps through the MCP', () => {
       confirmed: true,
     })
     await act({ method: 'PATCH', path: '/api/images/well', body: { words: 'a mossy well' } })
+    // A finished image, and one with a take chosen but its named area not placed.
+    for (const name of ['inn', 'gate']) {
+      await act({ method: 'POST', path: `/api/images/${name}/takes`, body: { count: 1 } })
+      for (let i = 0; i < 200; i++) {
+        const v = await read(`/api/images/${name}/takes`)
+        if (!v.making.length && v.takes.length) break
+        await new Promise((r) => setTimeout(r, 5))
+      }
+      await act({
+        method: 'POST',
+        path: `/api/images/${name}/choose`,
+        body: { n: 1 },
+        confirmed: true,
+      })
+    }
     const report = JSON.parse(
       text(await call('studio_read', { path: '/api/image-acts/act1' })),
     ) as { images: { id: string; status: string; missing: unknown; reasons: string[] }[] }
     expect(report.images.find((i) => i.id === 'inn')).toMatchObject({
-      status: 'none yet',
+      status: 'chosen',
       missing: { patches: [], areas: [] },
+    })
+    expect(report.images.find((i) => i.id === 'gate')).toMatchObject({
+      status: 'incomplete',
+      missing: { patches: [], areas: ['lock'] },
     })
     expect(report.images.find((i) => i.id === 'well')).toMatchObject({
       status: 'out of date',
       reasons: ['the words'],
     })
-    expect((await fetch(new URL('/api/image-acts/nope', studio.url))).status).toBe(404)
+    const unknown = await call('studio_read', { path: '/api/image-acts/nope' })
+    expect(unknown.isError).toBe(true)
+    expect(text(unknown)).toContain('404')
   })
 })
