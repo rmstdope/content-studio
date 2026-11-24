@@ -1719,7 +1719,7 @@ new press or a hand start on an image of the act, and a quit forgets it.
 `GET` and `POST /api/images/:id/takes` (`{ count, model? }` 1 to 10, or `{ retry }`), `PUT /api/image-model`, `GET /api/images/:id/takes/:n`
 (the model's picture), `…/:n/game` (the game's version), `DELETE` it (drop), `POST …/takes/:n/seen`, `POST /api/images/:id/choose` (`{ n }`),
 `/unchoose`, `/accept`, `/stop`, `GET /api/images/:id/current`, `GET /api/images/making` and
-`GET`/`POST /api/images/bring-all`, `GET /api/images/take-times`, `GET /api/images/model-state`, `GET /api/images/motion` (the project's motion renderer, below) and `POST /api/image-acts/:id/make-all` and
+`GET`/`POST /api/images/bring-all`, `GET /api/image-acts/:id` (for an agent: one act's images, each with its status, the ids of the patches and named areas still to do on the take in the game, and why it is out of date), `GET /api/images/take-times`, `GET /api/images/model-state`, `GET /api/images/motion` (the project's motion renderer, below) and `POST /api/image-acts/:id/make-all` and
 `/stop`; every change from
 the studio's own page only.
 

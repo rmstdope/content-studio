@@ -1175,6 +1175,56 @@ export interface ImagesAct {
   canRefresh: boolean
 }
 
+/** One image of an act as an agent reads it: where it stands and what it still lacks. */
+export interface ActImageReport {
+  id: string
+  title: string
+  status: ImageStatus
+  /** The ids of the patches not yet chosen, and of the named areas not yet placed, on the take in the game. */
+  missing: { patches: string[]; areas: string[] }
+  /** Why the take in the game is out of date; empty when it is not. */
+  reasons: ImageReason[]
+}
+
+/**
+ * An act's images for an agent: each one's status, the patches and named areas it still lacks (by
+ * id, the same rule as `ImageRow.missing`) and why it is out of date. Says nothing new about what
+ * finished means (`imagesDone`).
+ */
+export function actImageReport(act: {
+  id: string
+  title: string
+  state: ImagesAct['state']
+  rows: (Pick<ImageRow, 'id' | 'title' | 'status' | 'reasons' | 'chosenTake'> & {
+    patches: Pick<PatchRow, 'id' | 'chosenOn'>[]
+    areas: Pick<AreaRow, 'id' | 'placed'>[]
+  })[]
+}): { id: string; title: string; state: ImagesAct['state']; images: ActImageReport[] } {
+  return {
+    id: act.id,
+    title: act.title,
+    state: act.state,
+    images: act.rows.map((row) => {
+      const made = row.status !== 'none yet' && row.status !== 'unknown'
+      const take = row.chosenTake
+      return {
+        id: row.id,
+        title: row.title,
+        status: row.status,
+        missing: {
+          patches: made
+            ? row.patches
+                .filter((patch) => take === null || !patch.chosenOn.includes(take))
+                .map((patch) => patch.id)
+            : [],
+          areas: made ? row.areas.filter((area) => !area.placed).map((area) => area.id) : [],
+        },
+        reasons: row.reasons,
+      }
+    }),
+  }
+}
+
 /** The Style page. */
 export interface StyleView {
   /** The images edits hold a style. */

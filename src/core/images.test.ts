@@ -3,6 +3,8 @@ import { lookKey, lookOf } from './imageLook'
 import { LOCK_UNREAD } from './lockRead'
 import {
   ImageEditsSchema,
+  actImageReport,
+  type ImageStatus,
   ImageLockSchema,
   ImageListSchema,
   StyleSchema,
@@ -1931,5 +1933,95 @@ describe('a finished image', () => {
       missing: { patches: 0, areas: 0 },
     })
     expect(rowOf({ chosen: made() }, inn).acts[0]!.rows[0]!.status).toBe('chosen')
+  })
+})
+
+describe('actImageReport', () => {
+  const row = (
+    id: string,
+    status: ImageStatus,
+    over: Partial<Parameters<typeof actImageReport>[0]['rows'][number]> = {},
+  ) => ({
+    id,
+    title: id.toUpperCase(),
+    status,
+    reasons: [],
+    chosenTake: 1,
+    patches: [],
+    areas: [],
+    ...over,
+  })
+  const act = (rows: ReturnType<typeof row>[]) => ({
+    id: 'act1',
+    title: 'Act 1',
+    state: 'ok' as const,
+    rows,
+  })
+
+  it('gives each image its status, what it still lacks by id, and why it is out of date', () => {
+    const report = actImageReport(
+      act([
+        row('done', 'chosen', {
+          patches: [{ id: 'lamp', chosenOn: [1] }],
+          areas: [{ id: 'sign', placed: true }],
+        }),
+        row('half', 'incomplete', {
+          patches: [
+            { id: 'lamp', chosenOn: [1] },
+            { id: 'door', chosenOn: [2] },
+          ],
+          areas: [
+            { id: 'sign', placed: false },
+            { id: 'well', placed: true },
+          ],
+        }),
+        row('old', 'out of date', { reasons: ['the style', 'the act style'] }),
+        row('new', 'none yet', { chosenTake: null, patches: [{ id: 'lamp', chosenOn: [] }] }),
+      ]),
+    )
+    expect(report).toEqual({
+      id: 'act1',
+      title: 'Act 1',
+      state: 'ok',
+      images: [
+        {
+          id: 'done',
+          title: 'DONE',
+          status: 'chosen',
+          missing: { patches: [], areas: [] },
+          reasons: [],
+        },
+        {
+          id: 'half',
+          title: 'HALF',
+          status: 'incomplete',
+          missing: { patches: ['door'], areas: ['sign'] },
+          reasons: [],
+        },
+        {
+          id: 'old',
+          title: 'OLD',
+          status: 'out of date',
+          missing: { patches: [], areas: [] },
+          reasons: ['the style', 'the act style'],
+        },
+        {
+          id: 'new',
+          title: 'NEW',
+          status: 'none yet',
+          missing: { patches: [], areas: [] },
+          reasons: [],
+        },
+      ],
+    })
+  })
+
+  it('counts every patch as missing on a take from before takes were numbered', () => {
+    const report = actImageReport(
+      act([
+        row('old', 'incomplete', { chosenTake: null, patches: [{ id: 'lamp', chosenOn: [] }] }),
+      ]),
+    )
+    expect(report.images[0]!.missing.patches).toEqual(['lamp'])
   })
 })

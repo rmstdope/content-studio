@@ -15,6 +15,10 @@ import {
   setStyleField,
 } from '../../services/imageEdits'
 import { ActStyleBody, CompareBody, StyleFieldBody, WordsBody } from '../../core/images'
+import { actImageReport } from '../../core/images'
+import { openProject } from '../../services/workspace'
+import { readImages } from '../../services/imageLists'
+import { dirname } from 'node:path'
 import { figuresOf } from '../../core/takeTimes'
 import { readTakeTimes } from '../../services/takeTimes'
 import { readMotionRenderer } from '../../services/motionRenderer'
@@ -122,6 +126,16 @@ export function imagesRoutes(c: RouteContext) {
     },
     '/api/images/motion': {
       GET: guard(async () => Response.json(await readMotionRenderer(projectFile))),
+    },
+    '/api/image-acts/:id': {
+      // What an agent reads to see which images of an act are finished and what each still lacks.
+      GET: guard(async (request) => {
+        const opened = await openProject(projectFile)
+        if (!opened.ok) return Response.json({ problems: opened.problems }, { status: 500 })
+        const summary = await readImages(dirname(projectFile), opened.project, [])
+        const act = summary?.acts.find((a) => a.id === request.params.id)
+        return act ? Response.json(actImageReport(act)) : notFound()
+      }),
     },
     '/api/images/making': {
       GET: guard(async () => Response.json(await imageTakes.making(projectFile))),
