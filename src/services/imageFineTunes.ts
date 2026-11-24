@@ -638,7 +638,7 @@ export function createImageFineTunes({
       return chosen
     }
     await clear(image)
-    // What the new take is behind by is read again: it carries the old take's words and styles.
+    // What the new take is behind by is read again: it carries the old take's words and styles, or those accepted for it.
     const now = await resolve(projectFile, id)
     const behind = now && !('ok' in now) ? now.row.reasons : []
     const actStyleChange = now && !('ok' in now) ? now.row.actStyleChange : null
