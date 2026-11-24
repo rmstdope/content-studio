@@ -3354,6 +3354,7 @@ button.cue-chip[aria-expanded='true'] {
   color: var(--warn);
   font-size: 11.5px;
   font-weight: 600;
+  white-space: nowrap;
 }
 .patch-thumb-flagged {
   position: relative;
@@ -5713,9 +5714,11 @@ textarea[aria-disabled='true'][data-why] {
   font-size: 12.5px;
   color: var(--muted);
 }
+/* Wide enough for "Changed very little" on one line over a close-up (as-zcoi), and for "Fine-tune 5"
+   and its chip on one line. */
 .patch-thumbs {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(176px, 100%), 1fr));
   gap: 8px;
   max-height: 360px;
   overflow-y: auto;
@@ -6092,10 +6095,7 @@ textarea[aria-disabled='true'][data-why] {
   width: 100%;
   resize: vertical;
 }
-/* Wide enough for "Fine-tune 5" and its chip on one line; a card being made has a picture box that says so. */
-.fine-tune .patch-thumbs {
-  grid-template-columns: repeat(auto-fill, minmax(min(176px, 100%), 1fr));
-}
+/* A card being made has a picture box that says so. */
 .patch-making-pic {
   display: flex;
   align-items: center;
