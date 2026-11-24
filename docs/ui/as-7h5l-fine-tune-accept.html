@@ -1,0 +1,359 @@
+<!doctype html><meta charset="utf-8" /><title>as-7h5l — choosing a fine-tune accepts it</title
+><style>
+  :root {
+    --bg: #06070c;
+    --panel: #10121a;
+    --glass: rgb(255 255 255/3.5%);
+    --glass-strong: rgb(255 255 255/6%);
+    --edge: rgb(255 255 255/8%);
+    --line: rgb(255 255 255/7%);
+    --text: #eceef3;
+    --muted: #a9b0bd;
+    --faint: #8a91a0;
+    --accent: #ff6b2c;
+    --accent-ink: #1a0a02;
+    --ok: #3ddc97;
+    --ok-bg: #10291f;
+    --ok-ink: #5be3ae;
+    --warn: #ffc24b;
+    --warn-bg: #2d2412;
+    --danger-ink: #ff94a8;
+    --inset: #0d0f14;
+  }
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font:
+      14px/1.45 -apple-system,
+      system-ui,
+      sans-serif;
+    padding: 24px 32px;
+  }
+  .cap {
+    font-size: 12px;
+    color: var(--faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 28px 0 8px;
+  }
+  .cap:first-child {
+    margin-top: 0;
+  }
+  .frame {
+    max-width: 1060px;
+    border: 1px solid var(--edge);
+    border-radius: 16px;
+    padding: 20px;
+    background: #0a0b12;
+  }
+  .crumbs {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .crumbs a {
+    color: var(--muted);
+  }
+  h1 {
+    font-size: 22px;
+    margin: 4px 0 2px;
+  }
+  .mono {
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--faint);
+  }
+  .notice {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid;
+    margin: 14px 0;
+  }
+  .warn {
+    background: var(--warn-bg);
+    border-color: rgb(255 194 75/30%);
+  }
+  .ok {
+    background: var(--ok-bg);
+    border-color: rgb(61 220 151/30%);
+  }
+  .ntext {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ntext span {
+    color: var(--muted);
+  }
+  .ok strong {
+    color: var(--ok-ink);
+  }
+  .warn strong {
+    color: var(--warn);
+  }
+  .btn {
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 11px;
+    border: 1px solid var(--edge);
+    background: var(--glass);
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .primary {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-color: transparent;
+  }
+  .ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--muted);
+  }
+  .tabs {
+    display: flex;
+    gap: 6px;
+    margin: 10px 0;
+  }
+  .tab {
+    padding: 7px 12px;
+    border-radius: 10px;
+    color: var(--muted);
+  }
+  .tab.on {
+    background: var(--glass-strong);
+    color: var(--text);
+  }
+  .panel {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px;
+    background: var(--panel);
+  }
+  .row {
+    display: flex;
+    gap: 16px;
+  }
+  .pic {
+    flex: 1;
+    aspect-ratio: 16/9;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #2a3350, #4a2c3a 60%, #1b2a2a);
+    display: grid;
+    place-items: center;
+    color: #ffffff60;
+  }
+  .side {
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .ta {
+    border: 1px solid var(--edge);
+    border-radius: 10px;
+    background: var(--inset);
+    height: 70px;
+    padding: 8px;
+    color: var(--faint);
+  }
+  .hist {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .st {
+    width: 70px;
+    height: 40px;
+    border-radius: 6px;
+    background: #26304a;
+    font-size: 11px;
+    color: #fff9;
+    display: grid;
+    place-items: center;
+  }
+  .st.in {
+    outline: 2px solid var(--ok);
+  }
+  .err {
+    color: var(--danger-ink);
+  }
+  .note {
+    color: var(--faint);
+    font-size: 12.5px;
+    margin: 6px 0 0;
+    max-width: 1060px;
+  }
+  .dim {
+    opacity: 0.35;
+  }
+</style>
+<body>
+  <h1 style="font-size: 20px">
+    as-7h5l — choosing a fine-tune also accepts a take behind only by words or style (agreed: Option
+    B)
+  </h1>
+  <div class="cap">Right after Choose: accepted in the same step</div>
+  <div class="frame">
+    <div class="crumbs"><a>Images</a> › <a>Act 2</a></div>
+    <h1>The harbour tavern</h1>
+    <span class="mono">tavern_interior</span>
+
+    <div class="tabs">
+      <span class="tab">Make</span><span class="tab on">Fine-tune</span
+      ><span class="tab">Patches</span><span class="tab">Named areas</span
+      ><span class="tab">Movement</span>
+    </div>
+    <div class="panel">
+      <section class="notice ok">
+        <div class="ntext">
+          <strong>Take 7 is in the game now. Its 3 named areas came along from Take 6.</strong
+          ><span
+            >Counted as up to date with the image style, which changed after Take 6 was made.</span
+          >
+        </div>
+        <button class="btn">Leave it out of date</button><button class="btn ghost">Close</button>
+      </section>
+      <div class="row">
+        <div class="pic">Take 7</div>
+        <div class="side">
+          <b style="font-size: 13px">What to change</b>
+          <div class="ta">Say what to add, remove or change</div>
+          <button class="btn primary" style="align-self: flex-start">Fine-tune</button>
+        </div>
+      </div>
+      <div class="hist">
+        <div class="st">Take 5</div>
+        <div class="st">Take 6</div>
+        <div class="st in">Take 7</div>
+      </div>
+    </div>
+  </div>
+  <p class="note">
+    No amber notice appears. "Leave it out of date" takes the accept back; the amber notice then
+    shows as today.
+  </p>
+  <div class="cap">1 · Only the image style changed: accepted in the same step</div>
+  <section class="notice ok">
+    <div class="ntext">
+      <strong>Take 7 is in the game now. Its 3 named areas came along from Take 6.</strong
+      ><span>Counted as up to date with the image style, which changed after Take 6 was made.</span>
+    </div>
+    <button class="btn">Undo accept</button><button class="btn ghost">Close</button>
+  </section>
+  <div class="cap">2 · Words and act style changed: the same, naming each</div>
+  <section class="notice ok">
+    <div class="ntext">
+      <strong>Take 7 is in the game now. Its 3 named areas came along from Take 6.</strong
+      ><span
+        >Counted as up to date with the words and Act 2&rsquo;s style instead of Act 1&rsquo;s,
+        which changed after Take 6 was made.</span
+      >
+    </div>
+    <button class="btn">Undo accept</button><button class="btn ghost">Close</button>
+  </section>
+  <div class="cap">
+    3 · After &ldquo;Undo accept&rdquo;: the line shortens, the amber notice comes back as today
+  </div>
+  <section class="notice warn">
+    <div class="ntext">
+      <strong>Out of date since it was chosen: the image style.</strong
+      ><span
+        >The game shows the chosen image until you choose another. Accept counts it as up to date as
+        it is.</span
+      >
+    </div>
+    <button class="btn">Accept</button>
+  </section>
+  <section class="notice ok">
+    <div class="ntext">
+      <strong>Take 7 is in the game now. Its 3 named areas came along from Take 6.</strong
+      ><span>Left out of date: the image style.</span>
+    </div>
+    <button class="btn ghost">Close</button>
+  </section>
+  <div class="cap">
+    4 · The size changed too: nothing is accepted (a size change needs a new take)
+  </div>
+  <section class="notice warn">
+    <div class="ntext">
+      <strong>Out of date since it was chosen: the size and the image style.</strong
+      ><span
+        >The game shows the chosen image until you choose another. A changed size needs a new
+        take.</span
+      >
+    </div>
+  </section>
+  <section class="notice ok">
+    <div class="ntext">
+      <strong>Take 7 is in the game now. Its 3 named areas came along from Take 6.</strong
+      ><span>It is still out of date: its size changed, which needs a new take.</span>
+    </div>
+    <button class="btn ghost">Close</button>
+  </section>
+  <div class="cap">5 · Nothing was out of date: the line is as today</div>
+  <section class="notice ok">
+    <div class="ntext">
+      <strong>Take 7 is in the game now. Its 3 named areas came along from Take 6.</strong>
+    </div>
+    <button class="btn ghost">Close</button>
+  </section>
+  <div class="cap">6 · The take went in, but counting it up to date failed</div>
+  <section class="notice warn">
+    <div class="ntext">
+      <strong>Out of date since it was chosen: the image style.</strong
+      ><span
+        >The game shows the chosen image until you choose another. Accept counts it as up to date as
+        it is.</span
+      >
+    </div>
+    <button class="btn">Accept</button>
+  </section>
+  <section class="notice ok">
+    <div class="ntext">
+      <strong>Take 7 is in the game now. Its 3 named areas came along from Take 6.</strong
+      ><span
+        ><span class="err"
+          >It could not be counted as up to date: the lock file could not be read.</span
+        >
+        It is out of date for the image style; Accept is at the top of the page.</span
+      >
+    </div>
+    <button class="btn ghost">Close</button>
+  </section>
+  <div class="cap">7 · Narrow window: the buttons go under the words</div>
+  <div style="max-width: 420px">
+    <section class="notice ok" style="flex-wrap: wrap">
+      <div class="ntext" style="flex-basis: 100%">
+        <strong>Take 7 is in the game now. Its 3 named areas came along from Take 6.</strong
+        ><span
+          >Counted as up to date with the image style, which changed after Take 6 was made.</span
+        >
+      </div>
+      <button class="btn">Undo accept</button><button class="btn ghost">Close</button>
+    </section>
+  </div>
+  <div class="cap">8 · Undo accept failed: Undo accept stays to try again</div>
+  <section class="notice ok">
+    <div class="ntext">
+      <strong>Take 7 is in the game now. Its 3 named areas came along from Take 6.</strong
+      ><span
+        ><span class="err"
+          >It could not be put back out of date: the lock file could not be written.</span
+        >
+        Counted as up to date with the image style, which changed after Take 6 was made.</span
+      >
+    </div>
+    <button class="btn">Undo accept</button><button class="btn ghost">Close</button>
+  </section>
+</body>
