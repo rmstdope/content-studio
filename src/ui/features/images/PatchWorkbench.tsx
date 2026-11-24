@@ -3,6 +3,8 @@ import { useAfterSaved } from '../../useAfterSaved'
 import { useJobOpen } from './ImageJobTabs'
 import { cropWindow } from '../../../core/imagePixels'
 import { pictureShape } from './FitPicture'
+import { ChangeBadge, ChangeNote, MarkTag } from './MarkTag'
+import { smallMark, smallMarkText } from '../../../core/imageSmallMark'
 import {
   useEffect,
   useRef,
@@ -263,6 +265,8 @@ export function PatchWorkbench({
   const jobOpen = useJobOpen()
   const [looking, setLooking] = useState<number | null>(null)
   const [showing, setShowing] = useState(true)
+  // What a screen reader is told when a drag ends on a mark too small to change anything.
+  const [announced, setAnnounced] = useState('')
   const [count, setCount] = useState(2)
   const [asking, setAsking] = useState(false)
   // The question on a patch that others lie on top of, before it changes its chosen take.
@@ -385,6 +389,7 @@ export function PatchWorkbench({
   const canChoose = canChange && lookError === null && shown !== null && shown.look !== 'bringing'
   const chooseWhy = !canChange ? changeWhy : lookError !== null ? STYLE_BROKEN_WHY : BRINGING_WHY
   const overlaid = showing ? shown : null
+  const small = smallMark(marked)
   const showMark = marked !== null && !(overlaid && sameArea(marked, overlaid.area))
   const problem = refusal(make.data) ?? refusal(choose.data) ?? refusal(drop.data)
   const error = make.error ?? choose.error ?? drop.error ?? stop.error
@@ -443,6 +448,7 @@ export function PatchWorkbench({
     )
     // A click, or a drag too small to patch, changes nothing.
     if (dragged) onMark(dragged)
+    return dragged
   }
   const onKeyDown = (event: React.KeyboardEvent) => {
     const target = event.target
@@ -556,6 +562,7 @@ export function PatchWorkbench({
                   ? onTopTake(editModel(shown.model).short, onOf(shown))
                   : editModel(shown.model).short}
               </span>
+              {shown.changed && <ChangeNote change={shown.changed} />}
               {shown.chosen && <span className="chip chip-ok">Chosen</span>}
               {shown.chosen && work.oldLook && <span className="chip chip-warn">Old look</span>}
             </>
@@ -638,10 +645,15 @@ export function PatchWorkbench({
               event.preventDefault()
               event.currentTarget.setPointerCapture(event.pointerId)
               start.current = { x: event.clientX, y: event.clientY }
+              setAnnounced('')
             }}
             onPointerMove={dragTo}
             onPointerUp={(event) => {
-              dragTo(event)
+              const dragged = dragTo(event)
+              if (dragged) {
+                const small = smallMark(dragged)
+                setAnnounced(small ? smallMarkText(small) : '')
+              }
               start.current = null
             }}
             onPointerCancel={() => {
@@ -666,8 +678,17 @@ export function PatchWorkbench({
               />
             )}
             {showMark && marked && (
-              <div className="patch-mark" style={placed(space.place(marked), space)} />
+              <div
+                className={`patch-mark${small ? ' patch-mark-small' : ''}`}
+                style={placed(space.place(marked), space)}
+              />
             )}
+            {showMark && marked && small && (
+              <MarkTag placed={space.place(marked)} picture={space} size={small} />
+            )}
+            <span className="sr-only" aria-live="polite">
+              {small ? announced : ''}
+            </span>
           </div>
         )}
       </div>
@@ -850,7 +871,7 @@ export function PatchWorkbench({
                   <button
                     key={n}
                     type="button"
-                    className="patch-thumb"
+                    className={`patch-thumb${t.changed ? ' patch-thumb-flagged' : ''}`}
                     aria-pressed={n === lookingAt}
                     ref={(el) => {
                       if (el) thumbs.current.set(n, el)
@@ -866,6 +887,7 @@ export function PatchWorkbench({
                       area={t.area}
                       kept={t.kept}
                     />
+                    {t.changed && <ChangeBadge change={t.changed} />}
                     <span className="patch-thumb-label">
                       <span className="grow">Take {n}</span>
                       {t.chosen && <span className="chip chip-ok">Chosen</span>}

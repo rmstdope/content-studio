@@ -1,6 +1,8 @@
 import { fieldOwnsKeys, NOT_YET, useDocumentKeys, usePendingFocus } from './useWorkbenchKeys'
 import { useJobOpen } from './ImageJobTabs'
 import { pictureShape } from './FitPicture'
+import { ChangeBadge, ChangeNote, MarkTag } from './MarkTag'
+import { smallMark, smallMarkText } from '../../../core/imageSmallMark'
 import { HistoryMenu } from './HistoryMenu'
 import {
   useEffect,
@@ -201,6 +203,8 @@ export function FineTunePanel({
   const [count, setCount] = useState(4)
   const [looking, setLooking] = useState<number | null>(null)
   const [showing, setShowing] = useState(true)
+  // What a screen reader is told when a drag ends on a mark too small to change anything.
+  const [announced, setAnnounced] = useState('')
   // What a use brought along, with the picture it was made from: the line is about the picture in
   // the game then or the new take, and goes quiet when another take is chosen.
   const [came, setCame] = useState<{
@@ -332,6 +336,7 @@ export function FineTunePanel({
   const { picture } = view
   const pictureKey = picture.kind === 'take' ? `take-${picture.n}` : 'game'
   const mark = marked?.picture === pictureKey ? marked.area : null
+  const small = smallMark(mark)
   const model = pick ?? startEditModel(view.models)
   const id = encodeURIComponent(row.id)
   const baseSrc =
@@ -436,6 +441,7 @@ export function FineTunePanel({
     )
     // A click, or a drag too small to change, changes nothing.
     if (dragged) setMarked({ picture: pictureKey, area: dragged })
+    return dragged
   }
   /** Chooses an earlier or later step of the history again: an ordinary choose of that take. */
   const onStep = (n: number) => {
@@ -695,6 +701,7 @@ export function FineTunePanel({
           <span className="fine-caption">
             {stageCaption(picture, overlaid?.n ?? null)}
             {overlaid?.isNew && <span className="chip chip-new">new</span>}
+            {overlaid?.changed && <ChangeNote change={overlaid.changed} />}
           </span>
           <span className="fine-buttons">
             <button
@@ -743,10 +750,15 @@ export function FineTunePanel({
             event.preventDefault()
             event.currentTarget.setPointerCapture(event.pointerId)
             start.current = { x: event.clientX, y: event.clientY }
+            setAnnounced('')
           }}
           onPointerMove={dragTo}
           onPointerUp={(event) => {
-            dragTo(event)
+            const dragged = dragTo(event)
+            if (dragged) {
+              const tooSmall = smallMark(dragged)
+              setAnnounced(tooSmall ? smallMarkText(tooSmall) : '')
+            }
             start.current = null
           }}
           onPointerCancel={() => {
@@ -767,7 +779,16 @@ export function FineTunePanel({
               draggable={false}
             />
           )}
-          {showMark && mark && <div className="patch-mark" style={placed(mark, picture)} />}
+          {showMark && mark && (
+            <div
+              className={`patch-mark${small ? ' patch-mark-small' : ''}`}
+              style={placed(mark, picture)}
+            />
+          )}
+          {showMark && mark && small && <MarkTag placed={mark} picture={picture} size={small} />}
+          <span className="sr-only" aria-live="polite">
+            {small ? announced : ''}
+          </span>
         </div>
         <div className="fine-strip">
           <span className="fine-strip-label">Fine-tunes</span>
@@ -779,7 +800,7 @@ export function FineTunePanel({
                 tune ? (
                   <div
                     key={n}
-                    className="patch-thumb fine-card"
+                    className={`patch-thumb fine-card${tune.changed ? ' patch-thumb-flagged' : ''}`}
                     data-looking={n === lookingAt ? 'true' : undefined}
                   >
                     <button
@@ -797,6 +818,7 @@ export function FineTunePanel({
                         over={tuneSrc(n)}
                         size={{ x: 0, y: 0, width: picture.width, height: picture.height }}
                       />
+                      {tune.changed && <ChangeBadge change={tune.changed} />}
                       <span className="patch-thumb-label">
                         <span className="grow">Fine-tune {n}</span>
                         {tune.isNew && <span className="chip chip-new">new</span>}

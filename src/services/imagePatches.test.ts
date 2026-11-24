@@ -343,6 +343,7 @@ describe('takes of a declared patch', () => {
     const { root, file, patches, work } = setup()
     await patches.make(file, 'inn', 'door', { count: 1, area })
     expect((await work()).takes[0]!.kept).toBeNull()
+    expect((await work()).takes[0]!.changed).toBe('nothing')
     const path = join(root, FOLDER, '1.png')
     const picture = (x: number, width: number) => {
       const data = new Uint8Array(256 * 256 * 4)
@@ -352,11 +353,36 @@ describe('takes of a declared patch', () => {
     }
     writeFileSync(path, picture(20, 40))
     expect((await work()).takes[0]!.kept).toEqual({ x: 20, y: 10, width: 40, height: 20 })
+    expect((await work()).takes[0]!.changed).toBeUndefined()
+    writeFileSync(path, picture(20, 10))
+    utimesSync(path, new Date(Date.now() + 2000), new Date(Date.now() + 2000))
+    expect((await work()).takes[0]!.changed).toBe('little')
     writeFileSync(path, picture(100, 70))
     utimesSync(path, new Date(Date.now() + 5000), new Date(Date.now() + 5000))
     expect((await work()).takes[0]!.kept).toEqual({ x: 100, y: 10, width: 70, height: 20 })
     writeFileSync(path, 'not a picture')
     expect((await work()).takes[0]!.kept).toBeNull()
+    expect((await work()).takes[0]!.changed).toBeUndefined()
+  })
+
+  it('warns of a mark under 50 × 50 when asked for takes, and of no other', async () => {
+    const { file, patches, work } = setup()
+    expect(
+      await patches.make(file, 'inn', 'door', {
+        count: 1,
+        area: { x: 10, y: 10, width: 36, height: 30 },
+      }),
+    ).toEqual({
+      ok: true,
+      warning: 'Too small: 36 × 30. Make it at least 50 × 50, or the model may change nothing.',
+    })
+    await work()
+    expect(
+      await patches.make(file, 'inn', 'door', {
+        count: 1,
+        area: { x: 10, y: 10, width: 50, height: 50 },
+      }),
+    ).toEqual({ ok: true })
   })
 
   it('saves the take with its area and the words it was made from', async () => {
@@ -374,6 +400,7 @@ describe('takes of a declared patch', () => {
           look: 'ready',
           model: 'klein',
           kept: null,
+          changed: 'nothing',
         },
       ],
       making: [],
@@ -1603,7 +1630,9 @@ describe('a patch the game asks for on top of another', () => {
     await work('door')
     expect(await patches.choose(file, 'inn', 'door', 1)).toEqual({ ok: true })
     const small = { x: 80, y: 80, width: 32, height: 32 }
-    expect(await patches.make(file, 'inn', 'sign', { count: 1, area: small })).toEqual({ ok: true })
+    expect(await patches.make(file, 'inn', 'sign', { count: 1, area: small })).toMatchObject({
+      ok: true,
+    })
     await work('sign')
     const take = decodePng(new Uint8Array(readFileSync(join(root, TAKE))))
     const door = decodePng(new Uint8Array(readFileSync(join(root, `${FOLDER}/1.png`))))

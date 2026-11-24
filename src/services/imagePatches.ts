@@ -11,10 +11,11 @@ import {
 } from '../core/imageModels'
 import { isCropped, type Pixels } from '../core/imagePixels'
 import { ImageLockSchema } from '../core/images'
+import { smallMark, smallMarkText } from '../core/imageSmallMark'
+import { createKeptReader } from './keptRead'
 import { ImageManifestSchema, type ImageManifest } from '../core/imageTakes'
 import {
   checkPatchArea,
-  keptBox,
   planRemake,
   remakeCovered,
   tieOf,
@@ -50,7 +51,7 @@ import { editStep } from './imageEditStep'
 import { takeOut } from './takeOut'
 import { choices, sorted } from './musicClips'
 import { boardQueue, isSafeId } from './musicTakes'
-import { decodePng, pngSize } from './png'
+import { pngSize } from './png'
 import type { Serial } from './serial'
 import { createTakeEngine, type BoardAccess, type TakeEntry } from './takeEngine'
 import { openProject, type ProjectFailure } from './workspace'
@@ -63,7 +64,8 @@ const notHere = (model: EditModelId) =>
   `${editModel(model).name} is not on this computer, and patches are made with it.`
 
 /** What a change to a patch's takes answered: done, refused with a reason, or a file that cannot be used. */
-export type ImagePatchAnswer = { ok: true } | { ok: false; message: string } | ProjectFailure | null
+export type ImagePatchAnswer =
+  { ok: true; warning?: string } | { ok: false; message: string } | ProjectFailure | null
 
 /** What to make: this many new takes of an area, or the failed take with this number again. */
 export type PatchMakeRequest =
@@ -169,8 +171,7 @@ export function createImagePatches({
     boards: boardQueue(),
     now,
   })
-  // What each take file keeps, by project root and path, with the file's time and size it was read at.
-  const keptBoxes = new Map<string, { key: string; kept: PatchArea | null }>()
+  const readKept = createKeptReader()
   // Takes being brought to the look right now (`<patch key>\0<n>`), kept across `--dev` reloads.
   const bringing = ((
     globalThis as { contentStudioPatchBringing?: Set<string> }
@@ -508,22 +509,8 @@ export function createImagePatches({
     }
     // No await from here until every take is in line, so the takes of one press are made in number order.
     for (const entry of queued) void run(found, entry, around)
-    return { ok: true }
-  }
-
-  /** What the take at this path keeps (`keptBox`), read again only when its file changed; none when unreadable. */
-  async function keptOf(root: string, path: string): Promise<PatchArea | null> {
-    try {
-      const file = Bun.file(resolveInRoot(root, path))
-      const key = `${file.lastModified}:${file.size}`
-      const known = keptBoxes.get(`${root}\0${path}`)
-      if (known?.key === key) return known.kept
-      const kept = keptBox(decodePng(new Uint8Array(await file.arrayBuffer())))
-      keptBoxes.set(`${root}\0${path}`, { key, kept })
-      return kept
-    } catch {
-      return null
-    }
+    const small = 'count' in request ? smallMark(request.area) : null
+    return small ? { ok: true, warning: smallMarkText(small) } : { ok: true }
   }
 
   /** Each patch's takes on the chosen take, and the area of its earlier choice; a failure when a board cannot be read. */
@@ -577,7 +564,7 @@ export function createImagePatches({
           isNew: !t.seen,
           model: t.model ?? BEFORE_CHOICE,
           ...(t.under && { under: t.under }),
-          kept: await keptOf(image.root, `${found.folder}/${t.n}.png`),
+          ...(await readKept(image.root, `${found.folder}/${t.n}.png`)),
           look: bringing.has(`${found.key}\0${t.n}`)
             ? 'bringing'
             : !(await Bun.file(

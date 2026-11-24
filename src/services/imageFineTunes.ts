@@ -4,6 +4,7 @@ import {
   FineTuneBoardSchema,
   type FineTune,
   type FineTuneBoard,
+  type FineTuneView,
   type FineTunesView,
   type UseFineTuneAnswer,
 } from '../core/imageFineTunes'
@@ -32,13 +33,16 @@ import { describeFailure, type ImageTakes } from './imageTakes'
 import { gameFilePath } from './musicLists'
 import { boardQueue, isSafeId } from './musicTakes'
 import { decodePng, encodePng, pngSize } from './png'
+import { smallMark, smallMarkText } from '../core/imageSmallMark'
+import { createKeptReader } from './keptRead'
 import { createSerial, type Serial } from './serial'
 import { createTakeEngine, type BoardAccess, type TakeEntry } from './takeEngine'
 import { recordTakeTime, readTakeTimes } from './takeTimes'
 import { openProject, type ProjectFailure } from './workspace'
 
 /** What a change to an image's fine-tunes answered: done, refused with a reason, or a file that cannot be used. */
-export type FineTuneAnswer = { ok: true } | { ok: false; message: string } | ProjectFailure | null
+export type FineTuneAnswer =
+  { ok: true; warning?: string } | { ok: false; message: string } | ProjectFailure | null
 
 /** What to make: this many fine-tunes of the words and mark, or the failed one with this number again. */
 export type FineTuneRequest =
@@ -114,6 +118,7 @@ export function createImageFineTunes({
 }): ImageFineTunes {
   const shared = globalThis as { contentStudioFineTuneBoards?: Serial }
   // The entries are kept across `--dev` reloads, as the takes being made are.
+  const readKept = createKeptReader()
   const engine = createTakeEngine<Entry, FineTuneBoard>({
     slot: 'contentStudioFineTunes',
     boards: (shared.contentStudioFineTuneBoards ??= createSerial()),
@@ -350,7 +355,8 @@ export function createImageFineTunes({
       queued.push(...reserved)
     }
     for (const entry of queued) void run(image, entry, source)
-    return { ok: true }
+    const small = 'count' in request ? smallMark(request.area) : null
+    return small ? { ok: true, warning: smallMarkText(small) } : { ok: true }
   }
 
   /** Forgets every fine-tune of the image: stops what is waiting or being made, empties the board and deletes the pictures. */
@@ -383,6 +389,21 @@ export function createImageFineTunes({
       const picture = await pictureSize(image)
       const figures = figuresOf(await readTakeTimes(projectFile))
       const problem = await makerProblem()
+      const tunes: FineTuneView[] = []
+      for (const t of board.tunes.filter((t) => t.base === image.base)) {
+        // A whole-picture fine-tune is opaque everywhere: there is no kept area to judge.
+        const { changed } = t.area
+          ? await readKept(image.root, `${image.folder}/${t.n}.png`)
+          : { changed: undefined }
+        tunes.push({
+          n: t.n,
+          words: t.words,
+          area: t.area,
+          model: t.model,
+          isNew: !t.seen,
+          ...(changed && { changed }),
+        })
+      }
       const downloads = Object.fromEntries(
         await Promise.all(
           EDIT_MODEL_IDS.map(async (m) => [m, await downloadOf(generator, m)] as const),
@@ -402,9 +423,7 @@ export function createImageFineTunes({
             : { kind: 'game', width: picture.width, height: picture.height },
         maker: problem === null ? { ok: true } : { ok: false, message: problem },
         models: downloads,
-        tunes: board.tunes
-          .filter((t) => t.base === image.base)
-          .map((t) => ({ n: t.n, words: t.words, area: t.area, model: t.model, isNew: !t.seen })),
+        tunes,
         making: split.pending.map((e) => ({
           n: e.n,
           state: e.state as 'waiting' | 'making',

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { EDIT_MODEL_IDS, type EditModelId, type ImageDownload } from './imageModels'
 import { PatchAreaSchema, type PatchArea } from './imagePatches'
 import type { ImageReason, ImageRow } from './images'
+import type { TakeChange } from './imageSmallMark'
 import type { ImageTakeView } from './imageTakes'
 
 /** How many characters of the words the take's caption keeps. */
@@ -119,6 +120,8 @@ export interface FineTuneView {
   model: EditModelId
   /** Not yet laid over the picture. */
   isNew: boolean
+  /** Made with a mark and kept nothing, or only a few specks; absent otherwise (and for a whole-picture fine-tune). */
+  changed?: TakeChange
 }
 
 /** A fine-tune waiting or being made. */

@@ -652,6 +652,20 @@ describe('the image fine-tune routes', () => {
     expect(((await (await send('GET', '')).json()) as { tunes: unknown[] }).tunes).toEqual([])
     expect((await send('POST', '/stop')).status).toBe(200)
   })
+
+  it('answers a make with a mark under 50 × 50 with the warning an agent reads', async () => {
+    const answer = await send('POST', '', {
+      count: 1,
+      words: 'Add a cat',
+      area: { x: 10, y: 10, width: 36, height: 30 },
+    })
+    expect(answer.status).toBe(200)
+    expect(await answer.json()).toEqual({
+      ok: true,
+      warning: 'Too small: 36 × 30. Make it at least 50 × 50, or the model may change nothing.',
+    })
+    await send('POST', '/stop')
+  })
 })
 
 describe('the image patch routes', () => {
