@@ -646,6 +646,11 @@ export function useAcceptImageChange(imageId: string) {
   )
 }
 
+/** Puts an accepted take back out of date (undoes Accept). */
+export function useUnacceptImageChange(imageId: string) {
+  return useImageTakesChange<void>(imageId, () => ({ path: '/unaccept', method: 'POST' }), true)
+}
+
 /** Takes a take off the image's board. */
 export function useDropImageTake(imageId: string) {
   return useImageTakesChange<number>(

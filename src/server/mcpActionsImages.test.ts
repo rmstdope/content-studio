@@ -21,6 +21,7 @@ describe('the Images steps an agent may do', () => {
     expect(matchAction('POST', '/api/images/door/patches/remake')).not.toBeNull()
     expect(matchAction('POST', '/api/images/door/patches/p1/choose')).not.toBeNull()
     expect(matchAction('POST', '/api/images/door/fine-tunes/use')).not.toBeNull()
+    expect(matchAction('POST', '/api/images/door/unaccept')).not.toBeNull()
     expect(matchAction('POST', '/api/parts/act1/refresh')?.about).toContain('act')
   })
 

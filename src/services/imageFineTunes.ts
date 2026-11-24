@@ -16,6 +16,7 @@ import {
 } from '../core/imageModels'
 import { checkPatchArea, type PatchArea } from '../core/imagePatches'
 import { fitToSize, layOver, type Pixels } from '../core/imagePixels'
+import { acceptableReasons } from '../core/images'
 import { takeSize } from '../core/imageTakes'
 import { resolveInRoot } from '../core/paths'
 import { CACHE_DIR, type Problem } from '../core/project'
@@ -64,12 +65,14 @@ export interface ImageFineTunes {
   base(projectFile: string, id: string): Promise<Uint8Array | null>
   /**
    * Makes a fine-tune a new take of the image, chosen, with the named areas and chosen patches of
-   * the picture it came from, and drops every fine-tune of the image.
+   * the picture it came from, and drops every fine-tune of the image. When only its words or
+   * styles are behind it is also counted as up to date, unless `accept` is false.
    */
   use(
     projectFile: string,
     id: string,
     n: number,
+    options?: { accept?: boolean },
   ): Promise<UseFineTuneAnswer | ProjectFailure | null>
 }
 
@@ -102,7 +105,7 @@ export function createImageFineTunes({
 }: {
   generator: ImageGenerator
   /** The image's takes, where a used fine-tune is added and chosen. */
-  takes: Pick<ImageTakes, 'addTake' | 'choose' | 'drop'>
+  takes: Pick<ImageTakes, 'addTake' | 'choose' | 'drop' | 'accept'>
   queue?: Serial
   /** Frees the GPU of the other workers before an edit (tests). */
   free?: () => void | Promise<void>
@@ -497,10 +500,10 @@ export function createImageFineTunes({
       return pixels ? encodePng(pixels) : null
     },
 
-    use(projectFile, id, n) {
+    use(projectFile, id, n, options) {
       // One use at a time per image: a second, at once, finds the board already emptied.
       return boardQueue().run(`fine-tune-use\0${projectFile}\0${id}`, () =>
-        useOne(projectFile, id, n),
+        useOne(projectFile, id, n, options?.accept ?? true),
       )
     },
   }
@@ -552,6 +555,7 @@ export function createImageFineTunes({
     projectFile: string,
     id: string,
     n: number,
+    accept: boolean,
   ): Promise<UseFineTuneAnswer | ProjectFailure | null> {
     const image = await resolve(projectFile, id)
     if (!image || 'ok' in image) return image
@@ -615,6 +619,18 @@ export function createImageFineTunes({
       return chosen
     }
     await clear(image)
-    return { ok: true, take: added.n, from, carried: { areas, patches } }
+    // What the new take is behind by is read again: it carries the old take's words and styles.
+    const now = await resolve(projectFile, id)
+    const behind = now && !('ok' in now) ? now.row.reasons : []
+    const actStyleChange = now && !('ok' in now) ? now.row.actStyleChange : null
+    const done = { ok: true as const, take: added.n, from, carried: { areas, patches } }
+    if (!accept || !acceptableReasons(behind)) {
+      return { ...done, behind, actStyleChange, accepted: false }
+    }
+    const counted = await takes.accept(projectFile, id)
+    if (counted && counted.ok) return { ...done, behind, actStyleChange, accepted: true }
+    const acceptFailed =
+      counted && 'message' in counted ? counted.message : 'It could not be saved.'
+    return { ...done, behind, actStyleChange, accepted: false, acceptFailed }
   }
 }

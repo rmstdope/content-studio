@@ -38,11 +38,17 @@ import {
   useMakeFineTunes,
   useMarkFineTuneSeen,
   useStopFineTunes,
+  useUnacceptImageChange,
   useUseFineTune,
 } from '../../api'
 import { areaFromDrag } from '../../imagePatchArea'
 import {
+  acceptedLineText,
+  acceptFailedText,
   IMAGES_LOCK_WHY,
+  leftOutOfDateText,
+  sizeStillOutText,
+  undoAcceptFailedText,
   JUST_FINISHED,
   modelMissingWhy,
   refusal,
@@ -119,6 +125,43 @@ function Thumb({ base, over, size }: { base: string; over: string | null; size: 
   )
 }
 
+/** The second sentence of the green line: what was counted as up to date, or why not. */
+function CameAccepted({
+  answer,
+  undone,
+  undoError,
+  actName,
+  actNameOf,
+}: {
+  answer: Extract<UseFineTuneAnswer, { ok: true }>
+  undone: boolean
+  undoError: string | null
+  actName: string
+  actNameOf: (id: string | null) => string | null
+}) {
+  const change = answer.actStyleChange && {
+    now: actNameOf(answer.actStyleChange.now),
+    was: actNameOf(answer.actStyleChange.was),
+  }
+  if (answer.behind.includes('the size')) return <span>{sizeStillOutText()}</span>
+  if (answer.acceptFailed !== undefined) {
+    const failed = acceptFailedText(answer.acceptFailed, answer.behind, actName, change)
+    return (
+      <span>
+        <span className="adopt-error">{failed.why}</span> {failed.rest}
+      </span>
+    )
+  }
+  if (!answer.accepted) return null
+  if (undone) return <span>{leftOutOfDateText(answer.behind, actName, change)}</span>
+  return (
+    <>
+      <span>{acceptedLineText(answer.behind, answer.from, actName, change)}</span>
+      {undoError !== null && <span className="adopt-error">{undoAcceptFailedText(undoError)}</span>}
+    </>
+  )
+}
+
 /**
  * The Fine-tune tab of an image: the picture in the game (the chosen take, or the game's own
  * image) as one large picture to mark and to lay fine-tunes over, with Before / after, Drop and
@@ -126,12 +169,26 @@ function Thumb({ base, over, size }: { base: string; over: string | null; size: 
  * the right; and the fine-tunes as thumbs in a strip. Choosing one makes it the image's next
  * take, chosen. C, D, S, Z and the arrows act anywhere on the page while the tab is open.
  */
-export function FineTunePanel({ row }: { row: ImageRow }) {
+export function FineTunePanel({
+  row,
+  actName = 'the act',
+  actNameOf = () => null,
+}: {
+  row: ImageRow
+  /** The act's short name, for its style among the reasons. */
+  actName?: string
+  /** The short name of the act with this id, for a shared image's change of act style. */
+  actNameOf?: (id: string | null) => string | null
+}) {
   const query = useFineTunes(row.id)
   const make = useMakeFineTunes(row.id)
   const stop = useStopFineTunes(row.id)
   const drop = useDropFineTune(row.id)
   const use = useUseFineTune(row.id)
+  const unaccept = useUnacceptImageChange(row.id)
+  // Undo accept was pressed on the line and went through.
+  const [undone, setUndone] = useState(false)
+  const closeButton = useRef<HTMLButtonElement>(null)
   const choose = useChooseImageTake(row.id)
   const takesQuery = useImageTakes(row.id)
   const seen = useMarkFineTuneSeen(row.id)
@@ -357,6 +414,8 @@ export function FineTunePanel({ row }: { row: ImageRow }) {
       onSuccess: (answer) => {
         if (!answer.ok) return
         setCame({ answer, from: pictureKey })
+        setUndone(false)
+        unaccept.reset()
         setWords('')
         setLooking(null)
         setMarked(null)
@@ -448,10 +507,52 @@ export function FineTunePanel({ row }: { row: ImageRow }) {
         <section className="notice notice-ok" aria-label="Fine-tune used" role="status">
           <div className="notice-text">
             <strong>{cameAlongLine(cameHere.take, cameHere.carried, cameHere.from)}</strong>
+            {cameHere.behind.length > 0 && (
+              <CameAccepted
+                answer={cameHere}
+                undone={undone}
+                actName={actName}
+                actNameOf={actNameOf}
+                undoError={
+                  unaccept.error
+                    ? unaccept.error.message
+                    : unaccept.data && !unaccept.data.ok && 'message' in unaccept.data
+                      ? unaccept.data.message
+                      : null
+                }
+              />
+            )}
           </div>
-          <button type="button" className="btn btn-ghost" onClick={() => setCame(null)}>
-            Close
-          </button>
+          <div className="notice-actions">
+            {cameHere.accepted && !undone && (
+              <button
+                type="button"
+                className="btn"
+                {...off(unaccept.isPending && WAIT_FOR_CHANGE)}
+                onClick={() =>
+                  unaccept.mutate(undefined, {
+                    onSuccess: (answer) => {
+                      if (answer && answer.ok) {
+                        setUndone(true)
+                        // The button that had focus is gone: Close is the line's next control.
+                        setTimeout(() => closeButton.current?.focus())
+                      }
+                    },
+                  })
+                }
+              >
+                Undo accept
+              </button>
+            )}
+            <button
+              ref={closeButton}
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setCame(null)}
+            >
+              Close
+            </button>
+          </div>
         </section>
       )}
       <div className="fine-job">

@@ -372,6 +372,7 @@ describe('the image takes routes', () => {
       ['POST', '/api/images/inn/copy', { from: 'hall' }],
       ['POST', '/api/images/inn/unchoose', undefined],
       ['POST', '/api/images/inn/accept', undefined],
+      ['POST', '/api/images/inn/unaccept', undefined],
       ['POST', '/api/images/inn/stop', undefined],
       ['POST', '/api/images/inn/takes/1/seen', undefined],
       ['POST', '/api/images/bring-all', undefined],
@@ -617,6 +618,7 @@ describe('the image fine-tune routes', () => {
     expect((await send('POST', '', { count: 11, words: 'x', area: null })).status).toBe(400)
     expect((await send('POST', '', { count: 1, words: ' ', area: null })).status).toBe(400)
     expect((await send('POST', '/use', { n: 'x' })).status).toBe(400)
+    expect((await send('POST', '/use', { n: 1, accept: 'yes' })).status).toBe(400)
     expect((await fetch(new URL('/api/images/ghost/fine-tunes', studio.url))).status).toBe(404)
     expect((await send('POST', '/use', { n: 1 })).status).toBe(409)
   })
@@ -638,11 +640,14 @@ describe('the image fine-tune routes', () => {
     expect((await send('DELETE', '/2')).status).toBe(409)
     const used = await send('POST', '/use', { n: 1 })
     expect(used.status).toBe(200)
-    expect(await used.json()).toEqual({
+    expect(await used.json()).toMatchObject({
       ok: true,
       take: 4,
       from: 3,
       carried: { areas: 0, patches: 0 },
+      accepted: true,
+      behind: ['the style'],
+      note: 'Accepted: counted as up to date with the style, which changed after Take 3 was made.',
     })
     expect(((await (await send('GET', '')).json()) as { tunes: unknown[] }).tunes).toEqual([])
     expect((await send('POST', '/stop')).status).toBe(200)

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import {
+  acceptNote,
   cameAlongLine,
   FineTuneBoardSchema,
   fineTuneCaption,
@@ -151,5 +152,39 @@ describe('fineTuneHistory', () => {
     expect(fineTuneHistory(takes, 5).steps).toEqual([
       { kind: 'take', n: 5, words: 'Add a lamp', from: 'game', inGame: true, after: false },
     ])
+  })
+})
+
+describe('acceptNote', () => {
+  const ok = { ok: true as const, take: 7, from: 6, carried: { areas: 0, patches: 0 } }
+  const answer = (rest: object) => ({
+    ...ok,
+    behind: [],
+    actStyleChange: null,
+    accepted: false,
+    ...rest,
+  })
+  test('says what was accepted, and what it was behind', () => {
+    expect(acceptNote(answer({ accepted: true, behind: ['the words', 'the style'] }))).toBe(
+      'Accepted: counted as up to date with the words and the style, which changed after Take 6 was made.',
+    )
+  })
+  test('says nothing was accepted when the size is behind', () => {
+    expect(acceptNote(answer({ behind: ['the style', 'the size'] }))).toBe(
+      'Not accepted: out of date for the style and the size; a changed size needs a new take.',
+    )
+  })
+  test('says it was not accepted as asked', () => {
+    expect(acceptNote(answer({ behind: ['the style'] }))).toBe(
+      'Not accepted as asked: the image is out of date for the style.',
+    )
+  })
+  test('says why the accept failed', () => {
+    expect(acceptNote(answer({ behind: ['the style'], acceptFailed: 'The lock is broken.' }))).toBe(
+      'Not accepted: The lock is broken. The image is out of date for the style.',
+    )
+  })
+  test('has nothing to say when nothing was behind', () => {
+    expect(acceptNote(answer({}))).toBeNull()
   })
 })

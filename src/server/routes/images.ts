@@ -1,4 +1,4 @@
-import { MakeFineTunesBody, UseFineTuneBody } from '../../core/imageFineTunes'
+import { MakeFineTunesBody, UseFineTuneBody, acceptNote } from '../../core/imageFineTunes'
 import { ChoosePatchTakeBody, MakePatchTakesBody, RemakePatchesBody } from '../../core/imagePatches'
 import { CopyImageBody } from '../../core/imageCopy'
 import { ChooseImageTakeBody, MakeImageTakesBody } from '../../core/imageTakes'
@@ -274,10 +274,18 @@ export function imagesRoutes(c: RouteContext) {
     '/api/images/:id/fine-tunes/use': {
       POST: fromOwnPage(async (request) => {
         const body = UseFineTuneBody.safeParse(await request.json().catch(() => null))
-        if (!body.success) return Response.json({ error: 'expected { n }' }, { status: 400 })
-        const result = await imageFineTunes.use(projectFile, request.params.id, body.data.n)
+        if (!body.success) {
+          return Response.json({ error: 'expected { n, accept? }' }, { status: 400 })
+        }
+        const result = await imageFineTunes.use(projectFile, request.params.id, body.data.n, {
+          accept: body.data.accept ?? true,
+        })
         if (!result) return notFound()
-        return Response.json(result, { status: result.ok ? 200 : 409 })
+        // An agent reads the sentence; the page words its own line from the fields.
+        const note = 'take' in result ? acceptNote(result) : null
+        return Response.json(note === null ? result : { ...result, note }, {
+          status: result.ok ? 200 : 409,
+        })
       }),
     },
     '/api/images/:id/fine-tunes/:n': {
@@ -329,6 +337,11 @@ export function imagesRoutes(c: RouteContext) {
         if (!body.success) return Response.json({ error: 'expected { n }' }, { status: 400 })
         return imageAnswer(await imageTakes.choose(projectFile, request.params.id, body.data.n))
       }),
+    },
+    '/api/images/:id/unaccept': {
+      POST: fromOwnPage(async (request) =>
+        imageAnswer(await imageTakes.unaccept(projectFile, request.params.id)),
+      ),
     },
     '/api/images/:id/copy': {
       POST: fromOwnPage(async (request) => {

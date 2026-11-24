@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 import {
+  acceptedLineText,
+  acceptFailedText,
+  leftOutOfDateText,
+  sizeStillOutText,
+  undoAcceptFailedText,
   areaRowWhy,
   imageMakeWhy,
   imageMenuWhy,
@@ -640,6 +645,37 @@ describe('chosenTakeLabel', () => {
       ]),
     ).toBe(
       'The chosen take of the image, with Vines cut’s chosen take and Moss’s chosen take laid in',
+    )
+  })
+})
+
+describe('the green line after a fine-tune is chosen', () => {
+  it('says what was counted as up to date, as the top notice names it', () => {
+    expect(acceptedLineText(['the style'], 6, 'Act 2')).toBe(
+      'Counted as up to date with the image style, which changed after Take 6 was made.',
+    )
+    expect(
+      acceptedLineText(['the words', 'the act style'], 6, 'Act 2', { now: 'Act 2', was: 'Act 1' }),
+    ).toBe(
+      "Counted as up to date with the words and Act 2's style instead of Act 1's, which changed after Take 6 was made.",
+    )
+  })
+  it('says what Undo accept left out of date', () => {
+    expect(leftOutOfDateText(['the style'], 'Act 2')).toBe('Left out of date: the image style.')
+  })
+  it('says the size needs a new take, and the failures with their reason', () => {
+    expect(sizeStillOutText()).toBe(
+      'It is still out of date: its size changed, which needs a new take.',
+    )
+    expect(acceptFailedText('The lock is broken.', ['the style'], 'Act 2')).toEqual({
+      why: 'It could not be counted as up to date: The lock is broken.',
+      rest: 'It is out of date for the image style; Accept is at the top of the page.',
+    })
+    expect(undoAcceptFailedText('changing the takes answered 500')).toBe(
+      'It could not be put back out of date: changing the takes answered 500.',
+    )
+    expect(undoAcceptFailedText('Nothing was accepted for this take.')).toBe(
+      'It could not be put back out of date: Nothing was accepted for this take.',
     )
   })
 })

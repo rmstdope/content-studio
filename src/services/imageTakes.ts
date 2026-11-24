@@ -149,6 +149,11 @@ export interface ImageTakes {
    * style now, and the image is up to date with the same picture. A changed size is refused.
    */
   accept(projectFile: string, id: string): Promise<ImageTakesAnswer>
+  /**
+   * Undoes `accept`: the chosen take counts as made from the words and style it was made from
+   * again, so the image is out of date as it was. Refused when it already is.
+   */
+  unaccept(projectFile: string, id: string): Promise<ImageTakesAnswer>
   /** Takes a take off the board and deletes its picture; the chosen take stays. */
   drop(projectFile: string, id: string, n: number): Promise<ImageTakesAnswer>
   /** Brings every image and take with an old look to the game's look now, from the model's stored pictures. */
@@ -1079,6 +1084,30 @@ export function createImageTakes({
             }
           }
           lock[id] = { ...chosen, words: now.words, style: now.style }
+          await writeOrRefuse(found.root, IMAGES_LOCK_FILE, formatImageLock(lock))
+          return { ok: true }
+        }),
+      )
+    },
+
+    async unaccept(projectFile, id) {
+      const found = await resolve(projectFile, id)
+      if (!found || !('row' in found)) return found
+      return engine.inTurn(found.projectFile, found.id, () =>
+        choices().run(`image-choice\0${projectFile}`, async (): Promise<ImageTakesAnswer> => {
+          const lock = await lockNow(found, [])
+          if (!lock) return { ok: false, message: 'The images lock could not be read.' }
+          const chosen = lock[id]
+          if (!chosen) return { ok: false, message: 'No take is chosen for this image.' }
+          const board = await readBoard(found)
+          if ('ok' in board) return board
+          const take = board.takes.find((t) => t.n === chosen.take)
+          const nothing = { ok: false, message: 'Nothing was accepted for this take.' } as const
+          // A copy was made from no words of this image's, so there is nothing to go back to.
+          if (!take || take.copiedFrom) return nothing
+          const made = take.madeFrom
+          if (made.words === chosen.words && made.style === chosen.style) return nothing
+          lock[id] = { ...chosen, words: made.words, style: made.style }
           await writeOrRefuse(found.root, IMAGES_LOCK_FILE, formatImageLock(lock))
           return { ok: true }
         }),
