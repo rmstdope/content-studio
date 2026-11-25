@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from 'bun:test'
+import { afterAll, afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { TakeView } from '../../../core/musicTake'
 import { mountPager } from '../../../../test/besidePager'
@@ -14,8 +14,8 @@ const { FadesEditor } = await import('./FadesEditor')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const cleanups: (() => void)[] = []
+afterEach(() => cleanups.splice(0).forEach((c) => c()))
 afterAll(() => {
-  cleanups.forEach((c) => c())
   GlobalRegistrator.unregister()
 })
 
@@ -317,7 +317,7 @@ describe('the fades editor', () => {
 
   it('keeps Shift and the arrows on both handles from the previous/next control', async () => {
     const e = open()
-    const unmount = await mountPager()
+    cleanups.push(await mountPager())
     const press = (label: string, key: string) =>
       act(() => {
         e.q(`[aria-label="${label}"]`)!.dispatchEvent(
@@ -329,7 +329,6 @@ describe('the fades editor', () => {
     expect(e.box('Fade in').value).toBe('0.5')
     expect(e.box('Fade out').value).toBe('0.5')
     expect(window.location.hash).toBe('#/here')
-    unmount()
   })
 
   it('plays the take with the fades as they stand, without the playback fade', () => {

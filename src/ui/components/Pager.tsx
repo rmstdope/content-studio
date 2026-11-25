@@ -48,8 +48,8 @@ function pressOf(
  * The previous/next control at the right end of a one-item page's header: ‹ and › around "3 of 12",
  * and the arrow keys when focus is not in a field or a control that uses them. Shift with an arrow
  * steps from those controls too (see {@link shiftPagerStep}), on every page with the control, as a
- * press of that button. A step moves the
- * address, as the breadcrumb does, so whatever asks before leaving a page asks the same here.
+ * press of that button. A step moves the address, as the breadcrumb does, so whatever asks before
+ * leaving a page asks the same here.
  */
 export function Pager({ place, previous, next, keys = true }: PagerProps) {
   const buttons = useRef<Record<'previous' | 'next', HTMLButtonElement | null>>({
