@@ -1,0 +1,246 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Shift+arrows paging — A</title>
+    <style>
+      :root {
+        --bg: #06070c;
+        --panel: #10121a;
+        --edge: rgb(255 255 255/8%);
+        --text: #eceef3;
+        --muted: #a9b0bd;
+        --faint: #8a91a0;
+        --accent: #ff6b2c;
+        --good: #5ad19a;
+        --line: rgb(255 255 255/7%);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.45 -apple-system,
+          system-ui,
+          sans-serif;
+        padding: 24px 16px;
+      }
+      h1 {
+        font-size: 17px;
+        margin: 0 0 4px;
+      }
+      p.lead {
+        color: var(--muted);
+        margin: 0 0 20px;
+        max-width: 760px;
+      }
+      .wrap {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .col {
+        flex: 1 1 360px;
+        max-width: 560px;
+      }
+      h2 {
+        font-size: 12px;
+        color: var(--faint);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin: 0 0 8px;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--edge);
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 18px;
+      }
+      .top {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .top b {
+        flex: 1;
+      }
+      .arr {
+        border: 1px solid var(--edge);
+        border-radius: 6px;
+        padding: 2px 9px;
+        color: var(--muted);
+      }
+      .pic {
+        position: relative;
+        height: 200px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #2a3550, #3c2a40 60%, #20283a);
+      }
+      .box {
+        position: absolute;
+        left: 30%;
+        top: 28%;
+        width: 34%;
+        height: 42%;
+        border: 2px solid var(--accent);
+        border-radius: 3px;
+        outline: 3px solid rgb(255 107 44/35%);
+        outline-offset: 3px;
+      }
+      .box .tag {
+        position: absolute;
+        top: -22px;
+        left: -2px;
+        background: var(--accent);
+        color: #111;
+        font-size: 11px;
+        padding: 1px 6px;
+        border-radius: 3px;
+      }
+      .box .pt {
+        position: absolute;
+        left: 45%;
+        top: 50%;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #fff;
+      }
+      .cap {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 8px;
+      }
+      .chg {
+        background: rgb(255 107 44/16%);
+        border-radius: 4px;
+        padding: 0 3px;
+        color: var(--text);
+      }
+      .note {
+        font-size: 12px;
+        color: var(--faint);
+        margin-top: 6px;
+      }
+      .wave {
+        position: relative;
+        height: 64px;
+        border-radius: 6px;
+        background: repeating-linear-gradient(90deg, #2b3142 0 3px, transparent 3px 6px);
+      }
+      .h {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 12px;
+        border-radius: 3px;
+        background: var(--text);
+      }
+      .h.f {
+        outline: 3px solid rgb(255 107 44/45%);
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      td {
+        border-top: 1px solid var(--line);
+        padding: 7px 6px;
+        vertical-align: top;
+      }
+      td:first-child {
+        color: var(--muted);
+        width: 44%;
+      }
+      .new {
+        color: var(--accent);
+      }
+      kbd {
+        border: 1px solid var(--edge);
+        border-radius: 4px;
+        padding: 0 4px;
+        font:
+          12px ui-monospace,
+          monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Option A — the box and the fade handles keep Shift</h1>
+    <p class="lead">
+      Shift+← / Shift+→ go to the previous / next item everywhere except on a selected area box and
+      on a fade handle, where they keep doing what they do today. To page from there, press Tab
+      first to move off it, or click the top arrows.
+    </p>
+    <div class="wrap">
+      <div class="col">
+        <h2>An image’s page · Named areas · a box selected (focus on it)</h2>
+        <div class="panel">
+          <div class="top">
+            <span class="arr">‹</span><b>forest-gate · 3 of 12</b><span class="arr">›</span>
+          </div>
+          <div class="pic">
+            <div class="box"><span class="tag">Old gate</span><span class="pt"></span></div>
+          </div>
+          <div class="cap">
+            Take 2 · drag the box to move it, or its corners and sides to resize it. Drag the point
+            to choose where What’s there marks it. Arrow keys move the box; with Shift they resize
+            it; with Alt they move the point.
+          </div>
+          <div class="note">The line under the picture is unchanged.</div>
+        </div>
+        <h2>A music track · Fades · Fade in handle focused</h2>
+        <div class="panel">
+          <div class="top">
+            <span class="arr">‹</span><b>Act 1 · Forest theme · 2 of 7</b><span class="arr">›</span>
+          </div>
+          <div class="wave">
+            <span class="h f" style="left: 14%"></span><span class="h" style="left: 82%"></span>
+          </div>
+          <div class="note">
+            Shift+← / Shift+→: 0.1 s step (as today). Nothing on screen says so, as today.
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <h2>
+          What <kbd>Shift</kbd>+<kbd>←</kbd> / <kbd>Shift</kbd>+<kbd>→</kbd> does, by where focus is
+        </h2>
+        <div class="panel">
+          <table>
+            <tr>
+              <td>Takes strip, menus, tab lists, other sliders</td>
+              <td class="new">Previous / next image (new)</td>
+            </tr>
+            <tr>
+              <td>Selected area box</td>
+              <td class="">Resize the box’s width (as today)</td>
+            </tr>
+            <tr>
+              <td>Fade in / Fade out handle</td>
+              <td class="">Big step, 0.1 s (as today)</td>
+            </tr>
+            <tr>
+              <td>Text field</td>
+              <td class="">Selects text (as today)</td>
+            </tr>
+            <tr>
+              <td>Anywhere else on the page</td>
+              <td class="new">Previous / next item (new)</td>
+            </tr>
+          </table>
+          <div class="note">
+            Plain ← / → keep working as they do now. Shift+↑ / Shift+↓ on a box still resize its
+            height. The same holds on sound effects’ fade handles.
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
