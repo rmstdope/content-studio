@@ -386,8 +386,10 @@ export function TakesSection({
   /** Chooses take `n`; `confirmed` is after the question, which waits for the save before it closes. */
   const onChoose = (n: number, confirmed = false) => {
     const before = chosen?.n ?? null
+    const labelledBefore = wasChosen
     beforeChange()
-    // The page shows the choice at once; a refusal puts it back when the takes are read again.
+    // The page shows the choice at once; a refusal puts it back when the takes are read again, and
+    // puts back the "was chosen" label here, which the takes do not carry.
     const show = () => {
       set((v) => ({
         ...v,
@@ -415,6 +417,7 @@ export function TakesSection({
       },
       onSettled: (answer) => {
         changing.current = false
+        if (!confirmed && !answer?.ok) setWasChosen(labelledBefore)
         // Quietly: the page scrolls now, and a key must not move it.
         if (!confirmed || answer?.ok) focusOn(focus, true)
       },
