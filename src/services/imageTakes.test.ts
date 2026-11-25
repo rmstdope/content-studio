@@ -775,12 +775,14 @@ describe('choosing', () => {
       await setImageWords(file, 'inn', 'a high inn')
       const refused = { ok: false as const, message: `${LOCK} could not be written.` }
       const folder = join(root, 'content-studio/images')
+      const chosen = read(LOCK)
       chmodSync(folder, 0o555)
       try {
         expect(await takes.accept(file, 'inn')).toEqual(refused)
       } finally {
         chmodSync(folder, 0o755)
       }
+      expect(read(LOCK)).toBe(chosen)
       await takes.accept(file, 'inn')
       const accepted = read(LOCK)
       chmodSync(folder, 0o555)
