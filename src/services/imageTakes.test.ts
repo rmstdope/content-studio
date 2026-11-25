@@ -767,6 +767,34 @@ describe('choosing', () => {
     expect(read('web/images/inn.png')).toBe(picture)
   })
 
+  it.skipIf(process.getuid?.() === 0)(
+    'refuses an accept or an undo with the lock file named when it cannot be written, the lock as it was',
+    async () => {
+      const { takes, file, root, read } = await made()
+      await takes.choose(file, 'inn', 1)
+      await setImageWords(file, 'inn', 'a high inn')
+      const refused = { ok: false as const, message: `${LOCK} could not be written.` }
+      const folder = join(root, 'content-studio/images')
+      const chosen = read(LOCK)
+      chmodSync(folder, 0o555)
+      try {
+        expect(await takes.accept(file, 'inn')).toEqual(refused)
+      } finally {
+        chmodSync(folder, 0o755)
+      }
+      expect(read(LOCK)).toBe(chosen)
+      await takes.accept(file, 'inn')
+      const accepted = read(LOCK)
+      chmodSync(folder, 0o555)
+      try {
+        expect(await takes.unaccept(file, 'inn')).toEqual(refused)
+      } finally {
+        chmodSync(folder, 0o755)
+      }
+      expect(read(LOCK)).toBe(accepted)
+    },
+  )
+
   it('writes nothing while the lock cannot be read', async () => {
     const { takes, file, root, read } = await made()
     await takes.choose(file, 'inn', 1)

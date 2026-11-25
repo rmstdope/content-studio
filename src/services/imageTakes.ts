@@ -46,7 +46,7 @@ import {
 } from '../core/images'
 import { resolveInRoot } from '../core/paths'
 import { IMAGES_LOCK_FILE, type Problem } from '../core/project'
-import { readResource, WriteRefused, writeOrRefuse } from './files'
+import { readResource, refusalAnswer, WriteRefused, writeOrRefuse } from './files'
 import { freeGpu, gpuQueue } from './gpu'
 import { IMAGE_BOARD_DIR, IMAGE_TAKES_DIR, readImages, readStyleLook } from './imageLists'
 import { adoptImageAreas } from './imageEdits'
@@ -1091,8 +1091,10 @@ export function createImageTakes({
             }
           }
           lock[id] = { ...chosen, words: now.words, style: now.style }
-          await writeOrRefuse(found.root, IMAGES_LOCK_FILE, formatImageLock(lock))
-          return { ok: true }
+          return writeOrRefuse(found.root, IMAGES_LOCK_FILE, formatImageLock(lock)).then(
+            () => ({ ok: true as const }),
+            refusalAnswer('accepting the take failed', (sentence) => `${sentence}.`),
+          )
         }),
       )
     },
@@ -1115,8 +1117,10 @@ export function createImageTakes({
           const made = take.madeFrom
           if (made.words === chosen.words && made.style === chosen.style) return nothing
           lock[id] = { ...chosen, words: made.words, style: made.style }
-          await writeOrRefuse(found.root, IMAGES_LOCK_FILE, formatImageLock(lock))
-          return { ok: true }
+          return writeOrRefuse(found.root, IMAGES_LOCK_FILE, formatImageLock(lock)).then(
+            () => ({ ok: true as const }),
+            refusalAnswer('putting the take back out of date failed', (sentence) => `${sentence}.`),
+          )
         }),
       )
     },
