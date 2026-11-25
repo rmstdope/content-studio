@@ -3,7 +3,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { cropWindow } from '../../../core/imagePixels'
 import type { ImagePatchesView, PatchWorkView } from '../../../core/imagePatches'
 import type { ImageRow, PatchRow } from '../../../core/images'
-import { valuesInEveryWindow } from '../../../../test/stylesheet'
+import { cssLength, valuesInEveryWindow } from '../../../../test/stylesheet'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -367,6 +367,10 @@ describe('an open patch with no takes', () => {
     expect(valuesInEveryWindow(strip.querySelector('.change-badge')!, 'white-space')).toContain(
       '.change-badge: nowrap',
     )
+    // A column of a wide strip holds the badge's 10-px offset, its 122 px and as much again to the right.
+    const columns = valuesInEveryWindow(strip, 'grid-template-columns').at(-1)!
+    const least = /minmax\((.+), 1fr\)\)$/.exec(columns)![1]!
+    expect(cssLength(least, { percent: 1200, vh: 900, ratio: 1 })).toBeGreaterThanOrEqual(142)
   })
 
   it('replaces the mark by a new drag, and keeps it through a click', async () => {
