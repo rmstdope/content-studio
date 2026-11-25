@@ -1815,21 +1815,30 @@ describe('going back to an accepted take', () => {
   })
 
   it.skipIf(process.getuid?.() === 0)(
-    'refuses to choose another when the accept cannot be saved, the game as it was',
+    'refuses a choose or an Un-choose when the accept cannot be saved, the game as it was',
     async () => {
       const { takes, file, root, read } = await acceptedOne()
       const lock = read(LOCK)
+      const picture = read('web/images/inn.png')
+      const refused = { ok: false as const, message: `${BOARD} could not be written.` }
       const folder = join(root, 'content-studio/cache/images')
       chmodSync(folder, 0o555)
       try {
-        const error = await takes.choose(file, 'inn', 2).catch((e: unknown) => e)
-        expect(error).toBeInstanceOf(WriteRefused)
+        expect(await takes.choose(file, 'inn', 2)).toEqual(refused)
+        expect(await takes.unchoose(file, 'inn')).toEqual(refused)
       } finally {
         chmodSync(folder, 0o755)
       }
       expect(read(LOCK)).toBe(lock)
+      expect(read('web/images/inn.png')).toBe(picture)
     },
   )
+
+  it('cannot say what an image it does not find is behind by', async () => {
+    const { takes, file } = await acceptedOne()
+    expect(await takes.behind(file, 'inn')).toEqual([])
+    expect(await takes.behind(file, 'nowhere')).toBeNull()
+  })
 })
 
 describe('copying another image', () => {

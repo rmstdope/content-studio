@@ -1677,10 +1677,10 @@ the board take it names, as `accepted: { words, style }`, where they differ from
 removes it where they do not (after Undo accept). An entry whose seed, model or size is not that
 take's is ignored, as is a copy, which is as current as the image whenever it is chosen. Choosing a
 take builds the entry from `countedFrom(take)`, its own madeFrom with `accepted` over it, so what
-changed since the accept, and a changed size, are all it is out of date for. The board is written
-before the game: a board that cannot be written refuses the choose with nothing changed. The memory
+changed since the accept, and a changed size, are all it is out of date for. The board is written before the game: when an accept cannot be saved on it, the choose or Un-choose is refused (409, naming the board) with nothing changed; a board that cannot be read does not stop Un-choose. The memory
 is local like the takes, and goes with a dropped take. An agent's `POST …/choose` answers
-`{ ok: true, behind }`, the reasons the take in the game is out of date for now. **Un-choose**
+`{ ok: true, behind }`, the reasons the take in the game is out of date for now (left out if the
+image cannot be read again). **Un-choose**
 (asked first in the page) removes the manifest entry,
 then the picture, then the lock entry, so a failure can be pressed again; the take stays on the board.
 **Drop** removes a take that is not chosen, with no question, and refuses while the lock cannot be

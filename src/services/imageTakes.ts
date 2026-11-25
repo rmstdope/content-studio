@@ -157,8 +157,8 @@ export interface ImageTakes {
    * again, so the image is out of date as it was. Refused when it already is.
    */
   unaccept(projectFile: string, id: string): Promise<ImageTakesAnswer>
-  /** What the image is out of date for now; empty when nothing is, or it cannot be read. */
-  behind(projectFile: string, id: string): Promise<ImageReason[]>
+  /** What the image is out of date for now (empty when nothing is); null when it cannot be read. */
+  behind(projectFile: string, id: string): Promise<ImageReason[] | null>
   /** Takes a take off the board and deletes its picture; the chosen take stays. */
   drop(projectFile: string, id: string, n: number): Promise<ImageTakesAnswer>
   /** Brings every image and take with an old look to the game's look now, from the model's stored pictures. */
@@ -349,6 +349,23 @@ export function createImageTakes({
     read: () => readBoard(found),
     write: (text) => writeOrRefuse(found.root, found.board, text),
   })
+
+  /**
+   * Keeps what the lock's entry counts its take as made from on that take, before the entry is
+   * replaced or removed, so an accept comes back with its take. The refusal when the board cannot
+   * be written, so the entry stays; null when there is nothing in the way.
+   */
+  async function saveAccept(
+    found: Found,
+    board: ImageBoard,
+    chosen: ChosenEntry | undefined,
+  ): Promise<{ ok: false; message: string } | null> {
+    if (!keepAccept(board, chosen)) return null
+    return writeOrRefuse(found.root, found.board, `${JSON.stringify(board, null, 2)}\n`).then(
+      () => null,
+      refusalAnswer('keeping the accept on its take failed', (sentence) => `${sentence}.`),
+    )
+  }
 
   function changeBoard<T>(
     found: Found,
@@ -1050,11 +1067,8 @@ export function createImageTakes({
         // The boxes of no take yet belong to the take in the game, else to the one chosen now.
         const adopted = await adoptImageAreas(projectFile, id, found.row.chosenTake ?? n)
         if (adopted && !adopted.ok) return notAdopted(adopted)
-        // The lock is about to stop saying what the take in the game was accepted for: that goes on
-        // its board take first, so an accept comes back with its take.
-        const lock = await lockNow(found, [])
-        if (lock && keepAccept(board, lock[id]))
-          await writeOrRefuse(found.root, found.board, `${JSON.stringify(board, null, 2)}\n`)
+        const unsaved = await saveAccept(found, board, (await lockNow(found, []))?.[id])
+        if (unsaved) return unsaved
         const answer = await publish(found, png, (previous) =>
           previous?.take === n && previous.look === key
             ? null
@@ -1113,7 +1127,7 @@ export function createImageTakes({
 
     async behind(projectFile, id) {
       const found = await resolve(projectFile, id)
-      return found && 'row' in found ? found.row.reasons : []
+      return found && 'row' in found ? found.row.reasons : null
     },
 
     async unaccept(projectFile, id) {
@@ -1163,8 +1177,8 @@ export function createImageTakes({
             if (!lock[id]) return { ok: false, message: 'No take is chosen for this image.' }
             // As in choose. A board that cannot be read has no take to keep it on.
             const board = await readBoard(found)
-            if (!('ok' in board) && keepAccept(board, lock[id]))
-              await writeOrRefuse(found.root, found.board, `${JSON.stringify(board, null, 2)}\n`)
+            const unsaved = 'ok' in board ? null : await saveAccept(found, board, lock[id])
+            if (unsaved) return unsaved
             const had = id in manifest
             delete manifest[id]
             delete lock[id]

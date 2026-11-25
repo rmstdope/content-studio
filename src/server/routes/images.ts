@@ -339,7 +339,9 @@ export function imagesRoutes(c: RouteContext) {
         const result = await imageTakes.choose(projectFile, id, body.data.n)
         if (!result?.ok) return imageAnswer(result)
         // For an agent: what the take in the game is behind by, after any accept that came with it.
-        return Response.json({ ...result, behind: await imageTakes.behind(projectFile, id) })
+        // Left out, rather than empty, when the image cannot be read again.
+        const behind = await imageTakes.behind(projectFile, id)
+        return Response.json({ ...result, ...(behind && { behind }) })
       }),
     },
     '/api/images/:id/unaccept': {

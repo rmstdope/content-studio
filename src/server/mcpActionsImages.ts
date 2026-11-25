@@ -89,7 +89,12 @@ export const IMAGE_ACTIONS: readonly Action[] = [
   ),
   images('mark a take as seen', 'POST', '/api/images/:id/takes/:n/seen'),
   asking(
-    images('choose a take for the game', 'POST', '/api/images/:id/choose', '{ n }'),
+    images(
+      'choose a take for the game; behind in the answer is what it is out of date for',
+      'POST',
+      '/api/images/:id/choose',
+      '{ n }',
+    ),
     `chooses this take for the game and ${SET_ASIDE}`,
   ),
   asking(
