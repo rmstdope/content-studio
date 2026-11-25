@@ -3,6 +3,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { cropWindow } from '../../../core/imagePixels'
 import type { ImagePatchesView, PatchWorkView } from '../../../core/imagePatches'
 import type { ImageRow, PatchRow } from '../../../core/images'
+import { cssLength, valuesInEveryWindow } from '../../../../test/stylesheet'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -347,6 +348,29 @@ describe('an open patch with no takes', () => {
     )
     await act(async () => (thumbs[2] as HTMLElement).click())
     expect(host.querySelector('.patch-row .change-badge')).toBeNull()
+  })
+
+  it('keeps a flagged take badge on one line in the wide strip, its columns as wide as the Fine-tune cards', async () => {
+    const { host } = await render([patchRow('a')], () =>
+      view([work('a', { takes: [takeOf(1, { changed: 'little' }), takeOf(2)] })]),
+    )
+    await open(host)
+    const strip = host.querySelector('.patch-thumbs')!
+    const fineTune = document.createElement('div')
+    fineTune.className = 'fine-tune'
+    const cards = fineTune.appendChild(document.createElement('div'))
+    cards.className = 'patch-thumbs'
+    // "Changed very little" is about 122 px on one line; the strip's 112-px columns wrapped it over the close-up.
+    expect(valuesInEveryWindow(strip, 'grid-template-columns').at(-1)!.split(': ')[1]).toBe(
+      valuesInEveryWindow(cards, 'grid-template-columns').at(-1)!.split(': ')[1],
+    )
+    expect(valuesInEveryWindow(strip.querySelector('.change-badge')!, 'white-space')).toContain(
+      '.change-badge: nowrap',
+    )
+    // A column of a wide strip holds the badge's 10-px offset, its 122 px and as much again to the right.
+    const columns = valuesInEveryWindow(strip, 'grid-template-columns').at(-1)!
+    const least = /minmax\((.+), 1fr\)\)$/.exec(columns)![1]!
+    expect(cssLength(least, { percent: 1200, vh: 900, ratio: 1 })).toBeGreaterThanOrEqual(142)
   })
 
   it('replaces the mark by a new drag, and keeps it through a click', async () => {
