@@ -167,20 +167,29 @@ content-studio/
 └── docs/
 ```
 
-**Previous and next** (as-5wz). Every
-one-item page (a music loop or stinger, an image, a sound effect, a character, a part's overview and
-lines page, a scene) ends its header with `components/Pager.tsx`: ‹ and › around "3 of 12", built
-from the list the breadcrumb goes back to (`core/neighbours.ts`, `ui/pager.ts` `pagerFor`), never
-wrapping and never crossing acts. A step sets `window.location.hash` as the breadcrumb does, so the
-route hold that asks before leaving a scene's unsaved changes applies unchanged. ← and → step too,
-unless the press is in a field or inside a control that uses the arrows (`ARROW_USERS` in
-`ui/pager.ts`); the image page passes `keys={false}` because its take strip keeps the arrows
-page-wide. The language chosen stays in the address of the neighbour. Every step lands at the top
-of the page, so the same arrow stays under the pointer (as-pbby): the control scrolls the window to
-the top once the stepped-to item shows, and a strip or grid that keeps its take in view
-(`ui/scrollWithin.ts`) scrolls only itself, never the page. On every page with the control, the header is a `PageHeader` (`ui/components/PageHeader.tsx`), which
-puts the control inside the header's action group (`.header-end`), held to the right end, so a
-narrower window wraps it with the buttons and never alone at the left (as-ped, as-85z, as-21ub).
+**Previous and next** (as-5wz). Every one-item page (a music loop or stinger, an image, a sound
+effect, a character, a part's overview and lines page, a scene) ends its header with
+`components/Pager.tsx`: ‹ and › around "3 of 12", built from the list the breadcrumb goes back to
+(`core/neighbours.ts`, `ui/pager.ts` `pagerFor`), never wrapping and never crossing acts. A step
+sets `window.location.hash` as the breadcrumb does, so the route hold that asks before leaving a
+scene's unsaved changes applies unchanged. ← and → step too, unless the press is in a field or
+inside a control that uses the arrows (`ARROW_USERS` in `ui/pager.ts`); the image page passes
+`keys={false}` because its take strip keeps the arrows page-wide. Shift+← and Shift+→ step on every
+page with the control, the image page included, from any control with focus (as-bbb0,
+`docs/ui/as-bbb0-shift-paging.html`, `shiftPagerStep` in `ui/pager.ts`): the control hears them in
+the capture phase and spends the press, at an end and when held too, so a take strip or tab list
+does not also act, and then does what a press of that arrow does, focus included. They are left
+alone in a text field (they select text; a box, a radio button and a range slider are not text
+fields), in a dialog, under a modal backdrop or in full screen, and on a focused control marked
+`data-keeps-shift-arrows`: a selected area's row while it has a box (they resize it) and the two
+fade handles (the big step). A new control that gives Shift+←/→ a meaning of its own needs that
+mark. The language chosen stays in the address of the neighbour. Every step lands at the top of the
+page, so the same arrow stays under the pointer (as-pbby): the control scrolls the window to the top
+once the stepped-to item shows, and a strip or grid that keeps its take in view
+(`ui/scrollWithin.ts`) scrolls only itself, never the page. On every page with the control, the
+header is a `PageHeader` (`ui/components/PageHeader.tsx`), which puts the control inside the
+header's action group (`.header-end`), held to the right end, so a narrower window wraps it with the
+buttons and never alone at the left (as-ped, as-85z, as-21ub).
 
 A page's problem banners share a `ProblemScope` (`src/ui/components/ProblemScope.tsx`): each banner
 asks `useBannerProblems(id, problems)` for its own problems less those of the banners before it, so a

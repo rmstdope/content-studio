@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { TakeView } from '../../../core/musicTake'
+import { mountPager } from '../../../../test/besidePager'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -312,6 +313,23 @@ describe('the fades editor', () => {
       out.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
     })
     expect(e.box('Fade out').value).toBe('0.05')
+  })
+
+  it('keeps Shift and the arrows on both handles from the previous/next control', async () => {
+    const e = open()
+    const unmount = await mountPager()
+    const press = (label: string, key: string) =>
+      act(() => {
+        e.q(`[aria-label="${label}"]`)!.dispatchEvent(
+          new KeyboardEvent('keydown', { key, shiftKey: true, bubbles: true }),
+        )
+      })
+    press('Fade in length', 'ArrowRight')
+    press('Fade out length', 'ArrowLeft')
+    expect(e.box('Fade in').value).toBe('0.5')
+    expect(e.box('Fade out').value).toBe('0.5')
+    expect(window.location.hash).toBe('#/here')
+    unmount()
   })
 
   it('plays the take with the fades as they stand, without the playback fade', () => {

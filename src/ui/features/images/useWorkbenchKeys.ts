@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react'
-
-/** The inputs that are pressed rather than typed into (a take's box): the tab keys still work there. */
-export const PRESSED_INPUTS = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'range'])
+import { PRESSED_INPUTS } from '../../pressedInputs'
 
 /**
  * Whether the target is a field that owns the keys typed into it: a text area, a menu, or an input

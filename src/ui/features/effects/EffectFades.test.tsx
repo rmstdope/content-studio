@@ -3,6 +3,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { EffectRow } from '../../../core/effects'
 import type { EffectTakesView, EffectTakeView } from '../../../core/effectTakes'
 import { installFakeWebAudio } from '../../../../test/fakeWebAudio'
+import { mountPager } from '../../../../test/besidePager'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -212,6 +213,26 @@ describe('Fades… on a sound effect take', () => {
       )
     })
     expect(box.value).toBe('0.11')
+  })
+
+  it('keeps Shift and the arrows on a handle from the previous/next control', async () => {
+    const { container, buttons } = render(
+      chosenRow(),
+      view({ takes: [take(1), take(2, { chosen: true })] }),
+    )
+    act(() => buttons('Fades…')[1]!.click())
+    cleanups.push(await mountPager())
+    act(() => {
+      container
+        .querySelector('.editor [aria-label="Fade in length"]')!
+        .dispatchEvent(
+          new window.KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true, bubbles: true }),
+        )
+    })
+    expect(container.querySelector<HTMLInputElement>('.editor input[type="number"]')!.value).toBe(
+      '0.1',
+    )
+    expect(window.location.hash).toBe('#/here')
   })
 
   it('saves the fades on the take, closes, and gives focus back to its Fades…', async () => {
