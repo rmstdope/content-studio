@@ -44,6 +44,54 @@ function Job({ job, open, children }: { job: ImageJob; open: ImageJob; children:
 }
 
 /**
+ * The notice above an image that is out of date, with Accept where that settles it. It holds the
+ * Accept's answer, so a failure's red line goes with the notice and is not there when it returns.
+ */
+function OutOfDateNotice({
+  row,
+  actName,
+  change,
+}: {
+  row: ImageRow
+  /** The act's short name, for its style among the reasons. */
+  actName: string
+  /** A shared image's change of act style, by the acts' names. */
+  change: Parameters<typeof outOfDateText>[2]
+}) {
+  const accept = useAcceptImageChange(row.id)
+  const canAccept = acceptableReasons(row.reasons)
+  return (
+    <section className="notice notice-warn">
+      <div className="notice-text">
+        <strong>{outOfDateText(row.reasons, actName, change)}</strong>
+        <span>
+          The game shows the chosen image until you choose another.{' '}
+          {canAccept
+            ? 'Accept counts it as up to date as it is.'
+            : 'A changed size needs a new take.'}
+        </span>
+        {accept.data && !accept.data.ok && 'message' in accept.data && (
+          <span className="adopt-error">{accept.data.message}</span>
+        )}
+        {accept.error && <span className="adopt-error">{accept.error.message}</span>}
+      </div>
+      {canAccept && (
+        <div className="notice-actions">
+          <button
+            className="btn"
+            type="button"
+            {...off(accept.isPending && WAIT_FOR_CHANGE)}
+            onClick={() => accept.mutate()}
+          >
+            Accept
+          </button>
+        </div>
+      )}
+    </section>
+  )
+}
+
+/**
  * An image's own page: what is out of date above, then its jobs as tabs, one open at a time: Make
  * (the prompt, the words, editable, beside the takes), Fine-tune, Patches, Named areas and Movement.
  */
@@ -82,8 +130,6 @@ export function ImagePage({
   })
   const save = useSetImageWords(row.id)
   const compare = useImageCompare(row.id)
-  const accept = useAcceptImageChange(row.id)
-  const canAccept = acceptableReasons(row.reasons)
   const field = useRef<HTMLTextAreaElement>(null)
   const saveNow = useRef<SaveWordsNow>(null)
   // Asked for after settling the game's words: the field is focused once Make is showing.
@@ -134,42 +180,16 @@ export function ImagePage({
         pager={pager && { ...pager, keys: false }}
       />
       {row.status === 'out of date' && (
-        <section className="notice notice-warn">
-          <div className="notice-text">
-            <strong>
-              {outOfDateText(
-                row.reasons,
-                shortTitle(act.title),
-                row.actStyleChange && {
-                  now: actName(row.actStyleChange.now),
-                  was: actName(row.actStyleChange.was),
-                },
-              )}
-            </strong>
-            <span>
-              The game shows the chosen image until you choose another.{' '}
-              {canAccept
-                ? 'Accept counts it as up to date as it is.'
-                : 'A changed size needs a new take.'}
-            </span>
-            {accept.data && !accept.data.ok && 'message' in accept.data && (
-              <span className="adopt-error">{accept.data.message}</span>
-            )}
-            {accept.error && <span className="adopt-error">{accept.error.message}</span>}
-          </div>
-          {canAccept && (
-            <div className="notice-actions">
-              <button
-                className="btn"
-                type="button"
-                {...off(accept.isPending && WAIT_FOR_CHANGE)}
-                onClick={() => accept.mutate()}
-              >
-                Accept
-              </button>
-            </div>
-          )}
-        </section>
+        <OutOfDateNotice
+          row={row}
+          actName={shortTitle(act.title)}
+          change={
+            row.actStyleChange && {
+              now: actName(row.actStyleChange.now),
+              was: actName(row.actStyleChange.was),
+            }
+          }
+        />
       )}
       {row.gameChanged && (
         <section
