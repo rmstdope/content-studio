@@ -1735,6 +1735,10 @@ describe('going back to an accepted take', () => {
       [2, true],
     ])
     await takes.choose(file, 'inn', 1)
+    expect(await earlier()).toEqual([
+      [1, false],
+      [2, true],
+    ])
     expect(await takes.unaccept(file, 'inn')).toEqual({ ok: true })
     expect(await earlier()).toEqual([
       [1, true],
