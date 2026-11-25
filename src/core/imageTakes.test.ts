@@ -74,10 +74,52 @@ describe('the board', () => {
 })
 
 describe('earlier words', () => {
-  const made = { words: 'a low inn', style: 's', width: 320, height: 200 }
+  const madeFrom = { words: 'a low inn', style: 's', width: 320, height: 200 }
+  const take = (over: object = {}) =>
+    ImageBoardSchema.parse({
+      takes: [{ n: 1, seed: 7, model: 'm', width: 1024, height: 640, madeFrom, ...over }],
+    }).takes[0]!
+  const entry = { ...madeFrom, take: 1, seed: 7, model: 'm' }
+  const accepted = { words: 'a high inn', style: 's' }
+
   it('marks a take only when the words differ', () => {
-    expect(takeIsEarlier(made, 'a low inn')).toBe(false)
-    expect(takeIsEarlier(made, 'a high inn')).toBe(true)
+    expect(takeIsEarlier(take(), undefined, 'a low inn')).toBe(false)
+    expect(takeIsEarlier(take(), undefined, 'a high inn')).toBe(true)
+  })
+
+  it('does not mark the take in the game once the lock counts it from the words now', () => {
+    expect(takeIsEarlier(take(), { ...entry, ...accepted }, 'a high inn')).toBe(false)
+  })
+
+  it('does not mark a take that left the game with an accept for the words now', () => {
+    expect(takeIsEarlier(take({ accepted }), undefined, 'a high inn')).toBe(false)
+    const other = { ...entry, take: 2 }
+    expect(takeIsEarlier(take({ accepted }), other, 'a high inn')).toBe(false)
+  })
+
+  it('marks it again when the words changed after the accept', () => {
+    expect(takeIsEarlier(take(), { ...entry, ...accepted }, 'a red inn')).toBe(true)
+    expect(takeIsEarlier(take({ accepted }), undefined, 'a red inn')).toBe(true)
+  })
+
+  it('marks it again after Undo accept, whatever the board still remembers', () => {
+    expect(takeIsEarlier(take({ accepted }), entry, 'a high inn')).toBe(true)
+  })
+
+  it('never marks words put back to those the take was made from', () => {
+    expect(takeIsEarlier(take(), { ...entry, ...accepted }, 'a low inn')).toBe(false)
+    expect(takeIsEarlier(take({ accepted }), undefined, 'a low inn')).toBe(false)
+  })
+
+  it('never marks a copy', () => {
+    const copiedFrom = { image: 'x', title: 'X', take: 1 }
+    expect(takeIsEarlier(take({ copiedFrom }), undefined, 'a high inn')).toBe(false)
+  })
+
+  it('does not count a lock entry that is not of that take', () => {
+    for (const not of [{ seed: 8 }, { model: 'n' }, { width: 160 }, { height: 100 }]) {
+      expect(takeIsEarlier(take(), { ...entry, ...accepted, ...not }, 'a high inn')).toBe(true)
+    }
   })
 })
 
