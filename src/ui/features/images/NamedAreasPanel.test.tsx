@@ -3,6 +3,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { AreaBox, AreaRow, ImageRow } from '../../../core/images'
 import type { ImagePatchesView } from '../../../core/imagePatches'
 import { valuesInEveryWindow } from '../../../../test/stylesheet'
+import { mountPager } from '../../../../test/besidePager'
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register({ url: 'http://localhost/' })
 const isOff = (element: Element) => element.getAttribute('aria-disabled') === 'true'
@@ -570,6 +571,34 @@ describe('the named areas panel', () => {
         { ...box, width: 64 },
         { ...box, width: 64, height: 36 },
       ])
+    })
+
+    it('keeps Shift and the arrows on a selected box from the previous/next control', async () => {
+      const { host, puts } = await setup()
+      cleanups.push(await mountPager())
+      await press(mainOf(host, 0), 'ArrowRight', true)
+      expect(puts.map((p) => p.body.box)).toEqual([{ ...box, width: 64 }])
+      expect(window.location.hash).toBe('#/here')
+    })
+
+    it('keeps them while S shows the picture alone', async () => {
+      const { host, puts } = await setup()
+      cleanups.push(await mountPager())
+      await act(async () => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }))
+      })
+      await press(mainOf(host, 0), 'ArrowRight', true)
+      expect(puts).toEqual([])
+      expect(window.location.hash).toBe('#/here')
+    })
+
+    it('leaves Shift and the arrows to the previous/next control on an area still to place', async () => {
+      const { host, puts } = await render([area('a')])
+      await act(async () => mainOf(host, 0).click())
+      cleanups.push(await mountPager())
+      await press(mainOf(host, 0), 'ArrowRight', true)
+      expect(window.location.hash).toBe('#/after')
+      expect(puts).toEqual([])
     })
 
     it('does nothing for an area still to place, and saves nothing at an edge', async () => {

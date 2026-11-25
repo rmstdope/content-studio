@@ -481,6 +481,8 @@ export function NamedAreasPanel({ row }: { row: ImageRow }) {
                   }}
                   {...off(areaRowWhy(state))}
                   title={area.id}
+                  // A selected box takes Shift with the arrows to resize, not to step to the next image.
+                  data-keeps-shift-arrows={area.id === selected && area.box ? true : undefined}
                   aria-pressed={isSelected}
                   onClick={() => choose(area.id)}
                 >

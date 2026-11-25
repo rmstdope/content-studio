@@ -208,6 +208,137 @@ describe('the previous/next control', () => {
     }
   })
 
+  const shift = (key: string, target: Element = document.body, repeat = false) =>
+    act(() => {
+      target.dispatchEvent(
+        new KeyboardEvent('keydown', { key, shiftKey: true, repeat, bubbles: true }),
+      )
+    })
+
+  /** A control that hears the arrows itself, as a take strip or a tab list does. */
+  function control(markup: string) {
+    const holder = document.createElement('div')
+    holder.innerHTML = markup
+    document.body.append(holder)
+    const target = holder.querySelector('[data-target]')!
+    const heard: string[] = []
+    const listen = (event: Event) => heard.push((event as KeyboardEvent).key)
+    target.addEventListener('keydown', listen)
+    document.addEventListener('keydown', listen)
+    return {
+      target,
+      heard,
+      remove: () => {
+        document.removeEventListener('keydown', listen)
+        holder.remove()
+      },
+    }
+  }
+
+  const arrowUsers = [
+    '<div data-strip><button data-target>take</button></div>',
+    '<ul class="scene-list"><li><a data-target href="#x">a</a></li></ul>',
+    '<span data-target role="slider" tabindex="0"></span>',
+    '<div role="menu"><button data-target>Rename</button></div>',
+    '<div role="tablist"><button data-target role="tab">en</button></div>',
+    '<input data-target type="range">',
+    '<button data-target>Play</button>',
+  ]
+
+  it('steps with Shift and the arrows from any control, which does not hear the press', () => {
+    for (const keys of [true, false])
+      for (const markup of arrowUsers) {
+        const p = show({ ...middle, keys })
+        const c = control(markup)
+        window.location.hash = '#/start'
+        shift('ArrowRight', c.target)
+        expect(window.location.hash).toBe('#/music/tracks/c')
+        shift('ArrowLeft', c.target)
+        expect(window.location.hash).toBe('#/music/tracks/a')
+        expect(c.heard).toEqual([])
+        c.remove()
+        p.unmount()
+      }
+  })
+
+  it('does nothing with Shift past an end, and the control still does not hear it', () => {
+    const p = show({ ...middle, next: null })
+    const c = control(arrowUsers[0]!)
+    window.location.hash = '#/start'
+    shift('ArrowRight', c.target)
+    expect(window.location.hash).toBe('#/start')
+    expect(c.heard).toEqual([])
+    c.remove()
+    p.unmount()
+  })
+
+  it('steps once for a held Shift and arrow, keeping the repeats from the control', () => {
+    const p = show(middle)
+    const c = control(arrowUsers[0]!)
+    window.location.hash = '#/start'
+    shift('ArrowRight', c.target, true)
+    expect(window.location.hash).toBe('#/start')
+    expect(c.heard).toEqual([])
+    c.remove()
+    p.unmount()
+  })
+
+  it('leaves Shift with the arrows to a field, a dialog and a control that keeps them', () => {
+    const p = show(middle)
+    for (const markup of [
+      '<input data-target type="text">',
+      '<textarea data-target></textarea>',
+      '<select data-target><option>a</option></select>',
+      '<div role="alertdialog"><button data-target>Save</button></div>',
+      '<span data-target role="slider" tabindex="0" data-keeps-shift-arrows></span>',
+      '<button data-target data-keeps-shift-arrows>The lamp</button>',
+    ]) {
+      const c = control(markup)
+      window.location.hash = '#/start'
+      shift('ArrowRight', c.target)
+      expect(window.location.hash).toBe('#/start')
+      expect(c.heard).toEqual(['ArrowRight', 'ArrowRight'])
+      c.remove()
+    }
+    p.unmount()
+  })
+
+  it('does not step with Shift under a modal window or in full screen', () => {
+    const p = show(middle)
+    window.location.hash = '#/start'
+    const modal = document.createElement('div')
+    modal.className = 'modal-back'
+    document.body.append(modal)
+    shift('ArrowRight')
+    expect(window.location.hash).toBe('#/start')
+    modal.remove()
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => document.body,
+    })
+    shift('ArrowRight')
+    expect(window.location.hash).toBe('#/start')
+    delete (document as unknown as Record<string, unknown>).fullscreenElement
+    shift('ArrowRight')
+    expect(window.location.hash).toBe('#/music/tracks/c')
+    p.unmount()
+  })
+
+  it('after a Shift step, lands at the top with focus on that side’s arrow', () => {
+    for (const [key, side] of [
+      ['ArrowRight', 'next'],
+      ['ArrowLeft', 'prev'],
+    ] as const) {
+      window.location.hash = '#/music/tracks/b'
+      const p = show(middle)
+      shift(key)
+      p.unmount()
+      const fresh = show({ ...middle, place: { position: 4, count: 12 } })
+      expect(document.activeElement).toBe(fresh[side])
+      fresh.unmount()
+    }
+  })
+
   it('does not move focus on a page opened another way', () => {
     window.location.hash = '#/elsewhere'
     const p = show(middle)

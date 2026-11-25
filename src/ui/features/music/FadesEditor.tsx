@@ -107,6 +107,8 @@ function FadeWave({
         role="slider"
         tabIndex={0}
         aria-label="Fade in length"
+        // Shift with ← and → is the big step here, not the previous/next control's.
+        data-keeps-shift-arrows
         aria-valuemin={0}
         aria-valuemax={seconds}
         aria-valuenow={fades.in}
@@ -124,6 +126,7 @@ function FadeWave({
         role="slider"
         tabIndex={0}
         aria-label="Fade out length"
+        data-keeps-shift-arrows
         aria-valuemin={0}
         aria-valuemax={seconds}
         aria-valuenow={fades.out}

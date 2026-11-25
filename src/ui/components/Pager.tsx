@@ -1,6 +1,6 @@
 import { off } from '../off'
 import { useEffect, useRef } from 'react'
-import { pagerStep } from '../pager'
+import { pagerStep, shiftPagerStep, type PagerPress } from '../pager'
 
 /** Where a step goes: the neighbour's name for the hover, and its page. */
 export interface PagerStep {
@@ -27,10 +27,29 @@ let pending: { side: 'previous' | 'next'; href: string; at: number; byButton: bo
 /** How long a press may wait for its page to open and still keep focus on its button. */
 const PENDING_MS = 3000
 
+/** A key press on `target` as the rules of `ui/pager.ts` read it. */
+function pressOf(
+  event: KeyboardEvent,
+  target: Element,
+): PagerPress & { target: { type?: string } } {
+  return {
+    key: event.key,
+    modifier: event.metaKey || event.ctrlKey || event.altKey,
+    target: {
+      tagName: target.tagName,
+      type: target instanceof HTMLInputElement ? target.type : undefined,
+      isContentEditable: (target as HTMLElement).isContentEditable,
+      closest: (selector) => target.closest(selector),
+    },
+  }
+}
+
 /**
  * The previous/next control at the right end of a one-item page's header: ‹ and › around "3 of 12",
- * and the arrow keys when focus is not in a field or a control that uses them. A step moves the
- * address, as the breadcrumb does, so whatever asks before leaving a page asks the same here.
+ * and the arrow keys when focus is not in a field or a control that uses them. Shift with an arrow
+ * steps from those controls too (see {@link shiftPagerStep}), on every page with the control, as a
+ * press of that button. A step moves the address, as the breadcrumb does, so whatever asks before
+ * leaving a page asks the same here.
  */
 export function Pager({ place, previous, next, keys = true }: PagerProps) {
   const buttons = useRef<Record<'previous' | 'next', HTMLButtonElement | null>>({
@@ -60,15 +79,9 @@ export function Pager({ place, previous, next, keys = true }: PagerProps) {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target
       if (event.defaultPrevented || event.repeat || !(target instanceof Element)) return
-      const way = pagerStep({
-        key: event.key,
-        modifier: event.metaKey || event.ctrlKey || event.altKey,
-        target: {
-          tagName: target.tagName,
-          isContentEditable: (target as HTMLElement).isContentEditable,
-          closest: (selector) => target.closest(selector),
-        },
-      })
+      // Shift with an arrow is the other listener's.
+      if (event.shiftKey) return
+      const way = pagerStep(pressOf(event, target))
       if (way === null) return
       event.preventDefault()
       const side = way < 0 ? 'previous' : 'next'
@@ -77,6 +90,28 @@ export function Pager({ place, previous, next, keys = true }: PagerProps) {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [keys])
+  // Heard on the way down, before the control with focus: a take strip or a tab list would
+  // otherwise act on the same press.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      const way = shiftPagerStep({
+        ...pressOf(event, target),
+        shift: event.shiftKey,
+        covered: !!document.fullscreenElement || document.querySelector('.modal-back') !== null,
+      })
+      if (way === null) return
+      // The press is spent at an end and when held, too: the control must not step in its place.
+      event.preventDefault()
+      event.stopPropagation()
+      if (event.repeat) return
+      const side = way < 0 ? 'previous' : 'next'
+      go(side, latest.current[side], true)
+    }
+    document.addEventListener('keydown', onKey, true)
+    return () => document.removeEventListener('keydown', onKey, true)
+  }, [])
   const button = (side: 'previous' | 'next', step: PagerStep | null) => {
     const label = step
       ? `${side === 'previous' ? 'Previous' : 'Next'}: ${step.name}`
