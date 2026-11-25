@@ -314,6 +314,26 @@ describe('comparing takes', () => {
     expect(thumbs.some((t) => t.textContent?.includes('was chosen'))).toBe(true)
   })
 
+  it('a refused Choose leaves no "was chosen" on the take still chosen in the game', async () => {
+    const s = await show(view({ takes: [take(1), take(2, { chosen: true }), take(3)] }), {
+      chosenTake: 2,
+      status: 'chosen',
+    })
+    await s.click(s.container.querySelector<HTMLButtonElement>('[data-strip] button')!)
+    globalThis.fetch = (async () =>
+      Response.json(
+        { ok: false, message: 'content-studio/images/lock.json could not be written.' },
+        { status: 409 },
+      )) as unknown as typeof fetch
+    await s.click(s.button('Choose'))
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    })
+    expect(s.text()).toContain('content-studio/images/lock.json could not be written.')
+    const thumbs = [...s.container.querySelectorAll('[data-strip] button')]
+    expect(thumbs.some((t) => t.textContent?.includes('was chosen'))).toBe(false)
+  })
+
   it('stops a poll that is on its way before showing a choice, so it cannot undo it', async () => {
     const s = await show(view({ takes: [take(1), take(2, { chosen: true }), take(3)] }), {
       chosenTake: 2,
