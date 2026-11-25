@@ -154,9 +154,10 @@ export interface ManifestPatch {
 
 /**
  * The patches the game gets with take `base` of the image: those with a take in the game on it
- * (`inGame`) whose game version is stored. Their pictures are written to the clips folder from the
- * stored versions (one name per patch is shared by every take of the image), and the manifest's
- * entries are returned in patch id order; empty when there are none.
+ * (`inGame`) whose game version is stored. Returns the manifest's entries in patch id order (empty
+ * when there are none) and the pictures to write for them, each its path in the clips folder (one
+ * name per patch is shared by every take of the image) and its stored game version; nothing is
+ * written, so the caller writes them together with the manifest.
  */
 export async function patchesInGame(
   image: {
@@ -165,9 +166,10 @@ export async function patchesInGame(
     row: Pick<ImageRow, 'id' | 'width' | 'height' | 'patches'>
   },
   base: number,
-): Promise<Record<string, ManifestPatch>> {
+): Promise<{ entries: Record<string, ManifestPatch>; pictures: [string, Uint8Array][] }> {
   const { root, clips, row } = image
   const entries: Record<string, ManifestPatch> = {}
+  const pictures: [string, Uint8Array][] = []
   const boards = await boardsOf(root, row)
   for (const patch of [...row.patches].sort((a, b) => a.id.localeCompare(b.id))) {
     const board = boards[patch.id]
@@ -180,10 +182,10 @@ export async function patchesInGame(
       .catch(() => null)
     if (!png) continue
     const file = patchClipName(row.id, patch.id)
-    await writeOrRefuse(root, join(clips, file), png)
+    pictures.push([join(clips, file), png])
     entries[patch.id] = { file, width: row.width, height: row.height }
   }
-  return entries
+  return { entries, pictures }
 }
 
 /**

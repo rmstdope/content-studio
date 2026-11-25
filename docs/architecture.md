@@ -1656,8 +1656,10 @@ manifest and the lock readable, or nothing is changed) writes the take's game's 
 the look first if its look is old) to `<clips>/<id>.png`, the manifest entry `{ file, width, height }`
 (the listed size) and last the lock entry
 `{ model, seed, take, inputs: { text, width, height, style, look }, at }`, keyed by image id, one
-per line in id order (`formatImageLock`). A write that is refused (a read-only folder, a full disk) puts
-back the picture and the manifest already written, or removes them when they were not there, so the
+per line in id order (`formatImageLock`). The chosen patches' pictures, the picture, the manifest and the lock are written
+together (`writeTogether` in `services/files.ts`; `patchesInGame` only says what to write): a write
+that is refused (a read-only folder, a full disk) puts back those already written, or removes them
+when they were not there (a file there that cannot be read is refused before it is written), so a
 picture goes into the game only together with its lock, and the refusal names the file
 ("content-studio/images/lock.json could not be written."; "…, and the game's files could not be put
 back." if even that fails; as-mirh); a fine-tune's Choose then drops the take it added. **Accept**, in the out-of-date notice on an image's page when

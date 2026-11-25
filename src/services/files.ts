@@ -144,6 +144,48 @@ export async function writeOrRefuse(
 }
 
 /**
+ * Writes the files in order, each with `write` (`writeOrRefuse`), so that a game file goes into
+ * place only together with the rest (a picture with its manifest and lock): when one is refused,
+ * those already written are put back as they were, or removed when they were not there, and the
+ * answer names the refused file. A file there that cannot be read is refused before it is written,
+ * so a put back never removes it. Any other error goes on.
+ */
+export async function writeTogether(
+  root: string,
+  writes: readonly (readonly [string, string | Uint8Array])[],
+  write: (root: string, path: string, text: string | Uint8Array) => Promise<void> = writeOrRefuse,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const putBack: (() => Promise<unknown>)[] = []
+  try {
+    for (const [path, text] of writes) {
+      const was = await readFile(resolveInRoot(root, path)).then(
+        (bytes) => new Uint8Array(bytes),
+        (error: unknown) => {
+          if ((error as { code?: unknown }).code === 'ENOENT') return null
+          return refuseWrite(path)(error)
+        },
+      )
+      await write(root, path, text)
+      putBack.push(() =>
+        was ? write(root, path, was) : rm(resolveInRoot(root, path), { force: true }),
+      )
+    }
+  } catch (error) {
+    const sentence = refusalSentence(error)
+    if (sentence === null) throw error
+    console.error('writing the files together failed', error)
+    try {
+      for (const step of putBack.reverse()) await step()
+    } catch (stuck) {
+      console.error('putting the files back failed', stuck)
+      return { ok: false, message: `${sentence}, and the game's files could not be put back.` }
+    }
+    return { ok: false, message: `${sentence}.` }
+  }
+  return { ok: true }
+}
+
+/**
  * A `.catch` handler turning a refused write into a failed answer worded by `say` (given the one
  * sentence, "<file> could not be written"), the error kept with its stack in the server log under
  * `what`; any other error goes on.

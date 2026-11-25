@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { readdirSync, readFileSync } from 'node:fs'
+import { chmodSync, existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tempRepo } from '../../test/helpers'
 import {
@@ -11,6 +11,7 @@ import {
   writeFailure,
   writeOrRefuse,
   WriteRefused,
+  writeTogether,
   refusalSentence,
 } from './files'
 
@@ -125,4 +126,59 @@ describe('writeOrRefuse', () => {
   it('has no sentence for an error that is not a refused write', () => {
     expect(refusalSentence(new Error('boom'))).toBeNull()
   })
+})
+
+describe('writeTogether', () => {
+  it('puts back what it wrote when a later write is refused, and names the file', async () => {
+    const root = tempRepo({ 'a.txt': 'old', blocked: 'a file, not a folder' })
+    expect(
+      await writeTogether(root, [
+        ['a.txt', 'new'],
+        ['b.txt', 'new'],
+        ['blocked/c.txt', 'new'],
+      ]),
+    ).toEqual({ ok: false, message: 'blocked/c.txt could not be written.' })
+    expect(readFileSync(join(root, 'a.txt'), 'utf8')).toBe('old')
+    expect(existsSync(join(root, 'b.txt'))).toBe(false)
+  })
+
+  it('says so when what it wrote cannot be put back', async () => {
+    const root = tempRepo({ 'a.txt': 'old', blocked: 'a file, not a folder' })
+    const write = async (at: string, path: string, text: string | Uint8Array) => {
+      if (typeof text !== 'string') throw new WriteRefused(path, 'permission denied', null)
+      await writeOrRefuse(at, path, text)
+    }
+    expect(
+      await writeTogether(
+        root,
+        [
+          ['a.txt', 'new'],
+          ['blocked/c.txt', 'new'],
+        ],
+        write,
+      ),
+    ).toEqual({
+      ok: false,
+      message: "blocked/c.txt could not be written, and the game's files could not be put back.",
+    })
+  })
+
+  it.skipIf(process.getuid?.() === 0)(
+    'refuses a file it cannot read before writing it, so it is never removed',
+    async () => {
+      const root = tempRepo({ 'a.txt': 'old', blocked: 'a file, not a folder' })
+      chmodSync(join(root, 'a.txt'), 0o200)
+      try {
+        expect(
+          await writeTogether(root, [
+            ['a.txt', 'new'],
+            ['blocked/c.txt', 'new'],
+          ]),
+        ).toEqual({ ok: false, message: 'a.txt could not be written.' })
+      } finally {
+        chmodSync(join(root, 'a.txt'), 0o644)
+      }
+      expect(readFileSync(join(root, 'a.txt'), 'utf8')).toBe('old')
+    },
+  )
 })

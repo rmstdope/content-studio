@@ -9,7 +9,7 @@ import {
 } from '../core/images'
 import { ImageManifestSchema } from '../core/imageTakes'
 import type { Problem, Project } from '../core/project'
-import { readResource, WriteRefused, writeAtomic, writeFailure } from './files'
+import { readResource, WriteRefused, writeAtomic, writeFailure, writeOrRefuse } from './files'
 import { readImages } from './imageLists'
 import { patchesInGame, setAsideOn, type ManifestPatch } from './imagePatchGame'
 import { choices, sorted } from './musicClips'
@@ -113,7 +113,9 @@ async function withPatches<E extends Record<string, unknown>>(
     ...((entry.patches ?? {}) as Record<string, ManifestPatch>),
   }
   for (const id of await setAsideOn({ root, row }, row.chosenTake)) delete patches[id]
-  Object.assign(patches, await patchesInGame({ root, clips, row }, row.chosenTake))
+  const inGame = await patchesInGame({ root, clips, row }, row.chosenTake)
+  for (const [path, png] of inGame.pictures) await writeOrRefuse(root, path, png)
+  Object.assign(patches, inGame.entries)
   const { patches: _old, ...others } = entry
   return (Object.keys(patches).length ? { ...others, patches } : others) as E
 }

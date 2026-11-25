@@ -559,6 +559,12 @@ describe('using a fine-tune', () => {
         chmodSync(folder, 0o755)
       }
       expect(files.map((f) => (existsSync(join(root, f)) ? read(f) : null))).toEqual(was)
+      // The take it added is dropped and the fine-tune stays, so pressing again is the retry.
+      const takesBoard = JSON.parse(read('content-studio/cache/images/inn.json'))
+      expect(takesBoard.takes.map((t: { n: number }) => t.n)).toEqual([3])
+      expect(JSON.parse(read(`${FOLDER}/board.json`)).tunes.map((t: { n: number }) => t.n)).toEqual(
+        [1],
+      )
     },
   )
 
