@@ -46,7 +46,7 @@ import {
 } from '../core/images'
 import { resolveInRoot } from '../core/paths'
 import { IMAGES_LOCK_FILE, type Problem } from '../core/project'
-import { readResource, refusalAnswer, WriteRefused, writeOrRefuse } from './files'
+import { readResource, refusalAnswer, WriteRefused, writeOrRefuse, writeTogether } from './files'
 import { freeGpu, gpuQueue } from './gpu'
 import { IMAGE_BOARD_DIR, IMAGE_TAKES_DIR, readImages, readStyleLook } from './imageLists'
 import { adoptImageAreas } from './imageEdits'
@@ -402,13 +402,14 @@ export function createImageTakes({
       // The patches the game gets are those chosen on the take the game shows: choosing another
       // take takes the others out of the list in this same save (their pictures stay in the folder).
       const take = (next ?? lock[id])?.take
-      const patches: Record<string, ManifestPatch> =
+      const inGame =
         take === undefined
-          ? {}
+          ? { entries: {}, pictures: [] }
           : await patchesInGame(
               { root: found.root, clips: found.config.clips, row: found.row },
               take,
             )
+      const patches: Record<string, ManifestPatch> = inGame.entries
       // A patch the game stopped asking for stays in the list, as the image's own entry would.
       const declared = new Set(found.row.patches.map((patch) => patch.id))
       for (const [patch, listedPatch] of Object.entries(
@@ -437,21 +438,20 @@ export function createImageTakes({
         ),
         zoomForGame(row.zoom),
       )
+      // The patches' pictures are written again even when the entry stays (a look change).
+      const writes: [string, string | Uint8Array][] = [...inGame.pictures]
       if (!next && JSON.stringify(manifest[id]) === JSON.stringify(listed)) {
-        return { ok: true as const }
+        return writeTogether(found.root, writes)
       }
       manifest[id] = listed
-      if (next && png) {
-        lock[id] = next
-        await writeOrRefuse(found.root, join(found.config.clips, file), png)
+      const chosen = next && png ? { next, png } : null
+      if (chosen) writes.push([join(found.config.clips, file), chosen.png])
+      writes.push([found.config.manifest, `${JSON.stringify(sorted(manifest), null, 2)}\n`])
+      if (chosen) {
+        lock[id] = chosen.next
+        writes.push([IMAGES_LOCK_FILE, formatImageLock(lock)])
       }
-      await writeOrRefuse(
-        found.root,
-        found.config.manifest,
-        `${JSON.stringify(sorted(manifest), null, 2)}\n`,
-      )
-      if (next && png) await writeOrRefuse(found.root, IMAGES_LOCK_FILE, formatImageLock(lock))
-      return { ok: true as const }
+      return writeTogether(found.root, writes)
     })
   }
 

@@ -15,6 +15,7 @@ import { WriteRefused } from './files'
 import { setImageAreaBox, setImageWords } from './imageEdits'
 import { readImages } from './imageLists'
 import { createImageTakes } from './imageTakes'
+import { patchFolder, patchGameOf } from './imagePatchGame'
 import type { EditModelId, ImageModelId } from '../core/imageModels'
 import { ImageToolError, type ImageGenerator, type ImageReady, type ImageRequest } from './images'
 import { createImageHealth } from './imageHealth'
@@ -792,6 +793,65 @@ describe('choosing', () => {
         chmodSync(folder, 0o755)
       }
       expect(read(LOCK)).toBe(accepted)
+    },
+  )
+
+  it.skipIf(process.getuid?.() === 0)(
+    'refuses a choice with the lock file named when it cannot be written, the picture, manifest and lock as they were',
+    async () => {
+      const { takes, file, root, read } = await made()
+      await takes.choose(file, 'inn', 1)
+      const was = ['web/images/inn.png', 'web/images/manifest.json', LOCK].map(read)
+      const folder = join(root, 'content-studio/images')
+      chmodSync(folder, 0o555)
+      try {
+        expect(await takes.choose(file, 'inn', 2)).toEqual({
+          ok: false,
+          message: `${LOCK} could not be written.`,
+        })
+      } finally {
+        chmodSync(folder, 0o755)
+      }
+      expect(['web/images/inn.png', 'web/images/manifest.json', LOCK].map(read)).toEqual(was)
+    },
+  )
+
+  it.skipIf(process.getuid?.() === 0)(
+    'refuses a choice whose lock cannot be written without leaving the new take’s patch in the game',
+    async () => {
+      const door = { id: 'door', title: 'The door', text: 'the door is gone' }
+      const s = setup(undefined, {
+        'tts/act1/images.json': [{ ...inn, patches: [door] }],
+        [`${patchFolder('inn', 'door')}/board.json`]: {
+          next: 2,
+          takes: [
+            {
+              n: 1,
+              base: 2,
+              seed: 1,
+              words: 'old',
+              area: { x: 0, y: 0, width: 8, height: 8 },
+              seen: true,
+            },
+          ],
+          chosen: { '2': 1 },
+          inGame: { '2': 1 },
+        },
+      })
+      writeFileSync(join(s.root, patchGameOf('inn', 'door', 1)), fakePng(320, 200, 7))
+      await s.takes.make(s.file, 'inn', { count: 2 })
+      await s.settled('inn')
+      await s.takes.choose(s.file, 'inn', 1)
+      const folder = join(s.root, 'content-studio/images')
+      chmodSync(folder, 0o555)
+      try {
+        expect(await s.takes.choose(s.file, 'inn', 2)).toMatchObject({ ok: false })
+      } finally {
+        chmodSync(folder, 0o755)
+      }
+      expect(existsSync(join(s.root, 'web/images/inn.door.png'))).toBe(false)
+      expect(await s.takes.choose(s.file, 'inn', 2)).toEqual({ ok: true })
+      expect(existsSync(join(s.root, 'web/images/inn.door.png'))).toBe(true)
     },
   )
 
