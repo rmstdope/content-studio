@@ -1172,6 +1172,43 @@ describe('accepting what changed since an image’s take was chosen', () => {
     expect(calls).toContain('POST /api/images/inn/accept')
   })
 
+  for (const [what, status, body, line] of [
+    ['refused', 409, { ok: false, message: 'lock.json could not be written.' }, 'lock.json'],
+    ['failed', 500, {}, 'accepting the change answered 500'],
+  ] as const) {
+    it(`drops the red line of a ${what} Accept once the notice has been answered (as-kqr7)`, async () => {
+      globalThis.fetch = (async () => Response.json(body, { status })) as unknown as typeof fetch
+      const behind = summary({ chosen: { inn: { ...made(), words: 'an old inn' } } })
+      const upToDate = summary({ chosen: { inn: made() } })
+      const client = new QueryClient({
+        defaultOptions: { queries: { retry: false, enabled: false } },
+      })
+      const page = document.createElement('div')
+      document.body.append(page)
+      const root = createRoot(page)
+      cleanups.push(() => act(() => root.unmount()))
+      const show = (shown: ProjectSummary) =>
+        act(() =>
+          root.render(
+            createElement(
+              QueryClientProvider,
+              { client },
+              createElement(ImagesView, { summary: shown, route }),
+            ),
+          ),
+        )
+      show(behind)
+      await act(async () => button(page, 'Accept').click())
+      await act(async () => await new Promise((r) => setTimeout(r, 5)))
+      expect(text(page.querySelector('.notice-warn .adopt-error'))).toContain(line)
+      show(upToDate)
+      expect(button(page, 'Accept')).toBeUndefined()
+      show(behind)
+      expect(button(page, 'Accept')).toBeDefined()
+      expect(text(page.querySelector('.notice-warn .adopt-error'))).toBeUndefined()
+    })
+  }
+
   it('offers no Accept when the size changed, and says it needs a new take', () => {
     const page = render(route, summary({ chosen: { inn: { ...made(), width: 16 } } }))
     const notice = page.querySelector('.notice-warn')!
