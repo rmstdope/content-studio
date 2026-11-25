@@ -46,7 +46,7 @@ import {
 } from '../core/images'
 import { resolveInRoot } from '../core/paths'
 import { IMAGES_LOCK_FILE, type Problem } from '../core/project'
-import { readResource, refusalAnswer, WriteRefused, writeOrRefuse } from './files'
+import { readResource, refusalAnswer, refusalSentence, WriteRefused, writeOrRefuse } from './files'
 import { freeGpu, gpuQueue } from './gpu'
 import { IMAGE_BOARD_DIR, IMAGE_TAKES_DIR, readImages, readStyleLook } from './imageLists'
 import { adoptImageAreas } from './imageEdits'
@@ -441,18 +441,49 @@ export function createImageTakes({
         return { ok: true as const }
       }
       manifest[id] = listed
-      if (next && png) {
-        lock[id] = next
-        await writeOrRefuse(found.root, join(found.config.clips, file), png)
-      }
-      await writeOrRefuse(
-        found.root,
-        found.config.manifest,
-        `${JSON.stringify(sorted(manifest), null, 2)}\n`,
-      )
-      if (next && png) await writeOrRefuse(found.root, IMAGES_LOCK_FILE, formatImageLock(lock))
-      return { ok: true as const }
+      if (next) lock[id] = next
+      const writes: [string, string | Uint8Array][] = [
+        ...(next && png ? [[join(found.config.clips, file), png] as [string, Uint8Array]] : []),
+        [found.config.manifest, `${JSON.stringify(sorted(manifest), null, 2)}\n`],
+        ...(next && png ? [[IMAGES_LOCK_FILE, formatImageLock(lock)] as [string, string]] : []),
+      ]
+      return writeTogether(found.root, writes)
     })
+  }
+
+  /**
+   * Writes the files in order, the picture going into the game only together with the manifest and
+   * the lock: when one is refused, those already written are put back as they were (or removed,
+   * when they were not there), and the refusal names the file.
+   */
+  async function writeTogether(
+    root: string,
+    writes: [string, string | Uint8Array][],
+  ): Promise<{ ok: true } | { ok: false; message: string }> {
+    const putBack: (() => Promise<unknown>)[] = []
+    try {
+      for (const [path, text] of writes) {
+        const was = await Bun.file(resolveInRoot(root, path))
+          .bytes()
+          .catch(() => null)
+        await writeOrRefuse(root, path, text)
+        putBack.push(() =>
+          was ? writeOrRefuse(root, path, was) : rm(resolveInRoot(root, path), { force: true }),
+        )
+      }
+    } catch (error) {
+      const sentence = refusalSentence(error)
+      if (sentence === null) throw error
+      console.error("changing the game's picture failed", error)
+      try {
+        for (const step of putBack.reverse()) await step()
+      } catch (stuck) {
+        console.error("putting the game's files back failed", stuck)
+        return { ok: false, message: `${sentence}, and the game's files could not be put back.` }
+      }
+      return { ok: false, message: `${sentence}.` }
+    }
+    return { ok: true }
   }
 
   /**

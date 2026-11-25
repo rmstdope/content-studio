@@ -795,6 +795,26 @@ describe('choosing', () => {
     },
   )
 
+  it.skipIf(process.getuid?.() === 0)(
+    'refuses a choice with the lock file named when it cannot be written, the picture, manifest and lock as they were',
+    async () => {
+      const { takes, file, root, read } = await made()
+      await takes.choose(file, 'inn', 1)
+      const was = ['web/images/inn.png', 'web/images/manifest.json', LOCK].map(read)
+      const folder = join(root, 'content-studio/images')
+      chmodSync(folder, 0o555)
+      try {
+        expect(await takes.choose(file, 'inn', 2)).toEqual({
+          ok: false,
+          message: `${LOCK} could not be written.`,
+        })
+      } finally {
+        chmodSync(folder, 0o755)
+      }
+      expect(['web/images/inn.png', 'web/images/manifest.json', LOCK].map(read)).toEqual(was)
+    },
+  )
+
   it('writes nothing while the lock cannot be read', async () => {
     const { takes, file, root, read } = await made()
     await takes.choose(file, 'inn', 1)

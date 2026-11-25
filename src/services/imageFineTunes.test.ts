@@ -540,6 +540,28 @@ describe('using a fine-tune', () => {
     })
   })
 
+  it.skipIf(process.getuid?.() === 0)(
+    'refuses a fine-tune whose lock cannot be written, naming it, the game and the lock as they were',
+    async () => {
+      const { file, root, settled, read, tunes } = setup()
+      await tunes.make(file, 'inn', { count: 1, words: 'Add a cat', area: null })
+      await settled()
+      const files = ['web/images/inn.png', MANIFEST, LOCK]
+      const was = files.map((f) => (existsSync(join(root, f)) ? read(f) : null))
+      const folder = join(root, 'content-studio/images')
+      chmodSync(folder, 0o555)
+      try {
+        expect(await tunes.use(file, 'inn', 1)).toEqual({
+          ok: false,
+          message: `${LOCK} could not be written.`,
+        })
+      } finally {
+        chmodSync(folder, 0o755)
+      }
+      expect(files.map((f) => (existsSync(join(root, f)) ? read(f) : null))).toEqual(was)
+    },
+  )
+
   it('keeps the take in the game and says why when counting it as up to date fails', async () => {
     const { file, settled, read, deps, takes, tunes } = setup()
     await tunes.make(file, 'inn', { count: 1, words: 'Add a cat', area: null })

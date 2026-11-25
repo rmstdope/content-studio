@@ -1656,7 +1656,11 @@ manifest and the lock readable, or nothing is changed) writes the take's game's 
 the look first if its look is old) to `<clips>/<id>.png`, the manifest entry `{ file, width, height }`
 (the listed size) and last the lock entry
 `{ model, seed, take, inputs: { text, width, height, style, look }, at }`, keyed by image id, one
-per line in id order (`formatImageLock`). **Accept**, in the out-of-date notice on an image's page when
+per line in id order (`formatImageLock`). A write that is refused (a read-only folder, a full disk) puts
+back the picture and the manifest already written, or removes them when they were not there, so the
+picture goes into the game only together with its lock, and the refusal names the file
+("content-studio/images/lock.json could not be written."; "…, and the game's files could not be put
+back." if even that fails; as-mirh); a fine-tune's Choose then drops the take it added. **Accept**, in the out-of-date notice on an image's page when
 what changed is its words, style or act style (`POST /api/images/:id/accept`, in the image's board
 turn and the project's choice turn), writes the image's words and style now into the lock's
 entry, so the chosen picture counts as made from them and the image is up to date with the same
