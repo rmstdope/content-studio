@@ -822,8 +822,7 @@ export function createImageTakes({
           height: take.height,
           // A copy was made by no model of this image's: no model name.
           model: take.copiedFrom ? null : imageByMflux(take.model),
-          // A copy was not made from this image's words, so it never goes out of date.
-          earlier: !take.copiedFrom && takeIsEarlier(take.madeFrom, found.row.words),
+          earlier: takeIsEarlier(take, lock?.[id], found.row.words),
           chosen: chosen === take.n,
           isNew: !take.seen,
           look: bringing.has(`${found.key}\0${take.n}`)

@@ -1680,7 +1680,10 @@ take builds the entry from `countedFrom(take)`, its own madeFrom with `accepted`
 changed since the accept, and a changed size, are all it is out of date for. The board is written before the game: when an accept cannot be saved on it, the choose or Un-choose is refused (409, naming the board) with nothing changed; a board that cannot be read does not stop Un-choose. The memory
 is local like the takes, and goes with a dropped take. An agent's `POST …/choose` answers
 `{ ok: true, behind }`, the reasons the take in the game is out of date for now (left out if the
-image cannot be read again). **Un-choose**
+image cannot be read again). A take's "earlier words" label follows the accept (as-nodk,
+`takeIsEarlier`): it shows only when the take was made from other words than the image has now and
+is not counted from them, by the lock's entry while it is in the game (so Undo accept brings it
+back) or by the board's `accepted` once it has left. **Un-choose**
 (asked first in the page) removes the manifest entry,
 then the picture, then the lock entry, so a failure can be pressed again; the take stays on the board.
 **Drop** removes a take that is not chosen, with no question, and refuses while the lock cannot be

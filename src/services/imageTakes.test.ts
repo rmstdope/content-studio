@@ -1718,6 +1718,34 @@ describe('going back to an accepted take', () => {
     return s
   }
 
+  it('is not marked earlier words once accepted, in the game or after it left, until undone', async () => {
+    const { takes, file } = await acceptedOne()
+    const earlier = async () => {
+      const view = await takes.view(file, 'inn')
+      if (!view || !('takes' in view)) throw new Error('no view')
+      return view.takes.map((t) => [t.n, t.earlier])
+    }
+    expect(await earlier()).toEqual([
+      [1, false],
+      [2, true],
+    ])
+    await takes.choose(file, 'inn', 2)
+    expect(await earlier()).toEqual([
+      [1, false],
+      [2, true],
+    ])
+    await takes.choose(file, 'inn', 1)
+    expect(await earlier()).toEqual([
+      [1, false],
+      [2, true],
+    ])
+    expect(await takes.unaccept(file, 'inn')).toEqual({ ok: true })
+    expect(await earlier()).toEqual([
+      [1, true],
+      [2, true],
+    ])
+  })
+
   it('is up to date again after a fine-tune of it was chosen in between', async () => {
     const { takes, file, row } = await acceptedOne()
     const tuned = await takes.addTake(file, 'inn', { ...made, from: 1 })

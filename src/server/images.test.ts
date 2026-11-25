@@ -555,6 +555,17 @@ describe('the image takes routes', () => {
     expect(await choose(second)).toEqual({ ok: true, behind: ['the words'] })
     expect(await choose(first)).toEqual({ ok: true, behind: [] })
   })
+
+  it('does not call a take earlier words once it is accepted for them', async () => {
+    await send('POST', '/api/images/inn/takes', { count: 1 })
+    const n = (await settled()).takes.at(-1).n
+    await send('POST', '/api/images/inn/choose', { n })
+    await send('PATCH', '/api/images/inn', { words: 'a red inn' })
+    const taken = async () => (await settled()).takes.find((t: { n: number }) => t.n === n).earlier
+    expect(await taken()).toBe(true)
+    expect((await send('POST', '/api/images/inn/accept')).status).toBe(200)
+    expect(await taken()).toBe(false)
+  })
 })
 
 describe('the image fine-tune routes', () => {
