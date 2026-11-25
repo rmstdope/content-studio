@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { MadeFrom } from './images'
+import { outOfDateReasons, type ChosenEntry, type MadeFrom } from './images'
 import { IMAGE_MODEL_IDS, MAX_IMAGE_SIDE, type ImageModelId } from './imageModels'
 
 /** The longer side of a take as the model makes it, in pixels. */
@@ -37,6 +37,11 @@ export const BoardTakeSchema = z.object({
     width: z.number(),
     height: z.number(),
   }),
+  /**
+   * The words and style the take was accepted for, kept when the lock's entry for it was last
+   * replaced or removed (`keepAccept`); they come back with it.
+   */
+  accepted: z.object({ words: z.string(), style: z.string() }).optional(),
   /** What the game's version was brought to (`lookKey`); absent until it is. */
   look: z.string().optional(),
   /** It has been shown on the right once; a take that has not shows "new". */
@@ -61,6 +66,33 @@ export const ImageBoardSchema = z.object({
 export type ImageBoardTake = z.infer<typeof BoardTakeSchema>
 /** An image's board. */
 export type ImageBoard = z.infer<typeof ImageBoardSchema>
+
+/** What a take counts as made from: its own, with the words and style accepted for it. */
+export function countedFrom(take: ImageBoardTake): MadeFrom {
+  return { ...take.madeFrom, ...take.accepted }
+}
+
+/**
+ * Keeps on the take the lock's chosen entry names the words and style the entry counts it as made
+ * from, where they differ from the take's own, so an accept stays with its take; an entry back at
+ * the take's own forgets them. Called before the entry is replaced or removed. Nothing is kept for
+ * a copy, or for an entry that is not of that take. Answers whether the board changed.
+ */
+export function keepAccept(board: ImageBoard, chosen: ChosenEntry | undefined): boolean {
+  const take = board.takes.find((t) => t.n === chosen?.take)
+  if (!chosen || !take || take.copiedFrom) return false
+  const own = take.madeFrom
+  if (chosen.seed !== undefined && chosen.seed !== take.seed) return false
+  if (chosen.model !== undefined && chosen.model !== take.model) return false
+  if (chosen.width !== own.width || chosen.height !== own.height) return false
+  const next = outOfDateReasons(chosen, own).length
+    ? { words: chosen.words, style: chosen.style }
+    : undefined
+  if (next?.words === take.accepted?.words && next?.style === take.accepted?.style) return false
+  take.accepted = next
+  if (!next) delete take.accepted
+  return true
+}
 
 /** Whether a take was made from other words than the image has now. */
 export function takeIsEarlier(made: MadeFrom, wordsNow: string): boolean {

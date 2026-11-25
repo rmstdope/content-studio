@@ -335,7 +335,11 @@ export function imagesRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = ChooseImageTakeBody.safeParse(await request.json().catch(() => null))
         if (!body.success) return Response.json({ error: 'expected { n }' }, { status: 400 })
-        return imageAnswer(await imageTakes.choose(projectFile, request.params.id, body.data.n))
+        const { id } = request.params
+        const result = await imageTakes.choose(projectFile, id, body.data.n)
+        if (!result?.ok) return imageAnswer(result)
+        // For an agent: what the take in the game is behind by, after any accept that came with it.
+        return Response.json({ ...result, behind: await imageTakes.behind(projectFile, id) })
       }),
     },
     '/api/images/:id/unaccept': {

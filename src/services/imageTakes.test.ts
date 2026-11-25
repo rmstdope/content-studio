@@ -1697,6 +1697,141 @@ describe('adding a fine-tuned take', () => {
   })
 })
 
+describe('going back to an accepted take', () => {
+  const BOARD = 'content-studio/cache/images/inn.json'
+  const oil = { look: 'oil paint', keepOut: 'text', palette: ['#000000'], parts: {} }
+  const made = {
+    png: fakePng(1024, 640, 9),
+    model: 'black-forest-labs/FLUX.2-klein-4B',
+    seed: 9,
+    words: 'Add a cat',
+  }
+
+  /** Two takes of Inn, Take 1 in the game and accepted for new words. */
+  async function acceptedOne() {
+    const s = setup()
+    await s.takes.make(s.file, 'inn', { count: 2 })
+    await s.settled('inn')
+    await s.takes.choose(s.file, 'inn', 1)
+    await setImageWords(s.file, 'inn', 'a high inn')
+    expect(await s.takes.accept(s.file, 'inn')).toEqual({ ok: true })
+    return s
+  }
+
+  it('is up to date again after a fine-tune of it was chosen in between', async () => {
+    const { takes, file, row } = await acceptedOne()
+    const tuned = await takes.addTake(file, 'inn', { ...made, from: 1 })
+    expect(tuned).toEqual({ ok: true, n: 3 })
+    await takes.choose(file, 'inn', 3)
+    expect(await takes.choose(file, 'inn', 1)).toEqual({ ok: true })
+    expect((await row()).reasons).toEqual([])
+    expect((await row()).status).toBe('chosen')
+  })
+
+  it('names only what changed since the accept, which Accept can count again', async () => {
+    const { takes, file, root, row } = await acceptedOne()
+    await takes.choose(file, 'inn', 2)
+    writeStyle(root, oil)
+    await takes.choose(file, 'inn', 1)
+    expect((await row()).reasons).toEqual(['the style'])
+    expect(await takes.accept(file, 'inn')).toEqual({ ok: true })
+    await takes.choose(file, 'inn', 2)
+    await takes.choose(file, 'inn', 1)
+    expect((await row()).reasons).toEqual([])
+  })
+
+  it('shows a size changed since the accept as the only reason, with nothing to accept', async () => {
+    const { takes, file, root, row } = await acceptedOne()
+    await takes.choose(file, 'inn', 2)
+    writeFileSync(
+      join(root, 'tts/act1/images.json'),
+      JSON.stringify([
+        { ...inn, text: 'a high inn', width: 160 },
+        { ...inn, id: 'hall', title: 'Hall' },
+      ]),
+    )
+    await takes.choose(file, 'inn', 1)
+    expect((await row()).reasons).toEqual(['the size'])
+    expect(await takes.accept(file, 'inn')).toMatchObject({ ok: false })
+  })
+
+  it('leaves a take never accepted out of date for everything', async () => {
+    const { takes, file, root, row } = await acceptedOne()
+    writeStyle(root, oil)
+    await takes.choose(file, 'inn', 2)
+    expect((await row()).reasons).toEqual(['the words', 'the style'])
+  })
+
+  it('does not remember an accept that was taken back', async () => {
+    const { takes, file, read, row } = await acceptedOne()
+    await takes.choose(file, 'inn', 2)
+    await takes.choose(file, 'inn', 1)
+    expect(await takes.unaccept(file, 'inn')).toEqual({ ok: true })
+    await takes.choose(file, 'inn', 2)
+    await takes.choose(file, 'inn', 1)
+    expect((await row()).reasons).toEqual(['the words'])
+    expect(JSON.parse(read(BOARD)).takes[0].accepted).toBeUndefined()
+  })
+
+  it('still has it after a restart of the studio', async () => {
+    const { takes, file, row } = await acceptedOne()
+    await takes.choose(file, 'inn', 2)
+    const restarted = createImageTakes({
+      generator: fakeGenerator().generator,
+      queue: createSerial(),
+      free: () => {},
+    })
+    await restarted.choose(file, 'inn', 1)
+    expect((await row()).reasons).toEqual([])
+  })
+
+  it('keeps it when the take in the game is chosen again for a new look', async () => {
+    const { takes, file, root, row } = await acceptedOne()
+    writeStyle(root, { ...STYLE, palette: ['#ffffff'] })
+    expect(await takes.choose(file, 'inn', 1)).toEqual({ ok: true })
+    expect((await row()).reasons).toEqual([])
+  })
+
+  it('keeps it through Un-choose', async () => {
+    const { takes, file, row } = await acceptedOne()
+    expect(await takes.unchoose(file, 'inn')).toEqual({ ok: true })
+    await takes.choose(file, 'inn', 1)
+    expect((await row()).reasons).toEqual([])
+  })
+
+  it('un-chooses though the board cannot be read', async () => {
+    const { takes, file, root, read } = await acceptedOne()
+    writeFileSync(join(root, BOARD), '{ broken')
+    expect(await takes.unchoose(file, 'inn')).toEqual({ ok: true })
+    expect(JSON.parse(read(LOCK))).toEqual({})
+  })
+
+  it('makes a fine-tune finishing after it left the game from what was accepted', async () => {
+    const { takes, file, row } = await acceptedOne()
+    await takes.choose(file, 'inn', 2)
+    expect(await takes.addTake(file, 'inn', { ...made, from: 1 })).toEqual({ ok: true, n: 3 })
+    await takes.choose(file, 'inn', 3)
+    expect((await row()).reasons).toEqual([])
+  })
+
+  it.skipIf(process.getuid?.() === 0)(
+    'refuses to choose another when the accept cannot be saved, the game as it was',
+    async () => {
+      const { takes, file, root, read } = await acceptedOne()
+      const lock = read(LOCK)
+      const folder = join(root, 'content-studio/cache/images')
+      chmodSync(folder, 0o555)
+      try {
+        const error = await takes.choose(file, 'inn', 2).catch((e: unknown) => e)
+        expect(error).toBeInstanceOf(WriteRefused)
+      } finally {
+        chmodSync(folder, 0o755)
+      }
+      expect(read(LOCK)).toBe(lock)
+    },
+  )
+})
+
 describe('copying another image', () => {
   /** A project where Hall has a chosen take, ready to be copied into Inn. */
   async function withHallChosen() {
