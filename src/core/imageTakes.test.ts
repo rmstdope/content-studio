@@ -3,6 +3,8 @@ import { checkImageRequest } from './imageModels'
 import {
   ImageBoardSchema,
   MakeImageTakesBody,
+  countedFrom,
+  keepAccept,
   rightAfterDrop,
   stepRight,
   takeIsEarlier,
@@ -116,5 +118,62 @@ describe('asking for takes', () => {
     for (const count of [0, 11, 2.5]) {
       expect(MakeImageTakesBody.safeParse({ count }).success).toBe(false)
     }
+  })
+})
+
+describe('an accept kept on its take', () => {
+  const style = (look: string) => JSON.stringify([look, 'text', null])
+  const madeFrom = { words: 'a low inn', style: style('pixel art'), width: 320, height: 200 }
+  const board = (take: object = {}) =>
+    ImageBoardSchema.parse({
+      next: 2,
+      takes: [{ n: 1, seed: 7, model: 'm', width: 1024, height: 640, madeFrom, ...take }],
+    })
+  const entry = { ...madeFrom, take: 1, seed: 7, model: 'm' }
+  const accepted = { words: 'a high inn', style: style('oil paint') }
+
+  it('remembers the words and style the game counts the take as made from, and counts it from them', () => {
+    const it = board()
+    expect(keepAccept(it, { ...entry, ...accepted })).toBe(true)
+    expect(it.takes[0]!.accepted).toEqual(accepted)
+    expect(countedFrom(it.takes[0]!)).toEqual({ ...madeFrom, ...accepted })
+    expect(ImageBoardSchema.parse(it).takes[0]!.accepted).toEqual(accepted)
+    expect(keepAccept(it, { ...entry, ...accepted })).toBe(false)
+  })
+
+  it('forgets it when the game counts the take from its own again', () => {
+    const it = board({ accepted })
+    expect(keepAccept(it, entry)).toBe(true)
+    expect(it.takes[0]!.accepted).toBeUndefined()
+    expect(countedFrom(it.takes[0]!)).toEqual(madeFrom)
+    expect(keepAccept(it, entry)).toBe(false)
+  })
+
+  it('takes a style key written with its palette as the same style', () => {
+    const old = JSON.stringify(['pixel art', 'text', ['#000000'], null])
+    const it = board({ madeFrom: { ...madeFrom, style: old } })
+    expect(keepAccept(it, entry)).toBe(false)
+  })
+
+  it('leaves the board alone for no entry, or one that is not of that take', () => {
+    for (const other of [
+      undefined,
+      { ...entry, ...accepted, take: 2 },
+      { ...entry, ...accepted, take: undefined },
+      { ...entry, ...accepted, seed: 8 },
+      { ...entry, ...accepted, model: 'n' },
+      { ...entry, ...accepted, width: 160 },
+      { ...entry, ...accepted, height: 100 },
+    ]) {
+      const it = board()
+      expect(keepAccept(it, other)).toBe(false)
+      expect(it.takes[0]!.accepted).toBeUndefined()
+    }
+  })
+
+  it('keeps nothing for a copy, which was made from no words of this image’s', () => {
+    const it = board({ copiedFrom: { image: 'hall', title: 'Hall', take: 1 } })
+    expect(keepAccept(it, { ...entry, ...accepted })).toBe(false)
+    expect(it.takes[0]!.accepted).toBeUndefined()
   })
 })

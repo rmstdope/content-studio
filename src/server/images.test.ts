@@ -438,6 +438,7 @@ describe('the image takes routes', () => {
     expect((await fetch(new URL('/api/images/inn/current', studio.url))).status).toBe(404)
     expect(await (await send('POST', '/api/images/inn/choose', { n: 2 })).json()).toEqual({
       ok: true,
+      behind: [],
     })
     expect((await fetch(new URL('/api/images/inn/current', studio.url))).status).toBe(200)
     expect(existsSync(join(root, 'web/images/inn.png'))).toBe(true)
@@ -542,6 +543,17 @@ describe('the image takes routes', () => {
     expect((await send('POST', '/api/images/inn/choose', { n: 'x' })).status).toBe(400)
     expect((await send('POST', '/api/images/ghost/takes', { count: 1 })).status).toBe(404)
     expect((await fetch(new URL('/api/images/ghost/takes', studio.url))).status).toBe(404)
+  })
+
+  it('answers a choose with what the take is behind by since it was accepted', async () => {
+    await send('POST', '/api/images/inn/takes', { count: 2 })
+    const [first, second] = (await settled()).takes.slice(-2).map((t: { n: number }) => t.n)
+    const choose = async (n: number) => (await send('POST', '/api/images/inn/choose', { n })).json()
+    await choose(first)
+    await send('PATCH', '/api/images/inn', { words: 'a high inn' })
+    expect((await send('POST', '/api/images/inn/accept')).status).toBe(200)
+    expect(await choose(second)).toEqual({ ok: true, behind: ['the words'] })
+    expect(await choose(first)).toEqual({ ok: true, behind: [] })
   })
 })
 

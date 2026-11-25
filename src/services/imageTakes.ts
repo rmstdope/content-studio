@@ -16,6 +16,8 @@ import { bringToLook, isCropped } from '../core/imagePixels'
 import {
   ImageBoardSchema,
   ImageManifestSchema,
+  countedFrom,
+  keepAccept,
   takeIsEarlier,
   takeSize,
   type ImageBoard,
@@ -42,6 +44,7 @@ import {
   outOfDateReasons,
   type ChosenEntry,
   type ImageLock,
+  type ImageReason,
   type ImageRow,
 } from '../core/images'
 import { resolveInRoot } from '../core/paths'
@@ -154,6 +157,8 @@ export interface ImageTakes {
    * again, so the image is out of date as it was. Refused when it already is.
    */
   unaccept(projectFile: string, id: string): Promise<ImageTakesAnswer>
+  /** What the image is out of date for now (empty when nothing is); null when it cannot be read. */
+  behind(projectFile: string, id: string): Promise<ImageReason[] | null>
   /** Takes a take off the board and deletes its picture; the chosen take stays. */
   drop(projectFile: string, id: string, n: number): Promise<ImageTakesAnswer>
   /** Brings every image and take with an old look to the game's look now, from the model's stored pictures. */
@@ -344,6 +349,23 @@ export function createImageTakes({
     read: () => readBoard(found),
     write: (text) => writeOrRefuse(found.root, found.board, text),
   })
+
+  /**
+   * Keeps what the lock's entry counts its take as made from on that take, before the entry is
+   * replaced or removed, so an accept comes back with its take. The refusal when the board cannot
+   * be written, so the entry stays; null when there is nothing in the way.
+   */
+  async function saveAccept(
+    found: Found,
+    board: ImageBoard,
+    chosen: ChosenEntry | undefined,
+  ): Promise<{ ok: false; message: string } | null> {
+    if (!keepAccept(board, chosen)) return null
+    return writeOrRefuse(found.root, found.board, `${JSON.stringify(board, null, 2)}\n`).then(
+      () => null,
+      refusalAnswer('keeping the accept on its take failed', (sentence) => `${sentence}.`),
+    )
+  }
 
   function changeBoard<T>(
     found: Found,
@@ -935,9 +957,11 @@ export function createImageTakes({
       return changeBoard(found, async (board) => {
         const n = board.next
         const size = pngSize(made.png.subarray(0, 33))
-        const source = board.takes.find((t) => t.n === made.from)?.madeFrom ?? found.row.madeFrom
+        const from = board.takes.find((t) => t.n === made.from)
+        const source = from ? countedFrom(from) : found.row.madeFrom
         // The take in the game counts as made from the words and style the lock holds for it, which
-        // an accept may have moved on; read in the board's turn, which an accept also holds.
+        // an accept may have moved on (one no longer in the game keeps its own on the board); read in
+        // the board's turn, which an accept also holds.
         const chosen = made.from === null ? undefined : (await lockNow(found, []))?.[id]
         const accepted = chosen?.take === made.from ? chosen : undefined
         // The picture first: a take is on the board only once its file is there.
@@ -1043,12 +1067,14 @@ export function createImageTakes({
         // The boxes of no take yet belong to the take in the game, else to the one chosen now.
         const adopted = await adoptImageAreas(projectFile, id, found.row.chosenTake ?? n)
         if (adopted && !adopted.ok) return notAdopted(adopted)
+        const unsaved = await saveAccept(found, board, (await lockNow(found, []))?.[id])
+        if (unsaved) return unsaved
         const answer = await publish(found, png, (previous) =>
           previous?.take === n && previous.look === key
             ? null
             : {
                 // A copy was not made from this image's words: it is as current as the image now.
-                ...(take.copiedFrom ? found.row.madeFrom : take.madeFrom),
+                ...(take.copiedFrom ? found.row.madeFrom : countedFrom(take)),
                 take: take.n,
                 seed: take.seed,
                 model: take.model,
@@ -1099,6 +1125,11 @@ export function createImageTakes({
       )
     },
 
+    async behind(projectFile, id) {
+      const found = await resolve(projectFile, id)
+      return found && 'row' in found ? found.row.reasons : null
+    },
+
     async unaccept(projectFile, id) {
       const found = await resolve(projectFile, id)
       if (!found || !('row' in found)) return found
@@ -1144,6 +1175,10 @@ export function createImageTakes({
             if (!manifest) return { ok: false, message: 'The images manifest could not be read.' }
             if (!lock) return { ok: false, message: 'The images lock could not be read.' }
             if (!lock[id]) return { ok: false, message: 'No take is chosen for this image.' }
+            // As in choose. A board that cannot be read has no take to keep it on.
+            const board = await readBoard(found)
+            const unsaved = 'ok' in board ? null : await saveAccept(found, board, lock[id])
+            if (unsaved) return unsaved
             const had = id in manifest
             delete manifest[id]
             delete lock[id]
