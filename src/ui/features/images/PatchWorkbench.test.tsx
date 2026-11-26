@@ -16,6 +16,7 @@ const { WhyTip } = await import('../../components/WhyTip')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { GamePatchesPanel } = await import('./GamePatchesPanel')
+const { JobOpenProvider } = await import('./ImageJobTabs')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -94,6 +95,7 @@ async function render(
   current: () => ImagePatchesView,
   posted: { status: number; body: unknown } = { status: 200, body: { ok: true } },
   imageRow: Partial<ImageRow> = {},
+  tabOpen = true,
 ) {
   const sent: { method: string; path: string; body: unknown }[] = []
   globalThis.fetch = (async (path: string, init?: RequestInit) => {
@@ -112,9 +114,20 @@ async function render(
         QueryClientProvider,
         { client },
         createElement(WhyTip),
-        createElement(GamePatchesPanel, {
-          row: { id: 'inn', width: 1024, height: 576, areas: [], patches, ...imageRow } as ImageRow,
-        }),
+        createElement(
+          JobOpenProvider,
+          { value: tabOpen },
+          createElement(GamePatchesPanel, {
+            row: {
+              id: 'inn',
+              width: 1024,
+              height: 576,
+              areas: [],
+              patches,
+              ...imageRow,
+            } as ImageRow,
+          }),
+        ),
       ),
     )
   })
@@ -131,9 +144,13 @@ async function render(
           QueryClientProvider,
           { client },
           createElement(WhyTip),
-          createElement(GamePatchesPanel, {
-            row: { id: 'inn', width: 1024, height: 576, areas: [], patches, ...row } as ImageRow,
-          }),
+          createElement(
+            JobOpenProvider,
+            { value: tabOpen },
+            createElement(GamePatchesPanel, {
+              row: { id: 'inn', width: 1024, height: 576, areas: [], patches, ...row } as ImageRow,
+            }),
+          ),
         ),
       )
     })
@@ -1132,6 +1149,31 @@ describe('marking the whole picture on a patch (as-bt1m.2)', () => {
     expect(button(host, LINK)).toBeUndefined()
     expect(text(host)).toContain('Drag over the picture to mark what should change.')
     expect(await chord(document.body, 'a')).toBe(false)
+  })
+
+  it('moves focus off a link the key takes away', async () => {
+    const { host } = await render([patchRow('a')], none)
+    await open(host)
+    button(host, LINK)!.focus()
+    await chord(button(host, LINK)!, 'a')
+    expect(document.activeElement).toBe(button(host, 'Make 2 takes') ?? null)
+  })
+
+  it('leaves ⌘A alone while the tab is closed', async () => {
+    const { host } = await render([patchRow('a')], none, undefined, {}, false)
+    await open(host)
+    expect(await chord(document.body, 'a')).toBe(false)
+    expect(markStyle(host)).toBeNull()
+  })
+
+  it('forgets the mark with the page, as a dragged one', async () => {
+    const first = await render([patchRow('a')], none)
+    await open(first.host)
+    await act(async () => button(first.host, LINK)!.click())
+    cleanups.splice(0).forEach((c) => c())
+    const again = await render([patchRow('a')], none)
+    await open(again.host)
+    expect(markStyle(again.host)).toBeNull()
   })
 
   describe('on a tied patch', () => {

@@ -290,6 +290,19 @@ describe('making fine-tunes', () => {
     })
   })
 
+  it('gives no warning for a mark over the whole of a narrow picture (as-bt1m.2)', async () => {
+    const { root, file, tunes, settled } = setup()
+    writeFileSync(join(root, 'content-studio/cache/image-takes/inn/3.png'), fakePng(40, 256, 9))
+    expect(
+      await tunes.make(file, 'inn', {
+        count: 1,
+        words: 'Add a cat',
+        area: { x: 0, y: 0, width: 40, height: 256 },
+      }),
+    ).toEqual({ ok: true })
+    await settled()
+  })
+
   it('fine-tunes the game’s own image when no take is chosen, at the take size', async () => {
     const { file, tunes, requests, settled } = setup({ chosen: false })
     await tunes.make(file, 'inn', { count: 1, words: 'Add a cat', area: null })
