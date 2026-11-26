@@ -355,7 +355,7 @@ export function createImageFineTunes({
       queued.push(...reserved)
     }
     for (const entry of queued) void run(image, entry, source)
-    const small = 'count' in request ? smallMark(request.area) : null
+    const small = 'count' in request ? smallMark(request.area, source) : null
     return small ? { ok: true, warning: smallMarkText(small) } : { ok: true }
   }
 

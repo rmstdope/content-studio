@@ -509,7 +509,7 @@ export function createImagePatches({
     }
     // No await from here until every take is in line, so the takes of one press are made in number order.
     for (const entry of queued) void run(found, entry, around)
-    const small = 'count' in request ? smallMark(request.area) : null
+    const small = 'count' in request ? smallMark(request.area, picture) : null
     return small ? { ok: true, warning: smallMarkText(small) } : { ok: true }
   }
 

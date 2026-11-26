@@ -160,14 +160,43 @@ export function currentAct(images: ImagesSummary, route: ImagesRoute): string | 
   return images.acts[0]?.id ?? null
 }
 
-/** The line saying a patch's mark came from its named area. */
-export function markedFromAreaText(title: string): string {
-  return `Marked from the named area “${title}”, with a little room around it. Drag over the picture to change it.`
+/** The link that marks the whole picture, inside a sentence. */
+export const MARK_WHOLE_LINK = 'mark the whole picture'
+
+/** The same link standing alone. */
+export const MARK_WHOLE_ALONE = 'Mark the whole picture'
+
+/** The Fine-tune tab's line up to the link. */
+export const FINE_TUNE_MARK_LEAD = 'Drag on the picture to change only part of it, or '
+
+/** What follows it while there is no mark. */
+export const FINE_TUNE_NO_MARK = 'With no mark the whole picture is painted again.'
+
+/** The Fine-tune tab's line while the whole picture is marked. */
+export const FINE_TUNE_WHOLE = 'The whole picture is marked: only what changes is kept.'
+
+/** The line of a patch with no mark; with `link` it ends before the link. */
+export function patchMarkHint(link: boolean): string {
+  return `Drag over the picture to mark what should change${link ? ', or ' : '.'}`
 }
 
-/** The line saying a patch's named area has no place yet. */
-export function areaNoPlaceText(title: string): string {
-  return `“${title}” has no place yet. Mark it under Named areas and this patch starts there, or drag over the picture to mark this patch by hand.`
+/** The line of a patch of its own while the whole picture is marked. */
+export const PATCH_WHOLE = 'The whole picture is marked. Drag on it to mark only part.'
+
+/** The line of a tied patch while the whole picture is marked, before the way back to its area. */
+export const TIED_WHOLE = 'The whole picture is marked.'
+
+/** The line saying a patch's mark came from its named area; with `link` it ends before the link. */
+export function markedFromAreaText(title: string, link: boolean): string {
+  return `Marked from the named area “${title}”, with a little room around it. Drag over the picture to change it${link ? ', or ' : '.'}`
+}
+
+/** The line saying a patch's named area has no place yet; with `link` it ends before the link. */
+export function areaNoPlaceText(title: string, link: boolean): string {
+  const lead = `“${title}” has no place yet. Mark it under Named areas and this patch starts there`
+  return link
+    ? `${lead}, drag over the picture to mark this patch by hand, or `
+    : `${lead}, or drag over the picture to mark this patch by hand.`
 }
 
 /** The button that sends a patch's mark back to its named area. */

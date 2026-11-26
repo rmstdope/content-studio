@@ -1,4 +1,4 @@
-import type { PatchArea } from './imagePatches'
+import { isWholeArea, type PatchArea } from './imagePatches'
 import type { Pixels } from './imagePixels'
 
 /** Each side of a mark, in the take's pixels, below which the edit model may change nothing. */
@@ -10,9 +10,16 @@ export const NEAR_EMPTY_PIXELS = 300
 /** How solid a kept pixel is to count towards `NEAR_EMPTY_PIXELS`: the soft edge does not. */
 const SOLID = 128
 
-/** The size of a mark under `MARK_SMALLEST` on either side, in the take's pixels; null for no mark or a big enough one. */
-export function smallMark(area: PatchArea | null): { width: number; height: number } | null {
+/**
+ * The size of a mark under `MARK_SMALLEST` on either side, in the take's pixels; null for no mark,
+ * a big enough one, or one over the whole of `picture` (there is no bigger mark to make).
+ */
+export function smallMark(
+  area: PatchArea | null,
+  picture?: { width: number; height: number },
+): { width: number; height: number } | null {
   if (!area || (area.width >= MARK_SMALLEST && area.height >= MARK_SMALLEST)) return null
+  if (picture && isWholeArea(area, picture)) return null
   return { width: area.width, height: area.height }
 }
 

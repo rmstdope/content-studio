@@ -365,6 +365,18 @@ describe('takes of a declared patch', () => {
     expect((await work()).takes[0]!.changed).toBeUndefined()
   })
 
+  it('gives no warning for a mark over the whole of a narrow picture (as-bt1m.2)', async () => {
+    const { root, file, patches, work } = setup()
+    writeFileSync(join(root, TAKE), fakePng(40, 256, 9))
+    expect(
+      await patches.make(file, 'inn', 'door', {
+        count: 1,
+        area: { x: 0, y: 0, width: 40, height: 256 },
+      }),
+    ).toEqual({ ok: true })
+    await work()
+  })
+
   it('warns of a mark under 50 × 50 when asked for takes, and of no other', async () => {
     const { file, patches, work } = setup()
     expect(
