@@ -118,12 +118,14 @@ describe('the named areas bar and picture (as-uucl.4)', () => {
     expect(rule('.named-areas-picture')).not.toMatch(/vh|cqh|height:/)
   })
 
-  it('holds the picture wholly within the window’s height, as on Patches (as-zkky)', () => {
+  it('holds the picture wholly within the window’s height under the pinned bar (as-zkky)', () => {
     // One rule for the picture and the box in its place, named stage first.
     expect(css).toMatch(
       /\.named-areas-picture > \.named-area-stage,\n\.named-areas-picture > \.named-area-empty \{/,
     )
-    expect(rule('.named-areas-picture > .named-area-empty')).toMatch(WHOLE_IN_VIEW)
+    expect(rule('.named-areas-picture > .named-area-empty')).toMatch(
+      /width:\s*min\(100%, calc\(\(92dvh - var\(--bar-height, 0px\)\) \* var\(--picture-ratio, 1\)\)\);/,
+    )
   })
 })
 

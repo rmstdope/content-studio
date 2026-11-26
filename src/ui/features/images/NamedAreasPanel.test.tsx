@@ -1243,6 +1243,23 @@ describe('the pinned bar and the full-width picture (as-uucl.4)', () => {
     expect(stage!.style.getPropertyValue('--picture-ratio')).toBe(String(160 / 200))
   })
 
+  it('never draws a cropped take larger than the part of it the image shows (as-zkky)', async () => {
+    // A landscape take on a square image is drawn at the image's shape: its height, not its width, holds it.
+    const { stage } = await render([area('a')], {
+      size: { width: 1024, height: 1024 },
+      answer: view({ take: { n: 2, width: 1536, height: 1024, cropped: true } }),
+    })
+    expect(stage!.style.maxWidth).toBe('1024px')
+  })
+
+  it('gives the stylesheet the pinned bar’s height, measured again when the window changes (as-zkky)', async () => {
+    const { host, stage } = await render([area('a')])
+    const bar = host.querySelector<HTMLElement>('.named-areas-bar')!
+    bar.getBoundingClientRect = () => ({ top: 0, bottom: 112, height: 112 }) as DOMRect
+    await act(async () => window.dispatchEvent(new Event('resize')))
+    expect(stage!.style.getPropertyValue('--bar-height')).toBe('112px')
+  })
+
   it('keeps the same shape for the empty box and the row of areas', async () => {
     const { host } = await render([area('a')], {
       size: { width: 160, height: 200 },
