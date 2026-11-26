@@ -225,6 +225,30 @@ describe('the Takes section’s empty states', () => {
     expect(s.buttons('Make 4 takes')).toHaveLength(1)
   })
 
+  it('a chosen take and others waiting or being made: the right says they are on their way', async () => {
+    const s = await show(
+      view({
+        takes: [take(1, { chosen: true })],
+        making: [
+          { n: 2, state: 'making', elapsed: 10, expected: 60 },
+          { n: 3, state: 'waiting', elapsed: 0, expected: 60 },
+        ],
+      }),
+      { chosenTake: 1, status: 'chosen' },
+    )
+    const rightSide = s.container.querySelector('[data-side="right"]')?.textContent
+    expect(rightSide).not.toContain('No other takes yet')
+    expect(rightSide).toContain('Other takes on their way')
+    expect(rightSide).toContain('Other takes are on their way — each shows here once it is made.')
+  })
+
+  it('no take chosen and the first takes being made: the right says they are on their way', async () => {
+    const s = await show(view({ making: [{ n: 1, state: 'making', elapsed: 10, expected: 60 }] }))
+    const rightSide = s.container.querySelector('[data-side="right"]')?.textContent
+    expect(rightSide).not.toContain('Make takes to compare them here.')
+    expect(rightSide).toContain('Takes are on their way — each shows here once it is made.')
+  })
+
   it('the game’s own image shows with its path, until a take is chosen', async () => {
     const s = await show(view(), { gameFile: { file: 'web/inn.png', exists: true } })
     expect(s.text()).toContain('The game’s own image'.replace('’', "'"))
