@@ -1,8 +1,18 @@
 import { useJobOpen } from './ImageJobTabs'
+import { pictureShape } from './FitPicture'
 import { clampToWindow, revealDelta } from '../../areaReveal'
 import { off } from '../../off'
 import { flushSync } from 'react-dom'
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent,
+} from 'react'
+import { cropWindow } from '../../../core/imagePixels'
 import type { AreaBox, AreaRow, ImageRow } from '../../../core/images'
 import { useImagePatches, useSetImageAreaBox } from '../../api'
 import {
@@ -176,6 +186,13 @@ export function NamedAreasPanel({ row }: { row: ImageRow }) {
     window.addEventListener('resize', again)
     return () => window.removeEventListener('resize', again)
   }, [])
+  // The pinned bar's height, taken off the window's for the picture: measured after every drawing,
+  // since choosing an area or a narrower window can give the bar another line.
+  const [barHeight, setBarHeight] = useState(0)
+  useLayoutEffect(() => {
+    const height = Math.round(bar.current?.getBoundingClientRect().height ?? 0)
+    if (height !== barHeight) setBarHeight(height)
+  })
   // Measured again when its tab opens: while hidden the picture has no size.
   const jobOpen = useJobOpen()
   useEffect(() => {
@@ -444,8 +461,16 @@ export function NamedAreasPanel({ row }: { row: ImageRow }) {
         ...boxes.filter((b) => b.area.id !== selected),
         ...boxes.filter((b) => b.area.id === selected),
       ]
-  /** The picture's own shape and pixel size: as wide as the panel, never wider than itself. */
-  const shape = { aspectRatio: `${row.width} / ${row.height}`, maxWidth: `${row.width}px` }
+  /**
+   * The picture's shape, and its own pixel size: as wide as the panel, never wider than the part of
+   * the take drawn (the image's size until there is one), nor taller than the window holds under the
+   * pinned bar (as-zkky).
+   */
+  const shape = {
+    ...pictureShape(row.width, row.height),
+    '--bar-height': `${barHeight}px`,
+    maxWidth: `${view?.take ? cropWindow(view.take, row).width : row.width}px`,
+  } as CSSProperties
 
   return (
     <section className="panel named-areas" aria-label="Named areas">

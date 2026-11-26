@@ -5284,9 +5284,12 @@ textarea[aria-disabled='true'][data-why] {
   gap: 8px;
   min-width: 0;
 }
+/* As wide as the panel, and narrower when the window's height under the pinned bar (`--bar-height`,
+   measured by the panel) would not hold the picture whole, so a box reaches all of it, as on
+   Fine-tune and Patches (as-zkky). */
 .named-areas-picture > .named-area-stage,
 .named-areas-picture > .named-area-empty {
-  width: 100%;
+  width: min(100%, calc((92dvh - var(--bar-height, 0px)) * var(--picture-ratio, 1)));
 }
 .named-area-stage {
   position: relative;

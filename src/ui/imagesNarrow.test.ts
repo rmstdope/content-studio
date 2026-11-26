@@ -112,11 +112,20 @@ describe('the named areas bar and picture (as-uucl.4)', () => {
     expect(rule('.named-area-actions')).toMatch(/margin-left:\s*auto/)
   })
 
-  it('has no column, no stacked layout and no height from the window for the picture', () => {
+  it('has no column, no stacked layout and no measured frame for the picture', () => {
     expect(css).not.toMatch(/named-areas-(body|side)/)
     expect(css).not.toMatch(/fit-shape|fit-picture|--fill-height/)
     expect(rule('.named-areas-picture')).not.toMatch(/vh|cqh|height:/)
-    expect(css).not.toMatch(/\.named-area-stage[^{]*\{[^}]*vh/)
+  })
+
+  it('holds the picture wholly within the window’s height under the pinned bar (as-zkky)', () => {
+    // One rule for the picture and the box in its place, named stage first.
+    expect(css).toMatch(
+      /\.named-areas-picture > \.named-area-stage,\n\.named-areas-picture > \.named-area-empty \{/,
+    )
+    expect(rule('.named-areas-picture > .named-area-empty')).toMatch(
+      /width:\s*min\(100%, calc\(\(92dvh - var\(--bar-height, 0px\)\) \* var\(--picture-ratio, 1\)\)\);/,
+    )
   })
 })
 
