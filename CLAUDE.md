@@ -145,6 +145,11 @@ content-studio --dev   # in a consumer repository, reloading on changes (after `
 bun run schema         # write schema/content-studio.schema.json again after changing the schema
 ```
 
+`bun install` points `core.hooksPath` at this repository's `.beads/hooks`. The pre-commit hook there
+runs beads' step and then formats the staged files with prettier (`scripts/format-staged.ts`), so
+there is no need to run prettier before a commit. Unstaged changes stay unstaged. After
+`git commit <paths>` has had to format something, it asks you to commit again.
+
 ## Code conventions
 
 - TypeScript strict, no `any`: use precise types, `unknown` with narrowing, or zod.
