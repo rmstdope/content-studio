@@ -800,7 +800,7 @@ export function TakesSection({
                     </div>
                   </>
                 ) : (
-                  chosen && <b>No other takes yet</b>
+                  chosen && <b>{busy ? 'Other takes on their way' : 'No other takes yet'}</b>
                 )}
               </div>
               {rightTake ? (
@@ -841,9 +841,11 @@ export function TakesSection({
               ) : (
                 <EmptyFrame
                   title={
-                    chosen
-                      ? 'No other takes yet — make a few more to compare with the chosen one.'
-                      : 'Make takes to compare them here.'
+                    chosen && busy
+                      ? 'Other takes are on their way — each shows here once it is made.'
+                      : chosen
+                        ? 'No other takes yet — make a few more to compare with the chosen one.'
+                        : 'Make takes to compare them here.'
                   }
                   {...size}
                 />
