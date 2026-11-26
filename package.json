@@ -8,6 +8,7 @@
     "content-studio": "./bin/content-studio.ts"
   },
   "scripts": {
+    "prepare": "[ -e .git ] && git config core.hooksPath .beads/hooks || true",
     "start": "bun bin/content-studio.ts",
     "dev": "bun bin/content-studio.ts --dev --project test/fixtures/sample/content-studio.json",
     "test": "bun test",
