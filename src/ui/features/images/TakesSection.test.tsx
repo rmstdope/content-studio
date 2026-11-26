@@ -236,9 +236,17 @@ describe('the Takes section’s empty states', () => {
       }),
       { chosenTake: 1, status: 'chosen' },
     )
-    expect(s.text()).not.toContain('No other takes yet')
-    expect(s.text()).toContain('Other takes on their way')
-    expect(s.text()).toContain('Other takes are on their way — each shows here once it is made.')
+    const rightSide = s.container.querySelector('[data-side="right"]')?.textContent
+    expect(rightSide).not.toContain('No other takes yet')
+    expect(rightSide).toContain('Other takes on their way')
+    expect(rightSide).toContain('Other takes are on their way — each shows here once it is made.')
+  })
+
+  it('no take chosen and the first takes being made: the right says they are on their way', async () => {
+    const s = await show(view({ making: [{ n: 1, state: 'making', elapsed: 10, expected: 60 }] }))
+    const rightSide = s.container.querySelector('[data-side="right"]')?.textContent
+    expect(rightSide).not.toContain('Make takes to compare them here.')
+    expect(rightSide).toContain('Takes are on their way — each shows here once it is made.')
   })
 
   it('the game’s own image shows with its path, until a take is chosen', async () => {

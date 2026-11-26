@@ -841,8 +841,8 @@ export function TakesSection({
               ) : (
                 <EmptyFrame
                   title={
-                    chosen && busy
-                      ? 'Other takes are on their way — each shows here once it is made.'
+                    busy
+                      ? `${chosen ? 'Other takes' : 'Takes'} are on their way — each shows here once it is made.`
                       : chosen
                         ? 'No other takes yet — make a few more to compare with the chosen one.'
                         : 'Make takes to compare them here.'
