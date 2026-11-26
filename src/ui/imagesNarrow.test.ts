@@ -9,6 +9,12 @@ const rule = (selector: string, from = css) => {
   return at < 0 ? '' : from.slice(at, from.indexOf('}', at))
 }
 
+/**
+ * A picture's width on Fine-tune and Patches: the panel's, but never so wide that the picture, at
+ * its shape, is taller than most of the window, so the whole of it can be in view and marked.
+ */
+const WHOLE_IN_VIEW = /width:\s*min\(100%, calc\(92dvh \* var\(--picture-ratio, 1\)\)\);/
+
 describe('the images list in a narrow window', () => {
   it('drops the table’s minimum width, or each card is wider than the window and its status is off the edge', () => {
     const narrow = css.slice(css.indexOf('@container panel (max-width: 700px) {\n  .images-cmp'))
@@ -62,10 +68,10 @@ describe('the Patches workbench frame (as-uucl.3)', () => {
     expect(rule('.patch-band')).toMatch(/grid-template-columns:\s*minmax\(0, 1fr\) auto/)
   })
 
-  it('holds the picture to its width and never to the window’s height', () => {
+  it('holds the picture to its width, narrower when the window’s height would not hold it whole (as-bt1m.1)', () => {
     const box = rule('.patch-picture')
-    expect(box).toMatch(/width:\s*100%/)
-    expect(box).not.toMatch(/vh|cqh|height:/)
+    expect(box).toMatch(WHOLE_IN_VIEW)
+    expect(box).not.toMatch(/cqh|height:/)
     expect(css).not.toMatch(/\.patch-bench[^{]*\{[^}]*--fill-height/)
   })
 
@@ -133,8 +139,9 @@ describe('the Fine-tune tab’s layout (as-uucl.2)', () => {
   it('is a column of the band, the bar, the picture and the strip, with no fitted frame', () => {
     expect(rule('.fine-job')).toMatch(/flex-direction:\s*column/)
     expect(css).not.toMatch(/\.fine-job\s*\{[^}]*--fill-height/)
-    // The picture is as wide as the panel; its own pixel size is the max-width the page sets.
-    expect(rule('.fine-picture')).toMatch(/width:\s*100%/)
+    // The picture is as wide as the panel, or narrower so it is wholly in view in the window
+    // (as-bt1m.1); its own pixel size is the max-width the page sets.
+    expect(rule('.fine-picture')).toMatch(WHOLE_IN_VIEW)
     expect(rule('.fine-picture')).toMatch(/margin-inline:\s*auto/)
   })
 

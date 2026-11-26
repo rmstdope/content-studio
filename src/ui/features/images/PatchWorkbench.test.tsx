@@ -1692,7 +1692,7 @@ describe('the three parts of an open patch', () => {
     ['a portrait picture', { width: 816, height: 1024 }],
     ['a landscape picture', { width: 1024, height: 640 }],
   ] as const) {
-    it(`gives ${what} the panel's width up to the take's own size, never a height cap (as-uucl.3)`, async () => {
+    it(`gives ${what} the panel's width up to the take's own size, with no measured frame (as-uucl.3)`, async () => {
       const { host } = await render([patchRow('a')], () =>
         view([work('a', { takes: [takeOf(1), takeOf(2, { chosen: true })] })], {
           take: { n: 3, ...size, cropped: false },
