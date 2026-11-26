@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, setDefaultTimeout, test } from 'bun:test'
+import { afterAll, afterEach, beforeAll, describe, expect, setDefaultTimeout, test } from 'bun:test'
 import {
   chmodSync,
   copyFileSync,
@@ -18,6 +18,9 @@ const project = resolve(import.meta.dir, '..')
 const messy = 'const a = {b:"c"};\n'
 const tidy = "const a = { b: 'c' }\n"
 const repos: string[] = []
+const { scripts } = JSON.parse(readFileSync(join(project, 'package.json'), 'utf8')) as {
+  scripts: { prepare: string }
+}
 
 // Every test runs git many times, which takes seconds on a busy machine.
 setDefaultTimeout(60_000)
@@ -78,9 +81,18 @@ const staged = (root: string, path: string) => git(root, 'cat-file', 'blob', `:$
 const working = (root: string, path: string) => readFileSync(join(root, path), 'utf8')
 
 describe('formatStaged', () => {
-  // The script reads git's variables, as it must inside a hook; tests must not inherit them.
-  const inherited = Object.keys(process.env).filter((key) => key.startsWith('GIT_'))
-  for (const key of inherited) delete process.env[key]
+  // The script reads git's variables, as it must inside a hook; these tests must not inherit them.
+  let before: NodeJS.ProcessEnv
+  beforeAll(() => {
+    before = { ...process.env }
+    for (const key of Object.keys(process.env)) if (key.startsWith('GIT_')) delete process.env[key]
+    Object.assign(process.env, { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' })
+  })
+  afterAll(() => {
+    delete process.env.GIT_CONFIG_GLOBAL
+    delete process.env.GIT_CONFIG_NOSYSTEM
+    Object.assign(process.env, before)
+  })
 
   test('formats a staged file in the index and the working tree', async () => {
     const root = repo()
@@ -137,6 +149,9 @@ describe('formatStaged', () => {
     git(root, 'commit', '-q', '-m', 'gone')
     git(root, 'rm', '-q', 'gone.ts')
     write(root, 'ignored/a.ts', messy)
+    write(root, '.gitignore', 'local/\n')
+    write(root, 'local/a.ts', messy)
+    git(root, 'add', '-f', 'local/a.ts')
     write(root, 'worker.py', 'x  =  1\n')
     symlinkSync('worker.py', join(root, 'link.ts'))
     git(root, 'add', '.')
@@ -145,6 +160,7 @@ describe('formatStaged', () => {
 
     expect(report).toEqual({ formatted: [], unreadable: [] })
     expect(staged(root, 'ignored/a.ts')).toBe(messy)
+    expect(staged(root, 'local/a.ts')).toBe(messy)
     expect(staged(root, 'worker.py')).toBe('x  =  1\n')
     expect(staged(root, 'link.ts')).toBe('worker.py')
   })
@@ -227,11 +243,8 @@ describe('bun install', () => {
   test('points core.hooksPath at the repository own hooks', () => {
     const root = repo()
     git(root, 'config', 'core.hooksPath', '/nowhere/.beads/hooks')
-    const manifest = JSON.parse(readFileSync(join(project, 'package.json'), 'utf8')) as {
-      scripts: { prepare: string }
-    }
 
-    expect(run(root, ['sh', '-c', manifest.scripts.prepare]).code).toBe(0)
+    expect(run(root, ['sh', '-c', scripts.prepare]).code).toBe(0)
 
     expect(git(root, 'config', 'core.hooksPath')).toBe('.beads/hooks\n')
   })
@@ -239,10 +252,16 @@ describe('bun install', () => {
   test('does not fail outside a git repository', () => {
     const root = mkdtempSync(join(tmpdir(), 'format-staged-plain-'))
     repos.push(root)
-    const manifest = JSON.parse(readFileSync(join(project, 'package.json'), 'utf8')) as {
-      scripts: { prepare: string }
-    }
 
-    expect(run(root, ['sh', '-c', manifest.scripts.prepare]).code).toBe(0)
+    expect(run(root, ['sh', '-c', scripts.prepare]).code).toBe(0)
+  })
+
+  test('leaves a repository it merely lies inside alone', () => {
+    const root = repo()
+    mkdirSync(join(root, 'unpacked'))
+
+    expect(run(join(root, 'unpacked'), ['sh', '-c', scripts.prepare]).code).toBe(0)
+
+    expect(run(root, ['git', 'config', 'core.hooksPath']).out).toBe('')
   })
 })
