@@ -1,4 +1,5 @@
 import { useJobOpen } from './ImageJobTabs'
+import { pictureShape } from './FitPicture'
 import { clampToWindow, revealDelta } from '../../areaReveal'
 import { off } from '../../off'
 import { flushSync } from 'react-dom'
@@ -444,8 +445,14 @@ export function NamedAreasPanel({ row }: { row: ImageRow }) {
         ...boxes.filter((b) => b.area.id !== selected),
         ...boxes.filter((b) => b.area.id === selected),
       ]
-  /** The picture's own shape and pixel size: as wide as the panel, never wider than itself. */
-  const shape = { aspectRatio: `${row.width} / ${row.height}`, maxWidth: `${row.width}px` }
+  /**
+   * The picture's shape, and its own pixel size: as wide as the panel, never wider than the take
+   * drawn (the image's size until there is one), nor taller than the window holds (as-zkky).
+   */
+  const shape = {
+    ...pictureShape(row.width, row.height),
+    maxWidth: `${view?.take?.width ?? row.width}px`,
+  }
 
   return (
     <section className="panel named-areas" aria-label="Named areas">

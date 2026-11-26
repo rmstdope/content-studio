@@ -1219,16 +1219,28 @@ describe('the pinned bar and the full-width picture (as-uucl.4)', () => {
     expect(text(host.querySelector('.named-area-actions')!)).toBe('Title of b:Clear')
   })
 
-  it('sizes the picture by its own pixels, never upscaled, left-aligned', async () => {
+  it('sizes the picture by the take’s own pixels, never upscaled, left-aligned', async () => {
     for (const size of [
       { width: 1536, height: 1024 },
       { width: 320, height: 200 },
     ]) {
-      const { stage } = await render([area('a')], { size })
-      expect(stage!.style.maxWidth).toBe(`${size.width}px`)
+      const take = { n: 2, width: size.width * 2, height: size.height * 2, cropped: false }
+      const { stage } = await render([area('a')], { size, answer: view({ take }) })
+      expect(stage!.style.maxWidth).toBe(`${take.width}px`)
       expect(stage!.style.aspectRatio).toBe(`${size.width} / ${size.height}`)
       expect(stage!.classList.contains('fit-shape')).toBe(false)
     }
+  })
+
+  it('draws a small portrait image at its take’s size, not the game’s, and gives the stylesheet its shape (as-zkky)', async () => {
+    // The sample's cellar-door: 160 x 200 in the game, its take 816 x 1024 as Patches draws it.
+    const { stage } = await render([area('a')], {
+      size: { width: 160, height: 200 },
+      answer: view({ take: { n: 2, width: 816, height: 1024, cropped: false } }),
+    })
+    expect(stage!.style.maxWidth).toBe('816px')
+    expect(stage!.style.aspectRatio).toBe('160 / 200')
+    expect(stage!.style.getPropertyValue('--picture-ratio')).toBe(String(160 / 200))
   })
 
   it('keeps the same shape for the empty box and the row of areas', async () => {
