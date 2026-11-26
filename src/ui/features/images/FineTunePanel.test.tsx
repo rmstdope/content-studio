@@ -199,7 +199,7 @@ describe('the states of the panel', () => {
         String(picture.width / picture.height),
       )
       expect(stage.style.maxWidth).toBe(`${picture.width}px`)
-      // Not fitted to the window's height.
+      // No measured frame: the stylesheet caps it to the window's height (as-bt1m.1).
       expect(stage.classList.contains('fit-shape')).toBe(false)
       expect(stage.closest('.fit-picture')).toBeNull()
       // Top to bottom: the band, the bar, the picture, the strip; nothing beside the picture.

@@ -5537,8 +5537,9 @@ textarea[aria-disabled='true'][data-why] {
 }
 
 /* The Patches tab (as-uucl.3): the controls band, the take's row and the picture, and the takes,
-   one above the other, the picture as wide as the panel up to the take's own size (its `max-width`)
-   and never fitted to the window's height. */
+   one above the other, the picture as wide as the panel up to the take's own size (its `max-width`),
+   and narrower when the window's height would not hold it whole, so a mark reaches all of it
+   (as-bt1m.1). */
 .patch-bench {
   display: flex;
   flex-direction: column;
@@ -5571,7 +5572,7 @@ textarea[aria-disabled='true'][data-why] {
 }
 .patch-picture {
   position: relative;
-  width: 100%;
+  width: min(100%, calc(92dvh * var(--picture-ratio, 1)));
 }
 .patch-picture > .patch-stage,
 .patch-picture > .look-empty {
@@ -5931,8 +5932,8 @@ textarea[aria-disabled='true'][data-why] {
 }
 
 /* The Fine-tune job (as-uucl.2): every control above the picture, the picture as wide as the panel up
-   to its own pixel size (never stretched, never fitted to the window's height: a tall one scrolls
-   the page), the strip of fine-tunes below. */
+   to its own pixel size (never stretched), and narrower when the window's height would not hold it
+   whole, so a mark reaches all of it (as-bt1m.1); the strip of fine-tunes below. */
 .fine-job {
   display: flex;
   flex-direction: column;
@@ -5940,7 +5941,7 @@ textarea[aria-disabled='true'][data-why] {
   min-width: 0;
 }
 .fine-picture {
-  width: 100%;
+  width: min(100%, calc(92dvh * var(--picture-ratio, 1)));
   margin-inline: auto;
 }
 .fine-bar {
