@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Whole picture mark</title>
+    <style>
+      :root {
+        --bg: #06070c;
+        --panel: #10121a;
+        --raised: #191c24;
+        --line: rgb(255 255 255/7%);
+        --line-strong: rgb(255 255 255/11%);
+        --text: #eceef3;
+        --muted: #a9b0bd;
+        --faint: #8a91a0;
+        --accent: #ff6b2c;
+        --accent-ink: #1a0a02;
+        --warn: #ffc24b;
+        --chip: #1a1d26;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.45 system-ui,
+          -apple-system,
+          sans-serif;
+      }
+      .about {
+        background: #1b1408;
+        border-bottom: 1px solid #4a3a18;
+        padding: 10px 16px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .about b {
+        color: var(--warn);
+      }
+      .opts {
+        margin-top: 6px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+      }
+      .opts label {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        cursor: pointer;
+      }
+      .win {
+        margin: 16px auto;
+        max-width: 1280px;
+        height: 760px;
+        border: 1px solid #333a4a;
+        border-radius: 12px;
+        overflow: auto;
+        position: relative;
+        background: var(--bg);
+      }
+      .win-note {
+        text-align: center;
+        color: var(--faint);
+        font-size: 12px;
+      }
+      main {
+        padding: 18px 24px 40px;
+      }
+      .crumbs {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 2px 0 0;
+      }
+      .mono {
+        font-family: ui-monospace, monospace;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .tabs {
+        display: flex;
+        gap: 6px;
+        margin: 12px 0;
+        flex-wrap: wrap;
+      }
+      .tab {
+        padding: 7px 12px;
+        border-radius: 9px;
+        background: var(--chip);
+        color: var(--muted);
+      }
+      .tab.on {
+        background: #23263a;
+        outline: 1px solid #3a3f5c;
+        color: var(--text);
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 20px 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .band {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px 20px;
+        align-items: start;
+      }
+      @media (max-width: 760px) {
+        .band {
+          grid-template-columns: 1fr;
+        }
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .lbl {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      textarea {
+        width: 100%;
+        background: #0d0f14;
+        color: var(--text);
+        border: 1px solid var(--line-strong);
+        border-radius: 10px;
+        padding: 8px 10px;
+        font: inherit;
+        resize: vertical;
+      }
+      select {
+        background: var(--raised);
+        color: var(--text);
+        border: 1px solid var(--line-strong);
+        border-radius: 9px;
+        padding: 6px 8px;
+        font: inherit;
+        font-size: 13px;
+      }
+      .btn {
+        background: var(--raised);
+        border: 1px solid var(--line-strong);
+        color: var(--text);
+        padding: 6px 12px;
+        border-radius: 9px;
+        font: inherit;
+        font-size: 13px;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: var(--accent-ink);
+        border-color: transparent;
+        font-weight: 600;
+      }
+      .btn.ghost {
+        background: transparent;
+      }
+      .link {
+        background: none;
+        border: 0;
+        padding: 0;
+        color: var(--accent);
+        font: inherit;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        cursor: pointer;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .faint {
+        color: var(--faint);
+        font-size: 12.5px;
+      }
+      kbd {
+        font:
+          11px ui-monospace,
+          monospace;
+        padding: 0 4px;
+        border-radius: 4px;
+        border: 1px solid var(--line-strong);
+        color: var(--muted);
+      }
+      h3 {
+        margin: 0;
+        font-size: 15px;
+      }
+      .bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .stage {
+        position: relative;
+        width: 100%;
+        max-width: 816px;
+        aspect-ratio: 816 / 1024;
+        border-radius: 6px;
+        cursor: crosshair;
+        background: linear-gradient(180deg, #2b3a52 0%, #3e3426 38%, #5a4127 60%, #2a1d14 100%);
+      }
+      .stage .door {
+        position: absolute;
+        left: 33%;
+        top: 30%;
+        width: 34%;
+        height: 58%;
+        background: #1d140d;
+        border: 6px solid #4a3220;
+        border-bottom: 0;
+        border-radius: 40% 40% 0 0 / 18% 18% 0 0;
+      }
+      .stage .lamp {
+        position: absolute;
+        left: 72%;
+        top: 34%;
+        width: 6%;
+        height: 9%;
+        background: #c99a43;
+        border-radius: 4px;
+        box-shadow: 0 0 40px 10px rgb(255 190 90/25%);
+      }
+      .mark {
+        position: absolute;
+        border: 2px dashed #fff;
+        box-shadow: 0 0 0 1px #000;
+        border-radius: 2px;
+        pointer-events: none;
+      }
+      .corner {
+        position: sticky;
+        top: 8px;
+        float: left;
+        margin: 8px 0 0 8px;
+        z-index: 2;
+      }
+      .corner .btn {
+        background: rgb(16 18 26/88%);
+        backdrop-filter: blur(4px);
+      }
+      .ann {
+        outline: 2px solid #4da3ff;
+        outline-offset: 3px;
+        border-radius: 6px;
+      }
+      .callout {
+        color: #4da3ff;
+        font-size: 12px;
+      }
+      .strip {
+        display: flex;
+        gap: 8px;
+      }
+      .thumb {
+        width: 112px;
+        height: 72px;
+        border-radius: 8px;
+        background: var(--raised);
+        border: 1px solid var(--line);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="about">
+      <b>The agreed whole-picture mark (as-bt1m.2)</b> — “mark the whole picture” (or ⌘A, Ctrl+A off
+      a Mac, while not typing in the words) sits in the line under the words on Fine-tune and
+      Patches, where the mark is explained and cleared. A whole-picture mark works as a patch does:
+      the model sees the whole picture and only what it changed is kept; in Fine-tune, no mark still
+      paints the whole picture again. The window below is a laptop-sized window: the tall picture
+      runs past its bottom, so it cannot be dragged across from edge to edge. Blue outlines mark
+      what is new.
+      <div class="opts" id="opts"></div>
+    </div>
+    <div class="win" id="win"><main id="main"></main></div>
+    <div class="win-note">↑ scroll inside the window to see the rest of the picture</div>
+    <script>
+      const VARIANT = 'A'
+      const STATES = [
+        ['tune-none', 'Fine-tune · no mark'],
+        ['tune-whole', 'Fine-tune · whole picture marked'],
+        ['tune-part', 'Fine-tune · part dragged'],
+        ['patch-none', 'Patches · no mark'],
+        ['patch-whole', 'Patches · whole picture marked'],
+        ['patch-part', 'Patches · part dragged'],
+        ['tie-area', 'Patch tied to “Door” · marked from the area'],
+        ['tie-whole', 'Patch tied to “Door” · whole picture marked'],
+        ['tie-noplace', 'Patch tied to “Door” · area has no place yet'],
+      ]
+      let state = new URLSearchParams(location.search).get('state') || 'tune-none'
+      const opts = document.getElementById('opts')
+      opts.innerHTML = STATES.map(
+        ([k, l]) =>
+          `<label><input type="radio" name="st" value="${k}" ${k === state ? 'checked' : ''}/> ${l}</label>`,
+      ).join('')
+      opts.addEventListener('change', (e) => {
+        state = e.target.value
+        render()
+      })
+
+      function render() {
+        const tune = state.startsWith('tune')
+        const m = state.split('-')[1]
+        const whole = m === 'whole',
+          part = m === 'part',
+          none = m === 'none'
+        const tie = state.startsWith('tie')
+        const area = m === 'area',
+          noplace = m === 'noplace'
+        const key = ` <kbd class="ann">⌘A</kbd>`
+        const btnA = `<button class="link ann">mark the whole picture</button>${key}`
+        const btnCap = `<button class="link ann">Mark the whole picture</button>${key}`
+        const clear = `<button class="link">Clear the mark</button>`
+        let line
+        if (tune)
+          line = none
+            ? `Drag on the picture to change only part of it, or ${btnA}. With no mark the whole picture is painted again.`
+            : whole
+              ? `<span class="ann" style="padding:0 4px">The whole picture is marked: only what changes is kept.</span> ${clear}`
+              : `Drag on the picture to change only part of it, or ${btnA}. ${clear}`
+        else if (tie)
+          line = area
+            ? `Marked from the named area “Door”, with a little room around it. Drag over the picture to change it, or ${btnA}.`
+            : whole
+              ? `<span class="ann" style="padding:0 4px">The whole picture is marked.</span> <button class="link">Back to “Door”</button>`
+              : `“Door” has no place yet. Mark it under Named areas and this patch starts there, drag over the picture to mark this patch by hand, or ${btnA}.`
+        else
+          line = none
+            ? `Drag over the picture to mark what should change, or ${btnA}.`
+            : whole
+              ? `<span class="ann" style="padding:0 4px">The whole picture is marked. Drag on it to mark only part.</span>`
+              : `${btnCap}`
+        const makeOff = (!tune && none) || noplace ? ' style="opacity:.45"' : ''
+        const head = tune
+          ? `<label class="col"><span class="lbl">What to change</span><textarea rows="3">Make it night: the sky dark blue, the lamp brighter</textarea></label>`
+          : `<h3>Door open</h3><textarea rows="2">Open the door a crack, light spilling through</textarea>`
+        const make = tune
+          ? `<label class="row"><span class="lbl">Model for new takes</span><select><option>FLUX.2 klein 4B</option></select></label>
+             <div class="row"><select><option>4</option></select><button class="btn primary">Make 4 fine-tunes</button></div>`
+          : `<label class="row"><span class="lbl">Model for new takes</span><select><option>FLUX.2 klein 4B</option></select></label>
+             <div class="row"><select><option>2 takes</option></select><button class="btn primary"${makeOff}>Make 2 takes</button></div>
+             <span class="faint"><kbd>←</kbd> <kbd>→</kbd> take · <kbd>C</kbd> choose · <kbd>D</kbd> drop · <kbd>S</kbd> patch off/on · <span class="ann"><kbd>⌘A</kbd> whole picture</span></span>`
+        const bar = tune
+          ? `<div class="bar"><span>The chosen take · Take 3</span><span style="flex:1"></span>
+              <button class="btn">Before / after <span class="faint">S</span></button><button class="btn ghost">Drop <span class="faint">D</span></button><button class="btn primary">Choose <span class="faint">C</span></button></div>`
+          : `<div class="bar"><span class="lbl">The chosen take of the image</span></div>`
+        const markBox = area
+          ? `<div class="mark" style="left:28%;top:25%;width:44%;height:66%"></div>`
+          : whole
+            ? `<div class="mark" style="inset:0"></div>`
+            : part
+              ? `<div class="mark" style="left:30%;top:26%;width:40%;height:52%"></div>`
+              : ''
+        let corner = ''
+        if (VARIANT === 'B')
+          corner = whole
+            ? `<div class="corner"><button class="btn ann">Clear the mark</button></div>`
+            : `<div class="corner"><button class="btn ann">Mark the whole picture</button></div>`
+        const strip = tune
+          ? `<div class="col"><span class="lbl">Fine-tunes</span><div class="strip"><div class="thumb"></div><div class="thumb"></div></div></div>`
+          : `<div class="col"><span class="lbl">Takes</span><div class="faint">No takes yet. Each take is a new try at this change, painted with the part of the picture around the mark in view.</div></div>`
+        document.getElementById('main').innerHTML = `
+          <div class="crumbs">Act 1 · Images</div><h1>The cellar door</h1><div class="mono">cellar-door · 160 × 200</div>
+          <div class="tabs"><span class="tab">Make</span><span class="tab ${tune ? 'on' : ''}">Fine-tune</span><span class="tab ${tune ? '' : 'on'}">Patches · 2</span><span class="tab">Named areas</span></div>
+          <section class="panel">
+            <div class="band"><div class="col">${head}<span class="muted">${line}</span></div><div class="col">${make}</div></div>
+            ${bar}
+            <div class="stage">${corner}<div class="door"></div><div class="lamp"></div>${markBox}</div>
+            ${strip}
+          </section>`
+      }
+      render()
+    </script>
+  </body>
+</html>
