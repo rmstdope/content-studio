@@ -231,6 +231,25 @@ export function patchSummary(takes: readonly { n: number; chosen: boolean }[]): 
     : { text: `${count}, none chosen`, chip: null }
 }
 
+/** The mark over the whole of a picture of this size. */
+export function wholeArea(size: { width: number; height: number }): PatchArea {
+  return { x: 0, y: 0, width: size.width, height: size.height }
+}
+
+/** Whether a mark is the whole picture's: the link's, the key's, or a drag from edge to edge. */
+export function isWholeArea(
+  area: PatchArea | null,
+  size: { width: number; height: number },
+): boolean {
+  return (
+    area !== null &&
+    area.x === 0 &&
+    area.y === 0 &&
+    area.width === size.width &&
+    area.height === size.height
+  )
+}
+
 /** Why this area cannot be patched on a picture of this size, or null when it can. */
 export function checkPatchArea(
   area: PatchArea,

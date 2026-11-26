@@ -1,4 +1,12 @@
-import { fieldOwnsKeys, NOT_YET, useDocumentKeys, usePendingFocus } from './useWorkbenchKeys'
+import {
+  fieldOwnsKeys,
+  NOT_YET,
+  typesText,
+  useDocumentKeys,
+  usePendingFocus,
+} from './useWorkbenchKeys'
+import { onWholeMarkLink, WholeMarkLink } from './WholeMarkLink'
+import { isWholeKey } from '../../wholeMark'
 import { useJobOpen } from './ImageJobTabs'
 import { pictureShape } from './FitPicture'
 import { ChangeBadge, ChangeNote, MarkTag } from './MarkTag'
@@ -28,7 +36,7 @@ import {
   startEditModel,
   type EditModelId,
 } from '../../../core/imageModels'
-import type { PatchArea } from '../../../core/imagePatches'
+import { isWholeArea, wholeArea, type PatchArea } from '../../../core/imagePatches'
 import type { ImageRow } from '../../../core/images'
 import { rightAfterDrop, stepRight } from '../../../core/imageTakes'
 import { timeText } from '../../../core/takeTimes'
@@ -47,6 +55,10 @@ import { areaFromDrag } from '../../imagePatchArea'
 import {
   acceptedLineText,
   acceptFailedText,
+  FINE_TUNE_MARK_LEAD,
+  FINE_TUNE_NO_MARK,
+  FINE_TUNE_WHOLE,
+  MARK_WHOLE_LINK,
   IMAGES_LOCK_WHY,
   leftOutOfDateText,
   sizeStillOutText,
@@ -211,13 +223,15 @@ export function FineTunePanel({
     answer: Extract<UseFineTuneAnswer, { ok: true }>
     from: string
   } | null>(null)
-  const focusOn = usePendingFocus<number | 'words' | { stop: number }>((want) => {
+  const focusOn = usePendingFocus<number | 'words' | 'clear' | { stop: number }>((want) => {
     const target =
       want === 'words'
         ? wordsBox.current
-        : typeof want === 'number'
-          ? cards.current.get(want)
-          : stops.current.get(want.stop)
+        : want === 'clear'
+          ? clearButton.current
+          : typeof want === 'number'
+            ? cards.current.get(want)
+            : stops.current.get(want.stop)
     // A Stop that is not there yet waits for the page to show the next fine-tune being made.
     return !target && typeof want === 'object' ? NOT_YET : target
   }, query.data)
@@ -226,6 +240,7 @@ export function FineTunePanel({
   const changing = useRef(false)
   const cameShown = useRef(false)
   const wordsBox = useRef<HTMLTextAreaElement>(null)
+  const clearButton = useRef<HTMLButtonElement>(null)
   const cards = useRef(new Map<number, HTMLButtonElement>())
   const stops = useRef(new Map<number, HTMLButtonElement>())
   // The keys are heard anywhere on the page, but only while this tab is the open one.
@@ -336,7 +351,8 @@ export function FineTunePanel({
   const { picture } = view
   const pictureKey = picture.kind === 'take' ? `take-${picture.n}` : 'game'
   const mark = marked?.picture === pictureKey ? marked.area : null
-  const small = smallMark(mark)
+  const whole = isWholeArea(mark, picture)
+  const small = smallMark(mark, picture)
   const model = pick ?? startEditModel(view.models)
   const id = encodeURIComponent(row.id)
   const baseSrc =
@@ -460,8 +476,19 @@ export function FineTunePanel({
       },
     })
   }
+  /** Marks the whole picture; focus on the link, which then goes, moves to Clear the mark. */
+  const markWhole = (fromLink = onWholeMarkLink()) => {
+    setMarked({ picture: pictureKey, area: wholeArea(picture) })
+    setAnnounced('')
+    if (fromLink) focusOn('clear', true)
+  }
   keys.current = (event) => {
     const target = event.target
+    if (isWholeKey(event) && !typesText(target)) {
+      event.preventDefault()
+      markWhole()
+      return
+    }
     if (event.metaKey || event.ctrlKey || event.altKey) return
     const key = event.key.toLowerCase()
     if (!KEYS.has(event.key) && !KEYS.has(key)) return
@@ -576,10 +603,26 @@ export function FineTunePanel({
               />
             </label>
             <span className="muted small">
-              Drag on the picture to change only part of it; with no mark the whole picture is
-              changed.{' '}
+              {whole ? (
+                FINE_TUNE_WHOLE
+              ) : (
+                <>
+                  {FINE_TUNE_MARK_LEAD}
+                  <WholeMarkLink
+                    label={MARK_WHOLE_LINK}
+                    after="."
+                    onPress={() => markWhole(true)}
+                  />
+                  {!mark && ` ${FINE_TUNE_NO_MARK}`}
+                </>
+              )}{' '}
               {mark && (
-                <button type="button" className="patch-back" onClick={() => setMarked(null)}>
+                <button
+                  ref={clearButton}
+                  type="button"
+                  className="patch-back"
+                  onClick={() => setMarked(null)}
+                >
                   Clear the mark
                 </button>
               )}
@@ -756,7 +799,7 @@ export function FineTunePanel({
           onPointerUp={(event) => {
             const dragged = dragTo(event)
             if (dragged) {
-              const tooSmall = smallMark(dragged)
+              const tooSmall = smallMark(dragged, picture)
               setAnnounced(tooSmall ? smallMarkText(tooSmall) : '')
             }
             start.current = null

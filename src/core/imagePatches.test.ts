@@ -5,6 +5,8 @@ import {
   gamePatch,
   ChoosePatchTakeBody,
   keepChanged,
+  isWholeArea,
+  wholeArea,
   MakePatchTakesBody,
   matchOutside,
   openSides,
@@ -236,6 +238,38 @@ describe('checkPatchArea', () => {
 
   it('refuses an area too small to patch', () => {
     expect(checkPatchArea({ x: 0, y: 0, width: 7, height: 100 }, size)).toContain('too small')
+  })
+})
+
+describe('a whole-picture mark', () => {
+  const size = { width: 1024, height: 576 }
+
+  it('is the area over every pixel of the picture, and one that can be patched', () => {
+    expect(wholeArea(size)).toEqual({ x: 0, y: 0, width: 1024, height: 576 })
+    expect(checkPatchArea(wholeArea(size), size)).toBeNull()
+  })
+
+  it('is told apart from any area that leaves a side out', () => {
+    expect(isWholeArea(wholeArea(size), size)).toBe(true)
+    expect(isWholeArea({ x: 1, y: 0, width: 1023, height: 576 }, size)).toBe(false)
+    expect(isWholeArea({ x: 0, y: 0, width: 1024, height: 575 }, size)).toBe(false)
+    expect(isWholeArea(null, size)).toBe(false)
+  })
+
+  it('keeps only what the edit really changed, a slight drift of the rest left out', () => {
+    const take = plain(200, 200, [60, 120, 40])
+    const whole = wholeArea(take)
+    // The model drifts every pixel a little, and paints one thing.
+    const drifted = plain(200, 200, [68, 128, 48])
+    const edited = withBox(drifted, { x: 80, y: 80, width: 40, height: 40 }, [200, 40, 40])
+    const patch = keepChanged(
+      matchOutside(matchToTake(edited, take, whole), take, whole),
+      take,
+      whole,
+    )
+    expect(alphaAt(patch, 100, 100)).toBe(255)
+    expect(alphaAt(patch, 20, 20)).toBe(0)
+    expect(alphaAt(patch, 199, 199)).toBe(0)
   })
 })
 

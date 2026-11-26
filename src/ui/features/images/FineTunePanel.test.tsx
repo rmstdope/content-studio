@@ -6,6 +6,9 @@ import type { ProjectFailure } from '../../../services/workspace'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
+// The key cap and the key follow the computer: these tests are a Mac's unless they say otherwise.
+let platform = 'MacIntel'
+Object.defineProperty(navigator, 'platform', { configurable: true, get: () => platform })
 const isOff = (element: Element) => element.getAttribute('aria-disabled') === 'true'
 const { act, createElement } = await import('react')
 const { WhyTip } = await import('../../components/WhyTip')
@@ -22,6 +25,7 @@ const realFetch = globalThis.fetch
 afterEach(() => {
   cleanups.splice(0).forEach((c) => c())
   globalThis.fetch = realFetch
+  platform = 'MacIntel'
 })
 afterAll(() => GlobalRegistrator.unregister())
 
@@ -142,6 +146,25 @@ async function type(box: HTMLTextAreaElement, value: string) {
     box.dispatchEvent(new Event('input', { bubbles: true }))
   })
 }
+/** Presses a key with Command or Control held; whether the page took it from the browser. */
+async function chord(target: Element, name: string, held: 'metaKey' | 'ctrlKey' = 'metaKey') {
+  const event = new KeyboardEvent('keydown', {
+    key: name,
+    [held]: true,
+    bubbles: true,
+    cancelable: true,
+  })
+  await act(async () => {
+    target.dispatchEvent(event)
+  })
+  return event.defaultPrevented
+}
+const markStyle = (host: Element) => {
+  const mark = host.querySelector<HTMLElement>('.patch-mark')
+  return mark && [mark.style.left, mark.style.top, mark.style.width, mark.style.height]
+}
+const WHOLE = ['0%', '0%', '100%', '100%']
+const markLine = (host: Element) => text(host.querySelector('.fine-words > .muted'))
 const wordsBox = (host: Element) => host.querySelector<HTMLTextAreaElement>('textarea')!
 const cards = (host: Element) => [...host.querySelectorAll<HTMLElement>('.fine-card')]
 
@@ -178,7 +201,7 @@ describe('the states of the panel', () => {
     expect(text(host)).toContain('In the game · Take 3')
     expect(text(host)).toContain('No fine-tunes yet. Describe a change and make a few.')
     expect(text(host)).toContain(
-      'Drag on the picture to change only part of it; with no mark the whole picture is changed.',
+      'Drag on the picture to change only part of it, or mark the whole picture ⌘A . With no mark the whole picture is painted again.',
     )
     expect(wordsBox(host).placeholder).toBe('Say what to add, remove or change')
     expect(isOff(button(host, 'Make 4 fine-tunes')!)).toBe(true)
@@ -225,6 +248,129 @@ describe('the states of the panel', () => {
     await type(wordsBox(host), 'Add a cat')
     expect(isOff(button(host, 'Make 4 fine-tunes')!)).toBe(true)
     expect(text(host)).toContain('Setup says how to download it.')
+  })
+})
+
+describe('marking the whole picture (as-bt1m.2)', () => {
+  const LINK = 'mark the whole picture'
+  const WHOLE_LINE = 'The whole picture is marked: only what changes is kept. Clear the mark'
+
+  it('is offered in the line under the words, with its key, while there is no mark', async () => {
+    const { host } = await render(() => view())
+    expect(markLine(host)).toBe(
+      'Drag on the picture to change only part of it, or mark the whole picture ⌘A . With no mark the whole picture is painted again.',
+    )
+    const link = button(host, LINK)!
+    expect(link.getAttribute('aria-keyshortcuts')).toBe('Meta+A')
+    expect(link.nextElementSibling?.tagName).toBe('KBD')
+    expect(button(host, 'Clear the mark')).toBeUndefined()
+  })
+
+  it('marks it by the link, says only changes are kept, focuses Clear, and makes over it', async () => {
+    const { host, sent } = await render(() => view())
+    await act(async () => button(host, LINK)!.click())
+    expect(markStyle(host)).toEqual(WHOLE)
+    expect(markLine(host)).toBe(WHOLE_LINE)
+    expect(button(host, LINK)).toBeUndefined()
+    expect(document.activeElement).toBe(button(host, 'Clear the mark') ?? null)
+    await type(wordsBox(host), 'Make it night')
+    await act(async () => button(host, 'Make 4 fine-tunes')!.click())
+    expect(sent[0]!.body).toMatchObject({ area: { x: 0, y: 0, width: 1024, height: 576 } })
+  })
+
+  it('goes back to no mark with Clear the mark', async () => {
+    const { host } = await render(() => view())
+    await act(async () => button(host, LINK)!.click())
+    await act(async () => button(host, 'Clear the mark')!.click())
+    expect(markStyle(host)).toBeNull()
+    expect(button(host, LINK)).toBeDefined()
+  })
+
+  it('offers both the link and Clear the mark for a part, which the link or a drag replace', async () => {
+    const { host } = await render(() => view())
+    await drag(stageOf(host), [100, 50], [300, 250])
+    expect(markLine(host)).toBe(
+      'Drag on the picture to change only part of it, or mark the whole picture ⌘A . Clear the mark',
+    )
+    await act(async () => button(host, LINK)!.click())
+    expect(markStyle(host)).toEqual(WHOLE)
+    await drag(stageOf(host), [100, 50], [300, 250])
+    expect(markStyle(host)![0]).not.toBe('0%')
+    expect(button(host, LINK)).toBeDefined()
+  })
+
+  it('reads a drag from edge to edge as the whole picture', async () => {
+    const { host } = await render(() => view())
+    await drag(stageOf(host), [0, 0], [1024, 576])
+    expect(markLine(host)).toBe(WHOLE_LINE)
+  })
+
+  it('never warns that it is too small', async () => {
+    const { host } = await render(() =>
+      view({ picture: { kind: 'take', n: 3, width: 40, height: 600 } }),
+    )
+    await act(async () => button(host, LINK)!.click())
+    expect(host.querySelector('.mark-tag')).toBeNull()
+    expect(host.querySelector('.patch-mark-small')).toBeNull()
+  })
+
+  it('is marked by ⌘A from anywhere on the page, taken from the browser', async () => {
+    const { host } = await render(() => view())
+    expect(await chord(document.body, 'a')).toBe(true)
+    expect(markStyle(host)).toEqual(WHOLE)
+  })
+
+  it('moves focus off a link the key takes away', async () => {
+    const { host } = await render(() => view())
+    button(host, LINK)!.focus()
+    await chord(button(host, LINK)!, 'a')
+    expect(document.activeElement).toBe(button(host, 'Clear the mark') ?? null)
+  })
+
+  it('leaves ⌘A to the words while typing in them', async () => {
+    const { host } = await render(() => view())
+    expect(await chord(wordsBox(host), 'a')).toBe(false)
+    expect(markStyle(host)).toBeNull()
+  })
+
+  it('is marked by ⌘A with the count menu focused: nothing is being typed', async () => {
+    const { host } = await render(() => view())
+    await chord(host.querySelector('select.takes-count')!, 'a')
+    expect(markStyle(host)).toEqual(WHOLE)
+  })
+
+  it('is Ctrl+A off a Mac, and says so', async () => {
+    platform = 'Win32'
+    const { host } = await render(() => view())
+    expect(text(button(host, LINK)!.nextElementSibling)).toBe('Ctrl+A')
+    expect(await chord(document.body, 'a', 'metaKey')).toBe(false)
+    expect(markStyle(host)).toBeNull()
+    expect(await chord(document.body, 'a', 'ctrlKey')).toBe(true)
+    expect(markStyle(host)).toEqual(WHOLE)
+  })
+
+  it('leaves ⌘A alone while the tab is closed', async () => {
+    const { host } = await render(() => view(), undefined, undefined, false)
+    expect(await chord(document.body, 'a')).toBe(false)
+    expect(markStyle(host)).toBeNull()
+  })
+
+  it('leaves ⌘A alone with no picture to mark', async () => {
+    const { host } = await render(() => view({ picture: { kind: 'none' } }))
+    expect(await chord(document.body, 'a')).toBe(false)
+    expect(button(host, LINK)).toBeUndefined()
+  })
+
+  it('belongs to the picture it was marked on', async () => {
+    let n = 3
+    const { host, client } = await render(() =>
+      view({ picture: { kind: 'take', n, width: 1024, height: 576 } }),
+    )
+    await act(async () => button(host, LINK)!.click())
+    n = 4
+    await act(async () => await client.invalidateQueries())
+    await settle()
+    expect(markStyle(host)).toBeNull()
   })
 })
 
@@ -776,7 +922,7 @@ describe('the screen: Choose, the count and the keys', () => {
   it('writes the hint and the heading "What to change"', async () => {
     const { host } = await render(() => view())
     expect(text(host)).toContain(
-      'Drag on the picture to change only part of it; with no mark the whole picture is changed.',
+      'Drag on the picture to change only part of it, or mark the whole picture ⌘A . With no mark the whole picture is painted again.',
     )
     expect(text(host)).toContain('What to change')
   })

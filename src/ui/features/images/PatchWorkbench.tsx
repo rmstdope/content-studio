@@ -1,4 +1,6 @@
-import { fieldOwnsKeys, usePendingFocus } from './useWorkbenchKeys'
+import { fieldOwnsKeys, typesText, useDocumentKeys, usePendingFocus } from './useWorkbenchKeys'
+import { onWholeMarkLink, WholeMarkLink } from './WholeMarkLink'
+import { isWholeKey, wholeKeyText } from '../../wholeMark'
 import { useAfterSaved } from '../../useAfterSaved'
 import { useJobOpen } from './ImageJobTabs'
 import { cropWindow } from '../../../core/imagePixels'
@@ -15,7 +17,9 @@ import {
 } from 'react'
 import {
   checkPatchArea,
+  isWholeArea,
   markFromArea,
+  wholeArea,
   onTopQuestion,
   type ImagePatchesView,
   type PatchTie,
@@ -61,6 +65,11 @@ import {
   patchMenuWhy,
   WAIT_FOR_CHANGE,
   markedFromAreaText,
+  MARK_WHOLE_ALONE,
+  MARK_WHOLE_LINK,
+  PATCH_WHOLE,
+  patchMarkHint,
+  TIED_WHOLE,
   refusal,
   takeCountText,
 } from '../../imagesText'
@@ -271,9 +280,16 @@ export function PatchWorkbench({
   const [asking, setAsking] = useState(false)
   // The question on a patch that others lie on top of, before it changes its chosen take.
   const [onTop, setOnTop] = useState<SetAsideAsk | null>(null)
-  const focusOn = usePendingFocus<number | 'heading'>((want) =>
-    want === 'heading' ? heading.current : thumbs.current.get(want),
-  )
+  const focusOn = usePendingFocus<number | 'heading' | 'marked'>((want) => {
+    if (want === 'heading') return heading.current
+    if (typeof want === 'number') return thumbs.current.get(want)
+    // After the whole picture is marked: the way back to the named area, else Make, else the heading.
+    const make = makeButton.current
+    return (
+      backButton.current ??
+      (make && make.getAttribute('aria-disabled') !== 'true' ? make : heading.current)
+    )
+  })
   const { waiting: waitingForWords, afterSaved: afterWordsSaved } = useAfterSaved(saveWords)
   // Focus goes to Make once a stopped press has left it free again.
   const [landOnMake, setLandOnMake] = useState(false)
@@ -284,6 +300,9 @@ export function PatchWorkbench({
   const heading = useRef<HTMLSpanElement>(null)
   const unchooseButton = useRef<HTMLButtonElement>(null)
   const makeButton = useRef<HTMLButtonElement>(null)
+  const backButton = useRef<HTMLButtonElement>(null)
+  // ⌘A is heard anywhere on the page, but only while this tab is the open one.
+  const markKeys = useDocumentKeys(jobOpen)
   const thumbs = useRef(new Map<number, HTMLButtonElement>())
   const refocusUnchoose = useFocusWhenClosed(asking, unchooseButton)
 
@@ -318,6 +337,7 @@ export function PatchWorkbench({
     }
   })
 
+  markKeys.current = () => {}
   if (!take) {
     return (
       <>
@@ -389,7 +409,7 @@ export function PatchWorkbench({
   const canChoose = canChange && lookError === null && shown !== null && shown.look !== 'bringing'
   const chooseWhy = !canChange ? changeWhy : lookError !== null ? STYLE_BROKEN_WHY : BRINGING_WHY
   const overlaid = showing ? shown : null
-  const small = smallMark(marked)
+  const small = smallMark(marked, take)
   const showMark = marked !== null && !(overlaid && sameArea(marked, overlaid.area))
   const problem = refusal(make.data) ?? refusal(choose.data) ?? refusal(drop.data)
   const error = make.error ?? choose.error ?? drop.error ?? stop.error
@@ -449,6 +469,19 @@ export function PatchWorkbench({
     // A click, or a drag too small to patch, changes nothing.
     if (dragged) onMark(dragged)
     return dragged
+  }
+  /** Marks the whole picture; focus on the link, which then goes, moves to the next control. */
+  const markWhole = (fromLink = onWholeMarkLink()) => {
+    onMark(wholeArea(take))
+    setAnnounced('')
+    if (fromLink) focusOn('marked', true)
+  }
+  markKeys.current = (event) => {
+    // With no picture shown there is nothing to mark.
+    if (stack && stack.kind !== 'on') return
+    if (!isWholeKey(event) || typesText(event.target)) return
+    event.preventDefault()
+    markWhole()
   }
   const onKeyDown = (event: React.KeyboardEvent) => {
     const target = event.target
@@ -651,7 +684,7 @@ export function PatchWorkbench({
             onPointerUp={(event) => {
               const dragged = dragTo(event)
               if (dragged) {
-                const small = smallMark(dragged)
+                const small = smallMark(dragged, take)
                 setAnnounced(small ? smallMarkText(small) : '')
               }
               start.current = null
@@ -713,44 +746,69 @@ export function PatchWorkbench({
     ...making.map((m) => ({ n: m.n, take: null as PatchTakeView | null, making: m })),
   ].sort((a, b) => a.n - b.n)
 
+  // The line under the words: how the picture is marked, and the other ways to mark it. A patch
+  // whose picture is not shown has no link.
+  const link = blocked === null
+  const whole = isWholeArea(marked, take)
+  const wholeLink = (label: string, after?: string) => (
+    <WholeMarkLink label={label} after={after} onPress={() => markWhole(true)} />
+  )
+  const backToArea = tie && (
+    <button
+      type="button"
+      className="patch-back"
+      ref={backButton}
+      onClick={() => {
+        onBackToArea()
+        // Make may be off (no model, takes being made): focus then goes to the heading.
+        if (makeButton.current && makeButton.current.getAttribute('aria-disabled') !== 'true')
+          makeButton.current.focus()
+        else focusOn('heading')
+      }}
+    >
+      {backToAreaText(tie.title)}
+    </button>
+  )
+  let markLine: ReactNode = null
+  if (tie && atArea) {
+    markLine = (
+      <>
+        {markedFromAreaText(tie.title, link)}
+        {link && wholeLink(MARK_WHOLE_LINK, '.')}
+      </>
+    )
+  } else if (tie && fromArea) {
+    markLine = (
+      <>
+        {link && whole && `${TIED_WHOLE} `}
+        {backToArea} {link && !whole && wholeLink(MARK_WHOLE_ALONE)}
+      </>
+    )
+  } else if (!marked) {
+    // A patch of its own says nothing of marking while no takes can be made: the maker says why.
+    if (tie || view.maker.ok) {
+      markLine = (
+        <>
+          {tie ? areaNoPlaceText(tie.title, link) : patchMarkHint(link)}
+          {link && wholeLink(MARK_WHOLE_LINK, '.')}
+        </>
+      )
+    }
+  } else if (link && (tie || view.maker.ok)) {
+    markLine = whole ? PATCH_WHOLE : wholeLink(MARK_WHOLE_ALONE)
+  }
+
   return (
     <div className="patch-bench" onKeyDown={onKeyDown}>
       <div className="patch-band">
         <div className="patch-band-words">
           <h3 className="patch-title">{title}</h3>
           {words}
-          {tie &&
-            (atArea ? (
-              <span className="muted small">{markedFromAreaText(tie.title)}</span>
-            ) : fromArea ? (
-              <button
-                type="button"
-                className="patch-back"
-                onClick={() => {
-                  onBackToArea()
-                  // Make may be off (no model, takes being made): focus then goes to the heading.
-                  if (
-                    makeButton.current &&
-                    makeButton.current.getAttribute('aria-disabled') !== 'true'
-                  )
-                    makeButton.current.focus()
-                  else focusOn('heading')
-                }}
-              >
-                {backToAreaText(tie.title)}
-              </button>
-            ) : (
-              !marked && <span className="muted small">{areaNoPlaceText(tie.title)}</span>
-            ))}
-          {!view.maker.ok ? (
+          {markLine && <span className="muted small patch-mark-line">{markLine}</span>}
+          {!view.maker.ok && (
             <span className="takes-missing small" role="status">
               {view.maker.message}
             </span>
-          ) : (
-            !marked &&
-            !tie && (
-              <span className="muted small">Drag over the picture to mark what should change.</span>
-            )
           )}
           {problem && <span className="adopt-error">{problem}</span>}
           {error && <span className="adopt-error">{error.message}</span>}
@@ -828,7 +886,7 @@ export function PatchWorkbench({
           {absentLine && <span className="faint small">{absentLine}</span>}
           <span className="faint small patch-keys">
             <kbd>←</kbd> <kbd>→</kbd> take · <kbd>C</kbd> choose · <kbd>D</kbd> drop · <kbd>S</kbd>{' '}
-            patch off/on
+            patch off/on · <kbd>{wholeKeyText()}</kbd> whole picture
           </span>
         </div>
       </div>

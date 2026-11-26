@@ -13,6 +13,12 @@ export function fieldOwnsKeys(target: EventTarget | null): boolean {
   )
 }
 
+/** Whether `target` is a field that text is typed into, where ⌘A selects the text; a menu is not. */
+export function typesText(target: EventTarget | null): boolean {
+  if (target instanceof HTMLElement && target.isContentEditable) return true
+  return !(target instanceof HTMLSelectElement) && fieldOwnsKeys(target)
+}
+
 /** Whether a key pressed on `target` is typing in a field or choosing in a menu. */
 export function typingIn(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false

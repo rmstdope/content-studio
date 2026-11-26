@@ -31,6 +31,14 @@ describe('smallMark', () => {
     expect(smallMark(area(300, 60))).toBeNull()
     expect(smallMark(null)).toBeNull()
   })
+  test('a mark over the whole picture is never small, however small the picture', () => {
+    const picture = { width: 40, height: 200 }
+    expect(smallMark({ x: 0, y: 0, ...picture }, picture)).toBeNull()
+    expect(smallMark({ x: 0, y: 0, width: 40, height: 30 }, picture)).toEqual({
+      width: 40,
+      height: 30,
+    })
+  })
   test('says the agreed words', () => {
     expect(smallMarkHead({ width: 36, height: 30 })).toBe('Too small: 36 × 30.')
     expect(smallMarkText({ width: 36, height: 30 })).toBe(

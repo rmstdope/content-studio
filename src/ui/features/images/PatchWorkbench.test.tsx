@@ -7,6 +7,9 @@ import { cssLength, valuesInEveryWindow } from '../../../../test/stylesheet'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
+// The key cap and the key follow the computer: these tests are a Mac's unless they say otherwise.
+let platform = 'MacIntel'
+Object.defineProperty(navigator, 'platform', { configurable: true, get: () => platform })
 const isOff = (element: Element) => element.getAttribute('aria-disabled') === 'true'
 const { act, createElement } = await import('react')
 const { WhyTip } = await import('../../components/WhyTip')
@@ -21,6 +24,7 @@ const realFetch = globalThis.fetch
 afterEach(() => {
   cleanups.splice(0).forEach((c) => c())
   globalThis.fetch = realFetch
+  platform = 'MacIntel'
 })
 afterAll(() => GlobalRegistrator.unregister())
 
@@ -265,7 +269,9 @@ describe('an open patch with no takes', () => {
     const base = host.querySelector<HTMLImageElement>('img.patch-take')!
     expect(base.getAttribute('src')).toStartWith('/api/images/inn/takes/3/game')
     expect(host.querySelector('img.patch-over')).toBeNull()
-    expect(text(host)).toContain('Drag over the picture to mark what should change.')
+    expect(text(host)).toContain(
+      'Drag over the picture to mark what should change, or mark the whole picture ⌘A .',
+    )
     expect(isOff(button(host, 'Make 2 takes')!)).toBe(true)
     expect(button(host, 'Make 2 takes')!.dataset.why).toBe(
       'This patch has no mark yet. Drag over the picture to mark where it goes.',
@@ -575,7 +581,7 @@ describe('an open patch with takes', () => {
     expect(button(host, 'Drop')).not.toBeUndefined()
     expect(button(host, 'Un-choose')).toBeUndefined()
     expect(text(host.querySelector('.patch-keys'))).toBe(
-      '← → take · C choose · D drop · S patch off/on',
+      '← → take · C choose · D drop · S patch off/on · ⌘A whole picture',
     )
   })
 
@@ -1000,6 +1006,180 @@ describe('takes being made and failed', () => {
   })
 })
 
+/** Presses a key with Command or Control held; whether the page took it from the browser. */
+async function chord(target: Element, name: string, held: 'metaKey' | 'ctrlKey' = 'metaKey') {
+  const event = new KeyboardEvent('keydown', {
+    key: name,
+    [held]: true,
+    bubbles: true,
+    cancelable: true,
+  })
+  await act(async () => {
+    target.dispatchEvent(event)
+  })
+  return event.defaultPrevented
+}
+const markStyle = (host: Element) => {
+  const mark = host.querySelector<HTMLElement>('.patch-mark')
+  return mark && [mark.style.left, mark.style.top, mark.style.width, mark.style.height]
+}
+const WHOLE = ['0%', '0%', '100%', '100%']
+const markLine = (host: Element) => text(host.querySelector('.patch-mark-line'))
+
+describe('marking the whole picture on a patch (as-bt1m.2)', () => {
+  const none = () => view([work('a')])
+  const LINK = 'mark the whole picture'
+  const ALONE = 'Mark the whole picture'
+  const WHOLE_LINE = 'The whole picture is marked. Drag on it to mark only part.'
+  const wholeArea = { x: 0, y: 0, width: 1024, height: 576 }
+
+  it('marks it by the link, says dragging marks part, focuses Make and makes over it', async () => {
+    const { host, sent } = await render([patchRow('a')], none)
+    await open(host)
+    expect(button(host, LINK)!.getAttribute('aria-keyshortcuts')).toBe('Meta+A')
+    await act(async () => button(host, LINK)!.click())
+    expect(markStyle(host)).toEqual(WHOLE)
+    expect(markLine(host)).toBe(WHOLE_LINE)
+    expect(button(host, LINK)).toBeUndefined()
+    expect(button(host, ALONE)).toBeUndefined()
+    expect(button(host, 'Clear the mark')).toBeUndefined()
+    expect(document.activeElement).toBe(button(host, 'Make 2 takes') ?? null)
+    await act(async () => button(host, 'Make 2 takes')!.click())
+    expect(sent[0]!.body).toMatchObject({ area: wholeArea })
+  })
+
+  it('shows the link alone for a dragged part', async () => {
+    const { host } = await render([patchRow('a')], none)
+    await open(host)
+    await drag(stageOf(host), [100, 50], [300, 250])
+    expect(markLine(host)).toBe('Mark the whole picture ⌘A')
+    await act(async () => button(host, ALONE)!.click())
+    expect(markStyle(host)).toEqual(WHOLE)
+    await drag(stageOf(host), [100, 50], [300, 250])
+    expect(markLine(host)).toBe('Mark the whole picture ⌘A')
+  })
+
+  it('marks the model’s whole picture in the game’s version too', async () => {
+    const { host, sent } = await render([patchRow('a')], () =>
+      view([work('a')], { game: { width: 300, height: 300 } }),
+    )
+    await open(host)
+    await act(async () => button(host, LINK)!.click())
+    expect(markStyle(host)).toEqual(WHOLE)
+    await act(async () => button(host, 'Make 2 takes')!.click())
+    expect(sent[0]!.body).toMatchObject({ area: wholeArea })
+  })
+
+  it('never warns that it is too small', async () => {
+    const { host } = await render([patchRow('a')], () =>
+      view([work('a')], {
+        take: { n: 3, width: 40, height: 600, cropped: false },
+        game: { width: 40, height: 600 },
+      }),
+    )
+    await open(host)
+    await act(async () => button(host, LINK)!.click())
+    expect(host.querySelector('.mark-tag')).toBeNull()
+    expect(host.querySelector('.patch-mark-small')).toBeNull()
+  })
+
+  it('is marked by ⌘A from anywhere on the page, but not while typing in the words', async () => {
+    const { host } = await render([patchRow('a')], none)
+    await open(host)
+    expect(await chord(host.querySelector('textarea')!, 'a')).toBe(false)
+    expect(markStyle(host)).toBeNull()
+    expect(await chord(document.body, 'a')).toBe(true)
+    expect(markStyle(host)).toEqual(WHOLE)
+  })
+
+  it('is marked by ⌘A with focus inside the patch', async () => {
+    const { host } = await render([patchRow('a')], none)
+    await open(host)
+    await chord(host.querySelector('select.takes-count')!, 'a')
+    expect(markStyle(host)).toEqual(WHOLE)
+  })
+
+  it('is Ctrl+A off a Mac, in the cap and the keys line too', async () => {
+    platform = 'Linux x86_64'
+    const { host } = await render([patchRow('a')], none)
+    await open(host)
+    expect(text(button(host, LINK)!.nextElementSibling)).toBe('Ctrl+A')
+    expect(text(host.querySelector('.patch-keys'))).toEndWith('· Ctrl+A whole picture')
+    expect(await chord(document.body, 'a', 'metaKey')).toBe(false)
+    expect(await chord(document.body, 'a', 'ctrlKey')).toBe(true)
+    expect(markStyle(host)).toEqual(WHOLE)
+  })
+
+  it('has no link and no key without a chosen take', async () => {
+    const { host } = await render([patchRow('a')], () => view([work('a')], { take: null }))
+    await open(host)
+    expect(button(host, LINK)).toBeUndefined()
+    expect(await chord(document.body, 'a')).toBe(false)
+  })
+
+  it('has no link and no key while what the patch lies on shows no picture', async () => {
+    const { host } = await render(
+      [
+        patchRow('a', {
+          over: 'b',
+          problem: { kind: 'unknown', text: 'It lies on nothing.', rowText: 'Lies on nothing.' },
+        }),
+      ],
+      none,
+    )
+    await open(host)
+    expect(host.querySelector('.patch-stage')).toBeNull()
+    expect(button(host, LINK)).toBeUndefined()
+    expect(text(host)).toContain('Drag over the picture to mark what should change.')
+    expect(await chord(document.body, 'a')).toBe(false)
+  })
+
+  describe('on a tied patch', () => {
+    const bucket = {
+      id: 'bucket',
+      title: 'Bucket',
+      placed: true,
+      box: { x: 100, y: 100, width: 200, height: 150 },
+      boxes: {},
+      elsewhere: [],
+      elsewhereGone: false,
+    }
+    const tied = () => [patchRow('a', { area: 'bucket' })]
+    const areas = (box: boolean) => ({
+      areas: [box ? bucket : { ...bucket, placed: false, box: null }],
+    })
+
+    it('goes from the area’s mark to the whole picture and back', async () => {
+      const { host } = await render(tied(), none, undefined, areas(true))
+      await open(host)
+      await act(async () => button(host, LINK)!.click())
+      expect(markStyle(host)).toEqual(WHOLE)
+      expect(markLine(host)).toBe('The whole picture is marked. Back to “Bucket”')
+      expect(document.activeElement).toBe(button(host, 'Back to “Bucket”') ?? null)
+      await act(async () => button(host, 'Back to “Bucket”')!.click())
+      expect(markStyle(host)).not.toEqual(WHOLE)
+      expect(button(host, LINK)).toBeDefined()
+    })
+
+    it('offers Back to the area and the link for a dragged part', async () => {
+      const { host } = await render(tied(), none, undefined, areas(true))
+      await open(host)
+      await drag(stageOf(host), [400, 300], [500, 380])
+      expect(markLine(host)).toBe('Back to “Bucket” Mark the whole picture ⌘A')
+    })
+
+    it('has nothing to go back to when the area has no place', async () => {
+      const { host } = await render(tied(), none, undefined, areas(false))
+      await open(host)
+      await act(async () => button(host, LINK)!.click())
+      expect(markLine(host)).toBe(WHOLE_LINE)
+      expect(isOff(button(host, 'Make 2 takes')!)).toBe(false)
+      await drag(stageOf(host), [400, 300], [500, 380])
+      expect(markLine(host)).toBe('Mark the whole picture ⌘A')
+    })
+  })
+})
+
 describe('a patch tied to a named area', () => {
   const bucket = {
     id: 'bucket',
@@ -1017,10 +1197,10 @@ describe('a patch tied to a named area', () => {
   const markLeft = (host: Element) =>
     (host.querySelector('.patch-mark') as HTMLElement | null)?.style.left
   const LINE =
-    'Marked from the named area “Bucket”, with a little room around it. Drag over the picture to change it.'
+    'Marked from the named area “Bucket”, with a little room around it. Drag over the picture to change it, or mark the whole picture ⌘A .'
   const NOPLACE =
-    '“Bucket” has no place yet. Mark it under Named areas and this patch starts there, or drag over the picture to mark this patch by hand.'
-  const HINT = 'Drag over the picture to mark what should change.'
+    '“Bucket” has no place yet. Mark it under Named areas and this patch starts there, drag over the picture to mark this patch by hand, or mark the whole picture ⌘A .'
+  const HINT = 'Drag over the picture to mark what should change'
 
   it('opens marked at the area grown by the feather, with the line, Make on and no hint', async () => {
     const { host } = await render(tied(), none, undefined, { areas: [bucket] })
