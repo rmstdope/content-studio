@@ -9,6 +9,7 @@ import type { ImageRow, PatchRow } from '../../../core/images'
 import { cssLength, valuesInEveryWindow } from '../../../../test/stylesheet'
 
 import { drawnSize, SAME_SIZE } from '../../../../test/pictureSize'
+import { settle } from '../../../../test/settle'
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
 // The key cap and the key follow the computer: these tests are a Mac's unless they say otherwise.
@@ -184,11 +185,6 @@ async function render(
       )
     })
   }
-}
-
-/** Lets what the page asked for arrive. */
-async function settle() {
-  for (let i = 0; i < 5; i++) await act(async () => await new Promise((r) => setTimeout(r, 5)))
 }
 
 /** Lets the page work until `element()` is on again, as a person waits to press it. */

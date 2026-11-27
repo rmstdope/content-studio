@@ -8,6 +8,7 @@ import type { ImagePatchesView } from '../../../core/imagePatches'
 import { valuesInEveryWindow } from '../../../../test/stylesheet'
 import { mountPager } from '../../../../test/besidePager'
 import { drawnSize, SAME_SIZE } from '../../../../test/pictureSize'
+import { settle } from '../../../../test/settle'
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register({ url: 'http://localhost/' })
 const isOff = (element: Element) => element.getAttribute('aria-disabled') === 'true'
@@ -152,11 +153,6 @@ async function render(areas: AreaRow[], options: Options = {}) {
     await draw(areas, options.chosenTake ?? null)
   }
   return { host, puts, stage, draw, setOpen }
-}
-
-/** Lets pending requests, state updates and animation frames run. */
-async function settle() {
-  for (let i = 0; i < 5; i++) await act(async () => await new Promise((r) => setTimeout(r, 5)))
 }
 
 /** Sends a pointer event of `type` at this picture point (one screen pixel per image pixel). */
