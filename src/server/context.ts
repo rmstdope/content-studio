@@ -164,6 +164,7 @@ export function createContext({
   images,
   effects,
   sceneRender,
+  spendLog: givenSpendLog,
 }: ServerOptions) {
   /** The port the server listens on, set once it does: the guards need it. */
   const listening: { port?: number } = {}
@@ -785,7 +786,7 @@ export function createContext({
   }
 
   /** The paid recordings of this studio: running ones live, finished ones saved. */
-  const spendLog = createSpendLog(projectFile)
+  const spendLog = givenSpendLog ?? createSpendLog(projectFile)
 
   /**
    * Runs one request's recording of a single line, following it in the spend log: it counts as one

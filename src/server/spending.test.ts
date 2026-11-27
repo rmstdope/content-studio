@@ -1,8 +1,10 @@
 import { afterAll, describe, expect, it } from 'bun:test'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { projectJson, tempRepo } from '../../test/helpers'
+import { CACHE_DIR } from '../core/project'
 import { FishError, type FishClient } from '../services/fish'
+import { SPENDING_FILE, type SpendLog } from '../services/spending'
 import { startServer } from './index'
 import { encode, fish, gate, until } from './test-support'
 
@@ -231,5 +233,39 @@ describe('server, the spending record', () => {
     const now = await spending()
     expect(now.count).toBe(before + 1)
     expect(now.rows[0]).toMatchObject({ lines: 1, planned: 1, state: 'done' })
+  })
+})
+
+describe('server, the spending record while a recording ends', () => {
+  const repo = tempRepo({ 'content-studio.json': projectJson() })
+  const projectFile = join(repo, 'content-studio.json')
+  const ended = {
+    id: 'r1',
+    at: '2026-01-01T00:00:00.000Z',
+    part: 'act1',
+    language: 'en',
+    model: 's2-pro',
+    stage: 'draft' as const,
+    lines: 2,
+    planned: 2,
+    cost: 0.25,
+    outcome: 'done' as const,
+  }
+  // A recording that ends, saved, just as the running ones are read: it is no longer running.
+  const spendLog: SpendLog = {
+    follow: () => ({ end: async () => {} }),
+    running() {
+      mkdirSync(join(repo, CACHE_DIR), { recursive: true })
+      writeFileSync(join(repo, SPENDING_FILE), JSON.stringify({ version: 1, recordings: [ended] }))
+      return []
+    },
+  }
+  const server = startServer({ projectFile, port: 0, fish, encode, transcriber: null, spendLog })
+  afterAll(() => server.stop(true))
+
+  it('lists a recording that ended after the record was read', async () => {
+    const now = await (await fetch(new URL('/api/spending', server.url))).json()
+    expect(now).toMatchObject({ ok: true, count: 1, total: 0.25 })
+    expect(now.rows[0]).toMatchObject({ id: 'r1', state: 'done' })
   })
 })

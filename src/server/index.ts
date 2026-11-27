@@ -16,6 +16,7 @@ import { musicRoutes } from './routes/music'
 import { narrationRoutes } from './routes/narration'
 import { scenesRoutes } from './routes/scenes'
 import { setupRoutes } from './routes/setup'
+import type { SpendLog } from '../services/spending'
 
 /** How to start the studio's server. */
 export interface ServerOptions {
@@ -40,6 +41,8 @@ export interface ServerOptions {
   images?: ImageGenerator
   /** The sound effects generator to use (tests); by default the Small SFX worker, or a stand-in when `CONTENT_STUDIO_FAKE_EFFECTS=1`. */
   effects?: EffectGenerator
+  /** The spend log to use (tests); by default one saving into the project's spending record. */
+  spendLog?: SpendLog
 }
 
 export { allowedHosts }
