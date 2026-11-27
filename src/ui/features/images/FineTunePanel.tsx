@@ -1,11 +1,11 @@
 import { fieldOwnsKeys, NOT_YET, useDocumentKeys, usePendingFocus } from './useWorkbenchKeys'
-import { browserClock, type DelayClock } from '../../delayClock'
 import { WholeMarkLink } from './WholeMarkLink'
 import { useWorkbenchMark } from './useWorkbenchMark'
 import { useJobOpen } from './ImageJobTabs'
 import { FitPicture } from './FitPicture'
 import { ChangeBadge, ChangeNote } from './MarkTag'
 import { HistoryMenu } from './HistoryMenu'
+import { browserClock, type DelayClock } from '../../delayClock'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   cameAlongLine,

@@ -22,6 +22,7 @@ import {
 } from '../../../core/motion'
 import { addShape, dropShape, middleOf, nudgeMark } from '../../../core/spot'
 import { useImagePatches, useMotionRenderer, useSetImageEffects, useSetImageZoom } from '../../api'
+import { browserClock, type DelayClock } from '../../delayClock'
 import { IMAGE_TAKE_UNKNOWN } from '../../imagesText'
 import {
   MOVEMENT_WORDS,
@@ -101,12 +102,15 @@ export function MovementPanel({
   chosen,
   onGoToMake,
   onEffectsOn,
+  clock = browserClock,
 }: {
   row: ImageRow
   /** The page's one answer (`imageChosen`): which take the game shows, or that it is not known. */
   chosen: Chosen
   onGoToMake: () => void
   onEffectsOn?: (count: number | null) => void
+  /** What times the “Saving…” and “Saved” delays; a test gives its own. */
+  clock?: DelayClock
 }) {
   const open = useJobOpen()
   const { state: motion, retry } = useMotionRenderer(open)
@@ -118,14 +122,14 @@ export function MovementPanel({
   const [status, setStatus] = useState<SaveStatus>('idle')
   const save = useSetImageEffects(row.id)
   const saves = useRef(0)
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([])
+  const timers = useRef<(() => void)[]>([])
   // The image's slow zoom as set here (undefined: nothing saved, the game's own), with its own save.
   const [zoom, setZoom] = useState<SavedZoom | undefined>(() => row.zoom)
   const latestZoom = useRef(zoom)
   const [zoomStatus, setZoomStatus] = useState<SaveStatus>('idle')
   const saveZoom = useSetImageZoom(row.id)
   const zoomSaves = useRef(0)
-  const zoomTimers = useRef<ReturnType<typeof setTimeout>[]>([])
+  const zoomTimers = useRef<(() => void)[]>([])
   const [paused, setPaused] = useState(false)
   const [full, setFull] = useState(false)
   const [folded, setFolded] = useState(false)
@@ -241,8 +245,8 @@ export function MovementPanel({
 
   useEffect(
     () => () => {
-      timers.current.forEach(clearTimeout)
-      zoomTimers.current.forEach(clearTimeout)
+      timers.current.forEach((cancel) => cancel())
+      zoomTimers.current.forEach((cancel) => cancel())
     },
     [],
   )
@@ -250,23 +254,23 @@ export function MovementPanel({
   /** Saves the zoom as it is now (none saved: null); the latest save's outcome is the one shown. */
   const persistZoom = useCallback(() => {
     const mine = ++zoomSaves.current
-    zoomTimers.current.forEach(clearTimeout)
+    zoomTimers.current.forEach((cancel) => cancel())
     zoomTimers.current = [
-      setTimeout(() => {
+      clock.after(SAVING_AFTER_MS, () => {
         if (zoomSaves.current === mine) setZoomStatus('saving')
-      }, SAVING_AFTER_MS),
+      }),
     ]
     const done = (ok: boolean) => {
       if (zoomSaves.current !== mine) return
-      zoomTimers.current.forEach(clearTimeout)
+      zoomTimers.current.forEach((cancel) => cancel())
       setZoomStatus(ok ? 'saved' : 'failed')
-      if (ok) zoomTimers.current = [setTimeout(() => setZoomStatus('idle'), SAVED_FOR_MS)]
+      if (ok) zoomTimers.current = [clock.after(SAVED_FOR_MS, () => setZoomStatus('idle'))]
     }
     saveZoom.mutate(latestZoom.current ?? null, {
       onSuccess: (answer) => done(answer.ok),
       onError: () => done(false),
     })
-  }, [saveZoom])
+  }, [saveZoom, clock])
   /** Sets the zoom here (the picture follows at once); saving is `persistZoom`'s. */
   const setZoomNow = (next: SavedZoom | undefined) => {
     latestZoom.current = next
@@ -289,19 +293,19 @@ export function MovementPanel({
       const mine = ++saves.current
       // Try again retries the latest save: only a revert's own save is retried as a revert.
       if (!onFail) failedBack.current = null
-      timers.current.forEach(clearTimeout)
+      timers.current.forEach((cancel) => cancel())
       timers.current = [
-        setTimeout(() => {
+        clock.after(SAVING_AFTER_MS, () => {
           if (saves.current === mine) setStatus('saving')
-        }, SAVING_AFTER_MS),
+        }),
       ]
       const done = (ok: boolean) => {
         if (saves.current !== mine) return
-        timers.current.forEach(clearTimeout)
+        timers.current.forEach((cancel) => cancel())
         setFailedSpot(spot)
         setStatus(ok ? 'saved' : 'failed')
         if (!ok) onFail?.()
-        if (ok) timers.current = [setTimeout(() => setStatus('idle'), SAVED_FOR_MS)]
+        if (ok) timers.current = [clock.after(SAVED_FOR_MS, () => setStatus('idle'))]
       }
       // An effect the game cannot place elsewhere is marked so, so its kept shape is not exported.
       const marked: SavedEffects = Object.fromEntries(
@@ -316,7 +320,7 @@ export function MovementPanel({
         onError: () => done(false),
       })
     },
-    [save],
+    [save, clock],
   )
 
   /** Sets the effects here (the picture follows at once); saving is `persist`'s. */
