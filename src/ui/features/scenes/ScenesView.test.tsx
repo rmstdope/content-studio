@@ -1319,7 +1319,7 @@ describe('leaving a scene with unsaved changes', () => {
       expect(dialog()).not.toBeNull()
       expect(text(container.querySelector('h1'))).toBe('General store')
       // The browser's moves along the history land a moment later.
-      const settle = () => act(async () => new Promise((resolve) => setTimeout(resolve, 5)))
+      const settle = () => act(() => history.landed())
       await settle()
       expect(window.location.hash).toBe('#/scenes/parts/act1?scene=act1-store')
       act(() => button(document.body, "Don't save").click())
