@@ -6,6 +6,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import type { MusicTakesView } from '../../src/core/musicTake'
 import type { ProjectSummary } from '../../src/core/summary'
+import { STINGER_GENERATED_SECONDS } from '../../src/core/musicModels'
 import { readWav, writeWav } from '../../src/core/wav'
 import { ffmpegEncoder } from '../../src/services/audio'
 import type { MusicPieceRequest } from '../../src/services/elevenlabs'
@@ -78,7 +79,7 @@ describe.skipIf(Bun.which('ffmpeg') === null)('MUS-1: a track is made and chosen
   /** The pitch of the take just asked for: 100 Hz, then 100 Hz more for each by either model. */
   const nextPitch = () => 100 * (local.length + eleven.length)
   /** A stinger's sound ends after two seconds, a loop's lasts as long as asked. */
-  const soundOf = (seconds: number) => (seconds === 10 ? 2 : seconds)
+  const soundOf = (seconds: number) => (seconds === STINGER_GENERATED_SECONDS ? 2 : seconds)
 
   const onThisComputer: MusicGenerator = {
     ready: () => ({ ok: true }),
@@ -93,7 +94,10 @@ describe.skipIf(Bun.which('ffmpeg') === null)('MUS-1: a track is made and chosen
     },
     close() {},
   }
-  /** The real Eleven Music generator, over a stand-in for the ElevenLabs account. */
+  /**
+   * The real Eleven Music generator, over a stand-in for the ElevenLabs account. It answers a WAV
+   * where ElevenLabs answers an MP3: ffmpeg decodes either, and MP3 input is not proven here.
+   */
   const elevenMusic = createElevenMusic({
     apiKey: async () => 'key',
     client: () => ({
