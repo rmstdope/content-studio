@@ -1,5 +1,13 @@
-import { FADES_BODY_TEXT } from '../core/fades'
+import { SetEffectLevelBody } from '../core/effectLevel'
+import {
+  ChooseEffectTakeBody,
+  MakeEffectTakesBody,
+  SetEffectFadesBody,
+  TrimEffectTakeBody,
+} from '../core/effectTakes'
+import { MakeAllBody } from '../core/effectsMakeAll'
 import type { Action } from './mcpActions'
+import { EffectDescriptionBody, MeasureBody, SceneBody } from './shared'
 
 /** The Sound effects and Scenes steps an agent may do: one entry per change route of those pages. */
 export const EFFECTS_AND_SCENES_ACTIONS: readonly Action[] = [
@@ -14,7 +22,7 @@ export const EFFECTS_AND_SCENES_ACTIONS: readonly Action[] = [
     method: 'PATCH',
     path: '/api/effects/:id',
     about: "set an effect's description, or null to clear it",
-    body: '{ description: string | null }',
+    body: EffectDescriptionBody,
   },
   {
     page: 'Sound effects',
@@ -35,7 +43,7 @@ export const EFFECTS_AND_SCENES_ACTIONS: readonly Action[] = [
     method: 'POST',
     path: '/api/effects/:id/takes',
     about: 'make takes for an effect',
-    body: '{ count } or { retry }',
+    body: MakeEffectTakesBody,
   },
   {
     page: 'Sound effects',
@@ -69,7 +77,7 @@ export const EFFECTS_AND_SCENES_ACTIONS: readonly Action[] = [
     method: 'PUT',
     path: '/api/effects/:id/takes/:file/fades',
     about: "set a take's fades",
-    body: FADES_BODY_TEXT,
+    body: SetEffectFadesBody,
   },
   {
     page: 'Sound effects',
@@ -82,28 +90,28 @@ export const EFFECTS_AND_SCENES_ACTIONS: readonly Action[] = [
     method: 'PUT',
     path: '/api/effects/:id/takes/:file/level',
     about: "set a take's level",
-    body: '{ level }',
+    body: SetEffectLevelBody,
   },
   {
     page: 'Sound effects',
     method: 'POST',
     path: '/api/effects/:id/choose',
     about: 'choose a take for the game',
-    body: '{ file }',
+    body: ChooseEffectTakeBody,
   },
   {
     page: 'Sound effects',
     method: 'POST',
     path: '/api/effects/:id/trim',
     about: 'trim a take, or undo the trim',
-    body: '{ file, undo? }',
+    body: TrimEffectTakeBody,
   },
   {
     page: 'Sound effects',
     method: 'POST',
     path: '/api/effects/make-all',
     about: 'make four takes for each of these effects',
-    body: '{ ids }',
+    body: MakeAllBody,
     confirm:
       'makes four takes for each of the effects listed in ids, and the model runs for a while',
   },
@@ -124,13 +132,13 @@ export const EFFECTS_AND_SCENES_ACTIONS: readonly Action[] = [
     method: 'POST',
     path: '/api/scene-loudness/:part',
     about: "measure the loudness of a part's scenes",
-    body: '{ open?: { scene, entry } }; send {} for none',
+    body: MeasureBody,
   },
   {
     page: 'Scenes',
     method: 'PUT',
     path: '/api/scenes/:part/:id',
     about: "save a scene's mix",
-    body: '{ scene: SceneMix, was: SceneMix | null, moved? }. SceneMix: { music?: { track: id | null, level }, effects: [Effect] }. Effect: { id, play, state?, level }, level 0 to 3 (1 as made), state one of the scene\'s states. play: { mode: "loop" } | { mode: "random", everySeconds: [from, to] } | { mode: "once", afterSeconds } | { mode: "trigger", trigger }. was: the scene\'s mix as you read it, null if it had none. moved: { db, measuredAt }, only after Make louder or quieter',
+    body: SceneBody,
   },
 ]

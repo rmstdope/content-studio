@@ -25,7 +25,6 @@ function setup(answer: unknown, stop = 'stop', stopRefuses = false, withBody = t
       stop,
       stopRefuses,
       service,
-      expected: '{ ids }',
       ...(withBody && { body: z.object({ ids: z.array(z.string()) }) }),
     },
   ) as unknown as Record<string, Record<string, (r: RouteRequest) => Promise<Response>>>
@@ -74,7 +73,11 @@ describe('makeAllRoutes', () => {
     const bad = await setup({ ok: true }).routes['/api/things/:id/make-all']!.POST!(
       request({ id: 'a' }, {}),
     )
-    expect(await bad.json()).toEqual({ error: 'expected { ids }' })
+    expect(await bad.json()).toEqual({
+      error: expect.stringMatching(
+        /^expected \{ ids \}: ids: .*\. Allowed: ids is a list of text\.$/,
+      ),
+    })
   })
 
   it('gives a medium with no body undefined', async () => {

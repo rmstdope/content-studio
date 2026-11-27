@@ -43,7 +43,7 @@ export const MakeFineTunesBody = z.union([
   z.strictObject({
     count: z.number().int().min(1).max(10),
     words: z.string().refine((w) => w.trim() !== '', 'Say what to change.'),
-    area: PatchAreaSchema.nullable(),
+    area: PatchAreaSchema.nullable().meta({ description: 'null for the whole picture' }),
     /** The edit model for the new fine-tunes; the default one when left out. */
     model: z.enum(EDIT_MODEL_IDS).optional(),
   }),
@@ -54,7 +54,7 @@ export const MakeFineTunesBody = z.union([
 export const UseFineTuneBody = z.strictObject({
   n: z.number().int().positive(),
   /** Count the new take as up to date when only its words or styles are behind; true when absent. */
-  accept: z.boolean().optional(),
+  accept: z.boolean().optional().meta({ description: 'true if left out' }),
 })
 
 /** The words as a caption shows them: on one line, shortened with an ellipsis. */

@@ -1,5 +1,6 @@
 import { EffectEditSchema, ZoomEditSchema } from '../core/images'
 import { z } from 'zod'
+import { bodyAllowed, bodyShape } from '../core/bodyText'
 import { type FineTuneAnswer } from '../services/imageFineTunes'
 import { type ImagePatchAnswer, type RemakeAnswer } from '../services/imagePatches'
 import { seamWav } from '../core/musicTake'
@@ -47,15 +48,30 @@ export const CleanedBody = z.union([
 /** The whole pronunciation table, and the one the page showed (to refuse a stale page). */
 export const Table = z.array(z.tuple([z.string().max(1_000), z.string().max(1_000)])).max(2_000)
 /** The body of a save of the pronunciation table. */
-export const PronounceBody = z.object({ table: Table, was: Table }).strict()
+export const PronounceBody = z
+  .object({
+    table: Table.meta({ description: 'the whole table, as [word, said] pairs' }),
+    was: Table.meta({
+      description:
+        'the table as you read it, [] if it had none: summary.pronounce of studio_read /api/project (for ?language=<code>, summary.perLanguage.<code>.pronounce)',
+    }),
+  })
+  .strict()
 
 /** The project's own sound-alike groups, and the ones the editing began from. */
 export const Groups = z.array(z.array(z.string().max(200)).max(50)).max(1000)
 /** The body of a save of the words that sound the same. */
-export const SoundAlikeBody = z.object({ groups: Groups, was: Groups }).strict()
+export const SoundAlikeBody = z
+  .object({
+    groups: Groups.meta({ description: "the project's own groups of words that sound the same" }),
+    was: Groups.meta({ description: 'the groups as you read them' }),
+  })
+  .strict()
 
 /** The Fish tier the user chose, or null to clear it. */
-export const FishTierBody = z.object({ tier: FishTierSchema.nullable() }).strict()
+export const FishTierBody = z
+  .object({ tier: FishTierSchema.nullable().meta({ description: 'null clears it' }) })
+  .strict()
 
 /** How long takes fade in the studio, in seconds. */
 export const TakeFadeBody = z.object({ seconds: z.number().min(0) }).strict()
@@ -66,7 +82,8 @@ export const ModelsBody = z
     takes: z
       .array(z.enum(['draft', 'final']))
       .min(1)
-      .refine((takes) => new Set(takes).size === takes.length),
+      .refine((takes) => new Set(takes).size === takes.length)
+      .meta({ description: 'at least one, none twice' }),
   })
   .strict()
 
@@ -83,16 +100,22 @@ export const AreaBoxBody = z.object({
       height: z.number(),
       point: z.object({ x: z.number(), y: z.number() }).optional(),
     })
-    .nullable(),
+    .nullable()
+    .meta({ description: 'fractions of the picture; null takes the box away' }),
 })
 
 /** The effects of an image as the page saves them: the whole set, by effect type; an empty one takes them all away. */
 export const EffectsBody = z.object({
-  effects: z.record(z.string(), EffectEditSchema),
+  effects: z.record(z.string(), EffectEditSchema).meta({
+    description:
+      'the whole set, by effect type; spot and mark are fractions of the picture; empty takes them all away',
+  }),
 })
 
 /** An image's slow zoom as the page saves it; null takes it away. */
-export const ZoomBody = z.object({ zoom: ZoomEditSchema.nullable() })
+export const ZoomBody = z.object({
+  zoom: ZoomEditSchema.nullable().meta({ description: 'null takes the zoom away' }),
+})
 
 /** The answer to a change of the studio's image words: 404 for an unknown image, 409 with the reason. */
 export function imageAnswer(
@@ -109,37 +132,30 @@ export function imageAnswer(
 }
 
 /**
- * A 400 for a body that did not fit: `expected <shape>`, then the first problem with its path, then
- * the values allowed, so a caller that guessed can put it right at once.
+ * A 400 for a body that did not fit its route's schema: `expected <shape>`, then the first problem
+ * with its path, then the values allowed, so a caller that guessed can put it right at once. The
+ * shape and the values are the schema's own (`bodyText.ts`).
  */
-export function badBody(shape: string, error: z.ZodError, allowed: string): Response {
+export function badBody(schema: z.ZodType, error: z.ZodError): Response {
   const issue = error.issues[0]
   const where = issue?.path.length ? `${issue.path.join('.')}: ` : ''
-  const line = `expected ${shape}: ${where}${issue?.message ?? 'not valid'}. ${allowed}`
+  const problem = `${where}${issue?.message ?? 'not valid'}`
+  const line = `expected ${bodyShape(schema)}: ${problem}. ${bodyAllowed(schema)}`
   return Response.json({ error: line }, { status: 400 })
 }
-
-/** The values a scene's mix takes where a guess goes wrong. */
-export const SCENE_ALLOWED =
-  'Allowed: play.mode is loop, random (with everySeconds: [from, to]), once (with afterSeconds) or trigger (with trigger); level is 0 to 3.'
-
-/** The values the Fish tier takes where a guess goes wrong. */
-export const FISH_TIER_ALLOWED = `Allowed: tier is ${FishTierSchema.options.map((t) => `"${t}"`).join(', ')} or null (to clear it).`
-
-/** The shape of the pronunciation table where a guess goes wrong. */
-export const PRONOUNCE_ALLOWED =
-  'Allowed: table and was are lists of [word, said] pairs of text; was is the table as you read it, [] if it had none.'
-
-/** The values a record job takes where a guess goes wrong. */
-export const JOB_ALLOWED =
-  'Allowed: kind is record, measure or check; stage is draft or final; speaker is a character id, or null for all; keys and orphans are lists of line keys; retakeWeak is true or false; confirmedCost (dollars) and confirmedCredits are numbers, 0 or more.'
 
 /** A scene as the page saves it, and the entry it was read as (null: the mix had none). */
 export const SceneBody = z
   .object({
     scene: SceneMixSchema,
-    was: SceneMixSchema.nullable(),
-    moved: z.object({ db: z.number(), measuredAt: z.string() }).strict().optional(),
+    was: SceneMixSchema.nullable().meta({
+      description: "the scene's mix as you read it, null if it had none",
+    }),
+    moved: z
+      .object({ db: z.number(), measuredAt: z.string() })
+      .strict()
+      .optional()
+      .meta({ description: 'only after Make louder or quieter' }),
   })
   .strict()
 
@@ -147,6 +163,7 @@ export const SceneBody = z
 export const MeasureBody = z
   .object({ open: z.object({ scene: z.string(), entry: SceneMixSchema }).strict().optional() })
   .strict()
+  .meta({ description: 'open is the open scene with its unsaved changes; send {} for none' })
 
 /** The new description of a sound effect: text, or null to take the game's back. */
 export const EffectDescriptionBody = z.object({ description: z.string().nullable() }).strict()
@@ -156,11 +173,6 @@ export function effectAnswer(result: EffectEditResult): Response {
   if (!result) return notFound()
   return Response.json(result, { status: result.ok ? 200 : 409 })
 }
-
-/** The model the page chose for a stage or for the music, and the one it showed. */
-export const StageModelBody = z
-  .object({ model: z.string().min(1), was: z.string().min(1) })
-  .strict()
 
 /** ElevenLabs' voice settings as numbers; their ranges are the project file's to check. */
 export const ElevenTtsShape = z
@@ -213,14 +225,27 @@ export const JobBody = z
      * Record lines (default), measure clips never checked, or check weak lines again: the last
      * two with Whisper alone, without new audio.
      */
-    kind: z.enum(['record', 'measure', 'check']).default('record'),
+    kind: z
+      .enum(['record', 'measure', 'check'])
+      .default('record')
+      .meta({ description: 'measure and check use Whisper alone, no credit' }),
     /** Record with the draft model (default), or the final recording with the final one. */
     stage: z.enum(['draft', 'final']).default('draft'),
     /** Retake the weak lines among `keys` (only when the user ticked it). */
     retakeWeak: z.boolean().default(false),
-    speaker: z.string().min(1).max(200).nullable(),
-    keys: z.array(z.string()).max(100_000),
-    orphans: z.array(z.string()).max(100_000),
+    speaker: z
+      .string()
+      .min(1)
+      .max(200)
+      .nullable()
+      .meta({ description: 'a character id, or null for all' }),
+    keys: z.array(z.string()).max(100_000).meta({
+      description: 'line keys as you read them in the part; only those still due are done',
+    }),
+    orphans: z
+      .array(z.string())
+      .max(100_000)
+      .meta({ description: 'orphaned line keys, removed with a record job' }),
     /** The most the user agreed to spend, in dollars, for a paid model. */
     confirmedCost: z.number().nonnegative().optional(),
     /** The most ElevenLabs credits the user agreed to, for lines with ElevenLabs voices. */
@@ -259,11 +284,19 @@ export const RecordBody = z
   .strict()
 
 /** A voice to bring in or cast: either provider's. */
-export const VoiceBody = z.object({ voice: z.string().regex(VOICE_ID) })
+export const VoiceBody = z.object({
+  voice: z.string().regex(VOICE_ID).meta({ description: 'a voice id' }),
+})
 
 /** The voices to remove from the user's ElevenLabs voices, by their studio ids. */
 export const FreeBody = z
-  .object({ voices: z.array(z.string().regex(VOICE_ID)).min(1).max(500) })
+  .object({
+    voices: z
+      .array(z.string().regex(VOICE_ID))
+      .min(1)
+      .max(500)
+      .meta({ description: 'voice ids, at least one' }),
+  })
   .strict()
 
 /** Whose library more voices come from: Fish's unless ElevenLabs' is asked for. */
@@ -297,6 +330,7 @@ export const AmountBody = z
   })
   .strict()
   .refine((body) => body.amount !== undefined || body.credits !== undefined)
+  .meta({ description: 'Send amount (dollars), credits, or both.' })
 
 /** What is added to a sitting: Fish's dollars or ElevenLabs' credits, one at a time. */
 export const AddBody = z.union([
@@ -327,7 +361,7 @@ export const DesignBody = z
   .strict()
 /** What casting a voice made from recordings sends: the voice and the name to cast it under. */
 export const CastOwnBody = z.object({
-  voice: z.string().regex(FISH_VOICE_ID),
+  voice: z.string().regex(FISH_VOICE_ID).meta({ description: 'a Fish voice id' }),
   name: z.string().trim().min(1),
 })
 

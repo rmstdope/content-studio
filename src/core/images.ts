@@ -1603,7 +1603,11 @@ export function summarizeImages(input: ImagesInput): {
 }
 
 /** The body of a change to an image's own words; null takes them back. */
-export const WordsBody = z.object({ words: z.string().nullable() }).strict()
+export const WordsBody = z
+  .object({
+    words: z.string().nullable().meta({ description: "null takes the game's words back" }),
+  })
+  .strict()
 
 /** The body of a change to the style's look or what is kept out; null or empty is none (refused for the look). */
 export const StyleFieldBody = z.union([

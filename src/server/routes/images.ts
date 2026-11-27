@@ -22,7 +22,15 @@ import { readMotionRenderer } from '../../services/motionRenderer'
 import type { RouteContext } from '../context'
 import { makeAllRoutes } from '../makeAllRoutes'
 import { takeListRoutes } from '../takeRoutes'
-import { AreaBoxBody, EffectsBody, ZoomBody, imageAnswer, fileRoute, notFound } from '../shared'
+import {
+  AreaBoxBody,
+  EffectsBody,
+  ZoomBody,
+  badBody,
+  imageAnswer,
+  fileRoute,
+  notFound,
+} from '../shared'
 
 /** The images routes. */
 export function imagesRoutes(c: RouteContext) {
@@ -32,7 +40,7 @@ export function imagesRoutes(c: RouteContext) {
       PATCH: fromOwnPage(async (request) => {
         const body = WordsBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { words: string | null }' }, { status: 400 })
+          return badBody(WordsBody, body.error)
         }
         return imageAnswer(await setImageWords(projectFile, request.params.id, body.data.words))
       }),
@@ -41,10 +49,7 @@ export function imagesRoutes(c: RouteContext) {
       PATCH: fromOwnPage(async (request) => {
         const body = ActStyleBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json(
-            { error: 'expected { on: boolean } or { from: string | null }' },
-            { status: 400 },
-          )
+          return badBody(ActStyleBody, body.error)
         }
         return imageAnswer(
           'on' in body.data
@@ -57,7 +62,7 @@ export function imagesRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = CompareBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: "expected { choice: 'keep' | 'game' }" }, { status: 400 })
+          return badBody(CompareBody, body.error)
         }
         return imageAnswer(
           await resolveImageCompare(projectFile, request.params.id, body.data.choice),
@@ -68,7 +73,7 @@ export function imagesRoutes(c: RouteContext) {
       PATCH: fromOwnPage(async (request) => {
         const body = WordsBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { words: string | null }' }, { status: 400 })
+          return badBody(WordsBody, body.error)
         }
         const { id, patch } = request.params
         return imageAnswer(await setImagePatchWords(projectFile, id, patch, body.data.words))
@@ -78,10 +83,7 @@ export function imagesRoutes(c: RouteContext) {
       PUT: fromOwnPage(async (request) => {
         const body = AreaBoxBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json(
-            { error: 'expected { box: {x,y,width,height} | null }' },
-            { status: 400 },
-          )
+          return badBody(AreaBoxBody, body.error)
         }
         const { id, area } = request.params
         return imageAnswer(await setImageAreaBox(projectFile, id, area, body.data.box))
@@ -91,10 +93,7 @@ export function imagesRoutes(c: RouteContext) {
       PUT: fromOwnPage(async (request) => {
         const body = EffectsBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json(
-            { error: 'expected { effects: { [type]: { on, settings } } }' },
-            { status: 400 },
-          )
+          return badBody(EffectsBody, body.error)
         }
         return imageAnswer(await setImageEffects(projectFile, request.params.id, body.data.effects))
       }),
@@ -103,10 +102,7 @@ export function imagesRoutes(c: RouteContext) {
       PUT: fromOwnPage(async (request) => {
         const body = ZoomBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json(
-            { error: 'expected { zoom: { on, seconds, percent } | null }' },
-            { status: 400 },
-          )
+          return badBody(ZoomBody, body.error)
         }
         return imageAnswer(await setImageZoom(projectFile, request.params.id, body.data.zoom))
       }),
@@ -115,7 +111,7 @@ export function imagesRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = CompareBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: "expected { choice: 'keep' | 'game' }" }, { status: 400 })
+          return badBody(CompareBody, body.error)
         }
         const { id, patch } = request.params
         return imageAnswer(await resolveImagePatchCompare(projectFile, id, patch, body.data.choice))
@@ -169,7 +165,7 @@ export function imagesRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = RemakePatchesBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { count, marks, model? }' }, { status: 400 })
+          return badBody(RemakePatchesBody, body.error)
         }
         return imageAnswer(await imagePatches.remake(projectFile, request.params.id, body.data))
       }),
@@ -189,10 +185,7 @@ export function imagesRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = MakePatchTakesBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json(
-            { error: 'expected { count, area, model? } or { retry }' },
-            { status: 400 },
-          )
+          return badBody(MakePatchTakesBody, body.error)
         }
         const { id, patch } = request.params
         return imageAnswer(await imagePatches.make(projectFile, id, patch, body.data))
@@ -223,7 +216,7 @@ export function imagesRoutes(c: RouteContext) {
     '/api/images/:id/patches/:patch/choose': {
       POST: fromOwnPage(async (request) => {
         const body = ChoosePatchTakeBody.safeParse(await request.json().catch(() => null))
-        if (!body.success) return Response.json({ error: 'expected { n }' }, { status: 400 })
+        if (!body.success) return badBody(ChoosePatchTakeBody, body.error)
         const { id, patch } = request.params
         return imageAnswer(await imagePatches.choose(projectFile, id, patch, body.data.n))
       }),
@@ -249,10 +242,7 @@ export function imagesRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = MakeFineTunesBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json(
-            { error: 'expected { count, words, area, model? } or { retry }' },
-            { status: 400 },
-          )
+          return badBody(MakeFineTunesBody, body.error)
         }
         return imageAnswer(await imageFineTunes.make(projectFile, request.params.id, body.data))
       }),
@@ -275,7 +265,7 @@ export function imagesRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = UseFineTuneBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { n, accept? }' }, { status: 400 })
+          return badBody(UseFineTuneBody, body.error)
         }
         const result = await imageFineTunes.use(projectFile, request.params.id, body.data.n, {
           accept: body.data.accept ?? true,
@@ -334,7 +324,7 @@ export function imagesRoutes(c: RouteContext) {
     '/api/images/:id/choose': {
       POST: fromOwnPage(async (request) => {
         const body = ChooseImageTakeBody.safeParse(await request.json().catch(() => null))
-        if (!body.success) return Response.json({ error: 'expected { n }' }, { status: 400 })
+        if (!body.success) return badBody(ChooseImageTakeBody, body.error)
         const { id } = request.params
         const result = await imageTakes.choose(projectFile, id, body.data.n)
         if (!result?.ok) return imageAnswer(result)
@@ -352,7 +342,7 @@ export function imagesRoutes(c: RouteContext) {
     '/api/images/:id/copy': {
       POST: fromOwnPage(async (request) => {
         const body = CopyImageBody.safeParse(await request.json().catch(() => null))
-        if (!body.success) return Response.json({ error: 'expected { from }' }, { status: 400 })
+        if (!body.success) return badBody(CopyImageBody, body.error)
         return imageAnswer(
           await imageTakes.copyFrom(projectFile, request.params.id, body.data.from),
         )
@@ -367,10 +357,7 @@ export function imagesRoutes(c: RouteContext) {
       PATCH: fromOwnPage(async (request) => {
         const body = StyleFieldBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json(
-            { error: 'expected { look: string | null } or { keepOut: string | null }' },
-            { status: 400 },
-          )
+          return badBody(StyleFieldBody, body.error)
         }
         const [field, text] = Object.entries(body.data)[0] as ['look' | 'keepOut', string | null]
         return imageAnswer(await setStyleField(projectFile, field, text))

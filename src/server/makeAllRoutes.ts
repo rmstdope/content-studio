@@ -1,6 +1,6 @@
 import type { ZodType } from 'zod'
 import type { RouteContext } from './context'
-import { notFound, type RouteRequest } from './shared'
+import { badBody, notFound, type RouteRequest } from './shared'
 
 /** What a service answers: nothing when the thing is not there, else a result that may refuse. */
 type Answer = { ok?: boolean } | null | undefined
@@ -27,8 +27,6 @@ export type MakeAllRoutesMedium<Body> = {
   body?: ZodType<Body>
   /** Whether a refused Stop all answers 409 (images); otherwise any result is a 200 (music, effects). */
   stopRefuses?: boolean
-  /** What the 400 says the body should have been, such as `{ ids }`. */
-  expected?: string
 }
 
 /** The answer for a result that may refuse: 404 for nothing, 409 for a refusal, else 200. */
@@ -43,7 +41,7 @@ function answerOf(result: Answer): Response {
  */
 export function makeAllRoutes<Body = undefined>(
   c: Pick<RouteContext, 'fromOwnPage' | 'guard' | 'projectFile'>,
-  { base, stop, service, body, expected, stopRefuses = false }: MakeAllRoutesMedium<Body>,
+  { base, stop, service, body, stopRefuses = false }: MakeAllRoutesMedium<Body>,
 ) {
   const { fromOwnPage, guard, projectFile } = c
   return {
@@ -53,7 +51,7 @@ export function makeAllRoutes<Body = undefined>(
         if (body) {
           const result = body.safeParse(await request.json().catch(() => null))
           if (!result.success) {
-            return Response.json({ error: `expected ${expected ?? 'a body'}` }, { status: 400 })
+            return badBody(body, result.error)
           }
           parsed = result.data
         }

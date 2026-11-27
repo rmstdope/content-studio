@@ -28,7 +28,7 @@ export const SceneDeclarationSchema = z.object({
 export type SceneDeclaration = z.infer<typeof SceneDeclarationSchema>
 
 /** A level: 0 to 3, 1 being the clip as made. */
-const Level = z.number().min(0).max(3)
+const Level = z.number().min(0).max(3).meta({ description: '1 is the clip as made' })
 
 /** How an effect plays: round and round, at random, once, or on a trigger. */
 export const PlaySchema = z.discriminatedUnion('mode', [
@@ -49,13 +49,19 @@ export type Play = z.infer<typeof PlaySchema>
 /** One scene's entry in the mix (§8.11). */
 export const SceneMixSchema = z.object({
   /** The music: a track id, or `null` for none. Absent: the scene's own track, at 1. */
-  music: z.object({ track: Slug.nullable(), level: Level }).optional(),
+  music: z
+    .object({
+      track: Slug.nullable().meta({ description: 'a track id, or null for none' }),
+      level: Level,
+    })
+    .optional()
+    .meta({ description: "left out: the scene's own track, at 1" }),
   effects: z
     .array(
       z.object({
         id: Slug,
         play: PlaySchema,
-        state: Slug.optional(),
+        state: Slug.optional().meta({ description: "one of the scene's states" }),
         level: Level,
       }),
     )

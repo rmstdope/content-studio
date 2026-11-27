@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { matchAction } from './mcpActions'
+import { actionBody, matchAction } from './mcpActions'
 import { FishTierBody, JobBody, PronounceBody } from './shared'
 import { SETUP_AND_NARRATION_ACTIONS } from './mcpActionsNarration'
 
@@ -61,7 +61,7 @@ describe('what an agent may do on Setup and Narration', () => {
 })
 
 describe('what the bodies of the tier, the pronunciation table and the record job say', () => {
-  const body = (method: string, path: string) => matchAction(method, path)?.body ?? ''
+  const body = (method: string, path: string) => actionBody(matchAction(method, path)!) ?? ''
   it('names the Fish tiers', () => {
     const text = body('PATCH', '/api/fish-tier')
     for (const word of ['under-100', '"100"', '1000', 'null']) expect(text).toContain(word)
@@ -100,7 +100,7 @@ describe('what an agent reads of the five model saves', () => {
     ['/api/models/draft', ['"s2.1-pro"', '"drama-3"']],
     ['/api/models/elevenlabs/draft', ['"eleven_v3"']],
   ])('%s names its model ids and where was is read', (path, ids) => {
-    const body = matchAction('PUT', path)?.body ?? ''
+    const body = actionBody(matchAction('PUT', path)!) ?? ''
     for (const word of ['{ model, was }', 'GET /api/models', ...ids]) {
       expect(body).toContain(word)
     }

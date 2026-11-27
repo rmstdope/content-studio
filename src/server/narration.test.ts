@@ -199,7 +199,7 @@ describe('server, a character per language', () => {
     expect(saved.speakers.narrator.languages.sv).toMatchObject({ clean: true })
     expect(saved.speakers.narrator.clean).toBeUndefined()
     const refused = await call('PATCH', '/api/characters/narrator', { clean: 'yes' })
-    expect(refused.error).toContain('{ clean: boolean }')
+    expect(refused.error).toContain('clean is true or false')
   })
 
   it('changes a character’s speed and casts a voice for the language only', async () => {
@@ -1650,14 +1650,18 @@ describe('server, generating per language', () => {
       body: JSON.stringify(body),
     })
     expect(evil.status).toBe(403)
-    expect(await send('PATCH', inside, { at: 1 })).toEqual({ error: 'expected { at, cue, text }' })
+    expect(await send('PATCH', inside, { at: 1 })).toEqual({
+      error: expect.stringContaining('expected { at, cue, text }: '),
+    })
     expect(await send('PATCH', '/api/parts/act1/cues/nope/inside', body)).toEqual({
       error: 'not found',
     })
     // A cue tried at a gap needs a whole number of words before it, between two words.
     const tryAt = (at: unknown) =>
       send('POST', '/api/parts/act1/lines/a/try?language=sv', { cue: 'x', at })
-    expect(await tryAt('one')).toEqual({ error: 'expected { cue }' })
+    expect(await tryAt('one')).toEqual({
+      error: expect.stringContaining('expected { cue, at? }: at: '),
+    })
     expect(await tryAt(5)).toMatchObject({ ok: false })
   })
 
@@ -1672,7 +1676,7 @@ describe('server, generating per language', () => {
     ).toEqual({ cues: { a: 'En [mjukt] gång.' }, scenes: {} })
     expect(await place({ at: 1, cue: 'x', text: 'Ett annat.' })).toMatchObject({ ok: false })
     expect(await place({ at: 'one', cue: 'x', text: 'En gång.' })).toEqual({
-      error: 'expected { at, cue, text }',
+      error: expect.stringContaining('expected { at, cue, text }: '),
     })
     const sv = await get('/api/parts/act1?language=sv')
     expect(sv.part.lines[0]).toMatchObject({ inside: [{ at: 1, cue: '[mjukt]' }] })

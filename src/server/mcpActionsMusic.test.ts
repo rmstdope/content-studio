@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { projectJson, tempRepo } from '../../test/helpers'
 import { createContext } from './context'
 import { studioRoutes } from './index'
-import { matchAction } from './mcpActions'
+import { actionBody, matchAction } from './mcpActions'
 import { MUSIC_ACTIONS } from './mcpActionsMusic'
 
 describe('the Music and Stingers steps an agent may do', () => {
@@ -37,7 +37,7 @@ describe('the Music and Stingers steps an agent may do', () => {
 
 describe('what the body of a music take’s fades says', () => {
   it('names the lengths and the shapes', () => {
-    const text = matchAction('PUT', '/api/music/tracks/hall/takes/a.mp3/fades')?.body ?? ''
+    const text = actionBody(matchAction('PUT', '/api/music/tracks/hall/takes/a.mp3/fades')!) ?? ''
     for (const word of ['seconds', 'smooth', 'straight']) expect(text).toContain(word)
   })
 })
@@ -63,7 +63,7 @@ describe('the Music and Stingers steps, against the server', () => {
 
 describe('what an agent reads of the music model save', () => {
   it('/api/music/model names its model ids and where was is read', () => {
-    const body = matchAction('PUT', '/api/music/model')?.body ?? ''
+    const body = actionBody(matchAction('PUT', '/api/music/model')!) ?? ''
     for (const word of ['{ model, was }', 'GET /api/models', '"balanced"', '"eleven"']) {
       expect(body).toContain(word)
     }
