@@ -13,7 +13,7 @@ async function run(cwd: string, ...args: string[]) {
     stderr: 'pipe',
   })
   // Starting takes longer than 8 s on a machine running every test file at once; this stays inside
-  // the 20 s a test is given.
+  // the 20 s `bun run test` gives a test.
   const timer = setTimeout(() => child.kill(), 15_000)
   const [stdout, stderr, code] = await Promise.all([
     new Response(child.stdout).text(),
