@@ -26,4 +26,4 @@ failure from the change.
 `services/imageTakes.test.ts`, "adds the next take with its picture" should await the file's
 `settled('inn')` before `addTake`; the other three need their race established first.
 
-**Seen before.** as-kw3x.6, as-mwfn, as-77u, as-2tb (named by as-77u), as-uk15, as-707b, as-911b.
+**Seen before.** as-80yj (and through it as-mirh, which tracks the fine-tuned-take test), as-kw3x.6, as-mwfn, as-77u, as-2tb (named by as-77u), as-uk15, as-707b, as-911b.
