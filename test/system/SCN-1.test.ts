@@ -1,6 +1,5 @@
-// SCN-1: the person hears a scene's music, effects and narration together as the game plays them,
-// and sets the level of each; the levels are saved in the act's mix, the one scenes file the studio
-// writes. The studio plays no narration over a scene (§8.11), so none is proven here.
+// SCN-1: the person hears a scene's music and effects together as the game plays them, and sets the
+// level of each; the levels are saved in the act's mix, the one scenes file the studio writes.
 import { describe, expect, it, setDefaultTimeout } from 'bun:test'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'

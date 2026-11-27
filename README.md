@@ -23,8 +23,8 @@ Committing them is up to you; the studio never commits.
   Qwen-Image through mflux, in the act's style. Patches paint a change into a chosen picture, and
   named areas are marked for the game.
 - **Sound effects.** One-shots and loops made locally with Stable Audio, chosen from takes.
-- **Scenes.** How each scene's music, effects and narration sound together, with loudness
-  measured against the project's target.
+- **Scenes.** How each scene's music and effects sound together, with loudness measured against
+  the project's target.
 - **Changes** lists what git sees of the studio's files, so you know what to commit. **Refresh**
   runs the game's own command to rewrite its lists from the game's code.
 
