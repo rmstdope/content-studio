@@ -270,7 +270,7 @@ describe('docs/project-files.md', () => {
     })
   }
 
-  it('has a schema for every field of the typed manifests', () => {
+  it('has a stand-in for every field of the typed manifests (checked by `bun run typecheck`)', () => {
     expect(nothingLeftOut).toBe(true)
   })
 

@@ -712,7 +712,7 @@ would copy the whole script into the lock. A line has one clip, so it has no `ta
 | `hashes`   | Short hashes of its `cue`, its `text`, what was `said` and the voice `settings`.           |
 | `heard`    | The share of the words Whisper heard, 0 to 1; absent for an adopted clip.                  |
 | `takes`    | How many takes were tried.                                                                 |
-| `level`    | The level the clip was set to, in percent: the voice's when it was made; absent means 100. |
+| `level`    | The level the clip is at, in percent, as recorded or as set on it since; no key means 100. |
 | `adopted`  | `true` for a clip made before the studio.                                                  |
 | `accepted` | `true` when a weak clip was accepted as it is.                                             |
 | `at`       | When it was recorded.                                                                      |
