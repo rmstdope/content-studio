@@ -35,3 +35,17 @@ touch. The load average was about 25 when read just after.
 **Prevent by.** `bin/content-studio.test.ts`, `run`: give the child's kill timer the same 20 s as
 the suite's time limit.
 **Seen before.** as-2yh (timing failures under a loaded machine).
+
+## CI's Test job failed in an ElevenLabs music test this diff does not touch
+
+**What happened.** On #743 at 760dce22, `src/services/elevenMusic.test.ts`, "turns ElevenLabs’ MP3
+into 16-bit WAV of its length, leaving no temporary file", failed alone (6553 pass, 1 fail). The two
+lists it compared held `content-studio-eleven-*.mp3` files. Reproduced locally by running that file
+while another process made and removed files of that name in the temporary folder.
+**Why.** The test lists every `content-studio-eleven-*` file in the shared temporary folder before
+and after, so a test file decoding a take at the same time changes the list.
+**Cost.** One more CI run and a local reproduction.
+**Prevent by.** `src/services/elevenMusic.test.ts`: check only the file this decode made (give
+`createElevenMusic` its temporary folder, or watch the name it hands the decoder), so the file
+shares no global with another, as `CLAUDE.md` asks.
+**Seen before.** None found naming this test.
