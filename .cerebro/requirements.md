@@ -148,7 +148,7 @@ SCN-2  Each scene's loudness is measured against the project's target, and the p
 RFR-1  Refresh dialog on a part's page runs the game's own command to rewrite that part's dialog,
        and the studio then shows what changed. A command that takes too long is stopped, with
        nothing left running.
-       Proven by: nothing yet
+       Proven by: test/system/RFR-1.test.ts
 RFR-2  Refresh from the game on an act's Music, Images and Scenes pages, and on the Stingers and
        Sound effects pages, runs the game's own command to rewrite its lists; each page reports
        only its own list's changes. The studio runs nothing else of the game's.
