@@ -1,5 +1,6 @@
 // SAF-1: the studio writes only the files the project file names and its own files in
-// content-studio/, never anything outside the project root, and never changes git.
+// content-studio/, never anything outside the project root, and never changes git. "Outside" is seen
+// within the temporary repository the game is in: a write elsewhere on the disk would go unnoticed.
 import { describe, expect, it } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
@@ -150,6 +151,8 @@ async function startedOnce(folder: string) {
 function studioOnRepository() {
   const studio = startStudio(repository(), {}, 'game')
   git(studio.root, 'init', '--quiet')
+  // A watcher set up in the user's own git config would put files of its own in .git.
+  git(studio.root, 'config', 'core.fsmonitor', 'false')
   git(studio.root, 'add', '--all')
   git(studio.root, 'commit', '--quiet', '--message', 'The game')
   return studio
@@ -159,6 +162,7 @@ function studioOnRepository() {
 async function answered<T>(response: Promise<Response>): Promise<T> {
   const answer = await response
   const body = await answer.text()
+  // The address is on both sides only so that a failure says which request it was.
   expect({ url: answer.url, status: answer.status, body: answer.ok ? '' : body }).toEqual({
     url: answer.url,
     status: 200,
@@ -310,6 +314,7 @@ describe('SAF-1: the studio writes only the named files and its own folder, and 
 
       expect(outsideTheGame(changed(before, snapshot(root)))).toEqual([])
       expect(chosen.ok).toBe(false)
+      expect(await chosen.text()).toContain('outside the project root')
     },
     SLOW,
   )
