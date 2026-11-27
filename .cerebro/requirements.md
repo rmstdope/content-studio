@@ -17,7 +17,7 @@ RUN-2  A problem in the project file or in a file it points to is reported with 
 SAF-1  The studio writes only the files the project file names and its own files in
        content-studio/, never anything outside the project root, and never changes git. The
        person commits.
-       Proven by: nothing yet
+       Proven by: test/system/SAF-1.test.ts
 SAF-2  Only the studio's own page can change anything: a change asked for by another web page or
        address is refused.
        Proven by: nothing yet
