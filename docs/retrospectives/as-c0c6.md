@@ -30,3 +30,20 @@ so whether it was the same test is not known.
 **Prevent by.** `produce-bead`, _Building_: run the gate into a log file and grep it for `(fail)`.
 
 **Seen before.** as-ibjg and as-2oe say exactly this.
+
+## Two beads wrote the shared system-test start-up at once
+
+**What happened.** The bead said that if no system test existed yet it should bring the shared
+start-up. Sibling beads (as-zfnw, as-qv4b) were built at the same time, and `test/system/studio.ts`
+landed on `main` while this one was in review: an add/add conflict, and a rewrite of this test onto
+the other start-up.
+
+**Why.** Several system-test beads, each told the same thing, were assignable at once with no
+dependency between them.
+
+**Cost.** One rebase with a conflict, the mutations run again, a second gate.
+
+**Prevent by.** `agents/qa.md`, filing system-test findings: make the later ones depend on the one
+that brings a level's first shared start-up.
+
+**Seen before.** None found.
