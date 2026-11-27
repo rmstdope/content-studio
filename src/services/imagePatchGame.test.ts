@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'bun:test'
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { beforeAll, describe, expect, it } from 'bun:test'
+import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { projectJson, tempRepo } from '../../test/helpers'
 import { makeAgainOf, type ImagePatchesView } from '../core/imagePatches'
@@ -31,36 +31,30 @@ const warm = ['#000000', '#ffffff', '#ff0000']
 const area = { x: 200, y: 100, width: 400, height: 300 }
 const FOLDER = 'content-studio/cache/image-patches/inn/door'
 
-/** An image `inn` with a patch, two takes of it made and take 2 chosen, a patch take made on it and chosen. */
-async function chosenPatch() {
-  const root = tempRepo({
-    'content-studio.json': projectJson({ images }),
-    'tts/act1/images.json': [inn],
-    [EDITS]: {
-      style: { look: 'pixel art', keepOut: 'text', palette: warm, parts: {} },
-      images: {},
-    },
-  })
+/** The fake model: a take is a picture by its seed, an edit one colour by the seed's parity. */
+const generator: ImageGenerator = {
+  ready: () => ({ ok: true }),
+  installed: () => true,
+  async generate(request) {
+    if (!request.editing) {
+      return { png: fakePng(request.width, request.height, request.seed), seed: request.seed }
+    }
+    // an edit paints the whole picture white, or red: the patch differs from the take
+    const data = new Uint8Array(request.width * request.height * 4)
+    for (let i = 0; i < data.length; i += 4) {
+      data.set(request.seed % 2 ? [255, 255, 255, 255] : [255, 0, 0, 255], i)
+    }
+    return {
+      png: encodePng({ width: request.width, height: request.height, data }),
+      seed: request.seed,
+    }
+  },
+}
+
+/** Fresh services on the repository at `root`, their fake model seeded from `firstSeed` on. */
+function studio(root: string, firstSeed: number) {
   const file = join(root, 'content-studio.json')
-  const generator: ImageGenerator = {
-    ready: () => ({ ok: true }),
-    installed: () => true,
-    async generate(request) {
-      if (!request.editing) {
-        return { png: fakePng(request.width, request.height, request.seed), seed: request.seed }
-      }
-      // an edit paints the whole picture white, or red: the patch differs from the take
-      const data = new Uint8Array(request.width * request.height * 4)
-      for (let i = 0; i < data.length; i += 4) {
-        data.set(request.seed % 2 ? [255, 255, 255, 255] : [255, 0, 0, 255], i)
-      }
-      return {
-        png: encodePng({ width: request.width, height: request.height, data }),
-        seed: request.seed,
-      }
-    },
-  }
-  let seed = 1
+  let seed = firstSeed
   const common = { generator, queue: createSerial(), free: () => {}, newSeed: () => seed++ }
   const takes = createImageTakes(common)
   const patches = createImagePatches(common)
@@ -73,26 +67,61 @@ async function chosenPatch() {
     }
     throw new Error('never finished')
   }
+  const read = (path: string) => readFileSync(join(root, path))
+  const manifest = () => JSON.parse(read(MANIFEST).toString('utf8'))
+  return { root, file, takes, patches, wait, read, manifest, nextSeed: () => seed }
+}
+
+/** An image `inn` with a patch, two takes of it made and take 2 chosen, a patch take made on it and chosen. */
+async function buildStart() {
+  const root = tempRepo({
+    'content-studio.json': projectJson({ images }),
+    'tts/act1/images.json': [inn],
+    [EDITS]: {
+      style: { look: 'pixel art', keepOut: 'text', palette: warm, parts: {} },
+      images: {},
+    },
+  })
+  const { file, takes, patches, wait, nextSeed } = studio(root, 1)
   await takes.make(file, 'inn', { count: 2 })
-  for (let i = 0; i < 400; i++) {
+  let brought = false
+  for (let i = 0; i < 400 && !brought; i++) {
     const view = await takes.view(file, 'inn')
-    if (view && 'takes' in view && view.takes.length === 2 && !view.making.length) {
-      if (view.takes.every((t) => t.look !== 'bringing')) break
-    }
-    await new Promise((resolve) => setTimeout(resolve, 5))
+    brought = Boolean(
+      view &&
+      'takes' in view &&
+      view.takes.length === 2 &&
+      !view.making.length &&
+      view.takes.every((t) => t.look !== 'bringing'),
+    )
+    if (!brought) await new Promise((resolve) => setTimeout(resolve, 5))
   }
+  expect(brought).toBe(true)
   expect(await takes.choose(file, 'inn', 2)).toEqual({ ok: true })
   expect(await patches.make(file, 'inn', 'door', { count: 1, area })).toEqual({ ok: true })
   await wait()
   expect(await patches.choose(file, 'inn', 'door', 1)).toEqual({ ok: true })
-  const read = (path: string) => readFileSync(join(root, path))
-  const manifest = () => JSON.parse(read(MANIFEST).toString('utf8'))
-  return { root, file, takes, patches, wait, read, manifest }
+  return { root, nextSeed: nextSeed() }
+}
+
+let start: Awaited<ReturnType<typeof buildStart>>
+beforeAll(async () => {
+  start = await buildStart()
+})
+
+/**
+ * A test's own copy of the starting repository, built once for the file. The services keep what
+ * they remember by the project file's path, so no copy sees another's.
+ */
+function chosenPatch() {
+  const root = tempRepo({})
+  cpSync(start.root, root, { recursive: true })
+  return studio(root, start.nextSeed)
 }
 
 describe('a chosen patch across the image’s own choices', () => {
   it('leaves the list the game reads when another take of the image is chosen, and comes back with the original', async () => {
-    const s = await chosenPatch()
+    const s = chosenPatch()
     const picture = s.read('web/images/inn.door.png')
     expect(s.manifest().inn.patches.door).toEqual({
       file: 'inn.door.png',
@@ -113,7 +142,7 @@ describe('a chosen patch across the image’s own choices', () => {
   })
 
   it('takes the patches out of the list with the image, leaving their pictures, and puts them back', async () => {
-    const s = await chosenPatch()
+    const s = chosenPatch()
     expect(await s.takes.unchoose(s.file, 'inn')).toEqual({ ok: true })
     expect(s.manifest()).toEqual({})
     expect(existsSync(join(s.root, 'web/images/inn.png'))).toBe(false)
@@ -123,7 +152,7 @@ describe('a chosen patch across the image’s own choices', () => {
   })
 
   it('restores the picture of the take that was in the game on the take chosen again', async () => {
-    const s = await chosenPatch()
+    const s = chosenPatch()
     // a patch of the same name chosen on take 1 of the image: one file name, two pictures
     expect(await s.takes.choose(s.file, 'inn', 1)).toEqual({ ok: true })
     expect(
@@ -145,14 +174,14 @@ describe('a chosen patch across the image’s own choices', () => {
 })
 
 describe('patches set aside, as the rows say', () => {
-  const rowOf = async (s: Awaited<ReturnType<typeof chosenPatch>>) => {
+  const rowOf = async (s: ReturnType<typeof chosenPatch>) => {
     const opened = await openProject(s.file)
     if (!opened.ok) throw new Error('project did not open')
     const images = await readImages(s.root, opened.project, [])
     return images!.acts[0]!.rows[0]!
   }
   it('notes the takes a patch is chosen on, so a patch left behind needs making again', async () => {
-    const s = await chosenPatch()
+    const s = chosenPatch()
     expect((await rowOf(s)).patches[0]).toMatchObject({ chosenOn: [2], chosenOnGone: false })
     expect(await s.takes.choose(s.file, 'inn', 1)).toEqual({ ok: true })
     const row = await rowOf(s)
@@ -162,7 +191,7 @@ describe('patches set aside, as the rows say', () => {
     expect(makeAgainOf(await rowOf(s))).toEqual([])
   })
   it('gives the area of the chosen patch take, only on the take in the game and while its picture is there', async () => {
-    const s = await chosenPatch()
+    const s = chosenPatch()
     expect((await rowOf(s)).patches[0]!.chosenArea).toEqual({ known: true, take: area })
     expect(await s.takes.choose(s.file, 'inn', 1)).toEqual({ ok: true })
     expect((await rowOf(s)).patches[0]!.chosenArea).toEqual({ known: true, take: null })
@@ -171,7 +200,7 @@ describe('patches set aside, as the rows say', () => {
     expect((await rowOf(s)).patches[0]!.chosenArea).toEqual({ known: true, take: null })
   })
   it('keeps the patch marked after the take it was chosen on is dropped, without touching the game', async () => {
-    const s = await chosenPatch()
+    const s = chosenPatch()
     expect(await s.takes.choose(s.file, 'inn', 1)).toEqual({ ok: true })
     const before = s.read(MANIFEST)
     expect(await s.takes.drop(s.file, 'inn', 2)).toEqual({ ok: true })
@@ -182,7 +211,7 @@ describe('patches set aside, as the rows say', () => {
 
 describe('patches the image no longer matches', () => {
   it('keeps a patch the game stopped asking for in the list when the image is published again', async () => {
-    const s = await chosenPatch()
+    const s = chosenPatch()
     writeFileSync(join(s.root, 'tts/act1/images.json'), JSON.stringify([{ ...inn, patches: [] }]))
     expect(await s.takes.choose(s.file, 'inn', 1)).toEqual({ ok: true })
     expect(await s.takes.choose(s.file, 'inn', 2)).toEqual({ ok: true })
@@ -190,7 +219,7 @@ describe('patches the image no longer matches', () => {
   })
 
   it('does not count or bring patch takes made on an image take that was dropped', async () => {
-    const s = await chosenPatch()
+    const s = chosenPatch()
     expect(await s.takes.choose(s.file, 'inn', 1)).toEqual({ ok: true })
     expect(await s.patches.make(s.file, 'inn', 'door', { count: 1, area })).toEqual({ ok: true })
     await s.wait()
@@ -227,7 +256,7 @@ describe('a chosen patch across a new look', () => {
         images: {},
       }),
     )
-  const run = async (s: Awaited<ReturnType<typeof chosenPatch>>) => {
+  const run = async (s: ReturnType<typeof chosenPatch>) => {
     expect(await s.takes.bringAll(s.file)).toEqual({ ok: true })
     for (let i = 0; i < 400; i++) {
       const state = s.takes.lookRun(s.file)
@@ -236,7 +265,7 @@ describe('a chosen patch across a new look', () => {
     }
     throw new Error('the run never ended')
   }
-  const rowOf = async (s: Awaited<ReturnType<typeof chosenPatch>>) => {
+  const rowOf = async (s: ReturnType<typeof chosenPatch>) => {
     const opened = await openProject(s.file)
     if (!opened.ok) throw new Error('project')
     const summary = await readImages(s.root, opened.project, [])
@@ -244,7 +273,7 @@ describe('a chosen patch across a new look', () => {
   }
 
   it('counts the image once, brings the patch’s takes and the picture the game has, and notes nothing is made again', async () => {
-    const s = await chosenPatch()
+    const s = chosenPatch()
     restyle(s.root, newLook)
     const before = await rowOf(s)
     expect(before.row.looksOld).toBe(true)
@@ -268,7 +297,7 @@ describe('a chosen patch across a new look', () => {
   })
 
   it('counts the image once and gives the image’s reason when it and its patch both fail', async () => {
-    const s = await chosenPatch()
+    const s = chosenPatch()
     rmSync(join(s.root, 'content-studio/cache/image-takes/inn/2.png'))
     rmSync(join(s.root, FOLDER, '1.png'))
     restyle(s.root, newLook)
@@ -277,7 +306,7 @@ describe('a chosen patch across a new look', () => {
   })
 
   it('names the patch that could not be brought, and leaves it in the game in its old look', async () => {
-    const s = await chosenPatch()
+    const s = chosenPatch()
     const old = s.read('web/images/inn.door.png')
     rmSync(join(s.root, FOLDER, '1.png'))
     restyle(s.root, newLook)
