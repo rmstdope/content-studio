@@ -67,8 +67,8 @@ describe('server, the spending record', () => {
     }
   }
   /**
-   * The record, once it lists `rows` recordings and none as running: while a recording is being
-   * saved it is for a moment listed twice, saved and still running.
+   * The record, once it lists `rows` recordings and none as running: a recording's end is saved
+   * after the job reports it done.
    */
   const settle = async (rows: number) => {
     const giveUp = Date.now() + 2000
