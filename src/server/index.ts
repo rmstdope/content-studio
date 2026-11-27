@@ -5,6 +5,7 @@ import { type MusicGenerator } from '../services/music'
 import { type EffectGenerator } from '../services/effects'
 import { type ImageGenerator } from '../services/images'
 import { type Transcriber } from '../services/transcriber'
+import { type SceneRender } from '../services/sceneAudio'
 import index from '../ui/index.html'
 import { allowedHosts, notFound } from './shared'
 import { createContext, type RouteContext } from './context'
@@ -27,6 +28,8 @@ export interface ServerOptions {
   fish?: FishClient | null
   /** The clip encoder to use (tests); ffmpeg by default. */
   encode?: Encoder
+  /** How a scene's mix is rendered (tests); ffmpeg by default. */
+  sceneRender?: SceneRender
   /** The take checker to use (tests: null for none); by default a Whisper worker, started on use. */
   transcriber?: Transcriber | null
   /** The music generator to use (tests); by default an ACE-Step worker, started on use. */
