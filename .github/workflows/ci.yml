@@ -45,12 +45,23 @@ jobs:
         with:
           bun-version: 1.4.2
 
+      # A pinned build kept in the Actions cache: installing it with apt took 12-22 s on every run.
+      - name: Restore ffmpeg
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/ffmpeg
+          key: ffmpeg-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/ci-ffmpeg.sh') }}
+
       - name: Install ffmpeg
-        run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+        run: scripts/ci-ffmpeg.sh "$RUNNER_TEMP/ffmpeg"
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # One worker process per core, each test file in its own global.
+      # One worker process per core, each test file in its own global. The tests that need ffmpeg
+      # skip without it, so its absence fails the job first.
       - name: Test
-        run: bun run test
+        run: |
+          ffmpeg -hide_banner -version >/dev/null
+          ffprobe -hide_banner -version >/dev/null
+          bun run test
