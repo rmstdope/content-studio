@@ -2260,6 +2260,33 @@ describe('a take that could not be made', () => {
     expect(s.said()).toBe('Take 5 could not be made.')
   })
 
+  it('is not spoken when the read after Try again shows the take being made', async () => {
+    const s = await show(view({ failed: [failed(5)] }))
+    let asked = false
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        asked = true
+        return Response.json({ ok: true })
+      }
+      if (!String(url).endsWith('/takes')) return Response.json({})
+      // The read takes a moment, as over the network.
+      await new Promise((r) => setTimeout(r, 5))
+      return Response.json(view(asked ? { making: [waiting(5)] } : { failed: [failed(5)] }))
+    }) as typeof fetch
+    // This test's takes are read from the studio again, as the page reads them.
+    s.client.setDefaultOptions({ queries: { retry: false } })
+    await s.rerender({})
+    for (let i = 0; i < 3; i++) await act(async () => await new Promise((r) => setTimeout(r, 5)))
+    const heard: string[] = []
+    const listener = new MutationObserver(() => heard.push(s.said() ?? ''))
+    listener.observe(s.container, { childList: true, characterData: true, subtree: true })
+    cleanups.push(() => listener.disconnect())
+    await s.click(s.button('Try again'))
+    for (let i = 0; i < 10; i++) await act(async () => await new Promise((r) => setTimeout(r, 5)))
+    expect(s.tile(5).textContent).toBe('Take 5waiting')
+    expect(heard.filter(Boolean)).toEqual([])
+  })
+
   it('is not spoken after a Try again the studio refused', async () => {
     const s = await show(view({ failed: [failed(5)] }), {}, undefined, {
       ok: false,
