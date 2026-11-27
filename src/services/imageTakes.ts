@@ -18,6 +18,7 @@ import {
   ImageManifestSchema,
   countedFrom,
   keepAccept,
+  madeBeforeAccept,
   takeIsEarlier,
   takeSize,
   type ImageBoard,
@@ -957,12 +958,10 @@ export function createImageTakes({
         const n = board.next
         const size = pngSize(made.png.subarray(0, 33))
         const from = board.takes.find((t) => t.n === made.from)
-        const source = from ? countedFrom(from) : found.row.madeFrom
-        // The take in the game counts as made from the words and style the lock holds for it, which
-        // an accept may have moved on (one no longer in the game keeps its own on the board); read in
-        // the board's turn, which an accept also holds.
-        const chosen = made.from === null ? undefined : (await lockNow(found, []))?.[id]
-        const accepted = chosen?.take === made.from ? chosen : undefined
+        // The lock is read in the board's turn, which an accept also holds.
+        const source = from
+          ? countedFrom(from, (await lockNow(found, []))?.[id])
+          : found.row.madeFrom
         // The picture first: a take is on the board only once its file is there.
         await writeOrRefuse(found.root, pictureOf(id, n), made.png)
         board.next = n + 1
@@ -974,9 +973,7 @@ export function createImageTakes({
             model: made.model,
             width: size.width,
             height: size.height,
-            madeFrom: accepted
-              ? { ...source, words: accepted.words, style: accepted.style }
-              : source,
+            madeFrom: source,
             seen: false,
             fineTunedFrom: { take: made.from, words: made.words },
           },
@@ -1073,7 +1070,7 @@ export function createImageTakes({
             ? null
             : {
                 // A copy was not made from this image's words: it is as current as the image now.
-                ...(take.copiedFrom ? found.row.madeFrom : countedFrom(take)),
+                ...(take.copiedFrom ? found.row.madeFrom : countedFrom(take, previous)),
                 take: take.n,
                 seed: take.seed,
                 model: take.model,
@@ -1144,7 +1141,7 @@ export function createImageTakes({
           const nothing = { ok: false, message: 'Nothing was accepted for this take.' } as const
           // A copy was made from no words of this image's, so there is nothing to go back to.
           if (!take || take.copiedFrom) return nothing
-          const made = take.madeFrom
+          const made = madeBeforeAccept(take)
           if (made.words === chosen.words && made.style === chosen.style) return nothing
           lock[id] = { ...chosen, words: made.words, style: made.style }
           return writeOrRefuse(found.root, IMAGES_LOCK_FILE, formatImageLock(lock)).then(

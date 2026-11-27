@@ -30,7 +30,10 @@ export const BoardTakeSchema = z.object({
   /** The size of the picture the model made. */
   width: z.number().int().positive(),
   height: z.number().int().positive(),
-  /** What it was made from: the words, the style and the size asked for. */
+  /**
+   * What it was made from: the words, the style and the size asked for. What it counts as made
+   * from may differ after an accept: ask `countedFrom`.
+   */
   madeFrom: z.object({
     words: z.string(),
     style: z.string(),
@@ -39,7 +42,7 @@ export const BoardTakeSchema = z.object({
   }),
   /**
    * The words and style the take was accepted for, kept when the lock's entry for it was last
-   * replaced or removed (`keepAccept`); they come back with it.
+   * replaced or removed (`keepAccept`); they come back with it. Read through `countedFrom`.
    */
   accepted: z.object({ words: z.string(), style: z.string() }).optional(),
   /** What the game's version was brought to (`lookKey`); absent until it is. */
@@ -67,20 +70,37 @@ export type ImageBoardTake = z.infer<typeof BoardTakeSchema>
 /** An image's board. */
 export type ImageBoard = z.infer<typeof ImageBoardSchema>
 
-/** What a take counts as made from: its own, with the words and style accepted for it. */
-export function countedFrom(take: ImageBoardTake): MadeFrom {
-  return { ...take.madeFrom, ...take.accepted }
+/**
+ * What a take was made from before any accept: its own words, style and size. Only for what means
+ * exactly that; whoever asks what a take counts as made from calls `countedFrom`.
+ */
+export function madeBeforeAccept(take: ImageBoardTake): MadeFrom {
+  return take.madeFrom
 }
 
-/** Whether a lock entry is of a take: its number, and the seed, model and size the entry records. */
+/**
+ * Whether a lock entry is of a take: its number, and the seed, model and size the entry records. A
+ * copy's entry records the image's size when it was chosen, so its size says nothing.
+ */
 function isEntryOf(entry: ChosenEntry, take: ImageBoardTake): boolean {
+  const own = madeBeforeAccept(take)
   return (
     entry.take === take.n &&
     (entry.seed === undefined || entry.seed === take.seed) &&
     (entry.model === undefined || entry.model === take.model) &&
-    entry.width === take.madeFrom.width &&
-    entry.height === take.madeFrom.height
+    (take.copiedFrom !== undefined || (entry.width === own.width && entry.height === own.height))
   )
+}
+
+/**
+ * What a take counts as made from, given the lock's chosen entry for its image (undefined with
+ * none): its own size, with the words and style the entry holds when it is of this take (the take
+ * is in the game), else those the board remembers it was accepted for, else its own.
+ */
+export function countedFrom(take: ImageBoardTake, chosen: ChosenEntry | undefined): MadeFrom {
+  const accepted =
+    chosen && isEntryOf(chosen, take) ? { words: chosen.words, style: chosen.style } : take.accepted
+  return { ...madeBeforeAccept(take), ...accepted }
 }
 
 /**
@@ -92,8 +112,9 @@ function isEntryOf(entry: ChosenEntry, take: ImageBoardTake): boolean {
 export function keepAccept(board: ImageBoard, chosen: ChosenEntry | undefined): boolean {
   const take = board.takes.find((t) => t.n === chosen?.take)
   if (!chosen || !take || take.copiedFrom || !isEntryOf(chosen, take)) return false
-  const next = outOfDateReasons(chosen, take.madeFrom).length
-    ? { words: chosen.words, style: chosen.style }
+  const counted = countedFrom(take, chosen)
+  const next = outOfDateReasons(counted, madeBeforeAccept(take)).length
+    ? { words: counted.words, style: counted.style }
     : undefined
   if (next?.words === take.accepted?.words && next?.style === take.accepted?.style) return false
   take.accepted = next
@@ -103,17 +124,16 @@ export function keepAccept(board: ImageBoard, chosen: ChosenEntry | undefined): 
 
 /**
  * Whether a take is behind on the words: made from other words than the image has now, and not
- * counted up to date with them by an accept, which the lock's `chosen` entry holds while the take
- * is in the game and the board holds once it has left. A copy is never behind.
+ * counted up to date with them by an accept (`countedFrom`). A copy is never behind.
  */
 export function takeIsEarlier(
   take: ImageBoardTake,
   chosen: ChosenEntry | undefined,
   wordsNow: string,
 ): boolean {
-  if (take.copiedFrom || take.madeFrom.words === wordsNow) return false
-  const counted = chosen && isEntryOf(chosen, take) ? chosen : countedFrom(take)
-  return counted.words !== wordsNow
+  // Words put back to those the picture was really made from are not earlier, accepted or not.
+  if (take.copiedFrom || madeBeforeAccept(take).words === wordsNow) return false
+  return countedFrom(take, chosen).words !== wordsNow
 }
 
 /** How many takes one press of Make can ask for. */

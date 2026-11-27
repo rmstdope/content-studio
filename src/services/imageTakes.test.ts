@@ -1662,6 +1662,19 @@ describe('adding a fine-tuned take', () => {
     expect((await row()).reasons).toEqual([])
     expect((await row()).status).toBe('chosen')
   })
+  it('ignores a lock entry with the take’s number that is of another take', async () => {
+    const { takes, file, read, root, settled } = setup()
+    await takes.make(file, 'inn', { count: 1 })
+    await settled('inn')
+    await takes.choose(file, 'inn', 1)
+    // A board made again numbers from 1, so the lock can name a take that is no longer this one.
+    const lock = JSON.parse(read(LOCK))
+    lock.inn = { ...lock.inn, seed: lock.inn.seed + 1, words: 'a high inn' }
+    writeFileSync(join(root, LOCK), JSON.stringify(lock))
+    expect(await takes.addTake(file, 'inn', { ...made, from: 1 })).toEqual({ ok: true, n: 2 })
+    const board = JSON.parse(read('content-studio/cache/images/inn.json'))
+    expect(board.takes[1].madeFrom).toEqual(board.takes[0].madeFrom)
+  })
   it('of a take not in the game keeps that take’s own words and style, whatever was accepted', async () => {
     const { takes, file, read, settled } = setup()
     await takes.make(file, 'inn', { count: 2 })
@@ -1925,6 +1938,27 @@ describe('copying another image', () => {
     expect(JSON.parse(read(LOCK)).inn.inputs.text).toBe('a different inn')
     expect((await row('inn')).status).not.toBe('out-of-date')
     expect(existsSync(join(root, 'web/images/inn.png'))).toBe(true)
+  })
+
+  it('chosen and then fine-tuned, passes on the words the game counts it from, at its own size', async () => {
+    const { takes, file, settled, read, root } = await withHallChosen()
+    await takes.copyFrom(file, 'inn', 'hall')
+    await settled('inn')
+    const own = boardOf(read, 'inn').takes[0].madeFrom
+    await setImageWords(file, 'inn', 'a different inn')
+    // The game resizes the image, so the entry records another size than the copy's own.
+    writeFileSync(
+      join(root, 'tts/act1/images.json'),
+      JSON.stringify([
+        { ...inn, width: 160 },
+        { ...inn, id: 'hall', title: 'Hall' },
+      ]),
+    )
+    expect(await takes.choose(file, 'inn', 1)).toEqual({ ok: true })
+    expect(JSON.parse(read(LOCK)).inn.inputs.width).toBe(160)
+    const made = { png: fakePng(1024, 640, 9), model: 'm', seed: 9, words: 'Add a cat' }
+    expect(await takes.addTake(file, 'inn', { ...made, from: 1 })).toEqual({ ok: true, n: 2 })
+    expect(boardOf(read, 'inn').takes[1].madeFrom).toEqual({ ...own, words: 'a different inn' })
   })
 
   it('refuses an unknown image, the image itself, and one with no chosen take, adding nothing', async () => {

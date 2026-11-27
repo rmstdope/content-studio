@@ -1683,10 +1683,14 @@ in the game, the lock alone says what it was accepted for. When the lock's entry
 replaced or removed (a choose, which includes History, Z, the Takes list and the same take brought to
 a new look; Un-choose), `keepAccept` (`core/imageTakes.ts`) writes the entry's words and style onto
 the board take it names, as `accepted: { words, style }`, where they differ from the take's own, and
-removes it where they do not (after Undo accept). An entry whose seed, model or size is not that
-take's is ignored, as is a copy, which is as current as the image whenever it is chosen. Choosing a
-take builds the entry from `countedFrom(take)`, its own madeFrom with `accepted` over it, so what
-changed since the accept, and a changed size, are all it is out of date for. The board is written before the game: when an accept cannot be saved on it, the choose or Un-choose is refused (409, naming the board) with nothing changed; a board that cannot be read does not stop Un-choose. The memory
+removes it where they do not (after Undo accept). Nothing is kept for a copy, which is as current as
+the image whenever it is chosen. What a take counts as made from is answered in one place,
+`countedFrom(take, entry)`: the take's own size, with the words and style of the lock's entry when
+it is of that take (its number, and the seed, model and size the entry records; a copy's size is not
+compared), else the board's `accepted`, else its own. Choosing a take, a fine-tune of it and the
+"earlier words" label ask it. Undo accept, and the comparisons that mean what the picture was really
+made from, read the take's own (`madeBeforeAccept`). So what changed since the accept, and a changed
+size, are all a chosen take is out of date for. The board is written before the game: when an accept cannot be saved on it, the choose or Un-choose is refused (409, naming the board) with nothing changed; a board that cannot be read does not stop Un-choose. The memory
 is local like the takes, and goes with a dropped take. An agent's `POST …/choose` answers
 `{ ok: true, behind }`, the reasons the take in the game is out of date for now (left out if the
 image cannot be read again). A take's "earlier words" label follows the accept (as-nodk,

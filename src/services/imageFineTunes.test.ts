@@ -49,7 +49,8 @@ const board = {
     {
       n: 3,
       seed: 7,
-      model: 'black-forest-labs/FLUX.2-klein-4B',
+      // As the lock records it: an entry with another model is not of this take.
+      model: 'flux2-klein-4b',
       width: 256,
       height: 256,
       madeFrom,
