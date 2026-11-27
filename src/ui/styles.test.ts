@@ -135,6 +135,7 @@ describe('the stylesheet’s feature sections', () => {
     for (const [name, selectors] of Object.entries(homes)) {
       const from = marker(css, name)
       const to = marker(css, sectionNames[sectionNames.indexOf(name) + 1] ?? '')
+      expect(to).toBeGreaterThan(from)
       for (const selector of selectors) {
         const at = css.indexOf(`\n${selector} {`)
         expect({ selector, inSection: at > from && at < to }).toEqual({ selector, inSection: true })
