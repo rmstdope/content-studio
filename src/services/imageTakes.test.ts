@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it, spyOn } from 'bun:test'
 import {
   chmodSync,
   existsSync,
@@ -1273,10 +1273,73 @@ describe('the game’s look', () => {
 
   it('shows a take as being brought until the game’s version is there', async () => {
     const s = await made()
-    const globals = globalThis as unknown as { contentStudioImageBringing: Set<string> }
-    globals.contentStudioImageBringing.add(`${s.file}\0inn\0${1}`)
+    const marks = (globalThis as unknown as Record<string, Map<string, Set<number>>>)
+      .contentStudioImageTakesMarks!
+    marks.set(`${s.file}\0inn`, new Set([1]))
     expect((await takesOf(s)).takes.map((t) => t.look)).toEqual(['bringing', 'ready'])
-    globals.contentStudioImageBringing.clear()
+    marks.delete(`${s.file}\0inn`)
+  })
+
+  it('never shows a take as of an old look when it is brought to the look while the page reads', async () => {
+    const s = setup(undefined, {}, undefined, { pictures: 'full' })
+    const picture = join(s.root, 'content-studio/cache/image-takes/inn/1.png')
+    // The bring reads the take's picture with `arrayBuffer`, the page asks whether it `exists`:
+    // each can be held.
+    let bringStarted = () => {}
+    const started = new Promise<void>((resolve) => (bringStarted = resolve))
+    let releaseBring = () => {}
+    const bringHeld = new Promise<void>((resolve) => (releaseBring = resolve))
+    // The page asks twice: while it reads the game's images, and again after it read the board.
+    let pageAsks: (() => Promise<void>) | null = null
+    let asked = 0
+    const realFile = Bun.file
+    const spy = spyOn(Bun, 'file').mockImplementation(((
+      path: string,
+      options?: BlobPropertyBag,
+    ) => {
+      const real = realFile(path, options)
+      if (path !== picture) return real
+      return new Proxy(real, {
+        get(target, prop) {
+          if (prop === 'arrayBuffer')
+            return async () => {
+              bringStarted()
+              await bringHeld
+              return target.arrayBuffer()
+            }
+          if (prop === 'exists' && pageAsks && ++asked === 2) {
+            const before = pageAsks
+            pageAsks = null
+            return async () => {
+              await before()
+              return target.exists()
+            }
+          }
+          const value: unknown = Reflect.get(target, prop, target)
+          return typeof value === 'function' ? value.bind(target) : value
+        },
+      })
+    }) as typeof Bun.file)
+    try {
+      await s.takes.make(s.file, 'inn', { count: 1 })
+      await started
+      // The page has read the board, the take not yet brought; the bring ends before it asks.
+      pageAsks = async () => {
+        releaseBring()
+        for (let i = 0; i < 400; i++) {
+          const other = await s.takes.view(s.file, 'inn')
+          if (other && 'takes' in other && other.takes[0]?.look === 'ready') return
+          await new Promise((resolve) => setTimeout(resolve, 5))
+        }
+        throw new Error('the take was never brought')
+      }
+      const view = await s.takes.view(s.file, 'inn')
+      if (!view || !('takes' in view)) throw new Error('no view')
+      expect(view.takes[0]!.look).toBe('bringing')
+    } finally {
+      releaseBring()
+      spy.mockRestore()
+    }
   })
 
   it('is the same game’s version every time it is made from the same picture and look', async () => {

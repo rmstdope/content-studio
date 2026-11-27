@@ -159,6 +159,53 @@ describe('the take engine', () => {
     expect(summary).toEqual({ x: { takes: 2 } })
   })
 
+  it('reads a board for a view with the entries, the marks and what the medium adds, as they stand in its turn', async () => {
+    const { engine, access, entry } = setup()
+    await engine.reserve('p', 'x', access, 2, entry)
+    engine.mark('p', 'x', 1)
+    engine.mark('p', 'y', 2)
+    let extra = 'then'
+    const read = await engine.read('p', 'x', access, () => extra)
+    if ('ok' in read) throw new Error('no board')
+    // What changes after the read does not show in it.
+    engine.entry('p', 'x', 2)!.state = 'making'
+    engine.unmark('p', 'x', 1)
+    engine.discard('p', 'x', 1)
+    extra = 'now'
+    expect(read.board.next).toBe(3)
+    expect(read.entries.map((e) => [e.n, e.state])).toEqual([
+      [1, 'waiting'],
+      [2, 'waiting'],
+    ])
+    expect([...read.marked]).toEqual([1])
+    expect(read.also).toBe('then')
+    const after = await engine.read('p', 'x', access)
+    expect('ok' in after ? null : [...after.marked]).toEqual([])
+  })
+
+  it('reads for a view in the board’s turn: after a change under way, never during it', async () => {
+    const { engine, access } = setup()
+    let release = () => {}
+    const held = new Promise<void>((resolve) => (release = resolve))
+    const change = engine.changeBoard('p', 'x', access, async (board) => {
+      await held
+      board.next = 7
+      engine.mark('p', 'x', 6)
+    })
+    const read = engine.read('p', 'x', access)
+    release()
+    await change
+    const seen = await read
+    expect('ok' in seen ? null : [seen.board.next, [...seen.marked]]).toEqual([7, [6]])
+  })
+
+  it('answers a view with the failure of a board that cannot be read', async () => {
+    const { engine, access } = setup()
+    const failure = { ok: false as const, file: 'board.json', problems: [] }
+    const read = await engine.read('p', 'x', { ...access, read: async () => failure })
+    expect(read).toBe(failure)
+  })
+
   it('splits the entries a view shows: those not yet on the board are being made, failed ones are failed', () => {
     const { engine, entry } = setup()
     const failed = { ...entry(3), state: 'failed' as const }

@@ -441,6 +441,21 @@ describe('createMusicTakes', () => {
     await settled('hall')
   })
 
+  it('reads a track for its view in the board’s turn: not while a change of it is under way', async () => {
+    const { file, takes } = setup()
+    let release = () => {}
+    const held = boardQueue().run(`${file}\0hall`, () => new Promise<void>((r) => (release = r)))
+    const view = takes.view(file, 'hall')
+    const first = await Promise.race([
+      view.then(() => 'read'),
+      new Promise((resolve) => setTimeout(() => resolve('waiting'), 50)),
+    ])
+    release()
+    await held
+    expect(first).toBe('waiting')
+    expect(await view).toMatchObject({ takes: [] })
+  })
+
   it('cuts a stinger at its own length', async () => {
     const { file, takes, requests, settled } = setup()
     await takes.make(file, 'victory', { count: 1 })

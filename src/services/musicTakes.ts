@@ -594,11 +594,9 @@ export function createMusicTakes({
       const found = await resolve(projectFile, id)
       if (!found || !('inputs' in found)) return found
       const { root, inputs, hash, folder } = found
-      // The entries first: one is dropped only after the board has it, so a take is then in the
-      // board read after, never in neither.
-      const entries = entriesOf(projectFile, id)
-      const board = await readBoard(root, found.board)
-      if ('ok' in board) return board
+      const read = await engine.read(projectFile, id, accessOf(found))
+      if ('ok' in read) return read
+      const { board, entries } = read
       const chosenTracks = await readChosen(root, found.music, [])
       const chosen = chosenTracks.read ? chosenTracks.entries[id]?.lock : undefined
       let inGame: number | null = null

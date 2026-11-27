@@ -212,15 +212,19 @@ audio, network or disk.
 
 The takes of music, of sound effects, of images, of image patches and the fine-tunes of an image share one engine, `services/takeEngine.ts` (as-viyc, as-tur0): the entries
 waiting, being made and failed (in memory, on `globalThis`, so a `--dev` reload keeps them), the numbers
-reserved on a board, the one-at-a-time changes to a board, Stop, the summary of what is being made and the
-split a view makes of the entries against the board. A medium gives it a board's reader and writer and the
+reserved on a board, the one-at-a-time changes to a board, Stop, the summary of what is being made, the takes a
+medium marks as being brought to the look, what a view reads and the split it makes of the entries against the board. A view of a
+take board reads it only through `read` (as-16p4): the board in its turn, and at once copies of the entries, the marks and whatever else
+the medium keeps in memory about the takes, so it asks nothing of that state afterwards and never shows a take in a state it never had.
+It therefore waits for a change of that board under way (a Choose being encoded, an image being brought to a new look). The fine-tunes' view
+does not read through it yet. A medium gives it a board's reader and writer and the
 job that makes one take, and keeps what differs: its generator, its hash, its presses (per project for
 effects, per list for music, per act for images) and what choosing, trimming and fading do to the game's files. A board that cannot be saved when numbers are reserved comes back from `reserve` as the failed answer naming it (as-w2cq), so a medium never words it. A fix to how takes
 are queued, made or shown is made there once. A fine-tune keeps its own batches (a press makes the
 fine-tunes of the picture in the game, one press at a time) and waits on the GPU queue as waiting, so its job
 tells the engine when the model starts (`queued`, `began`). Image patches (as-b45w) use it with the id `<image>\0<patch>` and keep their remake presses and the failed-model warnings. Images' own takes (as-tur0) use it with the image's id and keep their presses (per act).
 
-Saving a made take is the engine's too (`save`, as-3za7): the file first, through `writeOrRefuse`, then the board in its turn, and the file is removed again when the take was stopped before the board listed it or could not be saved; a take the board lists keeps its file whenever Stop comes (decided in the board's turn, as-gmgx). A medium may pass `written`, run in that turn once the board lists the take (sound effects clear the model's failure there, and `view` reads the board in the turn, so a take shows only once it is done); it never runs for a take that was stopped or whose board was refused, and must not throw. A take whose file or board cannot be written, or whose board cannot be read after its file (`BoardUnusable`), shows failed with the file named, but is never reported to the medium's model-failure hook: only the model's own failures record a failed model, move to a fallback or warn on the page.
+Saving a made take is the engine's too (`save`, as-3za7): the file first, through `writeOrRefuse`, then the board in its turn, and the file is removed again when the take was stopped before the board listed it or could not be saved; a take the board lists keeps its file whenever Stop comes (decided in the board's turn, as-gmgx). A medium may pass `written`, run in that turn once the board lists the take (sound effects clear the model's failure there, and `view` reads through `read`, in the turn, so a take shows only once it is done); it never runs for a take that was stopped or whose board was refused, and must not throw. A take whose file or board cannot be written, or whose board cannot be read after its file (`BoardUnusable`), shows failed with the file named, but is never reported to the medium's model-failure hook: only the model's own failures record a failed model, move to a fallback or warn on the page.
 
 ---
 
