@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { unregisterDom } from '../../../../test/dom'
+import { settle } from '../../../../test/settle'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -52,9 +53,6 @@ async function setUp(saved: number, options: { failWith?: string; unreadable?: b
       ),
     ),
   )
-  const settle = async () => {
-    for (let i = 0; i < 10; i++) await act(() => new Promise((r) => setTimeout(r, 10)))
-  }
   await settle()
   const menu = () => container.querySelector('select')
   const pick = async (value: string) => {

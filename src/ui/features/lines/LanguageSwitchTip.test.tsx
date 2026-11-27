@@ -8,6 +8,8 @@ const { act, createElement, useState } = await import('react')
 const { WhyTip } = await import('../../components/WhyTip')
 const { createRoot } = await import('react-dom/client')
 const { LanguageSwitch } = await import('./LanguageSwitch')
+const { heldClock } = await import('../../../../test/heldClock')
+const { settle } = await import('../../../../test/settle')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -15,7 +17,7 @@ const cleanups: (() => void)[] = []
 afterEach(async () => {
   cleanups.splice(0).forEach((c) => c())
   // Let React's scheduler and the observers settle before the DOM goes away.
-  await new Promise<void>((r) => setTimeout(r, 20))
+  await settle()
 })
 afterAll(unregisterDom)
 
@@ -44,16 +46,20 @@ function render() {
     act(() => root.unmount())
     container.remove()
   })
+  const { clock, pass } = heldClock()
   act(() =>
-    root.render([createElement(WhyTip, { key: 'tip' }), createElement(Switch, { key: 's' })]),
+    root.render([
+      createElement(WhyTip, { key: 'tip', clock }),
+      createElement(Switch, { key: 's' }),
+    ]),
   )
   const tab = (id: string) => container.querySelector<HTMLElement>(`[data-language="${id}"]`)!
-  return { tab }
+  return { tab, pass }
 }
 
 describe('the language switch with the studio tip', () => {
   it('shows a dimmed tab’s reason when the arrow keys move onto it, as the page changes under the pointer', async () => {
-    const { tab } = render()
+    const { tab, pass } = render()
     act(() => tab('sv').focus())
     act(() => {
       tab('sv').dispatchEvent(
@@ -64,7 +70,7 @@ describe('the language switch with the studio tip', () => {
     act(() => {
       document.body.dispatchEvent(new Event('pointerover', { bubbles: true }))
     })
-    await act(() => new Promise<void>((r) => setTimeout(r, 250)))
+    await pass(250)
     expect(document.activeElement).toBe(tab('de'))
     expect(document.getElementById('why-tip')?.textContent).toBe('Act I has no Deutsch dialog yet')
     expect(tab('de').getAttribute('aria-describedby')).toBe('why-tip')
