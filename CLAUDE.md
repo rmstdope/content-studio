@@ -62,7 +62,7 @@ src/server/           Bun.serve: JSON API and the UI
 src/ui/               React app (TanStack Query), one stylesheet with design tokens
 worker/               Python workers run with uv: Whisper, music, sound effects
 scripts/schema.ts     writes schema/content-studio.schema.json, the project file's JSON Schema
-test/                 helpers and the sample project used by `bun run dev`
+test/                 helpers, the system tests (`test/system/`) and the sample project used by `bun run dev`
 ```
 
 `core` decides, `services` does, `server` exposes, `ui` shows. `core` imports from none of the
