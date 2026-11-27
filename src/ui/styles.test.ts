@@ -93,9 +93,52 @@ describe('the stylesheet', () => {
     const twice = ruleKeys(css).filter((key) => (seen.has(key) ? true : (seen.add(key), false)))
     expect(twice).toEqual([])
   })
+})
 
-  it('has one named section per feature at its end, where new rules go there', () => {
-    const banners = [...css.matchAll(/^\/\* ===== (.+) ===== \*\/$/gm)].map((match) => match[1])
-    expect(banners).toEqual(['Narration', 'Music', 'Images', 'Sound effects', 'Scenes', 'Setup'])
+/** Where the marker line of a stylesheet section begins in `source`, or -1 when there is none. */
+const marker = (source: string, name: string) => source.indexOf(`/* ===== ${name} ===== */`)
+
+const sectionNames = [
+  'Narration',
+  'Music',
+  'Images',
+  'Sound effects',
+  'Scenes',
+  'Setup',
+  'End of the sections',
+]
+
+/** What `source` holds after the line that ends the sections, white space aside. */
+function afterTheSections(source: string): string {
+  const end = '/* ===== End of the sections ===== */'
+  const at = source.indexOf(end)
+  return at < 0 ? source : source.slice(at + end.length).trim()
+}
+
+describe('the stylesheet’s feature sections', () => {
+  it('has one named section per feature at its end, closed by the line that ends them', () => {
+    const found = [...css.matchAll(/^\/\* ===== (.+) ===== \*\/$/gm)].map((match) => match[1])
+    expect(found).toEqual(sectionNames)
+  })
+
+  it('has nothing after the line that ends the sections', () => {
+    expect(afterTheSections(css)).toBe('')
+    expect(afterTheSections(`${css}\n.new-rule {\n  margin: 0;\n}\n`)).toContain('.new-rule')
+  })
+
+  it('keeps a feature’s rules in its section', () => {
+    const homes: Record<string, string[]> = {
+      Narration: ['.clean-up', '.clean-ask', '.level'],
+      Images: ['.movement', '.spot-bar', '.copy-modal'],
+      'Sound effects': ['.effect-level', '.wave i.over'],
+    }
+    for (const [name, selectors] of Object.entries(homes)) {
+      const from = marker(css, name)
+      const to = marker(css, sectionNames[sectionNames.indexOf(name) + 1] ?? '')
+      for (const selector of selectors) {
+        const at = css.indexOf(`\n${selector} {`)
+        expect({ selector, inSection: at > from && at < to }).toEqual({ selector, inSection: true })
+      }
+    }
   })
 })
