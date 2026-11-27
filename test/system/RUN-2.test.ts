@@ -11,7 +11,8 @@ afterAll(() => children.forEach((child) => child.kill()))
 
 /**
  * Runs `content-studio` in a temporary game holding `files`, with the providers and models faked
- * or left without a key, and answers how to ask it what its page asks, once it says where it is.
+ * or left without a key. Once the studio has printed its address, gives a function that makes the
+ * page's request at a path.
  */
 async function startedOn(files: Record<string, unknown>) {
   const child = Bun.spawn([process.execPath, CLI, '--no-open'], {
@@ -28,15 +29,21 @@ async function startedOn(files: Record<string, unknown>) {
     stderr: 'pipe',
   })
   children.push(child)
+  // A studio that never says where it is gets stopped, so the failure shows what it did say.
+  const giveUp = setTimeout(() => child.kill(), 15_000)
   const reader = child.stdout.getReader()
   let seen = ''
   let url: string | undefined
   while (!url) {
     const { value, done } = await reader.read()
-    if (done) throw new Error(`the studio stopped: ${await new Response(child.stderr).text()}`)
+    if (done) {
+      const errors = await new Response(child.stderr).text()
+      throw new Error(`the studio stopped without an address:\n${seen}${errors}`)
+    }
     seen += new TextDecoder().decode(value)
     url = seen.match(/^Open (\S+)/m)?.[1]
   }
+  clearTimeout(giveUp)
   return async (path: string) => {
     const response = await fetch(new URL(path, url))
     return { status: response.status, body: await response.json() }
