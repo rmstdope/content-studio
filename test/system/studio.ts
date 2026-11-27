@@ -89,11 +89,11 @@ function agentOf(url: URL) {
  * with every provider and model faked, so nothing reaches the network or uv. ffmpeg is the real
  * one where the studio uses it to measure a sound an agent fetches; without it that answer says
  * so and the sound is still handed over. `fakes` replaces any of the fakes. The server stops when
- * the test file is done.
+ * the test file is done. `url` and `options` are where it listens and what it was started with.
  */
 export function startStudio(files: Record<string, unknown>, fakes: Partial<ServerOptions> = {}) {
   const root = tempRepo(files)
-  const server = startServer({
+  const options: ServerOptions = {
     projectFile: join(root, 'content-studio.json'),
     port: 0,
     fish,
@@ -105,9 +105,11 @@ export function startStudio(files: Record<string, unknown>, fakes: Partial<Serve
     images: createFakeImages(0),
     sceneRender: async () => silence,
     ...fakes,
-  })
+  }
+  const server = startServer(options)
   afterAll(() => server.stop(true))
-  return { root, page: pageOf(server.url), agent: agentOf(server.url) }
+  const url = server.url
+  return { root, options, url, page: pageOf(url), agent: agentOf(url) }
 }
 
 /** The fake ElevenLabs account. */

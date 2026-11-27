@@ -20,7 +20,7 @@ SAF-1  The studio writes only the files the project file names and its own files
        Proven by: nothing yet
 SAF-2  Only the studio's own page can change anything: a change asked for by another web page or
        address is refused.
-       Proven by: nothing yet
+       Proven by: test/system/SAF-2.test.ts
 SAF-3  No clip is deleted unless the person confirms it first.
        Proven by: nothing yet
 
@@ -81,7 +81,7 @@ NAR-4  The person can hear a character's recorded lines as the game plays them, 
 
 SPD-1  Anything paid (a recording, an audition, an ElevenLabs take) first says what it can cost,
        and is held to the limit the person agreed.
-       Proven by: nothing yet
+       Proven by: test/system/SPD-1.test.ts
 SPD-2  The Spending page shows what has been spent, dollars and credits apart.
        Proven by: nothing yet
 
