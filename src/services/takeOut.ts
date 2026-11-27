@@ -22,7 +22,7 @@ export type CommitResult =
 export function commitFailure(error: unknown): CommitResult {
   const sentence = refusalSentence(error)
   if (sentence !== null) {
-    // Kept in the server log: the person is told which file, the log says why.
+    // Kept in the server log with its stack: the person is told which file and why.
     console.error('writing the game’s files failed', error)
     return { ok: false, message: `${sentence}.`, reason: sentence }
   }

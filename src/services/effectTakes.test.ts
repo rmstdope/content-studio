@@ -395,7 +395,11 @@ describe('createEffectTakes', () => {
       held.release()
       const view = await held.done()
       expect(view.failed).toEqual([
-        { n: 1, message: 'content-studio/cache/effect-boards/coins.json could not be written.' },
+        {
+          n: 1,
+          message:
+            'content-studio/cache/effect-boards/coins.json could not be written: permission denied.',
+        },
       ])
     } finally {
       console.error = quietLog
@@ -423,7 +427,7 @@ describe('createEffectTakes', () => {
       const view = await settled('coins')
       expect(view.failed).toHaveLength(1)
       expect(view.failed[0]!.message).toMatch(
-        /^content-studio\/cache\/effect-takes\/coins\/[^/]+\.1\.wav could not be written\.$/,
+        /^content-studio\/cache\/effect-takes\/coins\/[^/]+\.1\.wav could not be written: permission denied\.$/,
       )
     } finally {
       console.error = quietLog
@@ -445,7 +449,7 @@ describe('createEffectTakes', () => {
       expect(await takes.make(file, 'coins', { count: 2 })).toEqual({
         ok: false,
         message:
-          'No takes were made: content-studio/cache/effect-boards/coins.json could not be written.',
+          'No takes were made: content-studio/cache/effect-boards/coins.json could not be written: permission denied.',
       })
     } finally {
       console.error = quietLog
@@ -467,7 +471,7 @@ describe('createEffectTakes', () => {
       expect(await takes.drop(file, 'coins', take.file)).toEqual({
         ok: false,
         message:
-          'The take could not be dropped: content-studio/cache/effect-boards/coins.json could not be written.',
+          'The take could not be dropped: content-studio/cache/effect-boards/coins.json could not be written: permission denied.',
       })
     } finally {
       console.error = quietLog
@@ -1067,7 +1071,8 @@ describe('fades of a sound effect take', () => {
     chmodSync(folder, 0o755)
     expect(answer).toEqual({
       ok: false,
-      message: 'content-studio/cache/effect-boards/door-creak.json could not be written.',
+      message:
+        'content-studio/cache/effect-boards/door-creak.json could not be written: permission denied.',
     })
     expect(readFileSync(join(root, 'audio/effects/door-creak.mp3'))).toEqual(game)
   })
@@ -1312,7 +1317,8 @@ describe('level of a sound effect take', () => {
     chmodSync(folder, 0o755)
     expect(answer).toEqual({
       ok: false,
-      message: 'content-studio/cache/effect-boards/door-creak.json could not be written.',
+      message:
+        'content-studio/cache/effect-boards/door-creak.json could not be written: permission denied.',
     })
     expect(readFileSync(join(root, 'audio/effects/door-creak.mp3'))).toEqual(game)
   })
@@ -1378,7 +1384,8 @@ describe('Trim silence on an effect take', () => {
     try {
       expect(await ctx.takes.trim(ctx.file, 'door-creak', take.file, false)).toEqual({
         ok: false,
-        message: 'content-studio/cache/effect-boards/door-creak.json could not be written',
+        message:
+          'content-studio/cache/effect-boards/door-creak.json could not be written: permission denied',
       })
     } finally {
       console.error = quietLog
@@ -1405,7 +1412,8 @@ describe('Trim silence on an effect take', () => {
       try {
         expect(await ctx.takes.trim(ctx.file, 'door-creak', take.file, undo)).toEqual({
           ok: false,
-          message: 'content-studio/cache/effect-boards/door-creak.json could not be written',
+          message:
+            'content-studio/cache/effect-boards/door-creak.json could not be written: permission denied',
         })
       } finally {
         console.error = quietLog

@@ -62,6 +62,7 @@ describe.skipIf(!hasFfmpeg)('ffmpegEncoder', () => {
         const failing = ffmpegEncoder(tone, join(folder, 'k6.mp3'), { bitrate: '64k', channels: 1 })
         await expect(failing).rejects.toBeInstanceOf(FileNotWritten)
         await expect(failing).rejects.toThrow(/^The file could not be written\.$/)
+        await expect(failing).rejects.toMatchObject({ reason: 'permission denied' })
       } finally {
         chmodSync(folder, 0o755)
       }

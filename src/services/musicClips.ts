@@ -19,14 +19,7 @@ import { resolveInRoot } from '../core/paths'
 import { MUSIC_LOCK_FILE, type MusicConfig, type Problem } from '../core/project'
 import { pythonJson } from '../core/pyjson'
 import { FileNotWritten, type Encoder } from './audio'
-import {
-  WriteRefused,
-  listFiles,
-  readResource,
-  refuseWrite,
-  writeFailure,
-  writeOrRefuse,
-} from './files'
+import { WriteRefused, listFiles, readResource, refuseWrite, writeOrRefuse } from './files'
 import { createSerial, type Serial } from './serial'
 import { commitFailure, takeOut, type CommitResult } from './takeOut'
 
@@ -131,7 +124,7 @@ export async function commitChoice({
     // The encoder knows only the temporary file's folder: the refusal names the game's file.
     return commitFailure(
       error instanceof FileNotWritten
-        ? new WriteRefused(join(music.clips, file), writeFailure(error), error)
+        ? new WriteRefused(join(music.clips, file), error.reason, error)
         : error,
     )
   }

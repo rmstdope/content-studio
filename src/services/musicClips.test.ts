@@ -215,7 +215,7 @@ describe.skipIf(Bun.which('ffmpeg') === null || process.getuid?.() === 0)(
         })
         expect(result).toMatchObject({
           ok: false,
-          message: 'audio/music/hall.mp3 could not be written.',
+          message: 'audio/music/hall.mp3 could not be written: permission denied.',
         })
       } finally {
         chmodSync(clips, 0o755)
@@ -379,8 +379,8 @@ describe('uncommitChoice', () => {
         const result = await uncommitChoice({ root, music: config, id: 'hall' })
         expect(result).toEqual({
           ok: false,
-          message: 'audio/music/manifest.json could not be written.',
-          reason: 'audio/music/manifest.json could not be written',
+          message: 'audio/music/manifest.json could not be written: permission denied.',
+          reason: 'audio/music/manifest.json could not be written: permission denied',
         })
       } finally {
         chmodSync(clips, 0o755)
@@ -406,8 +406,8 @@ describe('uncommitChoice', () => {
         const result = await uncommitChoice({ root, music: config, id: 'hall' })
         expect(result).toEqual({
           ok: false,
-          message: 'content-studio/music/lock.json could not be written.',
-          reason: 'content-studio/music/lock.json could not be written',
+          message: 'content-studio/music/lock.json could not be written: permission denied.',
+          reason: 'content-studio/music/lock.json could not be written: permission denied',
         })
       } finally {
         chmodSync(studio, 0o755)

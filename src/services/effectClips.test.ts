@@ -61,14 +61,14 @@ describe('commitEffect', () => {
   it('says which file could not be written when the encoder cannot write the clip', async () => {
     const root = tempRepo({})
     const encode: Encoder = async () => {
-      throw new FileNotWritten()
+      throw new FileNotWritten('permission denied')
     }
     const quiet = console.error
     console.error = () => {}
     try {
       expect(await choose(root, 'coins', 1, encode)).toMatchObject({
         ok: false,
-        message: 'audio/effects/coins.mp3 could not be written.',
+        message: 'audio/effects/coins.mp3 could not be written: permission denied.',
       })
     } finally {
       console.error = quiet
@@ -308,7 +308,7 @@ describe('formatEffectLock', () => {
       try {
         expect(await uncommitEffect({ root, effects: config, id: 'coins' })).toMatchObject({
           ok: false,
-          message: 'audio/effects/manifest.json could not be written.',
+          message: 'audio/effects/manifest.json could not be written: permission denied.',
         })
       } finally {
         chmodSync(clips, 0o755)
@@ -329,8 +329,8 @@ describe('formatEffectLock', () => {
       try {
         expect(await uncommitEffect({ root, effects: config, id: 'coins' })).toEqual({
           ok: false,
-          message: 'content-studio/effects/lock.json could not be written.',
-          reason: 'content-studio/effects/lock.json could not be written',
+          message: 'content-studio/effects/lock.json could not be written: permission denied.',
+          reason: 'content-studio/effects/lock.json could not be written: permission denied',
         })
       } finally {
         chmodSync(studio, 0o755)

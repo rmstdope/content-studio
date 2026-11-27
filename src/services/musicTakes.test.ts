@@ -701,7 +701,7 @@ describe('createMusicTakes', () => {
       if (!view || !('ok' in view) || !view.ok) throw new Error('expected a view')
       expect(view.failed).toHaveLength(1)
       expect(view.failed[0]!.message).toMatch(
-        /^content-studio\/cache\/music-takes\/hall\/[^/]+\.1\.wav could not be written\.$/,
+        /^content-studio\/cache\/music-takes\/hall\/[^/]+\.1\.wav could not be written: permission denied\.$/,
       )
     } finally {
       console.error = quiet
@@ -1434,7 +1434,7 @@ describe('moving a take', () => {
         expect(answer).toMatchObject({ ok: false })
         const { message } = answer as { message: string }
         expect(message).toStartWith(refused)
-        expect(message).toEndWith(' could not be written.')
+        expect(message).toEndWith(' could not be written: permission denied.')
         expect(sounds()).toEqual(before)
         expect((await viewOf(m, 'hall')).takes).toHaveLength(2)
         expect((await viewOf(m, 'hut')).takes).toHaveLength(1)
@@ -1682,7 +1682,7 @@ describe('fading a stinger take', () => {
       expect(await made.takes.setFades(made.file, 'victory', made.name, fades)).toEqual({
         ok: false,
         message: expect.stringMatching(
-          /^content-studio\/cache\/music\/\S+\.json could not be written\.$/,
+          /^content-studio\/cache\/music\/\S+\.json could not be written: permission denied\.$/,
         ),
       })
     } finally {
@@ -1703,7 +1703,7 @@ describe('fading a stinger take', () => {
       expect(await made.takes.make(made.file, 'victory', { count: 1 })).toEqual({
         ok: false,
         message:
-          'No takes were made: content-studio/cache/music/victory.json could not be written.',
+          'No takes were made: content-studio/cache/music/victory.json could not be written: permission denied.',
       })
     } finally {
       console.error = quiet
@@ -1715,7 +1715,7 @@ describe('fading a stinger take', () => {
     const made = await stinger()
     const folder = join(made.root, 'content-studio/cache/music')
     const board =
-      /^The take could not be dropped: content-studio\/cache\/music\/\S+\.json could not be written\.$/
+      /^The take could not be dropped: content-studio\/cache\/music\/\S+\.json could not be written: permission denied\.$/
     const quiet = console.error
     console.error = () => {}
     chmodSync(folder, 0o555)
@@ -1740,7 +1740,7 @@ describe('fading a stinger take', () => {
       expect(await made.takes.setFades(made.file, 'victory', made.name, fades)).toEqual({
         ok: false,
         message: expect.stringMatching(
-          /^content-studio\/cache\/music\/\S+\.json could not be written\.$/,
+          /^content-studio\/cache\/music\/\S+\.json could not be written: permission denied\.$/,
         ),
       })
     } finally {
@@ -2058,7 +2058,7 @@ describe('trimming a stinger take', () => {
     await m.takes.choose(m.file, 'victory', one!.file)
     const refused = {
       ok: false,
-      message: 'content-studio/cache/music/victory.json could not be written',
+      message: 'content-studio/cache/music/victory.json could not be written: permission denied',
     } as const
     const before = gameOf(m)
     expect(await boardLocked(m, () => m.takes.trim(m.file, 'victory', one!.file, false))).toEqual(
@@ -2109,7 +2109,7 @@ describe('trimming a stinger take', () => {
       await boardLocked(m, () => m.takes.trim(m.file, 'victory', one!.file, false)),
     ).toMatchObject({
       ok: false,
-      message: 'content-studio/cache/music/victory.json could not be written',
+      message: 'content-studio/cache/music/victory.json could not be written: permission denied',
     })
     expect(Object.keys(lockOf(m.root)).sort()).toEqual(['defeat', 'victory'])
     expect(manifestOf(m.root).victory.duration).toBe(6)
@@ -2127,7 +2127,7 @@ describe('trimming a stinger take', () => {
         {
           ok: false,
           message:
-            'content-studio/cache/music/victory.json could not be written, and the game’s files could not be put back',
+            'content-studio/cache/music/victory.json could not be written: permission denied, and the game’s files could not be put back',
           gameChanged: true,
         },
       )
@@ -2141,7 +2141,7 @@ describe('trimming a stinger take', () => {
     const [one] = (await viewOf(m)).takes
     expect(await boardLocked(m, () => m.takes.trim(m.file, 'victory', one!.file, false))).toEqual({
       ok: false,
-      message: 'content-studio/cache/music/victory.json could not be written',
+      message: 'content-studio/cache/music/victory.json could not be written: permission denied',
     })
     expect((await viewOf(m)).takes[0]!.trim).toBeUndefined()
     expect(m.encoded).toHaveLength(0)
@@ -2152,12 +2152,15 @@ describe('trimming a stinger take', () => {
     const [one] = (await viewOf(m)).takes
     await m.takes.choose(m.file, 'victory', one!.file)
     expect(await m.takes.trim(m.file, 'victory', one!.file, false)).toEqual({ ok: true })
-    m.fail(new FileNotWritten())
-    const reason = { ok: false, message: 'audio/music/victory.mp3 could not be written' } as const
+    m.fail(new FileNotWritten('permission denied'))
+    const reason = {
+      ok: false,
+      message: 'audio/music/victory.mp3 could not be written: permission denied',
+    } as const
     expect(await m.takes.trim(m.file, 'victory', one!.file, true)).toEqual(reason)
     m.fail(false)
     expect(await m.takes.trim(m.file, 'victory', one!.file, true)).toEqual({ ok: true })
-    m.fail(new FileNotWritten())
+    m.fail(new FileNotWritten('permission denied'))
     expect(await m.takes.trim(m.file, 'victory', one!.file, false)).toEqual(reason)
   })
 
@@ -2197,7 +2200,7 @@ describe('trimming a stinger take', () => {
     try {
       expect(await m.takes.trim(m.file, 'victory', one!.file, false)).toEqual({
         ok: false,
-        message: 'content-studio/cache/music/victory.json could not be written',
+        message: 'content-studio/cache/music/victory.json could not be written: permission denied',
       })
     } finally {
       console.error = quiet

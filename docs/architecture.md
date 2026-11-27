@@ -97,7 +97,9 @@ retroquest/                      ← user runs `content-studio` here
    A write that fails is one typed refusal, `WriteRefused` (`services/files.ts`): `writeOrRefuse`,
    the only write the module exports, raises it naming the file's path in the project and the reason,
    so no save can meet the system's own error. `refusalSentence` words it in one place ("<file> could
-   not be written"), and each shape of answer has one adapter over it: `refusalAnswer` (a message),
+   not be written: <reason>", the reason as `writeFailure` gives it, "permission denied", "the disk
+   is full" or "a file or folder is in the way", and for any other system error only its code, never
+   the system's message or a temporary path, so a refused save says what to fix; as-a7m6), and each shape of answer has one adapter over it: `refusalAnswer` (a message),
    `refusalProblems` (the reason as a problem at the file) and `refusalFailed` (`failed`, with the
    reason). A refusal no caller answers reaches the server's catch-all as the sentence.
 5. The API answers only requests addressed to `127.0.0.1` or `localhost` on its port (against DNS
@@ -1037,7 +1039,7 @@ trimmed duration; Trim silence and Undo trim on the take already in the game re-
 `commitChoice`) first and write the board only if that worked, so a failure leaves both as they were. A board
 that cannot be written afterwards puts the track's clip, manifest entry and lock entry back (`keepMusicChoice`, in
 the project's choice turn, so what another track chose meanwhile stays; as-271h), answered with the refused
-board's name ("content-studio/cache/music/<id>.json could not be written", as the effects trim) so the line's "The game still plays it as it was." holds; if even that fails the refusal carries
+board's name ("content-studio/cache/music/<id>.json could not be written: permission denied", as the effects trim) so the line's "The game still plays it as it was." holds; if even that fails the refusal carries
 `gameChanged` and says ", and the game’s files could not be put back", with nothing claimed about the game.
 
 **Move a take** (built, as-824): a take that is made, not chosen and not dropped can be moved to another track of
@@ -1644,7 +1646,7 @@ missing or no model is installed. The Images finished panel's long waits (§8.7)
 
 **Copying another image's picture** (as-x25u; `core/imageCopy.ts`, `ImageTakes.copyFrom`, `ui/features/images/CopyImageDialog.tsx`; screens `docs/ui/as-x25u-copy-image.html`). On the Make tab, under Make takes and set off by a dashed rule, "Copy another image…" opens a window of the chosen takes' pictures of every other image in the game, by act in the game's order (`copySources`, from the project summary the page already holds; an image several acts list shows once, under the first; another shape is marked "will be cropped to fit" and the same shape in another size "will be scaled to fit"; the picture is the source's take served by `GET /api/images/:id/takes/:n`, so its patches are not laid in). `POST /api/images/:id/copy` (`{ from }`, own page only) runs `copyFrom`: the source's chosen take's PNG is written as this image's next take (`addTake`'s turn on the board), with the source's seed and model, this image's own `madeFrom`, and `copiedFrom: { image, title, take }`; it is then brought to this image's look like a made take. No model runs, nothing is queued, and the source's board, lock, patches and areas, the manifest and the game's files are untouched: the copy reaches the game only through the ordinary Choose, which writes this image's current words (not the source's) into the lock for a copied take, so a copy is as current as the image when chosen. A take with `copiedFrom` is never "earlier words" (`earlier` is false). Refusals (the image itself, a source with no chosen take, a source picture gone, an unreadable record) answer 409 with the sentence the page puts in its red line. The page keeps only the copy window's search and pick (dropped on close) and the line under the band (copying, copied, failed). The line beside the button reads "No model, nothing spent", or "No other image has a picture yet." when there is nothing to copy, or, while the images lock cannot be read, the lock's reason (`COPY_LOCK_WHY`, as-fz6m), since the empty list then says nothing about the other images, or, while the image style has a problem, the style's reason (`COPY_STYLE_WHY`, as-faa4), so the line gives the button's hover reason whenever there is one, except while copying, when the button itself reads "Copying…".
 
-**A board that cannot be written on Make** (as-90la, as-3fb6): reserving the numbers of new takes, patch takes or fine-tunes writes that image's board first, so a refused write starts nothing and answers with the board's name, as music and effects do: "No takes were made: content-studio/cache/images/<id>.json could not be written." for an image's own takes, the same with the patch's board for a patch, and "No fine-tunes were made: content-studio/cache/image-fine-tunes/<id>/board.json could not be written." for Fine-tune. Make takes on an act's Images, Music or Sound effects page and Remake patches show that refusal's reason as their red line (as-cb6d); a press that failed, that the studio refused without a reason, or that started nothing says "The takes could not be started. Nothing was made; try again."
+**A board that cannot be written on Make** (as-90la, as-3fb6): reserving the numbers of new takes, patch takes or fine-tunes writes that image's board first, so a refused write starts nothing and answers with the board's name, as music and effects do: "No takes were made: content-studio/cache/images/<id>.json could not be written: permission denied." for an image's own takes, the same with the patch's board for a patch, and "No fine-tunes were made: content-studio/cache/image-fine-tunes/<id>/board.json could not be written: permission denied." for Fine-tune. Make takes on an act's Images, Music or Sound effects page and Remake patches show that refusal's reason as their red line (as-cb6d); a press that failed, that the studio refused without a reason, or that started nothing says "The takes could not be started. Nothing was made; try again."
 
 **Take times** (as-l00; `core/takeTimes.ts`, `services/takeTimes.ts`, `useFigures` in `ui/api.ts`). Every time figure for image and patch takes is how long takes have really taken on this computer: the median of the last five finished takes of a model, kept in `content-studio/cache/take-times.json` (the gitignored cache, so per computer, never in the game's repository). Klein's patches are timed apart from its takes (`klein-edit`), so there are five keys: `klein`, `z-image-turbo`, `qwen-image`, `qwen-edit`, `klein-edit`. A take records `now - startedAt` when it finishes, where `startedAt` is when it starts making, so waiting its turn is not counted; a failed or stopped take records nothing. Until a model has a timed take its figure is a starting guess (klein 20 s, Z-Image-Turbo 1 min, Qwen-Image 4 min, Qwen Image Edit 8 min, klein patches 20 s) and the menus say "a guess: about 20 s a take". A missing or unreadable file reads as no timings. Rounding is shared (`timeText`): under a minute to five seconds (at least 5), then whole minutes; menus round to the nearest, time-left lines up; "taking longer than expected" once the figure is used up. The closed model menus that carry the figure (an image's Takes menu, the patch models' menu, Setup's Images row) wrap, and so does Setup's Music menu, whose longest entry (Eleven Music's) otherwise widened the page past a narrow window (as-kila): `MenuFace` draws the closed words in a box that grows to as many lines as it needs and lays the native select over it, invisible, so the open list, Tab, the arrow keys and the disabled state stay the computer's own. Music's and sound effects' figures are untouched.
 
@@ -1686,7 +1688,7 @@ together (`writeTogether` in `services/files.ts`; `patchesInGame` only says what
 that is refused (a read-only folder, a full disk) puts back those already written, or removes them
 when they were not there (a file there that cannot be read is refused before it is written), so a
 picture goes into the game only together with its lock, and the refusal names the file
-("content-studio/images/lock.json could not be written."; "…, and the game's files could not be put
+("content-studio/images/lock.json could not be written: permission denied."; "…, and the game's files could not be put
 back." if even that fails; as-mirh); a fine-tune's Choose then drops the take it added. **Accept**, in the out-of-date notice on an image's page when
 what changed is its words, style or act style (`POST /api/images/:id/accept`, in the image's board
 turn and the project's choice turn), writes the image's words and style now into the lock's
@@ -1912,7 +1914,7 @@ the description and length (the model is the take's own field). A take made for 
 A take that fails is kept in memory as "could not be made" with **Try again**; success clears and
 failure records the model's health (Setup's row, §8.8), a stopped take neither. A made take whose WAV or board
 cannot be written is no failure of the model: it is "could not be made" with that file, named in the project, as its reason
-("content-studio/cache/effect-boards/<id>.json could not be written.", never the system's error or a temporary path; as-o9n9),
+("content-studio/cache/effect-boards/<id>.json could not be written: permission denied.", never the system's error or a temporary path; as-o9n9),
 its WAV removed, and no failure recorded (for a board, the model worked, so an earlier failure of it is cleared; as-ct9;
 for a WAV, the model's health stays as it was; as-ng94). **Stop** discards the one being made and the ones waiting.
 
@@ -1931,8 +1933,8 @@ entry last out of the game as music's does (`takeOut`, as-z8i5): a failed write 
 already changed, so "Nothing was changed." is true, or the red line says the game's files could not
 be put back; the take stays on the board. **Drop** removes a take that is not chosen, at once; a
 chosen take is refused (409), and the take's line under its buttons says why. A board that cannot be written
-refuses Make takes ("No takes were made: content-studio/cache/effect-boards/<id>.json could not be written.") and
-Drop ("The take could not be dropped: … could not be written.", the take kept) with a line naming it, never a bare
+refuses Make takes ("No takes were made: content-studio/cache/effect-boards/<id>.json could not be written: <reason>.") and
+Drop ("The take could not be dropped: … could not be written: <reason>.", the take kept) with a line naming it, never a bare
 500 (as-ct9).
 
 **Trim silence** (built, as-dgh.1; one-shot effects only, as stingers' in §8.5): a take card, and the take in the In the game block, has **Trim silence**

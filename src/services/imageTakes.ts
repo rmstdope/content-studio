@@ -1025,7 +1025,7 @@ export function createImageTakes({
       }).catch((error: unknown) => {
         // A file or board that cannot be written is refused with its name (as-90la), nothing is added.
         if (error instanceof WriteRefused)
-          return { ok: false as const, message: `${error.message}: ${error.reason}.` }
+          return { ok: false as const, message: `${error.message}.` }
         throw error
       })
       if ('n' in added) {
