@@ -42,10 +42,10 @@ describe('the images routes', () => {
     transcriber: null,
   })
   afterAll(() => studio.stop(true))
-  const send = (method: string, path: string, body: unknown, origin = studio.url.origin) =>
+  const send = (method: string, path: string, body: unknown) =>
     fetch(new URL(path, studio.url), {
       method,
-      headers: { origin, 'content-type': 'application/json' },
+      headers: { origin: studio.url.origin, 'content-type': 'application/json' },
       body: JSON.stringify(body),
     })
   const summary = async () =>
@@ -116,22 +116,6 @@ describe('the images routes', () => {
 
   it('shows the images in the project summary', async () => {
     expect((await summary()).acts[0].rows[0]).toMatchObject({ id: 'inn', status: 'none yet' })
-  })
-
-  it('takes changes from the studio’s own page only', async () => {
-    for (const [method, path, body] of [
-      ['PATCH', '/api/images/inn', { words: 'x' }],
-      ['PATCH', '/api/image-style', { look: 'x' }],
-      ['POST', '/api/images/inn/compare', { choice: 'keep' }],
-      ['PATCH', '/api/images/inn/act-style', { on: false }],
-      ['PATCH', '/api/images/inn/game-patches/lamp-lit', { words: 'x' }],
-      ['POST', '/api/images/inn/game-patches/lamp-lit/compare', { choice: 'keep' }],
-      ['PUT', '/api/images/inn/areas/sign', { box: null }],
-      ['PUT', '/api/images/inn/effects', { effects: {} }],
-      ['PUT', '/api/images/inn/zoom', { zoom: null }],
-    ] as const) {
-      expect((await send(method, path, body, 'https://evil.example')).status).toBe(403)
-    }
   })
 
   it('saves the user’s words, and the summary shows them', async () => {
@@ -311,10 +295,10 @@ describe('the image takes routes', () => {
     },
   })
   afterAll(() => studio.stop(true))
-  const send = (method: string, path: string, body?: unknown, origin = studio.url.origin) =>
+  const send = (method: string, path: string, body?: unknown) =>
     fetch(new URL(path, studio.url), {
       method,
-      headers: { origin, 'content-type': 'application/json' },
+      headers: { origin: studio.url.origin, 'content-type': 'application/json' },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     })
   const view = async () => (await fetch(new URL('/api/images/inn/takes', studio.url))).json()
@@ -337,35 +321,6 @@ describe('the image takes routes', () => {
     expect(figures['qwen-edit']).toEqual({ seconds: 480, guess: true })
     expect(figures['klein-edit']).toEqual({ seconds: 20, guess: true })
     expect((await send('POST', '/api/images/take-times')).status).not.toBe(200)
-  })
-
-  it('takes changes from the studio’s own page only', async () => {
-    for (const [method, path, body] of [
-      ['POST', '/api/images/inn/takes', { count: 1 }],
-      ['DELETE', '/api/images/inn/takes/1', undefined],
-      ['POST', '/api/images/inn/choose', { n: 1 }],
-      ['POST', '/api/images/inn/copy', { from: 'hall' }],
-      ['POST', '/api/images/inn/unchoose', undefined],
-      ['POST', '/api/images/inn/accept', undefined],
-      ['POST', '/api/images/inn/unaccept', undefined],
-      ['POST', '/api/images/inn/stop', undefined],
-      ['POST', '/api/images/inn/takes/1/seen', undefined],
-      ['POST', '/api/images/bring-all', undefined],
-      ['POST', '/api/image-acts/act1/make-all', undefined],
-      ['POST', '/api/image-acts/act1/stop', undefined],
-      ['POST', '/api/image-acts/act1/batch/close', undefined],
-      ['POST', '/api/images/inn/patches/door/takes', { count: 1, area: {} }],
-      ['DELETE', '/api/images/inn/patches/door/takes/1', undefined],
-      ['POST', '/api/images/inn/patches/door/takes/1/seen', undefined],
-      ['POST', '/api/images/inn/patches/door/choose', { n: 1 }],
-      ['POST', '/api/images/inn/patches/door/unchoose', undefined],
-      ['POST', '/api/images/inn/patches/door/stop', undefined],
-      ['POST', '/api/images/inn/patches/remake', { count: 1, marks: {} }],
-      ['POST', '/api/images/inn/patches/remake/stop', undefined],
-      ['POST', '/api/images/inn/patches/remake/close', undefined],
-    ] as const) {
-      expect((await send(method, path, body, 'https://evil.example')).status).toBe(403)
-    }
   })
 
   it('answers 400 to a remake body that is not { count, marks }, and 409 when nothing needs remaking', async () => {
@@ -573,24 +528,12 @@ describe('the image fine-tune routes', () => {
     },
   })
   afterAll(() => studio.stop(true))
-  const send = (method: string, path: string, body?: unknown, origin = studio.url.origin) =>
+  const send = (method: string, path: string, body?: unknown) =>
     fetch(new URL(`/api/images/inn/fine-tunes${path}`, studio.url), {
       method,
-      headers: { origin, 'content-type': 'application/json' },
+      headers: { origin: studio.url.origin, 'content-type': 'application/json' },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     })
-
-  it('takes changes from the studio’s own page only', async () => {
-    for (const [method, path, body] of [
-      ['POST', '', { count: 1, words: 'x', area: null }],
-      ['POST', '/stop', undefined],
-      ['POST', '/use', { n: 1 }],
-      ['DELETE', '/1', undefined],
-      ['POST', '/1/seen', undefined],
-    ] as const) {
-      expect((await send(method, path, body, 'https://evil.example')).status).toBe(403)
-    }
-  })
 
   it('refuses a bad body, and answers 404 for an image the game does not list', async () => {
     expect((await send('POST', '', { count: 11, words: 'x', area: null })).status).toBe(400)

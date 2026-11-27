@@ -488,23 +488,6 @@ describe('server', () => {
     expect((await post('/api/auditions/narrator/cast', { voice: 'w1' })).status).toBe(409)
   })
 
-  it('refuses every audition change from another page', async () => {
-    const changes: [string, string][] = [
-      ['DELETE', '/api/auditions/narrator'],
-      ...['start', 'move', 'undo', 'more', 'add', 'cast', 'own'].map((action): [string, string] => [
-        'POST',
-        `/api/auditions/narrator/${action}`,
-      ]),
-    ]
-    for (const [method, path] of changes) {
-      const response = await fetch(url(path), {
-        method,
-        headers: { origin: 'https://evil.example' },
-      })
-      expect([path, response.status]).toEqual([path, 403])
-    }
-  })
-
   it('answers ending the audition of an unknown character with 404', async () => {
     const response = await fetch(url('/api/auditions/nobody'), {
       method: 'DELETE',

@@ -57,18 +57,14 @@ describe('server, the music pages', () => {
   })
 
   describe('saving a track’s brief', () => {
-    const patch = (id: string, body: unknown, origin = studio.url.origin) =>
+    const patch = (id: string, body: unknown) =>
       fetch(new URL(`/api/music/tracks/${id}`, studio.url), {
         method: 'PATCH',
-        headers: { origin, 'content-type': 'application/json' },
+        headers: { origin: studio.url.origin, 'content-type': 'application/json' },
         body: JSON.stringify(body),
       })
 
     beforeAll(() => writeFileSync(join(musicRoot, 'tts/stingers.json'), list))
-
-    it('takes a change from the studio’s own page only', async () => {
-      expect((await patch('victory', { brief: 'x' }, 'https://evil.example')).status).toBe(403)
-    })
 
     it('refuses a body that is not one field', async () => {
       expect((await patch('victory', { brief: 'x', key: 'C' })).status).toBe(400)

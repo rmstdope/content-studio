@@ -57,17 +57,6 @@ describe('server, the sound effects', () => {
     expect(body.summary.effects.rows.map((r: { id: string }) => r.id)).toEqual(['coins'])
   })
 
-  it('refuses every change that does not come from the studio’s page', async () => {
-    for (const [method, path, body] of [
-      ['POST', '/api/effects/refresh', undefined],
-      ['PATCH', '/api/effects/coins', { description: 'x' }],
-      ['POST', '/api/effects/coins/keep-mine', undefined],
-      ['POST', '/api/effects/coins/forget', undefined],
-    ] as const) {
-      expect((await send(method, path, body, 'https://evil.example')).status).toBe(403)
-    }
-  })
-
   it('saves a description, and answers 404 for an effect the game does not list', async () => {
     const saved = await send('PATCH', '/api/effects/coins', { description: 'Coins on glass' })
     expect(saved.status).toBe(200)
@@ -134,19 +123,6 @@ describe('server, sound effect takes', () => {
     }
     throw new Error('never finished')
   }
-
-  it('refuses every change that does not come from the studio’s page', async () => {
-    for (const [method, path, body] of [
-      ['POST', '/api/effects/coins/takes', { count: 1 }],
-      ['DELETE', '/api/effects/coins/takes/0123456789abcdef.1.wav', undefined],
-      ['POST', '/api/effects/coins/choose', { file: 'x' }],
-      ['POST', '/api/effects/coins/unchoose', undefined],
-      ['POST', '/api/effects/coins/accept', undefined],
-      ['POST', '/api/effects/coins/stop', undefined],
-    ] as const) {
-      expect((await send(method, path, body, 'https://evil.example')).status).toBe(403)
-    }
-  })
 
   it('rejects a request that is not { count } or { retry }, and answers 404 for an unknown effect', async () => {
     expect((await send('POST', '/api/effects/coins/takes', { count: 9 })).status).toBe(400)

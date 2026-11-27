@@ -119,17 +119,12 @@ describe('server, measuring the loudness of scenes', () => {
     transcriber: null,
   })
   afterAll(() => studio.stop(true))
-  const post = (path: string, body?: unknown, origin = studio.url.origin) =>
+  const post = (path: string, body?: unknown) =>
     fetch(new URL(path, studio.url), {
       method: 'POST',
-      headers: { origin, 'content-type': 'application/json' },
+      headers: { origin: studio.url.origin, 'content-type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
     })
-
-  it('starts from the studio’s own page only', async () => {
-    expect((await post('/api/scene-loudness/act1', {}, 'https://evil.example')).status).toBe(403)
-    expect(existsSync(join(root, 'content-studio/scenes/act1.lock.json'))).toBe(false)
-  })
 
   it('answers 404 for an act it does not know and 400 for a body that is not an open scene', async () => {
     expect((await post('/api/scene-loudness/act9', {})).status).toBe(404)

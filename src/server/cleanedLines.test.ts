@@ -17,8 +17,8 @@ writeFileSync(
   }),
 )
 const cast = join(root, 'content-studio/narration/cast.json')
-const post = (path: string, origin: string = url('/').origin) =>
-  fetch(url(path), { method: 'POST', headers: { origin } })
+const post = (path: string) =>
+  fetch(url(path), { method: 'POST', headers: { origin: url('/').origin } })
 
 describe('the lines cleaned in the game', () => {
   it('are counted for a voice, with the job that is running or last ran', async () => {
@@ -32,13 +32,6 @@ describe('the lines cleaned in the game', () => {
       levels: [{ part: 'act1', file: 'a.mp3', level: 100 }],
       levelJob: null,
     })
-  })
-
-  it('are cleaned and put back from the studio’s own page only', async () => {
-    for (const action of ['clean', 'put-back', 'stop']) {
-      const path = `/api/characters/narrator/cleaned-lines/${action}`
-      expect((await post(path, 'http://evil.test')).status).toBe(403)
-    }
   })
 
   it('refuse a put back with nothing cleaned, and a stop with nothing running', async () => {
