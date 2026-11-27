@@ -30,3 +30,20 @@ every time.
 **Prevent by.** A bug bead: have the test wait for the spending row instead of 20 ms, or save the
 spend before the take stops showing as being made.
 **Seen before.** as-evwv, as-kw3x.1
+
+## CI failed again, on the narration spending tests
+
+**What happened.** CI on head fefb16be, whose only new commit was this file, failed four tests in
+`src/server/spending.test.ts`; the first expected `state: "error"` and read `"running"`
+(line 132), and the other three followed it. The file passed locally. With a temporary
+`Bun.sleep(100)` before `live.delete(id)` in `createSpendLog` (`src/services/spending.ts`) it
+failed with the same four, and the test before them too.
+**Why.** `end` saves the recording before it stops showing it as running, so for a moment the
+Spending page lists it twice. The test's `settle` counts the saved copy as settled while the first
+row is still the running one, and a failed assertion there leaves `failFrom` set for the tests
+after it.
+**Cost.** A second CI failure; with the head that carries this section, both of the bead's re-runs
+are counted as spent.
+**Prevent by.** A bug bead: leave a saved recording's id out of the running ones in
+`GET /api/spending`, and reset `failFrom` in an `afterEach`.
+**Seen before.** none found
