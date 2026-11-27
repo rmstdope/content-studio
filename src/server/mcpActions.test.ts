@@ -7,7 +7,7 @@ import { ACTIONS } from './mcpActions'
  * clip is deleted unconfirmed", §9), so a new step passes only once somebody has said which of the
  * two it is.
  */
-const REMOVES_NOTHING = [
+const ASKS_NOTHING = [
   'DELETE /api/jobs/:id',
   'PATCH /api/fish-tier',
   'PATCH /api/take-fade',
@@ -110,8 +110,8 @@ const REMOVES_NOTHING = [
 describe('no clip is deleted through the MCP unconfirmed', () => {
   const key = (a: (typeof ACTIONS)[number]) => `${a.method} ${a.path}`
 
-  it('has every step ask for confirmation, or declared to remove nothing', () => {
+  it('has every step ask for confirmation, or listed as asking nothing', () => {
     const silent = ACTIONS.filter((a) => !a.confirm).map(key)
-    expect(silent.sort()).toEqual([...REMOVES_NOTHING].sort())
+    expect(silent.sort()).toEqual([...ASKS_NOTHING].sort())
   })
 })

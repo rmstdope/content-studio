@@ -39,7 +39,7 @@ const REMOVES_ORPHANS: ConditionalConfirm = {
     // A body the route refuses removes nothing: the route says what is wrong with it.
     const job = JobBody.safeParse(body)
     if (!job.success || job.data.kind !== 'record') return null
-    const count = job.data.orphans.length
+    const count = new Set(job.data.orphans).size
     if (!count) return null
     return count === 1
       ? 'deletes 1 orphaned clip from the game (its line left the dialog)'

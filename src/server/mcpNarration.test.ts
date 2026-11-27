@@ -241,6 +241,7 @@ describe('an agent casting a voice and recording a line', () => {
   })
 })
 
+// The tests share one project and run in order: the last one removes the orphans.
 describe('an agent recording a batch that removes orphaned clips', () => {
   const root = tempRepo({
     'content-studio.json': projectJson(),

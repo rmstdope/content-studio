@@ -78,6 +78,12 @@ describe('when a batch asks for confirmation', () => {
     )
   })
 
+  it('counts a key listed twice once', () => {
+    expect(line(batch(['x', 'x']))).toBe(
+      'deletes 1 orphaned clip from the game (its line left the dialog)',
+    )
+  })
+
   it('asks nothing of a batch that removes none', () => {
     expect(line(batch([]))).toBeNull()
     // Measuring and checking again remove no clip, whatever they list.
