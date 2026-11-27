@@ -557,13 +557,11 @@ export function createEffectTakes({
       const found = await resolve(projectFile, id)
       if (!found || !('inputs' in found)) return found
       const { root, folder } = found
-      // The entries first: one is dropped only after the board has it, so a take is then in the
-      // board read after, never in neither.
-      const entries = entriesOf(projectFile, id)
-      // Read in the board's turn: a save is done, the model's failure cleared included, before
-      // the take it put on the board can be seen.
-      const board = await engine.inTurn(projectFile, id, () => readEffectBoard(root, id))
-      if ('ok' in board) return board
+      // A save is over, the model's failure cleared included, before the take it put on the board
+      // can be seen.
+      const read = await engine.read(projectFile, id, accessOf(found))
+      if ('ok' in read) return read
+      const { board, entries } = read
       const chosenEffects = await readEffectChosen(root, found.effects, [])
       const chosen = chosenEffects.read ? chosenEffects.entries[id]?.lock : undefined
       const takes: EffectTakeView[] = []
