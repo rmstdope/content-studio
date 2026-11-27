@@ -159,6 +159,6 @@ RFR-2  Refresh from the game on an act's Music, Images and Scenes pages, and on 
 AGT-1  An AI agent connected to the studio over MCP can read what every page shows and do the
        studio's own steps, with the same checks as the page. A step that deletes clips is done
        only on a call marked confirmed, once the person has agreed.
-       Proven by: nothing yet
+       Proven by: test/system/AGT-1.test.ts
 AGT-2  A page open in the browser follows what an agent changed, without being reloaded.
        Proven by: nothing yet

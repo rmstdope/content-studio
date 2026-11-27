@@ -86,7 +86,7 @@ export const READABLE: readonly Readable[] = [
   state('Images', '/api/images/:id/takes', "an image's takes"),
   state('Images', '/api/images/:id/patches', "an image's patches"),
   state('Images', '/api/images/:id/fine-tunes', "an image's fine-tunes"),
-  state('Images', '/api/images/:id/fine-tunes/base', "an image's fine-tune base"),
+  file('Images', '/api/images/:id/fine-tunes/base', "an image's fine-tune base"),
   file('Images', '/api/images/:id/takes/:n', 'an image take'),
   file('Images', '/api/images/:id/takes/:n/game', 'an image take as the game shows it'),
   file('Images', '/api/images/:id/current', 'the chosen image'),

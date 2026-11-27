@@ -2527,6 +2527,10 @@ Images' and scenes' routes are described with them:
 - CI takes ffmpeg and ffprobe from one pinned build, downloaded and checksummed by
   `scripts/ci-ffmpeg.sh` and kept in the Actions cache under that file's hash; a step before the tests
   fails when they are not on the path, because the tests that need them would skip.
+- System tests are `test/system/<ID>.test.ts`, one per requirement of `.cerebro/requirements.md`,
+  named by its ID. Each starts the studio's real server on a temporary game with every provider and
+  model faked (`startStudio` in `test/system/studio.ts`) and drives it as the page does (its
+  requests) or as an agent does (MCP).
 - UI: pure helpers (`src/ui/*.ts`) have unit tests, and component tests (`*.test.tsx`) cover every
   workspace's pages and panels (lines, characters, audition, music, images, effects, scenes, setup)
   and shared components (sidebar, pager, tips). There is no browser test.
