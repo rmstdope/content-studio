@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path'
 import { PROJECT_FILE } from '../src/core/project'
 import { startServer } from '../src/server/index'
 import { forgetLoadedKeys } from '../src/services/env'
+import { WriteRefused } from '../src/services/files'
 import { ensureStudioFolder } from '../src/services/studioFolder'
 import { locateProject, openProject, projectFileProblem } from '../src/services/workspace'
 
@@ -68,7 +69,8 @@ forgetLoadedKeys(process.cwd(), projectFile)
 // Only for a project file that opens: a refused one (an older format) gets nothing written.
 if ((await openProject(projectFile)).ok) {
   await ensureStudioFolder(dirname(projectFile)).catch((error: unknown) => {
-    console.warn(`Note: could not write content-studio/.gitignore (${(error as Error).message}).`)
+    const why = error instanceof WriteRefused ? error.reason : (error as Error).message
+    console.warn(`Note: could not write content-studio/.gitignore (${why}).`)
   })
 }
 

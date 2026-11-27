@@ -23,7 +23,7 @@ import {
   type StyleField,
 } from '../core/images'
 import { IMAGES_EDITS_FILE, type Problem, type Project } from '../core/project'
-import { writeAtomic, writeFailure } from './files'
+import { writeOrRefuse, refusalProblems } from './files'
 import { syncImageEntries } from './imageAreas'
 import { readImageEdits, readImages } from './imageLists'
 import { createSerial } from './serial'
@@ -70,16 +70,16 @@ function edit<T>(
     const changed = change(read.edits, found)
     if (changed === null) return null
     if (Array.isArray(changed)) return { ok: false, problems: changed }
-    try {
-      await writeAtomic(root, file, formatImageEdits(changed))
-    } catch (error) {
-      return { ok: false, problems: [{ file, path: '', message: writeFailure(error) }] }
-    }
+    const refused = await writeOrRefuse(root, file, formatImageEdits(changed)).then(
+      () => null,
+      refusalProblems('saving the image edits failed'),
+    )
+    if (refused) return refused
     const failed = after ? await after(project) : []
     if (failed.length) {
       try {
         if (was === null) await rm(resolveInRoot(root, file), { force: true })
-        else await writeAtomic(root, file, was)
+        else await writeOrRefuse(root, file, was)
       } catch {
         // The edits could not be put back either: the problems already say what went wrong.
       }
@@ -220,15 +220,10 @@ export function adoptImageAreas(
     if (read.problems.length) return { ok: false, problems: read.problems }
     const next = adoptAreas(read.edits, id, take)
     if (next === read.edits) return { ok: true }
-    try {
-      await writeAtomic(root, IMAGES_EDITS_FILE, formatImageEdits(next))
-    } catch (error) {
-      return {
-        ok: false,
-        problems: [{ file: IMAGES_EDITS_FILE, path: '', message: writeFailure(error) }],
-      }
-    }
-    return { ok: true }
+    return writeOrRefuse(root, IMAGES_EDITS_FILE, formatImageEdits(next)).then(
+      () => ({ ok: true as const }),
+      refusalProblems('adopting the take’s named areas failed'),
+    )
   })
 }
 
@@ -249,15 +244,10 @@ export function carryImageAreas(
     const next = carryAreas(read.edits, id, from, to)
     const areas = Object.keys(next.images[id]?.takeAreas?.[String(to)] ?? {}).length
     if (next === read.edits) return { ok: true as const, areas }
-    try {
-      await writeAtomic(root, IMAGES_EDITS_FILE, formatImageEdits(next))
-    } catch (error) {
-      return {
-        ok: false as const,
-        problems: [{ file: IMAGES_EDITS_FILE, path: '', message: writeFailure(error) }],
-      }
-    }
-    return { ok: true as const, areas }
+    return writeOrRefuse(root, IMAGES_EDITS_FILE, formatImageEdits(next)).then(
+      () => ({ ok: true as const, areas }),
+      refusalProblems('carrying the named areas to the take failed'),
+    )
   })
 }
 

@@ -15,7 +15,7 @@ import {
 } from '../core/music'
 import { MUSIC_EDITS_FILE, type MusicConfig, type Problem } from '../core/project'
 import { resolveInRoot } from '../core/paths'
-import { listFiles, readResource, writeAtomic } from './files'
+import { listFiles, readResource, writeOrRefuse, refusalProblems } from './files'
 import { readChosen } from './musicClips'
 import { readMusic } from './musicLists'
 import { boardQueue, deleteBoard, MUSIC_BOARD_DIR } from './musicTakes'
@@ -74,8 +74,19 @@ async function save(
   )
   const stale = new Set(await dropStale(projectFile, root, project.music, summary!, changed))
   const next = Object.fromEntries(Object.entries(changed).filter(([key]) => !stale.has(key)))
-  await writeAtomic(root, file, formatBriefs(next))
-  return { ok: true }
+  return saveBriefs(root, file, next)
+}
+
+/** Writes the briefs file, a refused write answered as its problem. */
+function saveBriefs(
+  root: string,
+  file: string,
+  briefs: Briefs,
+): Promise<{ ok: true } | { ok: false; problems: Problem[] }> {
+  return writeOrRefuse(root, file, formatBriefs(briefs)).then(
+    () => ({ ok: true as const }),
+    refusalProblems('saving the music edits failed'),
+  )
 }
 
 /**
@@ -96,8 +107,7 @@ export function keepMyBrief(projectFile: string, id: string): Promise<BriefChang
     if (briefs === 'invalid') return { ok: false, problems }
     if (briefs === 'missing') return { ok: true }
     const next = keepMineBrief(briefs, id, found.track.game.brief)
-    if (next !== briefs) await writeAtomic(root, MUSIC_EDITS_FILE, formatBriefs(next))
-    return { ok: true }
+    return next === briefs ? { ok: true } : saveBriefs(root, MUSIC_EDITS_FILE, next)
   })
 }
 
@@ -143,7 +153,7 @@ export function forgetBriefs(
     if (briefs === 'invalid') return { ok: false, problems }
     if (briefs !== 'missing' && ids.some((id) => id in briefs)) {
       const next = Object.fromEntries(Object.entries(briefs).filter(([key]) => !ids.includes(key)))
-      await writeAtomic(root, file, formatBriefs(next))
+      return saveBriefs(root, file, next)
     }
     return { ok: true }
   })

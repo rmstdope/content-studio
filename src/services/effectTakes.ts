@@ -50,7 +50,7 @@ import type { EffectGenerator } from './effects'
 import type { EffectHealthStore } from './effectHealth'
 import { gpuInUse, gpuQueue, GPU, holdGpu } from './gpu'
 import { createTakeEngine, type BoardAccess, type TakeEntry } from './takeEngine'
-import { refusalAnswer, refusalSentence, writeAtomic, writeOrRefuse } from './files'
+import { refusalAnswer, refusalSentence, writeOrRefuse } from './files'
 import type { CommitResult } from './musicClips'
 import { createSerial, type Serial } from './serial'
 import { MAKE_ALL_TAKES, type EffectBatch } from '../core/effectsMakeAll'
@@ -504,7 +504,7 @@ export function createEffectTakes({
             .bytes()
             .catch(() => null)
           putBack = async () => {
-            if (was) await writeAtomic(found.root, game, was)
+            if (was) await writeOrRefuse(found.root, game, was)
             else await rm(resolveInRoot(found.root, game), { force: true })
           }
           // Only the sound changes: the manifest and the lock (an accepted change too) stay as they are.

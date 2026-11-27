@@ -11,7 +11,7 @@ import {
   type Running,
   type TrySpend,
 } from '../core/spending'
-import { readResource, writeAtomic } from './files'
+import { readResource, writeOrRefuse } from './files'
 import { createSerial } from './serial'
 import { CACHE_DIR } from '../core/project'
 
@@ -55,7 +55,7 @@ function appendTo(projectFile: string, add: (read: Saved) => Saved): Promise<Spe
     const saved = needsVersion2(recordings, music, tries)
       ? { version: 2, recordings, music, tries }
       : { version: 1, recordings }
-    await writeAtomic(dirname(projectFile), SPENDING_FILE, `${JSON.stringify(saved, null, 1)}\n`)
+    await writeOrRefuse(dirname(projectFile), SPENDING_FILE, `${JSON.stringify(saved, null, 1)}\n`)
     return { ok: true, recordings, music, tries }
   })
 }

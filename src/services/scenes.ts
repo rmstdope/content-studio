@@ -14,7 +14,7 @@ import {
   type ScenesSummary,
 } from '../core/scenes'
 import { sameMix } from '../core/sceneEdit'
-import { readJson, writeAtomic, writeFailure } from './files'
+import { readJson, writeOrRefuse, refusalFailed } from './files'
 import { readMeasures, sceneSaved } from './sceneMeasures'
 import { createSerial } from './serial'
 import { openProject } from './workspace'
@@ -201,11 +201,12 @@ export function saveScene(
       else if (id in old) entries[id] = old[id]
     }
     for (const id of Object.keys(old)) if (!(id in entries)) entries[id] = old[id]
-    try {
-      await writeAtomic(root, mixFile, `${mixText({ ...raw, scenes: entries })}\n`)
-    } catch (error) {
-      return { ok: false, kind: 'failed', message: writeFailure(error) }
-    }
+    const refused = await writeOrRefuse(
+      root,
+      mixFile,
+      `${mixText({ ...raw, scenes: entries })}\n`,
+    ).then(() => null, refusalFailed('saving the scene’s mix failed'))
+    if (refused) return refused
     // The figures kept for the scene follow the Save; failing to keep them is not failing to save.
     await sceneSaved(projectFile, part, sceneId, checked.data, moved).catch(() => {})
     return { ok: true }

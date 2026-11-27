@@ -2,7 +2,7 @@ import { dirname } from 'node:path'
 import { CACHE_DIR } from '../core/project'
 import { cleanTimes, recordTime, TakeTimesSchema } from '../core/takeTimes'
 import type { TakeTimes, TimeKey } from '../core/takeTimes'
-import { readResource, writeAtomic } from './files'
+import { readResource, writeOrRefuse } from './files'
 import { createSerial } from './serial'
 
 /** Where the timings are kept: in the studio's cache, so they stay on this computer and are never committed. */
@@ -30,6 +30,8 @@ export function recordTakeTime(projectFile: string, key: TimeKey, seconds: numbe
   const root = dirname(projectFile)
   return writes.run(root, async () => {
     const times = recordTime(await readTakeTimes(projectFile), key, seconds)
-    await writeAtomic(root, TAKE_TIMES_FILE, `${JSON.stringify(times, null, 2)}\n`).catch(() => {})
+    await writeOrRefuse(root, TAKE_TIMES_FILE, `${JSON.stringify(times, null, 2)}\n`).catch(
+      () => {},
+    )
   })
 }

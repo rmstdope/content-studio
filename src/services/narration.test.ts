@@ -3,7 +3,13 @@ import { describe, expect, it } from 'bun:test'
 import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { narrationInLanguages, projectJson, tempRepo } from '../../test/helpers'
+import {
+  narrationInLanguages,
+  projectJson,
+  tempRepo,
+  canRefuseWrites,
+  refusingWrites,
+} from '../../test/helpers'
 import { HEARD_DIR, heardFor } from './heard'
 import { readWav, writeWav } from '../core/wav'
 import type { Encoder } from './audio'
@@ -788,6 +794,28 @@ describe('measureLine', () => {
     expect(loaded?.ok && loaded.part.lines.find((l) => l.key === 'k4')?.status).toBe('ok')
     expect(await heardFor(projectFile, 'act1', 'k4')).toMatchObject({ ok: true, heard: null })
   })
+
+  it.skipIf(!canRefuseWrites)(
+    'answers an accept whose lock cannot be written with the file named',
+    async () => {
+      const half: Transcriber = {
+        transcribe: async () => [
+          { start: 0, end: 1, words: [{ word: 'Welcom', start: 0, end: 0.5 }] },
+        ],
+        close() {},
+      }
+      const { root, projectFile } = await recorded(half)
+      const { answer, logged } = await refusingWrites(join(root, 'content-studio/narration'), () =>
+        acceptLine(projectFile, 'act1', 'k4'),
+      )
+      expect(answer).toEqual({
+        ok: false,
+        reason: 'write',
+        message: 'content-studio/narration/act1.lock.json could not be written.',
+      })
+      expect(logged[0]![1]).toMatchObject({ reason: 'permission denied' })
+    },
+  )
 
   it('skips a line no longer weak when the job reaches it, if asked only when needed', async () => {
     const half: Transcriber = {

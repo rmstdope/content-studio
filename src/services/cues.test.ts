@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { narrationInLanguages, projectJson, tempRepo } from '../../test/helpers'
+import {
+  narrationInLanguages,
+  projectJson,
+  tempRepo,
+  canRefuseWrites,
+  refusingWrites,
+} from '../../test/helpers'
 import { clipInputs } from '../core/fingerprint'
 import { loadPart, readPart } from './workspace'
 import { moveCue, moveSceneCue, setCue, setInsideCue, setSceneCue } from './cues'
@@ -528,5 +534,25 @@ describe('cues inside a line', () => {
     expect(cuesAt(root)).toBe(
       '{\n  "cues": {\n    "a": "[sad] very slowly I did it. [a] I will fix it."\n  },\n  "scenes": {}\n}\n',
     )
+  })
+})
+
+describe.skipIf(!canRefuseWrites)('a cue whose file cannot be written', () => {
+  it('names the file and the reason instead of throwing', async () => {
+    const root = tempRepo(files)
+    const projectFile = join(root, 'content-studio.json')
+    const { answer } = await refusingWrites(join(root, 'content-studio/narration'), () =>
+      setCue(projectFile, 'act1', 'a', '[happy]'),
+    )
+    expect(answer).toEqual({
+      ok: false,
+      problems: [
+        {
+          file: 'content-studio/narration/act1.edits.json',
+          path: '',
+          message: 'permission denied',
+        },
+      ],
+    })
   })
 })

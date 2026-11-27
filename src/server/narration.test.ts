@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from 'bun:test'
 import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { projectJson, tempRepo } from '../../test/helpers'
+import { canRefuseWrites, projectJson, refusingWrites, tempRepo } from '../../test/helpers'
 import { type FishClient } from '../services/fish'
 import { createLimiter } from '../services/limit'
 import { recordLine } from '../services/narration'
@@ -45,6 +45,38 @@ describe('server, accepting a weak line', () => {
     expect([answer.status, await answer.json()]).toEqual([200, { ok: true, key: 'a' }])
     const part = await (await fetch(new URL('/api/parts/act1', server.url))).json()
     expect(part.part.lines[0]).toMatchObject({ status: 'ok', accepted: true })
+  })
+})
+
+describe.skipIf(!canRefuseWrites)('server, a save nothing answers', () => {
+  const ownRoot = tempRepo({
+    'content-studio.json': projectJson(),
+    'content-studio/narration/cast.json': { speakers: { narrator: { voice: 'v1' } } },
+    'tts/act1/script.json': [{ id: 'a', speaker: 'narrator', text: 'Once.' }],
+    'audio/act1/manifest.json': { a: { file: 'a.mp3' } },
+    'audio/act1/a.mp3': 'ID3-not-really-audio',
+  })
+  const server = startServer({
+    projectFile: join(ownRoot, 'content-studio.json'),
+    port: 0,
+    fish,
+    encode,
+    transcriber: null,
+  })
+  afterAll(() => server.stop(true))
+
+  it('says which file a refused write was, never the system’s own error', async () => {
+    const { answer } = await refusingWrites(join(ownRoot, 'content-studio/narration'), async () => {
+      const response = await fetch(new URL('/api/parts/act1/adopt', server.url), {
+        method: 'POST',
+        headers: { origin: server.url.origin },
+      })
+      return [response.status, await response.json()]
+    })
+    expect(answer).toEqual([
+      500,
+      { error: 'content-studio/narration/act1.lock.json could not be written' },
+    ])
   })
 })
 

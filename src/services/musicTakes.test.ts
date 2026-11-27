@@ -12,7 +12,7 @@ import { dirname, join } from 'node:path'
 import { tooLongLine } from '../core/fades'
 import { wavSeconds } from '../core/musicTake'
 import { readWav, writeWav } from '../core/wav'
-import { projectJson, tempRepo } from '../../test/helpers'
+import { projectJson, tempRepo, canRefuseWrites, refusingWrites } from '../../test/helpers'
 import { setTrackBrief } from './briefs'
 import { createSerial } from './serial'
 import { choices } from './musicClips'
@@ -1374,6 +1374,33 @@ describe('moving a take', () => {
     expect(changed.status).toBe('changed')
   })
 
+  for (const [what, folder, refused] of [
+    ['sound', 'content-studio/cache/music-takes/hut', 'content-studio/cache/music-takes/hut/'],
+    ['board', 'content-studio/cache/music', 'content-studio/cache/music/hut.json'],
+  ] as const) {
+    it.skipIf(!canRefuseWrites)(
+      `moves nothing when the destination's ${what} cannot be written, and names the file`,
+      async () => {
+        const m = await made()
+        await m.takes.make(m.file, 'hut', { count: 1 })
+        await m.settled('hut')
+        const [, two] = (await viewOf(m, 'hall')).takes
+        const sounds = () => readdirSync(join(m.root, 'content-studio/cache/music-takes/hut'))
+        const before = sounds()
+        const { answer } = await refusingWrites(join(m.root, folder), () =>
+          m.takes.move(m.file, 'hall', two!.file, 'hut'),
+        )
+        expect(answer).toMatchObject({ ok: false })
+        const { message } = answer as { message: string }
+        expect(message).toStartWith(refused)
+        expect(message).toEndWith(' could not be written.')
+        expect(sounds()).toEqual(before)
+        expect((await viewOf(m, 'hall')).takes).toHaveLength(2)
+        expect((await viewOf(m, 'hut')).takes).toHaveLength(1)
+      },
+    )
+  }
+
   it('numbers after a take being made at the destination', async () => {
     let release = () => {}
     const m = setup(undefined, lists, [], new Promise<void>((resolve) => (release = resolve)))
@@ -1484,29 +1511,6 @@ describe('moving a take', () => {
       await shared.catch(() => {})
     }
     expect((await viewOf(m, 'victory')).takes).toHaveLength(1)
-  })
-
-  it('leaves the take on its board when the destination cannot be written', async () => {
-    const m = await made()
-    const [one] = (await viewOf(m, 'hall')).takes
-    // The destination's takes folder is a file: its sound cannot be written.
-    mkdirSync(join(m.root, 'content-studio/cache/music-takes'), { recursive: true })
-    writeFileSync(join(m.root, 'content-studio/cache/music-takes/hut'), 'in the way')
-    await expect(m.takes.move(m.file, 'hall', one!.file, 'hut')).rejects.toThrow()
-    expect((await viewOf(m, 'hall')).takes).toHaveLength(2)
-  })
-
-  it('never loses the take when the boards cannot be written: it stays on the first', async () => {
-    const m = await made()
-    const [one] = (await viewOf(m, 'hall')).takes
-    const folder = join(m.root, 'content-studio/cache/music')
-    chmodSync(folder, 0o555)
-    try {
-      await expect(m.takes.move(m.file, 'hall', one!.file, 'hut')).rejects.toThrow()
-    } finally {
-      chmodSync(folder, 0o755)
-    }
-    expect((await viewOf(m, 'hall')).takes).toHaveLength(2)
   })
 
   it('lands both of two opposite moves at once', async () => {

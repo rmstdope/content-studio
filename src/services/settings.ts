@@ -1,7 +1,7 @@
 import { dirname } from 'node:path'
 import { problemsFrom, type Problem } from '../core/project'
 import { SETTINGS_FILE, SettingsSchema, type Settings } from '../core/settings'
-import { readResource, writeAtomic, writeFailure } from './files'
+import { readResource, writeOrRefuse, refusalProblems } from './files'
 import { createSerial } from './serial'
 import { openProject } from './projectFile'
 import type { ProjectFailure } from './workspace'
@@ -44,14 +44,9 @@ export function changeSetting<K extends keyof Settings>(
     else settings[key] = value
     const parsed = SettingsSchema.safeParse(settings)
     if (!parsed.success) return { ok: false, problems: problemsFrom(SETTINGS_FILE, parsed.error) }
-    try {
-      await writeAtomic(root, SETTINGS_FILE, `${JSON.stringify(settings, null, 2)}\n`)
-      return { ok: true }
-    } catch (error) {
-      return {
-        ok: false,
-        problems: [{ file: SETTINGS_FILE, path: key, message: writeFailure(error) }],
-      }
-    }
+    return writeOrRefuse(root, SETTINGS_FILE, `${JSON.stringify(settings, null, 2)}\n`).then(
+      () => ({ ok: true as const }),
+      refusalProblems('saving the settings failed', key),
+    )
   })
 }

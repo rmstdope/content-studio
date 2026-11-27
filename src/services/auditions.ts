@@ -25,7 +25,7 @@ import { hasWords, type Candidate, type Voice } from '../core/voiceSearch'
 import { providerId, providerOf } from '../core/voices'
 import { NO_ELEVENLABS_KEY, type ElevenLabsFactory } from './elevenlabs'
 import { NO_KEY, type FishClient } from './fish'
-import { readJson, writeAtomic, writeFailure } from './files'
+import { readJson, writeOrRefuse, refusalProblems } from './files'
 import { ruledOutIds } from './ruledOut'
 import { auditionIn, castProblems, elevenPageTake, phrasePath, recordedTakes } from './takes'
 import { createSerial } from './serial'
@@ -667,13 +667,10 @@ async function writeCast(
   if (!parsed.success) return { ok: false, problems: problemsFrom(path, parsed.error) }
   const changed = change(raw as RawCast, parsed.data, path)
   if (Array.isArray(changed)) return { ok: false, problems: changed }
-  try {
-    await writeAtomic(root, path, formatCast(changed))
-  } catch (error) {
-    // The cast could not be written (no permission, a full disk, …): the reason, not a bare 500.
-    return { ok: false, problems: [{ file: path, path: '', message: writeFailure(error) }] }
-  }
-  return { ok: true }
+  return writeOrRefuse(root, path, formatCast(changed)).then(
+    () => ({ ok: true as const }),
+    refusalProblems('saving the cast failed'),
+  )
 }
 
 /**
