@@ -380,24 +380,44 @@ describe('server, generating a part', () => {
   })
 })
 
+/**
+ * A `refresh.part` command that runs until the test ends it: it says it has started with the file
+ * `refresh-started` and then waits for `refresh-end`. It gives up after 500 rounds (five seconds
+ * or more), so a killed test run leaves no shell looping.
+ */
+const heldRefresh =
+  ': > refresh-started; n=0; until [ -e refresh-end ] || [ $n -ge 500 ]; do sleep 0.01; n=$((n+1)); done # {part}'
+
+/**
+ * The test's end of `heldRefresh` in a repository: wait until it runs, and let it finish. One hold
+ * per repository, since both files stay behind.
+ */
+function holdOf(root: string) {
+  return {
+    running: () => until(() => existsSync(join(root, 'refresh-started'))),
+    end: () => writeFileSync(join(root, 'refresh-end'), ''),
+  }
+}
+
 describe('server, refreshing and generating', () => {
-  const json = projectJson({ refresh: { part: 'sleep 0.5 # {part}' } })
+  const json = projectJson({ refresh: { part: heldRefresh } })
   const busyRoot = tempRepo({
     'content-studio.json': json,
     'content-studio/narration/cast.json': { speakers: { narrator: { voice: 'v1' } } },
     'tts/act1/script.json': [{ id: 'a', speaker: 'narrator', text: 'Once.' }],
   })
-  const slowFish: FishClient = {
+  const speech = gate()
+  const heldFish: FishClient = {
     ...fish,
     async tts(...args) {
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      await speech.opened
       return fish.tts(...args)
     },
   }
   const busy = startServer({
     projectFile: join(busyRoot, 'content-studio.json'),
     port: 0,
-    fish: slowFish,
+    fish: heldFish,
     encode,
     transcriber: null,
   })
@@ -413,19 +433,28 @@ describe('server, refreshing and generating', () => {
   const refresh = () => fetch(at('/api/parts/act1/refresh'), { method: 'POST', headers: own })
 
   it('does not start a generation while the part is refreshing', async () => {
+    const hold = holdOf(busyRoot)
     const refreshing = refresh()
-    await new Promise((resolve) => setTimeout(resolve, 100))
-    const answer = await generate()
-    expect(answer.status).toBe(409)
-    expect((await answer.json()).error).toContain('refresh')
+    try {
+      await hold.running()
+      const answer = await generate()
+      expect(answer.status).toBe(409)
+      expect((await answer.json()).error).toContain('refresh')
+    } finally {
+      hold.end()
+    }
     expect((await refreshing).status).toBe(200)
   })
 
   it('does not refresh while a generation runs on the part', async () => {
-    expect((await generate()).status).toBe(200)
-    const answer = await refresh()
-    expect(answer.status).toBe(409)
-    expect(await answer.json()).toMatchObject({ ok: false, reason: 'busy' })
+    try {
+      expect((await generate()).status).toBe(200)
+      const answer = await refresh()
+      expect(answer.status).toBe(409)
+      expect(await answer.json()).toMatchObject({ ok: false, reason: 'busy' })
+    } finally {
+      speech.open()
+    }
   })
 })
 
@@ -1039,7 +1068,7 @@ describe('server, paid recording and what changes meanwhile', () => {
 describe('server, a paid job refused for a refresh', () => {
   const json = projectJson({
     narration: { ...(projectJson().narration as object), models: { fish: { draft: 's2-pro' } } },
-    refresh: { part: 'sleep 1 # {part}' },
+    refresh: { part: heldRefresh },
   })
   const root = tempRepo({
     'content-studio.json': json,
@@ -1069,21 +1098,26 @@ describe('server, a paid job refused for a refresh', () => {
   it('holds nothing back for it afterwards', async () => {
     const { plan } = await (await fetch(at('/api/parts/act1/plan'))).json()
     credit = plan.ceiling
+    const hold = holdOf(root)
     const refreshing = fetch(at('/api/parts/act1/refresh'), { method: 'POST', headers: own })
-    await new Promise((resolve) => setTimeout(resolve, 50))
-    const refused = await fetch(at('/api/parts/act1/jobs'), {
-      method: 'POST',
-      headers: own,
-      body: JSON.stringify({
-        speaker: null,
-        keys: ['a'],
-        orphans: [],
-        confirmedCost: plan.ceiling,
-      }),
-    })
-    expect(refused.status).toBe(409)
-    expect((await refused.json()).error).toContain('refresh')
-    await refreshing
+    try {
+      await hold.running()
+      const refused = await fetch(at('/api/parts/act1/jobs'), {
+        method: 'POST',
+        headers: own,
+        body: JSON.stringify({
+          speaker: null,
+          keys: ['a'],
+          orphans: [],
+          confirmedCost: plan.ceiling,
+        }),
+      })
+      expect(refused.status).toBe(409)
+      expect((await refused.json()).error).toContain('refresh')
+    } finally {
+      hold.end()
+    }
+    expect((await refreshing).status).toBe(200)
     const line = await fetch(at('/api/parts/act1/lines/a/record'), {
       method: 'POST',
       headers: own,
