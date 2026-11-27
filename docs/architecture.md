@@ -2530,6 +2530,9 @@ Images' and scenes' routes are described with them:
 - UI: pure helpers (`src/ui/*.ts`) have unit tests, and component tests (`*.test.tsx`) cover every
   workspace's pages and panels (lines, characters, audition, music, images, effects, scenes, setup)
   and shared components (sidebar, pager, tips). There is no browser test.
+- System: `test/system/<ID>.test.ts` proves one requirement of `.cerebro/requirements.md` end to
+  end, on the studio started for real on a temporary game with the providers and models faked, and
+  driven as a person or an agent drives it (`.cerebro/test-architecture.md`).
 - A component test renders into a DOM from `@happy-dom/global-registrator`, registered by the test
   file itself before it imports React, so the other suites run without one, and taken down with
   `unregisterDom` (`test/dom.ts`), which first lets React finish what it had scheduled.

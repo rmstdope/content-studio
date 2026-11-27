@@ -10,7 +10,7 @@ a dropped one is struck, never renumbered.
        file it says so.~~ dropped 2026-11-27
 RUN-2  A problem in the project file or in a file it points to is reported with the file and the
        place in it, instead of the studio failing.
-       Proven by: nothing yet
+       Proven by: test/system/RUN-2.test.ts
 
 ## Safety in the game repository (SAF)
 
