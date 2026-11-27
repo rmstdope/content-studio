@@ -90,15 +90,16 @@ export function createLineWorker({
   let counter = 0
 
   function start(): Running {
-    const proc = Bun.spawn(command, {
-      cwd: WORKERS_DIR,
-      stdin: 'pipe',
-      stdout: 'pipe',
-      stderr: 'pipe',
-      detached: true,
-      ...(env ? { env: { ...process.env, ...env } } : {}),
-    })
-    const forget = stopWithStudio(proc.pid)
+    const { proc, forget } = stopWithStudio(() =>
+      Bun.spawn(command, {
+        cwd: WORKERS_DIR,
+        stdin: 'pipe',
+        stdout: 'pipe',
+        stderr: 'pipe',
+        detached: true,
+        ...(env ? { env: { ...process.env, ...env } } : {}),
+      }),
+    )
     const current: Running = { proc, pending: new Map(), stoppedBecause: null }
     let stderr = ''
     const note = (text: string) => {

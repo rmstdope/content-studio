@@ -218,7 +218,7 @@ export function createMfluxGenerator({
         mfluxArguments(request, join(tmpdir(), `content-studio-image-${randomUUID()}.png`)),
       )
       try {
-        const proc = (() => {
+        const { proc, forget } = stopWithStudio(() => {
           try {
             return Bun.spawn(command, { stdout: 'ignore', stderr: 'pipe', detached: true })
           } catch {
@@ -230,8 +230,7 @@ export function createMfluxGenerator({
               `The installed mflux cannot make ${what}; update it with uv tool install --upgrade mflux, then Try again.`,
             )
           }
-        })()
-        const forget = stopWithStudio(proc.pid)
+        })
         void proc.exited.then(forget)
         let stopped = ''
         const stop = (why: string) => {
