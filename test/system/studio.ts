@@ -15,6 +15,26 @@ export interface ToolAnswer {
   content: { type: string; text?: string; data?: string; mimeType?: string }[]
 }
 
+/** A silent mono WAV of `seconds` at `rate`, which tells one take from another by its length. */
+export const wavOf = (seconds: number, rate = 1000) =>
+  writeWav({
+    format: { channels: 1, sampleRate: rate, bitsPerSample: 16 },
+    data: new Uint8Array(seconds * rate * 2),
+  })
+
+/** Asks for the narration job `id` as the page does, until it is over; answers how it ended. */
+export async function jobEnded(page: ReturnType<typeof pageOf>, id: string) {
+  for (const giveUp = Date.now() + 10_000; ;) {
+    const job = (await (await page.get(`/api/jobs/${id}`)).json()) as {
+      status: string
+      failed: unknown[]
+    }
+    if (job.status !== 'running') return job
+    if (Date.now() > giveUp) throw new Error('the recording never ended')
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+}
+
 /** The requests the studio's own page makes, to the studio at `url`. */
 function pageOf(url: URL) {
   return {
@@ -103,7 +123,4 @@ const ACCOUNT: ElevenAccount = {
 }
 
 /** A second of silence, for every scene mix. */
-const silence = writeWav({
-  format: { channels: 1, sampleRate: 1000, bitsPerSample: 16 },
-  data: new Uint8Array(2000),
-})
+const silence = wavOf(1)

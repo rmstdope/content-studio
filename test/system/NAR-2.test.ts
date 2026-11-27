@@ -3,20 +3,13 @@
 import { describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { readWav, writeWav } from '../../src/core/wav'
+import { readWav } from '../../src/core/wav'
 import { fish } from '../../src/server/test-support'
 import type { Transcriber } from '../../src/services/transcriber'
 import { projectJson } from '../helpers'
-import { startStudio } from './studio'
+import { jobEnded, startStudio, wavOf } from './studio'
 
 const RATE = 1000
-
-/** A silent mono WAV of `seconds`, which tells one take from another by its length. */
-const wavOf = (seconds: number) =>
-  writeWav({
-    format: { channels: 1, sampleRate: RATE, bitsPerSample: 16 },
-    data: new Uint8Array(seconds * RATE * 2),
-  })
 
 /** How long a WAV is, in seconds. */
 const secondsOf = (wav: Uint8Array) => readWav(wav).data.length / (RATE * 2)
@@ -60,7 +53,7 @@ describe('NAR-2: each take is checked with Whisper, and the game gets real word 
     async tts() {
       const seconds = 3 + spoken.length
       spoken.push(seconds)
-      return wavOf(seconds)
+      return wavOf(seconds, RATE)
     },
   }
   /** Hears half the words of the first take, and all but one of any later one. */
@@ -106,13 +99,7 @@ describe('NAR-2: each take is checked with Whisper, and the game gets real word 
     })
     expect(started.status).toBe(200)
     const { id } = (await started.json()) as { id: string }
-    let job: { status: string; failed: unknown[] }
-    for (const giveUp = Date.now() + 10_000; ;) {
-      job = (await (await page.get(`/api/jobs/${id}`)).json()) as typeof job
-      if (job.status !== 'running') break
-      if (Date.now() > giveUp) throw new Error('the recording never ended')
-      await new Promise((resolve) => setTimeout(resolve, 10))
-    }
+    const job = await jobEnded(page, id)
     expect(job).toMatchObject({ status: 'done', failed: [] })
 
     // The first take was heard too badly and made again; the second was enough, so no third.
