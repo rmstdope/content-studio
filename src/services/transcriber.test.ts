@@ -47,15 +47,29 @@ describe('createWhisperWorker', () => {
   })
 
   it('gives up on a request that takes too long, failing the waiting ones with the reason', async () => {
-    // Long enough for the worker that answers `after.wav` to start while every core is busy.
-    const slow = createWhisperWorker({ command: [process.execPath, fake], timeoutMs: 3000 })
+    // The test runs the time limit out itself, so nothing here waits for it, and `after.wav`
+    // has no clock against it while its worker starts.
+    const limits: { ms: number; run: () => void; cancelled: boolean }[] = []
+    const slow = createWhisperWorker({
+      command: [process.execPath, fake],
+      timeoutMs: 3000,
+      after(ms, run) {
+        const limit = { ms, run, cancelled: false }
+        limits.push(limit)
+        return () => void (limit.cancelled = true)
+      },
+    })
     const waiting = Promise.allSettled([
       slow.transcribe('tiny', '/clips/hang.wav'),
       slow.transcribe('tiny', '/clips/next.wav'),
     ])
+    expect(limits.map((limit) => limit.ms)).toEqual([3000, 3000])
+    limits[0]!.run()
     const [first, second] = await waiting
     expect(first.status === 'rejected' && String(first.reason)).toContain('took longer than')
     expect(second.status === 'rejected' && String(second.reason)).toContain('took longer than')
+    expect(limits.map((limit) => limit.cancelled)).toEqual([true, true])
+    // The fake that hangs answers nothing more, so this answer comes from a new worker.
     expect((await slow.transcribe('tiny', '/clips/after.wav'))[0]!.words![0]!.word).toBe('after')
     slow.close()
   })

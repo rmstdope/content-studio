@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import type { HeardSegment } from '../core/align'
-import { createLineWorker } from './lineWorker'
+import { createLineWorker, type After } from './lineWorker'
 
 /** Hears what a clip says. Behind an interface, so tests use a fake. */
 export interface Transcriber {
@@ -21,16 +21,18 @@ export const WORKER = join(import.meta.dir, '../../worker/transcribe.py')
  * first use so the model loads once; the model is named with each request (mlx-whisper reloads
  * only when it changes). A worker that dies fails only its own waiting requests and is started
  * again next time; one that takes longer than `timeoutMs` on a request is stopped (see
- * `createLineWorker`). `command` replaces the worker (tests).
+ * `createLineWorker`). `command` replaces the worker and `after` what counts the limit (tests).
  */
 export function createWhisperWorker({
   command = ['uv', 'run', '--quiet', '--script', WORKER],
   timeoutMs = 10 * 60_000,
-}: { command?: string[]; timeoutMs?: number } = {}): Transcriber {
+  after,
+}: { command?: string[]; timeoutMs?: number; after?: After } = {}): Transcriber {
   const worker = createLineWorker({
     name: 'Whisper',
     command,
     timeoutMs,
+    after,
     couldNotStart: (why) =>
       `Whisper could not start (${why}). It needs uv and Apple silicon; set ` +
       'generate.transcriber to "none" in the project file to record without checking.',

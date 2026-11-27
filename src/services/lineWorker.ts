@@ -42,6 +42,14 @@ interface Running {
   stoppedBecause: string | null
 }
 
+/** Runs `run` once after `ms` milliseconds, unless what it gives back is called first, cancelling it. */
+export type After = (ms: number, run: () => void) => () => void
+
+const afterTimeout: After = (ms, run) => {
+  const timer = setTimeout(run, ms)
+  return () => clearTimeout(timer)
+}
+
 /** How a line worker is run. */
 export interface LineWorkerOptions {
   /** What the worker is called, starting a sentence ("Whisper", "The music generator"). */
@@ -49,6 +57,8 @@ export interface LineWorkerOptions {
   command: string[]
   /** How long one request may take before the worker is stopped. */
   timeoutMs: number
+  /** What counts `timeoutMs`; a timeout unless a test gives its own. */
+  after?: After
   /** What to say when the process cannot be started at all; `why` is the system's reason. */
   couldNotStart: (why: string) => string
   /**
@@ -71,6 +81,7 @@ export function createLineWorker({
   name,
   command,
   timeoutMs,
+  after = afterTimeout,
   couldNotStart,
   killed,
   env,
@@ -157,17 +168,17 @@ export function createLineWorker({
       const current = worker
       const id = String(++counter)
       return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
+        const cancelLimit = after(timeoutMs, () => {
           current.stoppedBecause = `${name} took longer than ${timeoutMs / 1000} s; it was stopped`
           killGroup(current.proc.pid, 'SIGTERM')
-        }, timeoutMs)
+        })
         current.pending.set(id, {
           resolve: (result) => {
-            clearTimeout(timer)
+            cancelLimit()
             resolve(result)
           },
           reject: (error) => {
-            clearTimeout(timer)
+            cancelLimit()
             reject(error)
           },
         })
