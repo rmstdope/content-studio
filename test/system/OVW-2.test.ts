@@ -51,7 +51,12 @@ describe('OVW-2: the Changes page lists what git sees of the files the studio wr
       delete env[name]
     }
     const run = Bun.spawnSync(
-      ['git', '-c', 'user.name=Test', '-c', 'user.email=t@example.com', ...args],
+      [
+        'git',
+        ...['-c', 'user.name=Test', '-c', 'user.email=t@example.com'],
+        ...['-c', 'commit.gpgsign=false'],
+        ...args,
+      ],
       { cwd: root, env },
     )
     if (run.exitCode !== 0) throw new Error(run.stderr.toString())
