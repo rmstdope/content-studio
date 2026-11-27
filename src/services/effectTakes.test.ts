@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { projectJson, tempRepo } from '../../test/helpers'
+import { projectJson, tempRepo, refusedPattern, refusedSentence } from '../../test/helpers'
 import { wavSeconds } from '../core/musicTake'
 import { readWav, writeWav } from '../core/wav'
 import type { Encoder } from './audio'
@@ -397,8 +397,7 @@ describe('createEffectTakes', () => {
       expect(view.failed).toEqual([
         {
           n: 1,
-          message:
-            'content-studio/cache/effect-boards/coins.json could not be written: permission denied.',
+          message: `${refusedSentence('content-studio/cache/effect-boards/coins.json')}.`,
         },
       ])
     } finally {
@@ -427,7 +426,9 @@ describe('createEffectTakes', () => {
       const view = await settled('coins')
       expect(view.failed).toHaveLength(1)
       expect(view.failed[0]!.message).toMatch(
-        /^content-studio\/cache\/effect-takes\/coins\/[^/]+\.1\.wav could not be written: permission denied\.$/,
+        new RegExp(
+          `^${refusedPattern(/content-studio\/cache\/effect-takes\/coins\/[^/]+\.1\.wav/)}\\.$`,
+        ),
       )
     } finally {
       console.error = quietLog
@@ -448,8 +449,7 @@ describe('createEffectTakes', () => {
     try {
       expect(await takes.make(file, 'coins', { count: 2 })).toEqual({
         ok: false,
-        message:
-          'No takes were made: content-studio/cache/effect-boards/coins.json could not be written: permission denied.',
+        message: `No takes were made: ${refusedSentence('content-studio/cache/effect-boards/coins.json')}.`,
       })
     } finally {
       console.error = quietLog
@@ -470,8 +470,7 @@ describe('createEffectTakes', () => {
     try {
       expect(await takes.drop(file, 'coins', take.file)).toEqual({
         ok: false,
-        message:
-          'The take could not be dropped: content-studio/cache/effect-boards/coins.json could not be written: permission denied.',
+        message: `The take could not be dropped: ${refusedSentence('content-studio/cache/effect-boards/coins.json')}.`,
       })
     } finally {
       console.error = quietLog
@@ -1071,8 +1070,7 @@ describe('fades of a sound effect take', () => {
     chmodSync(folder, 0o755)
     expect(answer).toEqual({
       ok: false,
-      message:
-        'content-studio/cache/effect-boards/door-creak.json could not be written: permission denied.',
+      message: `${refusedSentence('content-studio/cache/effect-boards/door-creak.json')}.`,
     })
     expect(readFileSync(join(root, 'audio/effects/door-creak.mp3'))).toEqual(game)
   })
@@ -1317,8 +1315,7 @@ describe('level of a sound effect take', () => {
     chmodSync(folder, 0o755)
     expect(answer).toEqual({
       ok: false,
-      message:
-        'content-studio/cache/effect-boards/door-creak.json could not be written: permission denied.',
+      message: `${refusedSentence('content-studio/cache/effect-boards/door-creak.json')}.`,
     })
     expect(readFileSync(join(root, 'audio/effects/door-creak.mp3'))).toEqual(game)
   })
@@ -1384,8 +1381,7 @@ describe('Trim silence on an effect take', () => {
     try {
       expect(await ctx.takes.trim(ctx.file, 'door-creak', take.file, false)).toEqual({
         ok: false,
-        message:
-          'content-studio/cache/effect-boards/door-creak.json could not be written: permission denied',
+        message: refusedSentence('content-studio/cache/effect-boards/door-creak.json'),
       })
     } finally {
       console.error = quietLog
@@ -1412,8 +1408,7 @@ describe('Trim silence on an effect take', () => {
       try {
         expect(await ctx.takes.trim(ctx.file, 'door-creak', take.file, undo)).toEqual({
           ok: false,
-          message:
-            'content-studio/cache/effect-boards/door-creak.json could not be written: permission denied',
+          message: refusedSentence('content-studio/cache/effect-boards/door-creak.json'),
         })
       } finally {
         console.error = quietLog

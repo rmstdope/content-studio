@@ -9,7 +9,13 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { join } from 'node:path'
-import { projectJson, takeFailed, takesUnderWay, tempRepo } from '../../test/helpers'
+import {
+  projectJson,
+  takeFailed,
+  takesUnderWay,
+  tempRepo,
+  refusedSentence,
+} from '../../test/helpers'
 import type { EditModelId } from '../core/imageModels'
 import type { FineTunesView } from '../core/imageFineTunes'
 import { createImageFineTunes } from './imageFineTunes'
@@ -164,7 +170,7 @@ describe('a fine-tune the model made but the studio cannot save', () => {
       await tunes.make(file, 'inn', { count: 1, words: 'Add a cat', area })
       const view = await settled()
       expect(view.failed[0]!.message).toBe(
-        `${FOLDER}/1.png could not be written: a file or folder is in the way.`,
+        `${refusedSentence(`${FOLDER}/1.png`, 'a file or folder is in the way')}.`,
       )
       expect(view.failedModels).toEqual([])
     } finally {
@@ -202,7 +208,7 @@ describe('making fine-tunes', () => {
         expect(await tunes.make(file, 'inn', { count: 2, words: 'Add a dog', area: null })).toEqual(
           {
             ok: false,
-            message: `No fine-tunes were made: ${FOLDER}/board.json could not be written: permission denied.`,
+            message: `No fine-tunes were made: ${refusedSentence(`${FOLDER}/board.json`)}.`,
           },
         )
       } finally {
@@ -569,7 +575,7 @@ describe('using a fine-tune', () => {
       try {
         expect(await tunes.use(file, 'inn', 1)).toEqual({
           ok: false,
-          message: `${LOCK} could not be written: permission denied.`,
+          message: `${refusedSentence(LOCK)}.`,
         })
       } finally {
         chmodSync(folder, 0o755)

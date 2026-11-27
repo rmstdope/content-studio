@@ -9,6 +9,7 @@ import {
   tempRepo,
   canRefuseWrites,
   refusingWrites,
+  refusedSentence,
 } from '../../test/helpers'
 import { HEARD_DIR, heardFor } from './heard'
 import { readWav, writeWav } from '../core/wav'
@@ -811,7 +812,7 @@ describe('measureLine', () => {
       expect(answer).toEqual({
         ok: false,
         reason: 'write',
-        message: 'content-studio/narration/act1.lock.json could not be written: permission denied.',
+        message: `${refusedSentence('content-studio/narration/act1.lock.json')}.`,
       })
       expect(logged[0]![1]).toMatchObject({ reason: 'permission denied' })
     },
