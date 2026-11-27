@@ -1103,11 +1103,16 @@ export function createMusicTakes({
           source.takes = source.takes.filter((t) => t !== take)
           // The sound first, then the destination's board, then the source's: a crash part-way
           // leaves the take on both boards, never on neither, and a refused write moves nothing.
-          const written = await writeTogether(from.root, [
-            [`${to.folder}/${fileOf(moved)}`, wav],
-            [to.board, `${JSON.stringify(target, null, 2)}\n`],
-            [from.board, `${JSON.stringify(source, null, 2)}\n`],
-          ])
+          // Both tracks are of this project, so one root holds all three.
+          const written = await writeTogether(
+            from.root,
+            [
+              [`${to.folder}/${fileOf(moved)}`, wav],
+              [to.board, `${JSON.stringify(target, null, 2)}\n`],
+              [from.board, `${JSON.stringify(source, null, 2)}\n`],
+            ],
+            { files: 'the take boards' },
+          )
           if (!written.ok) return written
           await rm(resolveInRoot(from.root, `${from.folder}/${name}`), { force: true })
           return { ok: true, n }

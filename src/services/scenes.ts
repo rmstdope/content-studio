@@ -134,7 +134,9 @@ export type SceneSave =
   | { ok: true }
   /** The scene was saved since the page read it; `current` is what is saved now. */
   | { ok: false; kind: 'stale'; current: SceneMix | null }
-  | { ok: false; kind: 'unknown' | 'invalid' | 'unreadable' | 'failed'; message: string }
+  | { ok: false; kind: 'unknown' | 'invalid' | 'unreadable'; message: string }
+  /** The mix could not be written: `message` is why, `file` the mix. */
+  | { ok: false; kind: 'failed'; file?: string; message: string }
 
 /** One write of an act's mix at a time. */
 const mixWrites = createSerial()

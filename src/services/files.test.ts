@@ -158,11 +158,40 @@ describe('writeTogether', () => {
           ['a.txt', 'new'],
           ['blocked/c.txt', 'new'],
         ],
-        write,
+        { write },
       ),
     ).toEqual({
       ok: false,
       message: "blocked/c.txt could not be written, and the game's files could not be put back.",
+    })
+  })
+
+  it('names the files as the caller does when they are not the game’s', async () => {
+    const root = tempRepo({})
+    const write = async (at: string, path: string, text: string | Uint8Array) => {
+      if (typeof text !== 'string') throw new WriteRefused(path, 'permission denied', null)
+      await writeOrRefuse(at, path, text)
+    }
+    const writes = [
+      ['a.txt', 'new'],
+      ['c.txt', 'new'],
+    ] as const
+    await writeOrRefuse(root, 'a.txt', 'old')
+    expect(await writeTogether(root, writes, { write, files: 'the files' })).toMatchObject({
+      ok: true,
+    })
+    expect(
+      await writeTogether(
+        root,
+        [
+          ['a.txt', 'newer'],
+          ['c.txt', new Uint8Array()],
+        ],
+        { write, files: 'the files' },
+      ),
+    ).toEqual({
+      ok: false,
+      message: 'c.txt could not be written, and the files could not be put back.',
     })
   })
 

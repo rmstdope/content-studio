@@ -145,13 +145,20 @@ async function replaceFile(root: string, path: string, text: string | Uint8Array
  * Writes the files in order, each with `write` (`writeOrRefuse`), so that a game file goes into
  * place only together with the rest (a picture with its manifest and lock): when one is refused,
  * those already written are put back as they were, or removed when they were not there, and the
- * answer names the refused file. A file there that cannot be read is refused before it is written,
+ * answer names the refused file. `files` is what the sentence calls them when they cannot be put
+ * back. A file there that cannot be read is refused before it is written,
  * so a put back never removes it. Any other error goes on.
  */
 export async function writeTogether(
   root: string,
   writes: readonly (readonly [string, string | Uint8Array])[],
-  write: (root: string, path: string, text: string | Uint8Array) => Promise<void> = writeOrRefuse,
+  {
+    write = writeOrRefuse,
+    files = "the game's files",
+  }: {
+    write?: (root: string, path: string, text: string | Uint8Array) => Promise<void>
+    files?: string
+  } = {},
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const putBack: (() => Promise<unknown>)[] = []
   try {
@@ -176,7 +183,7 @@ export async function writeTogether(
       for (const step of putBack.reverse()) await step()
     } catch (stuck) {
       console.error('putting the files back failed', stuck)
-      return { ok: false, message: `${sentence}, and the game's files could not be put back.` }
+      return { ok: false, message: `${sentence}, and ${files} could not be put back.` }
     }
     return { ok: false, message: `${sentence}.` }
   }

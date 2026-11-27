@@ -9,7 +9,7 @@ import type { Line } from '../core/resources'
 import { createBudget, type Budget, type SpendProblem } from '../core/spend'
 import type { FishFactory } from './auditions'
 import { ffmpegEncoder, type Encoder } from './audio'
-import { characterFile, listFiles, readJson, writeOrRefuse, refusalProblems } from './files'
+import { characterFile, listFiles, readJson, writeTogether } from './files'
 import type { Limiter } from './limit'
 import {
   checkTake,
@@ -40,7 +40,7 @@ export type TakeLineResult =
   | { ok: true; take: LineTakeView }
   | {
       ok: false
-      reason: 'uncast' | 'no-key' | 'speed' | 'spend' | 'fish' | 'audio' | 'transcribe'
+      reason: 'uncast' | 'no-key' | 'speed' | 'spend' | 'fish' | 'audio' | 'transcribe' | 'write'
       message: string
     }
   | { ok: false; problems: Problem[] }
@@ -162,17 +162,16 @@ export async function takeLine(
   }
   const folder = takesFolder(read.cacheName, key)
   // The WAV first: a take file without its audio would be listed but could not be heard.
-  const wav = `${folder}/${id}.wav`
-  return writeOrRefuse(root, wav, checked.clip.wav)
-    .then(() => writeOrRefuse(root, `${folder}/${id}.json`, `${JSON.stringify(take, null, 1)}\n`))
-    .then(
-      () => ({ ok: true as const, take: takesView([take], fp)[0]! }),
-      async (error: unknown) => {
-        // A take that is not listed keeps no sound.
-        await rm(resolveInRoot(root, wav), { force: true }).catch(() => {})
-        return refusalProblems('keeping the line’s take failed')(error)
-      },
-    )
+  const written = await writeTogether(
+    root,
+    [
+      [`${folder}/${id}.wav`, checked.clip.wav],
+      [`${folder}/${id}.json`, `${JSON.stringify(take, null, 1)}\n`],
+    ],
+    { files: 'the take’s files' },
+  )
+  if (!written.ok) return { ok: false, reason: 'write', message: written.message }
+  return { ok: true, take: takesView([take], fp)[0]! }
 }
 
 /**
