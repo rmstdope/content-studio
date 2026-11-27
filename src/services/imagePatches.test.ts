@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it, spyOn } from 'bun:test'
 import {
   chmodSync,
   existsSync,
@@ -21,7 +21,7 @@ import {
 } from '../core/imagePatches'
 import { syncImageEntries } from './imageAreas'
 import { createImagePatches } from './imagePatches'
-import { changePatchBoard } from './imagePatchGame'
+import { changePatchBoard, patchBoardKey } from './imagePatchGame'
 import type { ImageGenerator, ImageReady, ImageRequest } from './images'
 import { fakePng } from './imagesFake'
 import { cropPixels, editWindow } from '../core/imagePixels'
@@ -450,6 +450,74 @@ describe('takes of a declared patch', () => {
     const png = new Uint8Array(readFileSync(file1!))
     expect(png[25]).toBe(6)
     expect([decodePng(png).width, decodePng(png).height]).toEqual([256, 256])
+  })
+
+  it('never shows a take as of an old look when it is brought to the look while the page reads', async () => {
+    const { root, file, patches, work } = setup()
+    const picture = join(root, FOLDER, '1.png')
+    const mark = `${patchBoardKey(file, 'inn', 'door')}\0${1}`
+    // The bring reads the take's picture with `bytes`, the page with `arrayBuffer`: each can be held.
+    let bringStarted = () => {}
+    const bringing = new Promise<void>((resolve) => (bringStarted = resolve))
+    let releaseBring = () => {}
+    const bringHeld = new Promise<void>((resolve) => (releaseBring = resolve))
+    let pageRead: (() => Promise<void>) | null = null
+    const realFile = Bun.file
+    const spy = spyOn(Bun, 'file').mockImplementation(((
+      path: string,
+      options?: BlobPropertyBag,
+    ) => {
+      const real = realFile(path, options)
+      if (path !== picture) return real
+      return new Proxy(real, {
+        get(target, prop) {
+          if (prop === 'bytes')
+            return async () => {
+              bringStarted()
+              await bringHeld
+              return target.bytes()
+            }
+          if (prop === 'arrayBuffer' && pageRead) {
+            const before = pageRead
+            pageRead = null
+            return async () => {
+              await before()
+              return target.arrayBuffer()
+            }
+          }
+          const value: unknown = Reflect.get(target, prop, target)
+          return typeof value === 'function' ? value.bind(target) : value
+        },
+      })
+    }) as typeof Bun.file)
+    try {
+      await patches.make(file, 'inn', 'door', { count: 1, area })
+      await bringing
+      expect(
+        (globalThis as { contentStudioPatchBringing?: Set<string> }).contentStudioPatchBringing,
+      ).toContain(mark)
+      // The page has read the board, the take not yet brought; the bring ends before it asks.
+      pageRead = async () => {
+        releaseBring()
+        for (let i = 0; i < 400; i++) {
+          const board = JSON.parse(readFileSync(join(root, BOARD), 'utf8')) as {
+            takes: { look?: string }[]
+          }
+          const marks = (globalThis as { contentStudioPatchBringing?: Set<string> })
+            .contentStudioPatchBringing
+          if (board.takes[0]?.look && !marks?.has(mark)) return
+          await new Promise((resolve) => setTimeout(resolve, 5))
+        }
+        throw new Error('the take was never brought')
+      }
+      const view = await patches.view(file, 'inn')
+      if (!view || !('patches' in view)) throw new Error('no view')
+      const take = view.patches.find((p) => p.id === 'door')!.takes[0]!
+      expect(take.look).not.toBe('old')
+      expect((await work()).takes[0]!.look).toBe('ready')
+    } finally {
+      spy.mockRestore()
+    }
   })
 
   it('matches the colours of the kept area to the take around it before saving', async () => {
