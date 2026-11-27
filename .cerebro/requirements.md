@@ -135,9 +135,8 @@ SFX-3  Make all makes takes for every effect that has none, and can be stopped.
 
 ## Scenes (SCN)
 
-SCN-1  The person hears a scene's music, effects and narration together as the game plays them,
-       and sets the level of each; the levels are saved in the act's mix, the one scenes file the
-       studio writes.
+SCN-1  The person hears a scene's music and effects together as the game plays them, and sets the
+       level of each; the levels are saved in the act's mix, the one scenes file the studio writes.
        Proven by: test/system/SCN-1.test.ts
 SCN-2  Each scene's loudness is measured against the project's target, and the page shows which
        scenes are off it or not measured since they changed.
