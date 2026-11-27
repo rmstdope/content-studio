@@ -96,6 +96,57 @@ function paeth(a: number, b: number, c: number): number {
 }
 
 /**
+ * Takes PNG filter `filter` off the row of `stride` bytes at `to` in `rows`, in place: the rows
+ * above it are done already, and storing in a byte array wraps past 255. One loop per filter and
+ * nothing allocated, since this runs for every byte of every picture.
+ */
+function unfilter(rows: Uint8Array, filter: number, to: number, stride: number, channels: number) {
+  const end = to + stride
+  // Where the bytes with a neighbour to the left begin; the first row has none above.
+  const second = to + channels
+  const first = to === 0
+  if (filter === 1) {
+    for (let i = second; i < end; i++) rows[i]! += rows[i - channels]!
+  } else if (filter === 2) {
+    if (!first) for (let i = to; i < end; i++) rows[i]! += rows[i - stride]!
+  } else if (filter === 3) {
+    for (let i = to; i < end; i++) {
+      const left = i >= second ? rows[i - channels]! : 0
+      const up = first ? 0 : rows[i - stride]!
+      rows[i]! += (left + up) >> 1
+    }
+  } else if (filter === 4) {
+    for (let i = to; i < end; i++) {
+      const left = i >= second ? rows[i - channels]! : 0
+      const up = first ? 0 : rows[i - stride]!
+      const upLeft = !first && i >= second ? rows[i - stride - channels]! : 0
+      rows[i]! += paeth(left, up, upLeft)
+    }
+  } else if (filter !== 0) throw new Error('The PNG uses a filter the studio does not know.')
+}
+
+/** The RGBA pixels of unfiltered `rows` of colour `type` (0, 2, 3 or 4). */
+function toRgba(rows: Uint8Array, pixels: number, type: number, palette: Uint8Array): Uint8Array {
+  const channels = CHANNELS[type]!
+  const data = new Uint8Array(pixels * 4)
+  for (let s = 0, d = 0; d < data.length; s += channels, d += 4) {
+    if (type === 2) {
+      data[d] = rows[s]!
+      data[d + 1] = rows[s + 1]!
+      data[d + 2] = rows[s + 2]!
+    } else if (type === 3) {
+      const index = rows[s]! * 3
+      data[d] = palette[index] ?? 0
+      data[d + 1] = palette[index + 1] ?? 0
+      data[d + 2] = palette[index + 2] ?? 0
+    } else data[d] = data[d + 1] = data[d + 2] = rows[s]!
+    // Only RGBA and grey-with-alpha carry transparency; every other picture is opaque.
+    data[d + 3] = type === 4 ? rows[s + 1]! : 255
+  }
+  return data
+}
+
+/**
  * The pixels of a PNG: 8 bits per sample, any colour type, not interlaced (what the image models
  * write). A picture with transparency keeps its alpha (a patch's); the look ignores it. Anything
  * else throws a sentence saying why.
@@ -145,42 +196,12 @@ export function decodePng(bytes: Uint8Array): Pixels {
   if (raw.length < height * (stride + 1)) throw new Error('The PNG is cut short.')
   const rows = new Uint8Array(height * stride)
   for (let y = 0; y < height; y++) {
-    const filter = raw[y * (stride + 1)]!
-    for (let i = 0; i < stride; i++) {
-      const x = raw[y * (stride + 1) + 1 + i]!
-      const left = i >= channels ? rows[y * stride + i - channels]! : 0
-      const up = y ? rows[(y - 1) * stride + i]! : 0
-      const upLeft = y && i >= channels ? rows[(y - 1) * stride + i - channels]! : 0
-      const value =
-        filter === 0
-          ? x
-          : filter === 1
-            ? x + left
-            : filter === 2
-              ? x + up
-              : filter === 3
-                ? x + ((left + up) >> 1)
-                : filter === 4
-                  ? x + paeth(left, up, upLeft)
-                  : -1
-      if (value < 0) throw new Error('The PNG uses a filter the studio does not know.')
-      rows[y * stride + i] = value & 255
-    }
+    const from = y * (stride + 1)
+    const to = y * stride
+    rows.set(raw.subarray(from + 1, from + 1 + stride), to)
+    unfilter(rows, raw[from]!, to, stride, channels)
   }
-  const data = new Uint8Array(width * height * 4)
-  for (let p = 0; p < width * height; p++) {
-    const s = p * channels
-    let r: number
-    let g: number
-    let b: number
-    // Only RGBA and grey-with-alpha carry transparency; every other picture is opaque.
-    const alpha = type === 6 ? rows[s + 3]! : type === 4 ? rows[s + 1]! : 255
-    if (type === 2 || type === 6) [r, g, b] = [rows[s]!, rows[s + 1]!, rows[s + 2]!]
-    else if (type === 3) {
-      const index = rows[s]! * 3
-      ;[r, g, b] = [palette[index] ?? 0, palette[index + 1] ?? 0, palette[index + 2] ?? 0]
-    } else r = g = b = rows[s]!
-    data.set([r, g, b, alpha], p * 4)
-  }
+  // RGBA rows are already the pixels.
+  const data = type === 6 ? rows : toRgba(rows, width * height, type, palette)
   return { width, height, data }
 }

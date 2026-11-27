@@ -268,3 +268,29 @@ describe('layOver', () => {
     expect(Array.from(out.data)).toEqual([100, 50, 25, 255])
   })
 })
+
+/**
+ * A UI test registers happy-dom's globals and takes them away again, after which Bun runs code that
+ * looks `Math` up on the global object dozens of times slower for the rest of the test run. The
+ * timing would be flaky to assert, so the lookup itself is.
+ */
+describe('the loops over every pixel', () => {
+  it('never look Math up on the global object', () => {
+    const real = Object.getOwnPropertyDescriptor(globalThis, 'Math')!
+    const math = Math
+    let reads = 0
+    const palette = look({ palette: ['#000000'] })
+    const depth = look({ colourDepth: '8-bit', dithering: 'scattered' })
+    Object.defineProperty(globalThis, 'Math', {
+      configurable: true,
+      get: () => (reads++, math),
+    })
+    try {
+      for (const brought of [palette, depth]) bringToLook(ramp, brought, { width: 8, height: 8 })
+      layOver(ramp, ramp)
+    } finally {
+      Object.defineProperty(globalThis, 'Math', real)
+    }
+    expect(reads).toBe(0)
+  })
+})
