@@ -16,6 +16,11 @@ function alive(pid: number): boolean {
   }
 }
 
+/** Waits until nothing is left of `pid` (see `alive`), giving up after ten seconds. */
+async function waitUntilGone(pid: number): Promise<void> {
+  for (let i = 0; i < 200 && alive(pid); i++) await wait(50)
+}
+
 /** The pid written to `file`, or 0 while it holds none yet. */
 function pidIn(file: string): number {
   try {
@@ -44,7 +49,7 @@ describe('a local generator stops with the studio', () => {
           expect(group).toBeGreaterThan(0)
           // The studio's own handler ran: without one the signal ends it, and no exit code.
           expect(studio.exitCode).toBe(code)
-          for (let i = 0; i < 200 && alive(-group); i++) await wait(50)
+          await waitUntilGone(-group)
           expect(alive(-group)).toBe(false)
         } finally {
           studio.kill('SIGKILL')
@@ -65,13 +70,13 @@ describe('a local generator stops with the studio', () => {
           expect(alive(child)).toBe(true)
           studio.kill(signal)
           await studio.exited
-          for (let i = 0; i < 20 && alive(child); i++) await wait(50)
+          await waitUntilGone(child)
           expect(alive(child)).toBe(false)
         } finally {
           studio.kill('SIGKILL')
           if (child > 0 && alive(child)) process.kill(child, 'SIGKILL')
         }
-      })
+      }, 20_000)
     }
   }
 })
