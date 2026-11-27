@@ -89,6 +89,7 @@ const refreshes = createSerial()
  * Runs the project's `refresh.part` command for a part (with `{part}` replaced by its id) in the
  * project root, the way the game extracts its dialog, then reads the dialog again and says what
  * changed. The command is the project's own (its project file), run only from the studio's page.
+ * `graceMs` is how long what it leaves running may hold the output open after it ends.
  */
 export function refreshDialog(
   projectFile: string,

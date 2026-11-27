@@ -28,7 +28,10 @@ function project(part?: string) {
   }
 }
 
-/** A command that leaves a long-running helper behind, its pid in `helper.pid`. */
+/**
+ * A command that leaves a long-running helper behind, its pid in `helper.pid`. A test that times
+ * out waiting on it means the helper was not stopped with its process group.
+ */
 const HELPER = 'sleep 30 & echo $! > helper.pid'
 
 /** The helper's pid once the command has written it. */
