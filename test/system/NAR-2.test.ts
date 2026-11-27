@@ -53,7 +53,7 @@ describe('NAR-2: each take is checked with Whisper, and the game gets real word 
     async tts() {
       const seconds = 3 + spoken.length
       spoken.push(seconds)
-      return wavOf(seconds)
+      return wavOf(seconds, RATE)
     },
   }
   /** Hears half the words of the first take, and all but one of any later one. */

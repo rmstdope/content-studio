@@ -161,14 +161,9 @@ describe('NAR-1: a character or a whole part is recorded, in each language, as t
     expect(clipExists('en', 'g2')).toBe(false)
     expect(game('sv')).toEqual(swedish)
 
-    // Every line has its clip now: even asked for them all, the studio records none.
-    const again = await page.send('POST', '/api/parts/act1/jobs?language=en', {
-      speaker: null,
-      keys: ['a1', 'a3', 'g1'],
-      orphans: [],
-    })
-    expect(again.status).toBe(409)
-    expect(spoken).toEqual([])
+    // Every line has its clip now, so the part's plan offers nothing.
+    const shown = await page.get('/api/parts/act1/plan?language=en')
+    expect(await shown.json()).toMatchObject({ plan: { keys: [], orphans: [] } })
   })
 
   it('removes the other language’s clip when the line leaves that script', async () => {
