@@ -11,6 +11,7 @@ import {
   type CopySource,
 } from '../../../core/imageCopy'
 import { Overlay } from '../../components/Overlay'
+import { containerKeys, keepFocusOnBackdrop } from '../../components/containerKeys'
 import { off } from '../../off'
 
 /**
@@ -54,28 +55,7 @@ export function CopyImageDialog({
   function onKeyDown(event: KeyboardEvent) {
     // The page's own keys are not heard while the window is open.
     event.nativeEvent.stopPropagation()
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      onClose()
-      return
-    }
     const target = event.target as HTMLElement
-    if (event.key === 'Tab') {
-      const controls = [...(root.current?.querySelectorAll<HTMLElement>('input, button') ?? [])]
-      const inside = controls.includes(target)
-      const wrapTo = event.shiftKey
-        ? !inside || target === controls[0]
-          ? controls.at(-1)
-          : null
-        : !inside || target === controls.at(-1)
-          ? controls[0]
-          : null
-      if (wrapTo) {
-        event.preventDefault()
-        wrapTo.focus()
-      }
-      return
-    }
     const onCell = target.getAttribute('role') === 'option'
     if (event.key === 'Enter' && onCell) {
       event.preventDefault()
@@ -106,24 +86,13 @@ export function CopyImageDialog({
 
   return (
     <Overlay>
-      <div
-        className="modal-back"
-        onKeyDown={onKeyDown}
-        onMouseDown={(event) => {
-          if (event.target !== event.currentTarget) return
-          // Without this the browser moves focus to the page after `onClose` has put it back.
-          event.preventDefault()
-          onClose()
-        }}
-      >
+      <div className="modal-back" onMouseDown={keepFocusOnBackdrop(onClose)}>
         <div
           className="modal copy-modal"
           role="dialog"
           aria-modal="true"
           aria-labelledby="copy-image-title"
-          // A press on a spot that is not a control focuses the window rather than the page, so
-          // its keys (Esc above all) still reach `onKeyDown`.
-          tabIndex={-1}
+          {...containerKeys({ onEscape: onClose, modal: true, onKeyDown })}
           ref={root}
         >
           <div className="copy-head">
