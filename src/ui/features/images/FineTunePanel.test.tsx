@@ -3,6 +3,7 @@ import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { FineTunesView } from '../../../core/imageFineTunes'
 import type { ImageRow } from '../../../core/images'
+import type { SettleClock } from './FineTunePanel'
 import type { ProjectFailure } from '../../../services/workspace'
 
 import { drawnSize, SAME_SIZE } from '../../../../test/pictureSize'
@@ -17,18 +18,21 @@ const { act, createElement } = await import('react')
 const { WhyTip } = await import('../../components/WhyTip')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
-const { FineTunePanel } = await import('./FineTunePanel')
+const { browserClock, FineTunePanel } = await import('./FineTunePanel')
 const { JobOpenProvider } = await import('./ImageJobTabs')
 const { IMAGES_LOCK_WHY } = await import('../../imagesText')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const cleanups: (() => void)[] = []
+// The clock the next panel's one-second guard runs on; none: the browser's.
+let clock: SettleClock | undefined
 const realFetch = globalThis.fetch
 afterEach(() => {
   cleanups.splice(0).forEach((c) => c())
   globalThis.fetch = realFetch
   platform = 'MacIntel'
+  clock = undefined
 })
 afterAll(() => GlobalRegistrator.unregister())
 
@@ -52,6 +56,36 @@ const view = (over: Partial<FineTunesView> = {}): FineTunesView => ({
   failedModels: [],
   ...over,
 })
+
+/** Gives the next panel a clock that moves only on `pass`, which runs the calls that come due. */
+function heldClock() {
+  let now = 1_000_000
+  const calls = new Set<{ at: number; fn: () => void }>()
+  clock = {
+    now: () => now,
+    after(ms, fn) {
+      const call = { at: now + ms, fn }
+      calls.add(call)
+      return () => void calls.delete(call)
+    },
+  }
+  return {
+    async pass(ms: number) {
+      const end = now + ms
+      for (;;) {
+        const next = [...calls].filter((c) => c.at <= end).sort((a, b) => a.at - b.at)[0]
+        if (!next) break
+        calls.delete(next)
+        now = next.at
+        // Each in its own act, so the render it causes can ask for the next call.
+        await act(async () => next.fn())
+      }
+      await act(async () => {
+        now = end
+      })
+    },
+  }
+}
 
 /** What a change answers: its status and body. */
 type PostedAnswer = { status: number; body: unknown }
@@ -97,6 +131,7 @@ async function render(
           { value: open },
           createElement(FineTunePanel, {
             row: { id: 'inn', width: 1024, height: 576 } as ImageRow,
+            clock,
           }),
         ),
       ),
@@ -776,6 +811,17 @@ describe('looking at, dropping and using fine-tunes', () => {
   })
 })
 
+describe("the browser's clock", () => {
+  it('calls after its delay, and never once cancelled', async () => {
+    const calls: string[] = []
+    const asked = browserClock.now()
+    browserClock.after(1, () => calls.push('cancelled'))()
+    await new Promise<void>((done) => browserClock.after(5, done))
+    expect(calls).toEqual([])
+    expect(browserClock.now()).toBeGreaterThan(asked)
+  })
+})
+
 describe('a late click meant for Stop', () => {
   const making = [
     { n: 1, state: 'making' as const, elapsed: 5, expected: 25, model: 'klein' as const },
@@ -791,6 +837,7 @@ describe('a late click meant for Stop', () => {
   const JUST = 'Just finished — a moment…'
 
   it('keeps Choose and Drop off for one second on a card that turns ready, then turns them on', async () => {
+    const time = heldClock()
     let served = view({ making })
     const { host, sent, client } = await render(() => served, {
       status: 200,
@@ -812,7 +859,9 @@ describe('a late click meant for Stop', () => {
     await act(async () => buttons[0]!.click())
     await key(buttons[0]!, 'd')
     expect(sent).toEqual([])
-    await act(async () => await new Promise((r) => setTimeout(r, 1050)))
+    await time.pass(999)
+    expect(buttons.map(isOff)).toEqual([true, true])
+    await time.pass(1)
     expect(buttons.map(isOff)).toEqual([false, false])
     await act(async () => buttons[0]!.click())
     await settle()
@@ -834,23 +883,26 @@ describe('a late click meant for Stop', () => {
   })
 
   it('turns a card on at its own second', async () => {
+    const time = heldClock()
     let served = view({ making: [making[0]!, { ...making[0]!, n: 2 }] })
     const { host, client } = await render(() => served)
     served = view({ tunes: [tune(1)], making: [{ ...making[0]!, n: 2 }] })
     await finish(client)
-    await act(async () => await new Promise((r) => setTimeout(r, 400)))
+    await time.pass(400)
     served = view({ tunes: [tune(1), tune(2)], making: [] })
     await finish(client)
     const chooseOff = () => isOff(button(host, 'Choose C')!)
     await act(async () => cards(host)[1]!.querySelector('button')!.click())
     expect(chooseOff()).toBe(true)
-    await act(async () => await new Promise((r) => setTimeout(r, 750)))
+    await time.pass(600)
     // Card 1's second is over, card 2 finished 400 ms later and is still settling.
     expect(chooseOff()).toBe(true)
     await act(async () => cards(host)[0]!.querySelector('button')!.click())
     expect(chooseOff()).toBe(false)
     await act(async () => cards(host)[1]!.querySelector('button')!.click())
-    await act(async () => await new Promise((r) => setTimeout(r, 400)))
+    await time.pass(399)
+    expect(chooseOff()).toBe(true)
+    await time.pass(1)
     expect(chooseOff()).toBe(false)
   })
 
@@ -951,7 +1003,6 @@ describe('the screen: Choose, the count and the keys', () => {
       },
     })
     await settle()
-    await act(async () => await new Promise((r) => setTimeout(r, 1050)))
     await key(document.body, 'ArrowLeft')
     expect(host.querySelector('img.patch-over')?.getAttribute('src')).toBe(
       '/api/images/inn/fine-tunes/1',
@@ -986,7 +1037,6 @@ describe('the screen: Choose, the count and the keys', () => {
       () => takesView(8, CHAIN),
     )
     await settle()
-    await act(async () => await new Promise((r) => setTimeout(r, 1050)))
     await key(document.body, 'c')
     await settle()
     expect(document.activeElement).not.toBe(wordsBox(host))
@@ -1294,7 +1344,6 @@ describe('History and Undo', () => {
       expect(quiet.length).toBeGreaterThan(0)
       expect(quiet.every((q) => q === true)).toBe(true)
       quiet.length = 0
-      await act(async () => await new Promise((r) => setTimeout(r, 1050)))
       await act(async () => button(host, 'Drop D')!.click())
       await settle()
       expect(quiet.length).toBeGreaterThan(0)

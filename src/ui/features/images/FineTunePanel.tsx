@@ -66,6 +66,21 @@ const MAX_AT_ONCE = 10
 /** How long a card that has just turned ready keeps Choose and Drop off, in milliseconds. */
 const SETTLE_MS = 1000
 
+/** The clock that second runs on: the time in milliseconds, and a later call that can be cancelled. */
+export interface SettleClock {
+  now(): number
+  after(ms: number, fn: () => void): () => void
+}
+
+/** The browser's clock: `Date.now` and a timeout. */
+export const browserClock: SettleClock = {
+  now: () => Date.now(),
+  after(ms, fn) {
+    const id = setTimeout(fn, ms)
+    return () => clearTimeout(id)
+  },
+}
+
 /** The keys the open Fine-tune tab hears anywhere on the page. */
 const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'c', 'd', 's', 'z'])
 
@@ -162,12 +177,15 @@ export function FineTunePanel({
   row,
   actName = 'the act',
   actNameOf = () => null,
+  clock = browserClock,
 }: {
   row: ImageRow
   /** The act's short name, for its style among the reasons. */
   actName?: string
   /** The short name of the act with this id, for a shared image's change of act style. */
   actNameOf?: (id: string | null) => string | null
+  /** What times the second a card that has just turned ready is off; a test gives its own. */
+  clock?: SettleClock
 }) {
   const query = useFineTunes(row.id)
   const make = useMakeFineTunes(row.id)
@@ -235,19 +253,18 @@ export function FineTunePanel({
     for (const t of tunes)
       if (!seenReady.current.ns.has(t.n)) {
         seenReady.current.ns.add(t.n)
-        readyAt.current.set(t.n, Date.now())
+        readyAt.current.set(t.n, clock.now())
       }
   }
-  const justFinished = (n: number) => Date.now() < (readyAt.current.get(n) ?? 0) + SETTLE_MS
+  const justFinished = (n: number) => clock.now() < (readyAt.current.get(n) ?? 0) + SETTLE_MS
   useEffect(() => {
     // The soonest card still settling is the next to turn on; this effect runs again after it.
     const ends = [...readyAt.current.values()]
-      .map((at) => at + SETTLE_MS - Date.now())
+      .map((at) => at + SETTLE_MS - clock.now())
       .filter((left) => left > 0)
     if (ends.length === 0) return
     const next = Math.min(...ends)
-    const timer = setTimeout(() => tick((n) => n + 1), next)
-    return () => clearTimeout(timer)
+    return clock.after(next, () => tick((n) => n + 1))
   })
   const strip = tunes.map((t) => t.n)
   const fallback = tunes.at(-1)?.n ?? null
