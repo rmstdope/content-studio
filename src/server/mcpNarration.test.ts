@@ -1,14 +1,15 @@
-import { describe, expect, it } from 'bun:test'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { afterAll, describe, expect, it } from 'bun:test'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { projectJson, tempRepo } from '../../test/helpers'
 import { createContext } from './context'
+import { startServer } from './index'
 import { matchAction } from './mcpActions'
 import { SETUP_AND_NARRATION_ACTIONS } from './mcpActionsNarration'
 import { musicRoutes } from './routes/music'
 import { narrationRoutes } from './routes/narration'
 import { setupRoutes } from './routes/setup'
-import { startBase } from './test-support'
+import { encode, fish, startBase } from './test-support'
 
 /** What a tool answer holds, as far as the tests look. */
 interface Result {
@@ -237,5 +238,77 @@ describe('an agent casting a voice and recording a line', () => {
     expect(file.speakers.narrator.voice).toBe('w1')
     const recorded = await act('POST', '/api/parts/act1/lines/a/record', { stage: 'final' })
     expect(recorded.content[0]!.text).toContain('"ok":true')
+  })
+})
+
+describe('an agent recording a batch that removes orphaned clips', () => {
+  const root = tempRepo({
+    'content-studio.json': projectJson(),
+    'content-studio/narration/cast.json': { speakers: { narrator: { voice: 'v1' } } },
+    'tts/act1/script.json': [{ id: 'a', speaker: 'narrator', text: 'Once.' }],
+    'audio/act1/manifest.json': { old: { file: 'old.mp3' }, gone: { file: 'gone.mp3' } },
+    'audio/act1/old.mp3': 'x',
+    'audio/act1/gone.mp3': 'x',
+  })
+  const studio = startServer({
+    projectFile: join(root, 'content-studio.json'),
+    port: 0,
+    fish,
+    encode,
+    transcriber: null,
+  })
+  afterAll(() => studio.stop(true))
+  const mcp = client(studio.url)
+  const path = '/api/parts/act1/jobs'
+  const record = (orphans: string[], keys: string[], confirmed?: boolean) =>
+    mcp.call('studio_act', {
+      method: 'POST',
+      path,
+      body: { speaker: null, keys, orphans },
+      confirmed,
+    })
+  /** Waits for the job the answer started to end. */
+  const finished = async (started: Result) => {
+    const { id } = JSON.parse(started.content[0]!.text)
+    let state = { status: 'running' }
+    while (state.status === 'running') {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      state = await (await fetch(new URL(`/api/jobs/${id}`, studio.url))).json()
+    }
+    return state
+  }
+  const clips = ['old', 'gone'].map((key) => join(root, `audio/act1/${key}.mp3`))
+
+  it('says in studio_pages when the batch asks', async () => {
+    const pages = JSON.parse((await mcp.call('studio_pages', {})).content[0]!.text)
+    expect(
+      pages.actions.Narration.find((a: { path: string }) => a.path.endsWith('/jobs')).confirm,
+    ).toBe(
+      'only for a record job whose orphans is not empty: deletes those orphaned clips from the game',
+    )
+  })
+
+  it('asks first, recording and removing nothing', async () => {
+    const before = snapshot(root)
+    const refused = await record(['old', 'gone'], ['a'])
+    expect(refused.isError).toBe(true)
+    expect(refused.content[0]!.text).toBe(
+      "Needs the user's confirmation first: this deletes 2 orphaned clips from the game (their lines left the dialog). Once the user has agreed, call again with confirmed: true.",
+    )
+    expect(snapshot(root)).toEqual(before)
+  })
+
+  it('records a batch that removes none without asking', async () => {
+    const started = await record([], ['a'])
+    expect(started.isError).toBeUndefined()
+    expect(await finished(started)).toMatchObject({ status: 'done', done: 1, removed: 0 })
+    expect(clips.every((clip) => existsSync(clip))).toBe(true)
+  })
+
+  it('removes the orphans once confirmed', async () => {
+    const started = await record(['old', 'gone'], [], true)
+    expect(started.isError).toBeUndefined()
+    expect(await finished(started)).toMatchObject({ status: 'done', removed: 2 })
+    expect(clips.some((clip) => existsSync(clip))).toBe(false)
   })
 })

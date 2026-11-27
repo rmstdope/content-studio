@@ -1,7 +1,7 @@
 import type { RouteContext } from './context'
 import { allowedHosts, forbidden, WITHOUT_HEADER } from './shared'
 import { readSpendCheck } from '../core/spendCheck'
-import { ACTIONS, actionBody, matchAction, type ActionPage } from './mcpActions'
+import { ACTIONS, actionBody, confirmLine, matchAction, type ActionPage } from './mcpActions'
 import { READABLE, matchReadable, type ReadablePage } from './mcpReadable'
 import { describeSound, soundFacts, whisperLanguage, type WhisperAsk } from '../services/soundFacts'
 import { openProject } from '../services/workspace'
@@ -75,7 +75,7 @@ const TOOLS = [
   {
     name: 'studio_act',
     description:
-      'Does a step of a page of the web UI (Setup, Narration, Images, Music and Stingers, Sound effects and Scenes so far), through the same route the page uses, so every check holds: the body is the one the page sends (a spending step carries the amount confirmed, as its body says: confirmedCost / confirmedCredits from its plan, or spendUpTo / creditsUpTo). A step marked `confirm` in studio_pages needs `confirmed: true`, set only once the user has agreed to what it says.',
+      'Does a step of a page of the web UI (Setup, Narration, Images, Music and Stingers, Sound effects and Scenes so far), through the same route the page uses, so every check holds: the body is the one the page sends (a spending step carries the amount confirmed, as its body says: confirmedCost / confirmedCredits from its plan, or spendUpTo / creditsUpTo). A step marked `confirm` in studio_pages needs `confirmed: true` (one marked "only for …" just then), set only once the user has agreed to what it says.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -266,7 +266,7 @@ export function mcpRoutes(c: RouteContext) {
       payload = JSON.stringify(body)
     }
     const init = { method: action.method, headers, body: payload }
-    let confirm = action.confirm
+    let confirm = confirmLine(action, body)
     // A confirmed step goes straight to its route, which refuses by itself.
     if (action.spends && confirmed !== true) {
       const check = await spendCheck(String(path), init)
@@ -293,7 +293,12 @@ export function mcpRoutes(c: RouteContext) {
       const actions: Partial<Record<ActionPage, unknown[]>> = {}
       for (const action of ACTIONS) {
         const { page, ...rest } = action
-        ;(actions[page] ??= []).push({ ...rest, body: actionBody(action) })
+        const { confirm } = action
+        ;(actions[page] ??= []).push({
+          ...rest,
+          confirm: typeof confirm === 'object' ? confirm.when : confirm,
+          body: actionBody(action),
+        })
       }
       return { content: [{ type: 'text', text: JSON.stringify({ read, actions }, null, 2) }] }
     }

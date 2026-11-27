@@ -1,5 +1,5 @@
 import { MODEL_BODIES } from '../core/modelBodies'
-import type { Action } from './mcpActions'
+import type { Action, ConditionalConfirm } from './mcpActions'
 import {
   AddBody,
   AmountBody,
@@ -31,6 +31,21 @@ import {
   TryBody,
   VoiceBody,
 } from './shared'
+
+/** A record job removes the orphaned clips it lists; measuring and checking again remove none. */
+const REMOVES_ORPHANS: ConditionalConfirm = {
+  when: 'only for a record job whose orphans is not empty: deletes those orphaned clips from the game',
+  line: (body) => {
+    // A body the route refuses removes nothing: the route says what is wrong with it.
+    const job = JobBody.safeParse(body)
+    if (!job.success || job.data.kind !== 'record') return null
+    const count = job.data.orphans.length
+    if (!count) return null
+    return count === 1
+      ? 'deletes 1 orphaned clip from the game (its line left the dialog)'
+      : `deletes ${count} orphaned clips from the game (their lines left the dialog)`
+  },
+}
 
 /**
  * The Setup and Narration steps an agent may do: one entry per change route of those pages, bar
@@ -135,6 +150,7 @@ export const SETUP_AND_NARRATION_ACTIONS: readonly Action[] = [
     path: '/api/parts/:part/jobs',
     about: 'record lines of a part (a batch)',
     body: JobBody,
+    confirm: REMOVES_ORPHANS,
   },
   {
     page: 'Narration',
