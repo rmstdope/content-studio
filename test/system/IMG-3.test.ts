@@ -171,6 +171,8 @@ describe('IMG-3: variations of a picture are compared, chosen or dropped, and un
     })
 
     expect(lookOf(inGame())).toEqual({ width: 90, height: 60, colours: [colour!] })
+    // The manifest names the file and its size, which a variation keeps.
+    expect(manifest()).toBe(first.manifest)
     const takes = await takesOf()
     expect(takes.chosen).toEqual({ known: true, take: answer.take })
     expect(takes.takes.find((take) => take.n === answer.take)?.fineTunedFrom).toEqual({
@@ -192,7 +194,7 @@ describe('IMG-3: variations of a picture are compared, chosen or dropped, and un
     expect(manifest()).toBe(first.manifest)
     const after = await takesOf()
     expect(after.chosen).toEqual({ known: true, take: 1 })
-    expect(after.takes.map((take) => take.n).sort()).toEqual([1, chosen!])
+    expect(after.takes.map((take) => take.n).sort((a, b) => a - b)).toEqual([1, chosen!])
   })
 
   it('changes only the images’ picture and manifest and the studio’s own files', () => {
