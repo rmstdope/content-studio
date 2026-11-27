@@ -70,7 +70,7 @@ const OFF =
 
 /** What a person reads on a control, to name it in a failure. */
 const nameOf = (control: Element) =>
-  control.getAttribute('aria-label') ?? control.textContent?.trim() ?? control.tagName
+  control.getAttribute('aria-label') || control.textContent?.trim() || control.tagName
 
 /** The greyed controls on the page, each with the reason it carries. */
 const greyed = () =>
@@ -93,8 +93,10 @@ async function open(hash: string, expected: Record<string, string>) {
   })
   for (const giveUp = Date.now() + 10_000; ;) {
     const shown = Object.fromEntries(greyed().map(({ name, why }) => [name, why]))
-    // Nothing still being read, so no control is off only until an answer arrives.
-    const read = client.isFetching() === 0
+    // The test starts no work, so a control that says to wait is off only until an answer
+    // arrives, and would turn on while it is being asked why.
+    const read =
+      client.isFetching() === 0 && !greyed().some(({ why }) => why?.startsWith('Wait for '))
     if (read && Object.entries(expected).every(([name, why]) => shown[name] === why)) return
     if (Date.now() > giveUp) throw new Error(`${hash} greys ${JSON.stringify(shown)}`)
     await act(() => new Promise<void>((resolve) => setTimeout(resolve, 10)))
