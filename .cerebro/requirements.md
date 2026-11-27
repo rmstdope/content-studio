@@ -161,4 +161,4 @@ AGT-1  An AI agent connected to the studio over MCP can read what every page sho
        only on a call marked confirmed, once the person has agreed.
        Proven by: test/system/AGT-1.test.ts
 AGT-2  A page open in the browser follows what an agent changed, without being reloaded.
-       Proven by: nothing yet
+       Proven by: test/system/AGT-2.test.ts
