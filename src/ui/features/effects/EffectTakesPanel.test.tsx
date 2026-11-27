@@ -5,6 +5,7 @@ import type { EffectTakesView, EffectTakeView } from '../../../core/effectTakes'
 import { installFakeWebAudio, started } from '../../../../test/fakeWebAudio'
 import { chosenAmong, type Marked } from '../../../../test/chosen'
 import { NOT_KNOWN } from '../../../core/lockRead'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -25,7 +26,7 @@ afterEach(() => {
   globalThis.fetch = realFetch
   cleanups.splice(0).forEach((c) => c())
 })
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 const MODEL = 'Stable Audio 3 Small SFX'
 const take = (n: number, over: Partial<Marked<EffectTakeView>> = {}): Marked<EffectTakeView> => ({

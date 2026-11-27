@@ -7,6 +7,7 @@ import type { ProjectSummary } from '../../../core/summary'
 import { tempRepo } from '../../../../test/helpers'
 import { valuesInEveryWindow } from '../../../../test/stylesheet'
 import { startServer } from '../../../server/index'
+import { unregisterDom } from '../../../../test/dom'
 
 // The studio itself, on a copy of the sample whose cast is broken as when the bug was seen: a
 // voice that is a number.
@@ -51,7 +52,7 @@ function TopBanner({ problems }: { problems: Problem[] }) {
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 /** Waits until `ready` holds, letting React and the studio answer meanwhile. */
 async function until(ready: () => boolean) {

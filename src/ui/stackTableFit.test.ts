@@ -1,9 +1,10 @@
 import { afterAll, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { minWidthsAtPanelWidth } from '../../test/stylesheet'
+import { unregisterDom } from '../../test/dom'
 
 GlobalRegistrator.register()
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 /** A table as its page draws it: `classes` on the table, inside the scrolling `.table-box`. */
 function boxedTable(classes: string): Element {

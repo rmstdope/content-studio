@@ -1,6 +1,7 @@
 import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { ProjectSummary } from '../core/summary'
+import { unregisterDom } from '../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -17,7 +18,7 @@ afterEach(() => {
   globalThis.fetch = realFetch
   cleanups.splice(0).forEach((c) => c())
 })
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 const summary = {
   name: 'Sample',

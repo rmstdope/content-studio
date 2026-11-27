@@ -6,6 +6,7 @@ import type { TrackStatus } from '../../../core/musicChoose'
 import type { ProjectSummary } from '../../../core/summary'
 import type { MusicRoute } from '../../route'
 import { minWidthsInEveryWindow } from '../../../../test/stylesheet'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -28,9 +29,9 @@ HTMLMediaElement.prototype.play = function (this: HTMLMediaElement) {
 HTMLMediaElement.prototype.pause = () => {}
 
 const cleanups: (() => void)[] = []
-afterAll(() => {
+afterAll(async () => {
   cleanups.forEach((c) => c())
-  GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 const track = (id: string, title: string, status: TrackStatus): TrackRow => ({

@@ -13,7 +13,11 @@ export const LevelSchema = z
   .refine((level) => Math.abs(level * 20 - Math.round(level * 20)) < 1e-6, 'a multiple of 5%')
 
 /** The body of a save of a take's level. */
-export const SetEffectLevelBody = z.object({ level: LevelSchema }).strict()
+export const SetEffectLevelBody = z
+  .object({
+    level: LevelSchema.meta({ description: 'a multiple of 0.05, 1 being the take as made' }),
+  })
+  .strict()
 
 /** A level as the page writes it: "140%". */
 export function levelPercent(level: number): string {

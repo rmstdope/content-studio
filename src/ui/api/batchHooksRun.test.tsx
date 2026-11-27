@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { MakeAllMedium } from './batchHooks'
+import { unregisterDom } from '../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -12,9 +13,9 @@ const { MakeAllRefused, useBatch, useMakeAllRequest, useStopAllRequest } =
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 const realFetch = globalThis.fetch
-afterAll(() => {
+afterAll(async () => {
   globalThis.fetch = realFetch
-  GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 const medium: MakeAllMedium = {

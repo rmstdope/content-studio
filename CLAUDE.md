@@ -39,6 +39,8 @@ freely; once it is pinned down, capture it in a test before fixing it.
 
 - Every behaviour change comes with tests in a `*.test.ts` file next to the code (`bun test`).
 - `src/core/` is pure, so most rules are tested there without disk, network or audio.
+- Test files run side by side (`bun run test`), so one shares no file, port or global with
+  another, and a component test takes its DOM down with `unregisterDom` (`test/dom.ts`).
 - `src/services/` and `src/server/` are tested against temporary repositories made with
   `test/helpers.ts` (`tempRepo`, `projectJson`), never against a real consumer.
 - Calls to Fish Audio, ElevenLabs, Whisper and the local models go behind interfaces with fakes in
@@ -136,7 +138,8 @@ bundle breaks.
 
 ```sh
 bun install
-bun test               # all tests
+bun test               # all tests, one file after another
+bun run test           # all tests in parallel worker processes, as CI runs them
 bun run typecheck      # tsc --noEmit
 bun run format         # prettier --write; format:check is what CI runs
 bun run check          # format:check, typecheck and tests: run before every commit

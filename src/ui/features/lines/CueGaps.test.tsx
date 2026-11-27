@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { LineState } from '../../../core/planner'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -13,9 +14,9 @@ const { LineWords } = await import('./CueGaps')
 
 const roots: { unmount: () => void }[] = []
 
-afterAll(() => {
+afterAll(async () => {
   act(() => roots.forEach((r) => r.unmount()))
-  GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 /** Renders a line with one cue placed at word 2, and opens the box on the slot at `at`. */

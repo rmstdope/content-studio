@@ -1,3 +1,5 @@
+import type { ZodType } from 'zod'
+import { bodyText } from '../core/bodyText'
 import { EFFECTS_AND_SCENES_ACTIONS } from './mcpActionsEffectsScenes'
 import { IMAGE_ACTIONS } from './mcpActionsImages'
 import { MUSIC_ACTIONS } from './mcpActionsMusic'
@@ -16,8 +18,11 @@ export interface Action {
   path: string
   /** What it does, in a few words. */
   about: string
-  /** The JSON body in a few words; the route checks it. */
-  body?: string
+  /**
+   * The body: the very schema the route checks it with, so what an agent is told is what the route
+   * takes; or, for the route that takes a form, the words for it.
+   */
+  body?: ZodType | { form: string }
   /** Set where the web UI asks the person to confirm: what is being confirmed. */
   confirm?: string
   /**
@@ -39,6 +44,12 @@ export const ACTIONS: readonly Action[] = [
   ...EFFECTS_AND_SCENES_ACTIONS,
   ...MUSIC_ACTIONS,
 ]
+
+/** An action's body in words, as `studio_pages` shows it; undefined for a step without one. */
+export function actionBody({ body }: Action): string | undefined {
+  if (!body) return undefined
+  return 'form' in body ? `form: ${body.form}` : bodyText(body)
+}
 
 /** The action for a method and path (with an optional query), or null for anything else. */
 export function matchAction(method: string, path: string): Action | null {

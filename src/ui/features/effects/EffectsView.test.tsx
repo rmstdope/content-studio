@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs'
 import { ProjectSchema } from '../../../core/project'
 import { projectJson } from '../../../../test/helpers'
 import { minWidthsInEveryWindow, valuesInEveryWindow } from '../../../../test/stylesheet'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -30,7 +31,7 @@ afterEach(() => {
   globalThis.fetch = realFetch
   cleanups.splice(0).forEach((c) => c())
 })
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 const row = (id: string, extra: Partial<EffectRow> = {}): EffectRow => ({
   id,

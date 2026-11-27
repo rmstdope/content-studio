@@ -1,7 +1,7 @@
 import type { RouteContext } from './context'
 import { allowedHosts, forbidden, WITHOUT_HEADER } from './shared'
 import { MUSIC_MODEL_IDS, perMinuteWords } from '../core/musicModels'
-import { ACTIONS, matchAction, type Action, type ActionPage } from './mcpActions'
+import { ACTIONS, actionBody, matchAction, type Action, type ActionPage } from './mcpActions'
 import { READABLE, matchReadable, type ReadablePage } from './mcpReadable'
 import { describeSound, soundFacts, whisperLanguage, type WhisperAsk } from '../services/soundFacts'
 import { openProject } from '../services/workspace'
@@ -310,7 +310,10 @@ export function mcpRoutes(c: RouteContext) {
       const read: Partial<Record<ReadablePage, unknown[]>> = {}
       for (const { page, ...rest } of READABLE) (read[page] ??= []).push(rest)
       const actions: Partial<Record<ActionPage, unknown[]>> = {}
-      for (const { page, ...rest } of ACTIONS) (actions[page] ??= []).push(rest)
+      for (const action of ACTIONS) {
+        const { page, ...rest } = action
+        ;(actions[page] ??= []).push({ ...rest, body: actionBody(action) })
+      }
       return { content: [{ type: 'text', text: JSON.stringify({ read, actions }, null, 2) }] }
     }
     if (name === 'studio_act') return act((args ?? {}) as Record<string, unknown>)

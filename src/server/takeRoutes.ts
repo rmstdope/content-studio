@@ -1,6 +1,5 @@
 import type { ZodType } from 'zod'
 import type { RouteContext } from './context'
-import { FADE_SHAPES } from '../core/fades'
 import { badBody, notFound, takeResponse, type RouteRequest } from './shared'
 
 /** What a take service answers: nothing when the thing is not there, else a result that may refuse. */
@@ -56,9 +55,6 @@ function resultResponse(result: Answer): Response {
   })
 }
 
-/** A 400 naming what the body should have been. */
-const expected = (shape: string) => Response.json({ error: `expected ${shape}` }, { status: 400 })
-
 /** The routes that go by id alone (list, make, un-choose, accept, stop), for any medium with takes. */
 export function takeListRoutes<Make>(
   c: Pick<RouteContext, 'fromOwnPage' | 'guard' | 'projectFile'>,
@@ -78,7 +74,7 @@ export function takeListRoutes<Make>(
       }),
       POST: fromOwnPage(async (request: RouteRequest) => {
         const body = bodies.make.safeParse(await json(request))
-        if (!body.success) return expected('{ count } or { retry }')
+        if (!body.success) return badBody(bodies.make, body.error)
         return resultResponse(await service.make(projectFile, request.params.id, body.data))
       }),
     },
@@ -112,7 +108,7 @@ function levelRoute(
     [`${base}/:id/takes/:file/level`]: {
       PUT: fromOwnPage(async (request: RouteRequest) => {
         const parsed = body.safeParse(await request.json().catch(() => null))
-        if (!parsed.success) return expected('{ level }')
+        if (!parsed.success) return badBody(body, parsed.error)
         return resultResponse(
           await save(projectFile, request.params.id, request.params.file, parsed.data.level),
         )
@@ -153,12 +149,7 @@ export function takeRoutes<Make, Fades>(
     [`${base}/:id/takes/:file/fades`]: {
       PUT: fromOwnPage(async (request: RouteRequest) => {
         const body = bodies.fades.safeParse(await json(request))
-        if (!body.success)
-          return badBody(
-            '{ in, out, shape }',
-            body.error,
-            `Allowed: in and out are seconds, 0 or more; shape is ${FADE_SHAPES.map((s) => `"${s}"`).join(' or ')}.`,
-          )
+        if (!body.success) return badBody(bodies.fades, body.error)
         return resultResponse(await fades(request, body.data))
       }),
       DELETE: fromOwnPage(async (request: RouteRequest) =>
@@ -171,14 +162,14 @@ export function takeRoutes<Make, Fades>(
     [`${base}/:id/choose`]: {
       POST: fromOwnPage(async (request: RouteRequest) => {
         const body = bodies.choose.safeParse(await json(request))
-        if (!body.success) return expected('{ file }')
+        if (!body.success) return badBody(bodies.choose, body.error)
         return resultResponse(await service.choose(projectFile, request.params.id, body.data.file))
       }),
     },
     [`${base}/:id/trim`]: {
       POST: fromOwnPage(async (request: RouteRequest) => {
         const body = bodies.trim.safeParse(await json(request))
-        if (!body.success) return expected('{ file, undo? }')
+        if (!body.success) return badBody(bodies.trim, body.error)
         return resultResponse(
           await service.trim(
             projectFile,

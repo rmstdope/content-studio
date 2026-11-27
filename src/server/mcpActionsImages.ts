@@ -1,9 +1,20 @@
+import { CopyImageBody } from '../core/imageCopy'
+import { MakeFineTunesBody, UseFineTuneBody } from '../core/imageFineTunes'
+import { ChoosePatchTakeBody, MakePatchTakesBody, RemakePatchesBody } from '../core/imagePatches'
+import { ChooseImageTakeBody, MakeImageTakesBody } from '../core/imageTakes'
+import { ActStyleBody, CompareBody, StyleFieldBody, WordsBody } from '../core/images'
 import type { Action } from './mcpActions'
+import { AreaBoxBody, EffectsBody, ZoomBody } from './shared'
 
 const SET_ASIDE = 'may set aside the patches and named areas chosen for the image'
 const DELETES = 'deletes this take from the studio'
 
-const images = (about: string, method: Action['method'], path: string, body?: string): Action => ({
+const images = (
+  about: string,
+  method: Action['method'],
+  path: string,
+  body?: Action['body'],
+): Action => ({
   page: 'Images',
   method,
   path,
@@ -27,61 +38,61 @@ export const IMAGE_ACTIONS: readonly Action[] = [
     'save the image style’s look, or what is kept out',
     'PATCH',
     '/api/image-style',
-    '{ look } or { keepOut }',
+    StyleFieldBody,
   ),
   images(
     'save the words of an image, or null for the game’s',
     'PATCH',
     '/api/images/:id',
-    '{ words: string | null }',
+    WordsBody,
   ),
   images(
     'use the act’s style for an image, or another act’s',
     'PATCH',
     '/api/images/:id/act-style',
-    '{ on } or { from }',
+    ActStyleBody,
   ),
   images(
     'settle an image whose game description changed',
     'POST',
     '/api/images/:id/compare',
-    "{ choice: 'keep' | 'game' }",
+    CompareBody,
   ),
   images(
     'save the words of a patch the game declares',
     'PATCH',
     '/api/images/:id/game-patches/:patch',
-    '{ words: string | null }',
+    WordsBody,
   ),
   images(
     'settle a game patch whose description changed',
     'POST',
     '/api/images/:id/game-patches/:patch/compare',
-    "{ choice: 'keep' | 'game' }",
+    CompareBody,
   ),
   images(
     'place or clear the box of a named area',
     'PUT',
     '/api/images/:id/areas/:area',
-    '{ box: {x,y,width,height} | null }',
+    AreaBoxBody,
   ),
   images(
     'set the effects the game plays on an image',
     'PUT',
     '/api/images/:id/effects',
-    '{ effects: { [type]: { on, settings } } }',
+    EffectsBody,
   ),
   images(
     'set the slow zoom of an image, or null for none',
     'PUT',
     '/api/images/:id/zoom',
-    '{ zoom: { on, seconds, percent } | null }',
+    ZoomBody,
   ),
   images(
     'make takes of an image, or a failed one again',
     'POST',
     '/api/images/:id/takes',
-    '{ count, model? } or { retry }',
+    MakeImageTakesBody,
   ),
   asking(
     images('drop a take', 'DELETE', '/api/images/:id/takes/:n'),
@@ -93,7 +104,7 @@ export const IMAGE_ACTIONS: readonly Action[] = [
       'choose a take for the game; behind in the answer is what it is out of date for',
       'POST',
       '/api/images/:id/choose',
-      '{ n }',
+      ChooseImageTakeBody,
     ),
     `chooses this take for the game and ${SET_ASIDE}`,
   ),
@@ -104,7 +115,7 @@ export const IMAGE_ACTIONS: readonly Action[] = [
   images('accept the take the game already has', 'POST', '/api/images/:id/accept'),
   images('put an accepted take back out of date', 'POST', '/api/images/:id/unaccept'),
   images('stop the image’s takes being made', 'POST', '/api/images/:id/stop'),
-  images('copy another image’s picture to this one', 'POST', '/api/images/:id/copy', '{ from }'),
+  images('copy another image’s picture to this one', 'POST', '/api/images/:id/copy', CopyImageBody),
   asking(
     images('make every image of an act', 'POST', '/api/image-acts/:id/make-all'),
     'makes four takes for every image of the act with no chosen take, and the model runs for a while',
@@ -116,7 +127,7 @@ export const IMAGE_ACTIONS: readonly Action[] = [
     'make takes of every patch of an image',
     'POST',
     '/api/images/:id/patches/remake',
-    '{ count, marks, model? }',
+    RemakePatchesBody,
   ),
   images('stop making the patches of an image', 'POST', '/api/images/:id/patches/remake/stop'),
   images('close the finished making of patches', 'POST', '/api/images/:id/patches/remake/close'),
@@ -124,7 +135,7 @@ export const IMAGE_ACTIONS: readonly Action[] = [
     'make takes of a patch, or a failed one again',
     'POST',
     '/api/images/:id/patches/:patch/takes',
-    '{ count, area, model? } or { retry }',
+    MakePatchTakesBody,
   ),
   asking(
     images('drop a patch’s take', 'DELETE', '/api/images/:id/patches/:patch/takes/:n'),
@@ -136,7 +147,7 @@ export const IMAGE_ACTIONS: readonly Action[] = [
       'choose a take of a patch for the game',
       'POST',
       '/api/images/:id/patches/:patch/choose',
-      '{ n }',
+      ChoosePatchTakeBody,
     ),
     'puts this take of the patch on the image in the game, and may set aside the patches lying on top of it',
   ),
@@ -149,14 +160,14 @@ export const IMAGE_ACTIONS: readonly Action[] = [
     'make fine-tunes of an image, or a failed one again',
     'POST',
     '/api/images/:id/fine-tunes',
-    '{ count, words, area, model? } or { retry }',
+    MakeFineTunesBody,
   ),
   images('stop making fine-tunes', 'POST', '/api/images/:id/fine-tunes/stop'),
   images(
     'use a fine-tune as the image’s next take, chosen; when only its words or styles are behind it is also counted as up to date, unless accept is false',
     'POST',
     '/api/images/:id/fine-tunes/use',
-    '{ n, accept? }',
+    UseFineTuneBody,
   ),
   asking(images('drop a fine-tune', 'DELETE', '/api/images/:id/fine-tunes/:n'), DELETES),
   images('mark a fine-tune as seen', 'POST', '/api/images/:id/fine-tunes/:n/seen'),

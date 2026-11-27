@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { projectJson, tempRepo } from '../../test/helpers'
 import { createContext } from './context'
 import { studioRoutes } from './index'
-import { matchAction } from './mcpActions'
+import { actionBody, matchAction } from './mcpActions'
 import { SceneBody } from './shared'
 import { EFFECTS_AND_SCENES_ACTIONS } from './mcpActionsEffectsScenes'
 
@@ -54,10 +54,13 @@ describe('the Sound effects and Scenes steps an agent may do', () => {
 })
 
 describe('what the bodies of the fades and the scene mix say', () => {
-  const body = (method: string, path: string) => matchAction(method, path)?.body ?? ''
+  const body = (method: string, path: string) => actionBody(matchAction(method, path)!) ?? ''
   it('names the fade shapes and the lengths', () => {
     const text = body('PUT', '/api/effects/door/takes/a.wav/fades')
     for (const word of ['smooth', 'straight', 'seconds']) expect(text).toContain(word)
+  })
+  it('says the steps a level goes in', () => {
+    expect(body('PUT', '/api/effects/door/takes/a.wav/level')).toContain('a multiple of 0.05')
   })
   it('is about a body the route takes', () => {
     const effects = [

@@ -3,6 +3,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { startSession } from '../../../core/audition'
 import type { CharacterSummary } from '../../../core/summary'
 import type { Voice } from '../../../core/voiceSearch'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -15,7 +16,7 @@ const { routeHref } = await import('../../route')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 /** The keeper, uncast and with no lines yet. */
 const keeper: CharacterSummary = {
