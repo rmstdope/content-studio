@@ -811,6 +811,17 @@ describe('looking at, dropping and using fine-tunes', () => {
   })
 })
 
+describe("the browser's clock", () => {
+  it('calls after its delay, and never once cancelled', async () => {
+    const calls: string[] = []
+    const asked = browserClock.now()
+    browserClock.after(1, () => calls.push('cancelled'))()
+    await new Promise<void>((done) => browserClock.after(5, done))
+    expect(calls).toEqual([])
+    expect(browserClock.now()).toBeGreaterThan(asked)
+  })
+})
+
 describe('a late click meant for Stop', () => {
   const making = [
     { n: 1, state: 'making' as const, elapsed: 5, expected: 25, model: 'klein' as const },
@@ -893,15 +904,6 @@ describe('a late click meant for Stop', () => {
     expect(chooseOff()).toBe(true)
     await time.pass(1)
     expect(chooseOff()).toBe(false)
-  })
-
-  it("runs on the browser's clock when given none, which calls late and not once cancelled", async () => {
-    const calls: string[] = []
-    const asked = browserClock.now()
-    browserClock.after(1, () => calls.push('cancelled'))()
-    await new Promise<void>((done) => browserClock.after(5, done))
-    expect(calls).toEqual([])
-    expect(browserClock.now()).toBeGreaterThan(asked)
   })
 
   it('does nothing on Enter in the dimmed second', async () => {
