@@ -81,7 +81,7 @@ NAR-4  The person can hear a character's recorded lines as the game plays them, 
 
 SPD-1  Anything paid (a recording, an audition, an ElevenLabs take) first says what it can cost,
        and is held to the limit the person agreed.
-       Proven by: nothing yet
+       Proven by: test/system/SPD-1.test.ts
 SPD-2  The Spending page shows what has been spent, dollars and credits apart.
        Proven by: nothing yet
 
