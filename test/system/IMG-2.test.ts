@@ -14,8 +14,8 @@ import { startStudio } from './studio'
 /** The game's palette. */
 const PALETTE = ['#101010', '#e00000', '#0000e0', '#f0f0f0']
 
-/** What the fake model paints a new picture with: red in the palette. */
-const PICTURE = '#f40c0c'
+/** What the fake model paints new pictures with, one flat colour per take, which tells them apart. */
+const PICTURES = ['#181818', '#f40c0c', '#c40808']
 
 /** What the fake edit model paints into the picture, one colour per take, and its palette colour. */
 const CHANGES = [
@@ -89,6 +89,7 @@ describe('IMG-2: a change is painted into part of a picture, compared and chosen
 
   /** What the edit model was asked for, in turn, and the picture it was given to change. */
   const edits: { request: ImageRequest; given: ReturnType<typeof lookOf> }[] = []
+  let made = 0
   const { root, page } = startStudio(
     {
       'content-studio.json': projectJson({
@@ -119,10 +120,12 @@ describe('IMG-2: a change is painted into part of a picture, compared and chosen
         ...createFakeImages(0),
         generate: async (request) => {
           const { width, height, seed, editing } = request
-          if (editing === undefined) return { png: painting(width, height, PICTURE), seed }
+          if (editing === undefined) {
+            return { png: painting(width, height, PICTURES[made++]!), seed }
+          }
           const given = lookOf(new Uint8Array(readFileSync(editing)))
           const { painted } = CHANGES[(edits.push({ request, given }) - 1) % CHANGES.length]!
-          return { png: painting(width, height, PICTURE, painted), seed }
+          return { png: painting(width, height, given.colours[0]!, painted), seed }
         },
       },
     },
@@ -173,13 +176,18 @@ describe('IMG-2: a change is painted into part of a picture, compared and chosen
     }
   }
 
-  /** The picture the game has once the image's take is chosen, and the size of that take. */
+  /** The picture the game has once a take of the image is chosen, and the size of that take. */
   let chosen: { picture: ReturnType<typeof inGame>; width: number; height: number }
 
   it('paints the change the game asks for into the marked part of the chosen picture', async () => {
-    await send('POST', '/api/images/inn/takes', { count: 1 })
-    await until('the picture', async () => (await takesOf()).takes[0]?.look === 'ready')
-    await send('POST', '/api/images/inn/choose', { n: 1 })
+    await send('POST', '/api/images/inn/takes', { count: PICTURES.length })
+    await until('the pictures', async () => {
+      const { takes } = await takesOf()
+      return takes.length === PICTURES.length && takes.every((take) => take.look === 'ready')
+    })
+    // Neither the first nor the newest, so the chosen picture is the one patched.
+    await send('POST', '/api/images/inn/choose', { n: 2 })
+    const [picked] = (await shown('/api/images/inn/takes/2')).colours
     const view = await patches()
     if (!view.chosen.known || !view.chosen.take) throw new Error('no picture to patch')
     chosen = { picture: inGame('inn.png'), ...view.chosen.take }
@@ -197,7 +205,7 @@ describe('IMG-2: a change is painted into part of a picture, compared and chosen
       Array(2).fill('Hang a sign by the door'),
     )
     for (const { given } of edits) {
-      expect(given.colours).toEqual([PICTURE])
+      expect(given.colours).toEqual([picked!])
       expect(given.width).toBeLessThan(chosen.width)
       expect(given.height).toBeLessThan(chosen.height)
     }
@@ -233,7 +241,9 @@ describe('IMG-2: a change is painted into part of a picture, compared and chosen
     for (const n of [2, 1]) {
       const take = await shown(`/api/images/inn/patches/sign/takes/${n}`)
       const painted = take.at(MARK.x + MARK.width / 2, MARK.y + MARK.height / 2)
-      const expected = CHANGES.find((change) => change.painted === painted)!.inPalette
+      const change = CHANGES.find((change) => change.painted === painted)
+      if (!change) throw new Error(`take ${n} has ${painted} in the middle of the mark`)
+      const expected = change.inPalette
       // What the page shows as what the game gets.
       const offered = await shown(`/api/images/inn/patches/sign/takes/${n}/game`)
 
