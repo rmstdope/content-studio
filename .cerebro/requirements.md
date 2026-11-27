@@ -39,7 +39,7 @@ OVW-3  A greyed control says why it is off, on hover, focus or tap, and stays re
 
 SET-1  Setup shows every tool, key and model each kind of content needs, whether it is there, and
        how to install what is missing.
-       Proven by: nothing yet
+       Proven by: test/system/SET-1.test.ts
 SET-2  The person chooses the models for narration (audition, draft, final), music, images and
        sound effects on Setup, and the choice is saved in the project file.
        Proven by: test/system/SET-2.test.ts

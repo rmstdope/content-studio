@@ -165,6 +165,7 @@ export function createContext({
   effects,
   sceneRender,
   spendLog: givenSpendLog,
+  computer,
 }: ServerOptions) {
   /** The port the server listens on, set once it does: the guards need it. */
   const listening: { port?: number } = {}
@@ -897,6 +898,7 @@ export function createContext({
     elevenFor,
     elevenHeld,
     cleanJobs,
+    computer,
     levelJobs,
     elevenWork,
     encode,

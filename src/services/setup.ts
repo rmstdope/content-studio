@@ -39,6 +39,13 @@ export interface Machine {
   arch: string
 }
 
+/** What the setup check looks at on a computer: its tools and platform, its environment and its Stable Audio folder. */
+export interface Computer {
+  machine: Machine
+  environment: Record<string, string | undefined>
+  stableAudioDir: string
+}
+
 const thisMachine: Machine = {
   which: (command) => Bun.which(command) !== null,
   platform: process.platform,

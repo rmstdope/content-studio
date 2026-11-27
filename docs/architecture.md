@@ -2535,7 +2535,9 @@ Images' and scenes' routes are described with them:
 - System tests are `test/system/<ID>.test.ts`, one per requirement of `.cerebro/requirements.md`,
   named by its ID. Each starts the studio's real server on a temporary game with every provider and
   model faked (`startStudio` in `test/system/studio.ts`; ffmpeg is the real one) and drives it as
-  the page does (its requests) or as an agent does (MCP).
+  the page does (its requests) or as an agent does (MCP). A test of Setup also fakes what Setup
+  looks at on the computer (`ServerOptions.computer`: its tools and platform, its environment and
+  its Stable Audio folder).
 - UI: pure helpers (`src/ui/*.ts`) have unit tests, and component tests (`*.test.tsx`) cover every
   workspace's pages and panels (lines, characters, audition, music, images, effects, scenes, setup)
   and shared components (sidebar, pager, tips). There is no browser test.

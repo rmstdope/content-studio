@@ -19,6 +19,7 @@ import { FishTierBody, ModelsBody, TakeFadeBody, badBody, notFound } from '../sh
 export function setupRoutes(c: RouteContext) {
   const {
     busyNow,
+    computer,
     creditOf,
     effectGenerator,
     effectHealth,
@@ -52,9 +53,9 @@ export function setupRoutes(c: RouteContext) {
           await checkSetup(
             projectFile,
             creditOf,
-            undefined,
-            undefined,
-            undefined,
+            computer?.machine,
+            computer?.environment,
+            computer?.stableAudioDir,
             elevenAccountOf,
             imageGenerator,
             imageHealth,
