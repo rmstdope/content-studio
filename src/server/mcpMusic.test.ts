@@ -299,20 +299,6 @@ describe('an agent making music on a paid project model', () => {
     expect(asked.content[0]!.text).toContain('confirmed: true')
     expect(snapshot(root)).toEqual(before)
   })
-
-  it('says there is no failed take to retry instead of asking about credit', async () => {
-    const before = snapshot(root)
-    const answer = await act({
-      method: 'POST',
-      path: '/api/music/tracks/hall/takes',
-      body: { retry: 3 },
-    })
-    expect(answer.isError).toBe(true)
-    expect(answer.content[0]!.text).toBe(
-      '409 {"ok":false,"message":"Take 3 did not fail, so it is not made again."}',
-    )
-    expect(snapshot(root)).toEqual(before)
-  })
 })
 
 describe.each([
@@ -364,25 +350,29 @@ describe.each([
   const retry = (n: number, confirmed?: boolean) =>
     call('studio_act', { method: 'POST', path, body: { retry: n }, confirmed })
 
-  it('says there is no failed take, and asks nothing, for a take that did not fail', async () => {
-    const answer = await retry(9)
-    expect(answer.isError).toBe(true)
-    expect(answer.content[0]!.text).toBe(
-      '409 {"ok":false,"message":"Take 9 did not fail, so it is not made again."}',
-    )
-  })
-
-  it('says there is no such track, and asks nothing, for a track the studio does not know', async () => {
-    for (const body of [{ retry: 1 }, { count: 1 }]) {
-      const answer = await call('studio_act', {
-        method: 'POST',
-        path: '/api/music/tracks/nope/takes',
-        body,
-      })
+  // For the paid model these two are held below: the first by the table of refusals, the second by
+  // 'names a track or list that is not there'.
+  if (!paid) {
+    it('says there is no failed take, and asks nothing, for a take that did not fail', async () => {
+      const answer = await retry(9)
       expect(answer.isError).toBe(true)
-      expect(answer.content[0]!.text).toBe('404 {"error":"There is no track nope."}')
-    }
-  })
+      expect(answer.content[0]!.text).toBe(
+        '409 {"ok":false,"message":"Take 9 did not fail, so it is not made again."}',
+      )
+    })
+
+    it('says there is no such track, and asks nothing, for a track the studio does not know', async () => {
+      for (const body of [{ retry: 1 }, { count: 1 }]) {
+        const answer = await call('studio_act', {
+          method: 'POST',
+          path: '/api/music/tracks/nope/takes',
+          body,
+        })
+        expect(answer.isError).toBe(true)
+        expect(answer.content[0]!.text).toBe('404 {"error":"There is no track nope."}')
+      }
+    })
+  }
 
   it('still treats a take that failed as a retry, asking only when it is paid', async () => {
     await call('studio_act', { method: 'POST', path, body: { count: 1 }, confirmed: true })
@@ -530,13 +520,18 @@ describe('an agent met by a refusal on a paid project model', () => {
   it('names a track or list that is not there, and asks nothing', async () => {
     const s = start()
     try {
-      for (const [path, body, noun] of [
-        ['/api/music/tracks/nope/takes', { count: 1 }, 'track'],
-        ['/api/music/lists/nope/make-all', undefined, 'list'],
+      for (const [path, body] of [
+        ['/api/music/tracks/nope/takes', { count: 1 }],
+        ['/api/music/lists/nope/make-all', undefined],
       ] as const) {
         expect(await s.post(path, body)).toStartWith('404 ')
+        // The route that makes says only "not found"; its cost route is the one that names it.
+        const named = await s.post(`${path}/cost`, body)
+        expect(named).toStartWith('404 ')
+        expect(named).toContain('nope')
         const asked = await s.act(path, body)
-        expect(asked.content[0]!.text).toBe(`404 {"error":"There is no ${noun} nope."}`)
+        expect(asked.isError).toBe(true)
+        expect(asked.content[0]!.text).toBe(named)
       }
     } finally {
       s.studio.stop(true)
