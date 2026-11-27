@@ -33,7 +33,7 @@ OVW-2  The Changes page lists what git sees of the files the studio wrote, so th
        what to commit.
        Proven by: nothing yet
 OVW-3  A greyed control says why it is off, on hover, focus or tap, and stays reachable with Tab.
-       Proven by: nothing yet
+       Proven by: test/system/OVW-3.test.ts
 
 ## Setup (SET)
 
