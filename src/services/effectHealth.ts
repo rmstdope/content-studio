@@ -7,7 +7,7 @@ import {
 } from '../core/effectHealth'
 import type { EffectModelId } from '../core/effectModels'
 import type { Problem } from '../core/project'
-import { readResource, writeAtomic } from './files'
+import { readResource, writeOrRefuse } from './files'
 import { createSerial } from './serial'
 
 /** What an effect that failed tells the store: the effects tool's last error line. */
@@ -38,7 +38,7 @@ export function createEffectHealth({
       const root = dirname(projectFile)
       const models = await load(root)
       if (apply(models))
-        await writeAtomic(root, EFFECT_HEALTH_FILE, `${JSON.stringify({ models }, null, 2)}\n`)
+        await writeOrRefuse(root, EFFECT_HEALTH_FILE, `${JSON.stringify({ models }, null, 2)}\n`)
     })
   return {
     read: (projectFile) => turns.run(projectFile, () => load(dirname(projectFile))),

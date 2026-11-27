@@ -7,7 +7,7 @@ import {
 } from '../core/imageHealth'
 import type { ImageModelId } from '../core/imageModels'
 import type { Problem } from '../core/project'
-import { readResource, writeAtomic } from './files'
+import { readResource, writeOrRefuse } from './files'
 import { createSerial } from './serial'
 
 /** What a take that failed tells the store: the image and take, and the image tool's last error line. */
@@ -38,7 +38,7 @@ export function createImageHealth({
       const root = dirname(projectFile)
       const models = await load(root)
       if (apply(models))
-        await writeAtomic(root, IMAGE_HEALTH_FILE, `${JSON.stringify({ models }, null, 2)}\n`)
+        await writeOrRefuse(root, IMAGE_HEALTH_FILE, `${JSON.stringify({ models }, null, 2)}\n`)
     })
   return {
     read: (projectFile) => turns.run(projectFile, () => load(dirname(projectFile))),

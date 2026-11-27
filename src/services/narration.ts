@@ -36,7 +36,13 @@ import { joinWavs } from '../core/wav'
 import type { FishFactory } from './auditions'
 import { decodeClip, ffmpegEncoder, type Encoder } from './audio'
 import { saveCleaned } from './cleanedRecord'
-import { formatEntriesPerLine, formatLock, readResource, writeAtomic } from './files'
+import {
+  formatEntriesPerLine,
+  formatLock,
+  readResource,
+  writeOrRefuse,
+  refusalAnswer,
+} from './files'
 import type { Limiter } from './limit'
 import type { Transcriber } from './transcriber'
 import { keepHeard } from './heard'
@@ -610,8 +616,8 @@ export async function commitClip({
         // The original and its record first: a cleaned clip is never in the game without them.
         await keepOriginal(root, paths, key, clean ? temporaryOriginal : null, at)
         await rename(temporary, target)
-        await writeAtomic(root, paths.manifestPath, `${pythonJson(sorted(manifest))}\n`)
-        await writeAtomic(root, paths.lockPath, formatLock(lock))
+        await writeOrRefuse(root, paths.manifestPath, `${pythonJson(sorted(manifest))}\n`)
+        await writeOrRefuse(root, paths.lockPath, formatLock(lock))
         await keepWhatWasHeard(projectFile, cacheName, key, { ...take, at, text: line.text })
         return []
       },
@@ -652,7 +658,7 @@ async function keepOriginal(
   const cleaned: Cleaned = read === 'missing' ? {} : read
   const kept = `${paths.originalsPath}/${key}.mp3`
   if (original) {
-    await writeAtomic(root, kept, new Uint8Array(await readFile(original)))
+    await writeOrRefuse(root, kept, new Uint8Array(await readFile(original)))
     cleaned[key] = { at, original: `${key}.mp3` }
   } else if (cleaned[key]) {
     delete cleaned[key]
@@ -660,7 +666,7 @@ async function keepOriginal(
     return
   }
   if (original) {
-    await writeAtomic(root, paths.cleanedPath, formatEntriesPerLine(cleaned))
+    await writeOrRefuse(root, paths.cleanedPath, formatEntriesPerLine(cleaned))
   } else {
     await saveCleaned(root, paths, cleaned, [key])
   }
@@ -772,8 +778,8 @@ export async function removeOrphans(
       removed++
     }
     if (removed) {
-      await writeAtomic(root, read.paths.manifestPath, `${pythonJson(sorted(manifest))}\n`)
-      await writeAtomic(root, read.paths.lockPath, formatLock(lock))
+      await writeOrRefuse(root, read.paths.manifestPath, `${pythonJson(sorted(manifest))}\n`)
+      await writeOrRefuse(root, read.paths.lockPath, formatLock(lock))
     }
     return removed
   })
@@ -782,7 +788,7 @@ export async function removeOrphans(
 /** An accepted line, or why it was not. Null for an unknown part or line. */
 export type AcceptResult =
   | { ok: true; key: string }
-  | { ok: false; reason: 'not-weak'; message: string }
+  | { ok: false; reason: 'not-weak' | 'write'; message: string }
   | { ok: false; problems: Problem[] }
   | ProjectFailure
   | null
@@ -809,8 +815,13 @@ export async function acceptLine(
       return { ok: false, reason: 'not-weak', message: 'Only a weak line can be accepted.' }
     }
     const lock = { ...read.input.lock, [key]: { ...entry, accepted: true } }
-    await writeAtomic(dirname(projectFile), read.paths.lockPath, formatLock(lock))
-    return { ok: true, key }
+    return writeOrRefuse(dirname(projectFile), read.paths.lockPath, formatLock(lock)).then(
+      () => ({ ok: true as const, key }),
+      (error: unknown) => ({
+        ...refusalAnswer('accepting the line failed', (sentence) => `${sentence}.`)(error),
+        reason: 'write' as const,
+      }),
+    )
   })
 }
 
@@ -938,8 +949,8 @@ export async function measureLine(
     }
     manifest[key] = { ...now, duration, words: aligned.timed }
     lock[key] = { ...locked, heard }
-    await writeAtomic(root, read.paths.manifestPath, `${pythonJson(sorted(manifest))}\n`)
-    await writeAtomic(root, read.paths.lockPath, formatLock(lock))
+    await writeOrRefuse(root, read.paths.manifestPath, `${pythonJson(sorted(manifest))}\n`)
+    await writeOrRefuse(root, read.paths.lockPath, formatLock(lock))
     await keepWhatWasHeard(projectFile, read.cacheName, key, {
       heard,
       at: locked.at,

@@ -10,7 +10,7 @@ import {
 } from '../core/images'
 import { ImageManifestSchema } from '../core/imageTakes'
 import type { Problem, Project } from '../core/project'
-import { readResource, WriteRefused, writeAtomic, writeFailure, writeOrRefuse } from './files'
+import { readResource, WriteRefused, writeOrRefuse, refusalFailed } from './files'
 import { readImages } from './imageLists'
 import { patchesInGame, setAsideOn, type ManifestPatch } from './imagePatchGame'
 import { choices, sorted } from './musicClips'
@@ -88,12 +88,12 @@ async function syncNow(
     }
   }
   if (!changed) return { ok: true }
-  try {
-    await writeAtomic(root, config.manifest, `${JSON.stringify(sorted(manifest), null, 2)}\n`)
-  } catch (error) {
-    return { ok: false, reason: 'write', message: writeFailure(error) }
-  }
-  return { ok: true }
+  const refused = await writeOrRefuse(
+    root,
+    config.manifest,
+    `${JSON.stringify(sorted(manifest), null, 2)}\n`,
+  ).then(() => null, refusalFailed('saving the images manifest failed'))
+  return refused ? { ok: false, reason: 'write', message: refused.message } : { ok: true }
 }
 
 /**

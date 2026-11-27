@@ -9,7 +9,7 @@ import type { Problem } from '../core/project'
 import { LockSchema } from '../core/resources'
 import { decodeClip, ffmpegEncoder, gainClip, type Encoder } from './audio'
 import { saveCleaned } from './cleanedRecord'
-import { formatEntriesPerLine, readResource, writeAtomic } from './files'
+import { formatEntriesPerLine, readResource, writeOrRefuse } from './files'
 import { inPartTurn } from './partFiles'
 import { openProject, readPart, type PartRead } from './workspace'
 
@@ -157,9 +157,9 @@ export async function cleanLine(
         clean: true,
         gainDb: output.lufs === null ? 0 : levelDb(level),
       })
-      await writeAtomic(root, kept, original)
+      await writeOrRefuse(root, kept, original)
       cleaned[key] = { at: entry.at, original: `${key}.mp3` }
-      await writeAtomic(root, read.paths.cleanedPath, formatEntriesPerLine(cleaned))
+      await writeOrRefuse(root, read.paths.cleanedPath, formatEntriesPerLine(cleaned))
       await rename(temporary, clip)
       return { ok: true }
     } catch (error) {

@@ -10,7 +10,7 @@ import {
   type RuledOut,
   type RuledOutVoice,
 } from '../core/ruledOut'
-import { characterFile, readJson, writeAtomic } from './files'
+import { characterFile, readJson, writeOrRefuse } from './files'
 import { createSerial } from './serial'
 import { cacheNameFor, knownCharacter, type ProjectFailure } from './workspace'
 import { CACHE_DIR } from '../core/project'
@@ -103,7 +103,7 @@ async function change(
     const root = dirname(projectFile)
     const file = characterFile(RULED_OUT_DIR, name)
     if (Object.keys(next.voices).length) {
-      await writeAtomic(root, file, `${JSON.stringify(next, null, 1)}\n`)
+      await writeOrRefuse(root, file, `${JSON.stringify(next, null, 1)}\n`)
     } else {
       await rm(resolveInRoot(root, file), { force: true })
     }

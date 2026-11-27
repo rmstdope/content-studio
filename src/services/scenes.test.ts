@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { projectJson, tempRepo } from '../../test/helpers'
+import { canRefuseWrites, projectJson, refusingWrites, tempRepo } from '../../test/helpers'
 import type { SceneMix } from '../core/scenes'
 import { saveScene } from './scenes'
 import { loadProject } from './workspace'
@@ -188,6 +188,22 @@ describe('saving a scene', () => {
     await saveScene(projectFile, 'act1', 'act1-store', { effects: [] }, null)
     expect(text(root)).toBe('{\n  "scenes": {\n    "act1-store": { "effects": [] }\n  }\n}\n')
   })
+
+  it.skipIf(!canRefuseWrites)(
+    'answers a mix that cannot be written with the file and the reason',
+    async () => {
+      const { root, projectFile } = await repo({ scenes: {} })
+      const { answer } = await refusingWrites(join(root, 'game/scenes'), () =>
+        saveScene(projectFile, 'act1', 'act1-store', entry(1), null),
+      )
+      expect(answer).toEqual({
+        ok: false,
+        kind: 'failed',
+        file: MIX,
+        message: 'permission denied',
+      })
+    },
+  )
 
   it('creates the file and its folder when the mix is not there yet', async () => {
     const { root, projectFile } = await repo()

@@ -94,10 +94,12 @@ retroquest/                      ← user runs `content-studio` here
    Models panel, and the retirement
    switch of `s1`. The Fish tier and the take fade are the person's own, not the project's: they are
    kept in the cache (`content-studio/cache/settings.json`), never in the project file.
-   A write that fails is one typed refusal, `WriteRefused` (`services/files.ts`): `writeOrRefuse`
-   raises it naming the file's path in the project and the reason, `refusalSentence` words it in one
-   place ("<file> could not be written"), and the take boards, the clip modules (`commitFailure`) and
-   the engines' `changeBoard` all go through it, so a failed write says which file, whichever operation met it.
+   A write that fails is one typed refusal, `WriteRefused` (`services/files.ts`): `writeOrRefuse`,
+   the only write the module exports, raises it naming the file's path in the project and the reason,
+   so no save can meet the system's own error. `refusalSentence` words it in one place ("<file> could
+   not be written"), and each shape of answer has one adapter over it: `refusalAnswer` (a message),
+   `refusalProblems` (the reason as a problem at the file) and `refusalFailed` (`failed`, with the
+   reason). A refusal no caller answers reaches the server's catch-all as the sentence.
 5. The API answers only requests addressed to `127.0.0.1` or `localhost` on its port (against DNS
    rebinding), and takes changes (POST) only from its own page (the Origin header).
 
@@ -138,7 +140,7 @@ content-studio/
 │   │                       spend.ts, elevenSpeech.ts; music*.ts, image*.ts, effect*.ts and scene*.ts
 │   │                       for the other workspaces; setup.ts (what the machine and project lack)
 │   ├── services/           I/O behind interfaces (fakes in tests): workspace.ts (find and load the
-│   │                       project), files.ts (resolveInRoot, writeAtomic, lock formatting),
+│   │                       project), files.ts (resolveInRoot, writeOrRefuse, lock formatting),
 │   │                       projectFile.ts, narration.ts and jobs.ts (recording lines, the job queue),
 │   │                       fish.ts, elevenlabs.ts, transcriber.ts, audio.ts (ffmpeg); music.ts,
 │   │                       stableAudio.ts, elevenMusic.ts and musicTakes.ts; images.ts (mflux) and
@@ -911,7 +913,7 @@ with the game's brief it was written over (`gameWas`). When the game's brief lat
 brief now, **Use the game's** (the studio's brief goes) and **Keep mine** (`POST
 /api/music/tracks/:id/keep-mine`: the studio's stays, `gameWas` becomes the game's brief now), and
 its list shows "game's changed" beside the brief, as sound effects and images do. The game's lists
-are never written. Validated like every resource and written through `writeAtomic`, one track per
+are never written. Validated like every resource and written through `writeOrRefuse`, one track per
 line in id order.
 
 **Pages.** The sidebar lists a workspace's acts only while one of its pages is open (Narration's
@@ -1037,8 +1039,9 @@ brief marks it as for any take. Its board entry gains `movedFrom: { title, n }` 
 the take's number there), kept for good and shown on the card and the In the game block. The service takes both
 boards' turns in sorted order, refuses the chosen take, an unreadable lock, a destination or source whose list is
 being refreshed from the game, and a kind mismatch, and writes the destination's WAV, then its board, then the
-source's board, and removes the source's WAV last, so a failure part-way leaves the take on both boards, never on
-neither. The manifest, lock and clips are not touched. The page stays on the first track and says where the take
+source's board, and removes the source's WAV last, so a crash part-way leaves the take on both boards, never on
+neither; a refused write among the three undoes the earlier ones (`writeTogether`), so nothing moves and the answer
+names the file. The manifest, lock and clips are not touched. The page stays on the first track and says where the take
 went (a line that is not kept across a reload).
 
 **Fades of a stinger take** (built, as-k7i.2): every stinger take, and the chosen one in the In the game block, has a **Fades…** button that opens an editor in place of the card's waveform and buttons (loops get none): play it with the fades as they stand, a taller waveform with a draggable handle at the inner end of each fade, boxes for Fade in and Fade out (0.05 s steps; 0 is no fade) and a Shape menu (Smooth, a raised-cosine curve, or Straight, a linear ramp; one shape for both fades). Fades belong to the take: its board entry gains `fades: { in, out, shape }` (absent when it has none; `core/fades.ts`), kept through a move, gone with a drop, and never in the lock or the manifest, so a fade never marks a track "changed". The take's WAV on the board stays as generated. `applyFades` (pure) turns the WAV and the fades into the sound the game plays; **Choose** encodes that sound, so the game's `<track>.mp3` always holds the faded sound, never settings for the game to apply. `PUT /api/music/tracks/:id/takes/:file/fades` saves (`DELETE` removes, back to the take as generated); both run in the board's turn, refuse a loop, a take that is not there, lengths together longer than the take or negative, and a lock that cannot be read. When the take is the chosen one the game's file is written again first (the lock untouched) and the board second, so a failed encode changes nothing, and a board that cannot be written puts the game's previous file back (as-1wo: a failed save leaves the game byte-identical; if even that fails the refusal carries `gameChanged`), answered as a refusal with its reason ("The take board could not be written."), not a bare 500. A failed save or remove shows its red failure line above the editor's hint (as-8og). On the chosen take the failure line adds "The game still plays Take n as before." ("with its fades" for Remove fades), and nothing about the game when `gameChanged`. While the editor is open in the In the game block, the block shows the "fading" chip, and neither its own button row nor its line about Un-choose is rendered. `GET …/takes/:file?fadeIn=&fadeOut=&shape=` serves the take with those fades in its sound, so the editor and the cards play what the game will; a take with fades of its own plays without Setup's playback fade (`takeFade`), on its card, in the editor and in the In the game block. A trimmed take is faded after the cut: the fades' lengths are of the part between its cuts, the editor draws that part, and the game's file is the trimmed sound with the fades over it (`playedOf` in `services/musicTakes.ts`; `?trimmed=1` serves only the cuts, so fades asked for in the same address are not applied twice). Saving fades on the chosen take rewrites only its music file (`commitChoice` with `soundOnly`): the manifest and lock, an Accept included, stay as they are. One editor is open at a time (the other Fades… buttons are greyed with the reason), and while the lock cannot be read Fades… is greyed with Choose, Drop, Move… and Trim silence.
@@ -2119,7 +2122,7 @@ consumer rule beyond naming this page).
   player's own levels. Row order is the order of the table; it does not affect playing.
 - The studio writes the whole file again with stable key order (scenes in the declarations' order,
   then any scene the game no longer declares, in their old order) and two-space indentation (a scene's entry with effects has a line to each effect, a short one is on one line, so a Save changes the lines of its own scene), through
-  `writeAtomic`. A Save changes one scene's entry only, and only an act's file is rewritten. A
+  `writeOrRefuse`. A Save changes one scene's entry only, and only an act's file is rewritten. A
   `PUT /api/scenes/:part/:id` carries `{ scene, was }` (`was` the entry as the page read it); a
   stale `was` is refused with 409, as the model saves are (§8.8).
 - **Gone from the game** is derived on every read, never stored: a state, trigger or effect id in

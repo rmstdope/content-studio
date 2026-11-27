@@ -20,7 +20,7 @@ import { normalizeCue, withInside, wordsOf } from '../core/cued'
 import { clipInputs } from '../core/fingerprint'
 import { spokenPieces } from '../core/spoken'
 import type { FishFactory } from './auditions'
-import { writeAtomic } from './files'
+import { writeOrRefuse } from './files'
 import { createLimiter, type Limiter } from './limit'
 import { loadWorkspace, readPart, type ProjectFailure } from './workspace'
 import { providerId, providerOf } from '../core/voices'
@@ -336,7 +336,7 @@ async function speak(
       try {
         const audio = await fish.tts({ text: spoken, voice, model, ...tts })
         if (!audio.length) throw new Error('Fish Audio sent no audio')
-        await writeAtomic(root, takePath(key), audio)
+        await writeOrRefuse(root, takePath(key), audio)
       } catch (error) {
         // Nothing was made, so nothing is charged.
         budget?.refund(cost)
@@ -502,7 +502,7 @@ async function speakEleven(
         } catch {
           // Only the record of what it cost is lost; the take stays.
         }
-        await writeAtomic(root, takePath(key), audio)
+        await writeOrRefuse(root, takePath(key), audio)
         return { made: 'made' }
       },
     )

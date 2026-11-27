@@ -18,7 +18,7 @@ import {
   sceneKey,
   sceneOfKey,
 } from '../core/resources'
-import { readJson, writeAtomic } from './files'
+import { readJson, writeOrRefuse, refusalProblems } from './files'
 import { inPartTurn } from './partFiles'
 import { readPart, type ProjectFailure } from './workspace'
 
@@ -244,8 +244,10 @@ async function changeCues(
       const first = moved[0]!
       return { ok: false, problems: [{ file: path, path: `${first.at}.${first.name}`, message }] }
     }
-    await writeAtomic(root, path, formatEdits(changed))
-    return { ok: true }
+    return writeOrRefuse(root, path, formatEdits(changed)).then(
+      () => ({ ok: true as const }),
+      refusalProblems('saving the cue failed'),
+    )
   })
 }
 

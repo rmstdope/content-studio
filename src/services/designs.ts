@@ -20,7 +20,7 @@ import { changeDesigns, designId, designPreviewPath, readDesigns } from './desig
 import { FishError, NO_KEY } from './fish'
 import { ElevenLabsError, NO_ELEVENLABS_KEY, type ElevenLabsFactory } from './elevenlabs'
 import { appendTry } from './spending'
-import { writeAtomic } from './files'
+import { writeOrRefuse } from './files'
 import { ruledOutIds } from './ruledOut'
 import { castOwnVoice, changeSession, sessionFor, type CastResult } from './sessions'
 import { auditionIn, castProblems } from './takes'
@@ -261,7 +261,7 @@ export async function designElevenVoices(
     }
     const ids = designed.previews.map((_, index) => designId(characterId, language, stamp, index))
     for (const [index, preview] of designed.previews.entries()) {
-      await writeAtomic(root, designPreviewPath(ids[index]!), preview.audio)
+      await writeOrRefuse(root, designPreviewPath(ids[index]!), preview.audio)
     }
     const kept = await changeDesigns(
       projectFile,

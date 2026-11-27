@@ -37,7 +37,7 @@ import {
   type FishFactory,
 } from './auditions'
 import { designTakes, readDesigns } from './designStore'
-import { characterFile, readJson, writeAtomic } from './files'
+import { characterFile, readJson, writeOrRefuse } from './files'
 import { NO_ELEVENLABS_KEY, type ElevenLabsFactory } from './elevenlabs'
 import { NO_KEY } from './fish'
 import { ruledOutIds, updateRuledOut } from './ruledOut'
@@ -731,7 +731,7 @@ async function writeSession(
   language?: string,
 ) {
   const name = await cacheNameFor(projectFile, characterId, language)
-  await writeAtomic(dirname(projectFile), sessionFile(name), JSON.stringify(session, null, 1))
+  await writeOrRefuse(dirname(projectFile), sessionFile(name), JSON.stringify(session, null, 1))
 }
 
 /** What serialises a character's session changes: its project and the name of its file. */
