@@ -26,14 +26,13 @@ import { readResource, writeOrRefuse } from './files'
 import { freeGpu, gpuQueue } from './gpu'
 import { IMAGE_TAKES_DIR, readImages } from './imageLists'
 import { carryImageAreas } from './imageEdits'
-import { editStep } from './imageEditStep'
+import { editStep, queuedAnswer } from './imageEditStep'
 import { changePatchBoard, patchGameOf, patchPictureOf } from './imagePatchGame'
 import { downloadOf, type ImageGenerator } from './images'
 import { describeFailure, type ImageTakes } from './imageTakes'
 import { gameFilePath } from './musicLists'
 import { boardQueue, isSafeId } from './musicTakes'
 import { decodePng, encodePng, pngSize } from './png'
-import { smallMark, smallMarkText } from '../core/imageSmallMark'
 import { createKeptReader } from './keptRead'
 import { createSerial, type Serial } from './serial'
 import { createTakeEngine, type BoardAccess, type TakeEntry } from './takeEngine'
@@ -355,8 +354,7 @@ export function createImageFineTunes({
       queued.push(...reserved)
     }
     for (const entry of queued) void run(image, entry, source)
-    const small = 'count' in request ? smallMark(request.area, source) : null
-    return small ? { ok: true, warning: smallMarkText(small) } : { ok: true }
+    return queuedAnswer(request, source)
   }
 
   /** Forgets every fine-tune of the image: stops what is waiting or being made, empties the board and deletes the pictures. */
