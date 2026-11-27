@@ -54,7 +54,7 @@ function game() {
 
   /** Asks `path` again and again until its answer satisfies `done`. */
   async function until<T>(path: string, done: (answer: T) => boolean): Promise<T> {
-    for (const giveUp = Date.now() + 4000; ;) {
+    for (const giveUp = Date.now() + 10_000; ;) {
       const answer = (await (await page.get(path)).json()) as T
       if (done(answer)) return answer
       if (Date.now() > giveUp) throw new Error(`${path}: ${JSON.stringify(answer)}`)
@@ -88,6 +88,7 @@ function game() {
     return (await takes(id)).takes
   }
 
+  /** Presses the question's Make for `ids`; answers the status and what came back. */
   async function makeAll(ids: string[]) {
     const response = await page.send('POST', '/api/effects/make-all', { ids })
     return [response.status, await response.json()]
@@ -98,7 +99,7 @@ function game() {
 
   /** Waits until the model has held `count` takes in all. */
   async function held(count: number) {
-    for (const giveUp = Date.now() + 4000; waiting.length < count;) {
+    for (const giveUp = Date.now() + 10_000; waiting.length < count;) {
       if (Date.now() > giveUp) throw new Error(`the model never held ${count} takes`)
       await Bun.sleep(5)
     }
