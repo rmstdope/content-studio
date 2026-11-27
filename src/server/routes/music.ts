@@ -48,6 +48,7 @@ export function musicRoutes(c: RouteContext) {
     ...takeRoutes(c, {
       base: '/api/music/tracks',
       service: musicTakes,
+      noun: 'track',
       bodies: {
         make: MakeTakesBody,
         fades: SetFadesBody,

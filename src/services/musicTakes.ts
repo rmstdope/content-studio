@@ -46,7 +46,7 @@ import {
 } from '../core/musicTrim'
 import { readWav, writeWav } from '../core/wav'
 import { ffmpegEncoder, type Encoder } from './audio'
-import { createTakeEngine, type BoardAccess, type TakeEntry } from './takeEngine'
+import { createTakeEngine, noneMade, type BoardAccess, type TakeEntry } from './takeEngine'
 import {
   readResource,
   refusalAnswer,
@@ -725,13 +725,14 @@ export function createMusicTakes({
       if (!('retry' in request)) {
         const board = await readBoard(found.root, found.board)
         if ('ok' in board) return board
-        const refusal = await refuseUnwritable(found.root, found.board).catch(
-          refusalAnswer(
-            'the take numbers cannot be reserved',
-            (reason) => `No takes were made: ${reason}.`,
-          ),
-        )
-        if (refusal) return refusal
+        // Nothing was tried, so nothing is logged: the step logs it if it is made anyway.
+        try {
+          await refuseUnwritable(found.root, found.board)
+        } catch (error) {
+          const sentence = refusalSentence(error)
+          if (sentence === null) throw error
+          return { ok: false, message: noneMade('takes', sentence) }
+        }
       }
       return { ok: true, price: perMinuteWords(model) }
     },

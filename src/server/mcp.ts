@@ -1,5 +1,6 @@
 import type { RouteContext } from './context'
-import { allowedHosts, forbidden, parseOrNull, WITHOUT_HEADER } from './shared'
+import { allowedHosts, forbidden, WITHOUT_HEADER } from './shared'
+import { readSpendCheck } from '../core/spendCheck'
 import { ACTIONS, actionBody, matchAction, type ActionPage } from './mcpActions'
 import { READABLE, matchReadable, type ReadablePage } from './mcpReadable'
 import { describeSound, soundFacts, whisperLanguage, type WhisperAsk } from '../services/soundFacts'
@@ -214,12 +215,12 @@ export function mcpRoutes(c: RouteContext) {
     const response = await fetch(url, init)
     const text = await response.text()
     if (!response.ok) return { answer: failed(`${response.status} ${text}`) }
-    const check = parseOrNull(text) as { price?: unknown; unchanged?: unknown } | null
-    if (check?.unchanged !== undefined) {
+    const check = readSpendCheck(text)
+    if (check && 'unchanged' in check) {
       return { answer: { content: [{ type: 'text', text: JSON.stringify(check.unchanged) }] } }
     }
-    if (check?.price === null) return { spend: null }
-    const price = typeof check?.price === 'string' ? check.price : 'the price could not be found'
+    if (check && check.price === null) return { spend: null }
+    const price = check?.price ?? 'the price could not be found'
     return { spend: `might spend ElevenLabs credit (${price})` }
   }
 

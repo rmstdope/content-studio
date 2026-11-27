@@ -54,6 +54,11 @@ export class BoardUnusable extends Error {
   }
 }
 
+/** The refusal of takes whose numbers cannot be reserved, naming what was to be made. */
+export function noneMade(noun: string, reason: string): string {
+  return `No ${noun} were made: ${reason}.`
+}
+
 /** A failure as a sentence for the page. */
 export function describeFailure(error: unknown): string {
   const text = error instanceof Error ? error.message : String(error)
@@ -161,10 +166,7 @@ export function createTakeEngine<E extends TakeEntry, B extends TakeBoard>({
         board.next = first + count
         return first
       }).catch(
-        refusalAnswer(
-          'reserving the take numbers failed',
-          (reason) => `No ${noun} were made: ${reason}.`,
-        ),
+        refusalAnswer('reserving the take numbers failed', (reason) => noneMade(noun, reason)),
       )
       if (typeof first !== 'number') return first
       const made: E[] = []

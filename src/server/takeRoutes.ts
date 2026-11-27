@@ -43,6 +43,8 @@ export type TakeRoutesMedium<Make, Fades> = {
   /** The address before `/:id`, such as `/api/effects`. */
   base: string
   service: TakeService<Make, Fades>
+  /** What an id names, for the cost route's answer to one that is not there. */
+  noun?: string
   bodies: {
     make: ZodType<Make>
     fades: ZodType<Fades>
@@ -74,7 +76,7 @@ export function takeListRoutes<Make>(
     base,
     service,
     bodies,
-    noun = 'track',
+    noun = 'item',
   }: {
     base: string
     service: TakeListService<Make>
@@ -154,14 +156,14 @@ function levelRoute(
  */
 export function takeRoutes<Make, Fades>(
   c: Pick<RouteContext, 'fromOwnPage' | 'guard' | 'projectFile'>,
-  { base, service, bodies }: TakeRoutesMedium<Make, Fades>,
+  { base, service, bodies, noun }: TakeRoutesMedium<Make, Fades>,
 ) {
   const { fromOwnPage, guard, projectFile } = c
   const json = async (request: Request) => request.json().catch(() => null)
   const fades = (request: RouteRequest, value: Fades | null) =>
     service.setFades(projectFile, request.params.id, request.params.file, value)
   return {
-    ...takeListRoutes(c, { base, service, bodies }),
+    ...takeListRoutes(c, { base, service, bodies, noun }),
     [`${base}/:id/takes/:file`]: {
       GET: guard(async (request: RouteRequest) => {
         const file = await service.takeFile(projectFile, request.params.id, request.params.file)
