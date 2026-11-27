@@ -364,13 +364,9 @@ async function shell(
   timeoutMs: number,
   graceMs = GRACE_MS,
 ): Promise<{ ok: true; output: string } | { ok: false; message: string; output: string }> {
-  const child = Bun.spawn(['sh', '-c', command], {
-    cwd,
-    stdout: 'pipe',
-    stderr: 'pipe',
-    detached: true,
-  })
-  const forget = stopWithStudio(child.pid)
+  const { proc: child, forget } = stopWithStudio(() =>
+    Bun.spawn(['sh', '-c', command], { cwd, stdout: 'pipe', stderr: 'pipe', detached: true }),
+  )
   let timedOut = false
   let ended = false
   let grace: ReturnType<typeof setTimeout> | undefined

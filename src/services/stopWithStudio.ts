@@ -13,13 +13,19 @@ studio.contentStudioGroups ??= { running: new Set(), watched: false }
 const state = studio.contentStudioGroups
 
 /**
- * Notes a process started with `detached: true` (the leader of its own group) as the studio's, to
- * be stopped with the studio; gives what to call once it has ended.
+ * Starts a process with `start`, which spawns it with `detached: true` (the leader of its own
+ * group), and notes it as the studio's, to be stopped with the studio. The watch is set up before
+ * `start` runs: a signal that comes as the process starts is handled once it is noted, where
+ * unwatched it would end the studio and leave the process running. Gives the process, and what to
+ * call once it has ended.
  */
-export function stopWithStudio(pid: number): () => void {
+export function stopWithStudio<P extends { pid: number }>(
+  start: () => P,
+): { proc: P; forget: () => void } {
   watch()
-  state.running.add(pid)
-  return () => state.running.delete(pid)
+  const proc = start()
+  state.running.add(proc.pid)
+  return { proc, forget: () => state.running.delete(proc.pid) }
 }
 
 /** Sends `signal` to the process group `pid` leads: the process and everything it started. */

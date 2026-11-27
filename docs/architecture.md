@@ -1148,7 +1148,8 @@ studio), the same JSON-lines protocol as the Whisper worker. Both workers run in
 themselves (ACE-Step's `.cache/acestep/progress_estimates.json`) stays with the studio, ignored by
 its git. Every local worker (music, sound effects, Whisper, and each image take) runs in its own
 process group (`services/stopWithStudio.ts`), so stopping it stops what `uv run` started too, and
-the studio stops every one on exit, Ctrl-C, SIGTERM and its terminal closing. Each request names
+the studio stops every one on exit, Ctrl-C, SIGTERM and its terminal closing; it watches for
+these before it starts a process, so a signal that comes as one starts stops it too. Each request names
 the pair of models to make the take with (`dit` and `lm`, folders in the checkpoints folder); the
 worker loads a pair on the first take that needs it and swaps it, freeing the
 old, when a take asks for another. The pairs are the **music models** (`core/musicModels.ts`), each a
