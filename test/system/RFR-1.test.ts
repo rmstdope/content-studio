@@ -128,7 +128,8 @@ describe('RFR-1: Refresh dialog runs the game’s own command and shows what cha
     try {
       let ended = false
       const answered = studio.refresh().finally(() => (ended = true))
-      // Fake timers hold every clock, so this waits turn by turn: the test's timeout bounds it.
+      // Fake timers hold the clocks and Bun.sleep but not setImmediate, so this waits turn by
+      // turn: the test's timeout bounds it.
       while (noted().length < 3) {
         if (ended || over) throw new Error('the command never got going')
         await new Promise((resolve) => setImmediate(resolve))
