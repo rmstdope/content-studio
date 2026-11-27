@@ -88,6 +88,7 @@ describe('syncImageEntries', () => {
     expect(await run(['inn'], true)).toEqual({
       ok: false,
       reason: 'entry',
+      file: MANIFEST,
       message: 'the image has no entry in the images manifest',
     })
   })
@@ -97,6 +98,7 @@ describe('syncImageEntries', () => {
     expect(await broken.run(['inn'])).toEqual({
       ok: false,
       reason: 'read',
+      file: MANIFEST,
       message: 'the images manifest could not be read',
     })
     const full = repo({
@@ -106,7 +108,12 @@ describe('syncImageEntries', () => {
     chmodSync(join(full.root, 'web/public/images/generated'), 0o555)
     const answer = await full.run(['inn'])
     chmodSync(join(full.root, 'web/public/images/generated'), 0o755)
-    expect(answer).toMatchObject({ ok: false, reason: 'write', message: 'permission denied' })
+    expect(answer).toEqual({
+      ok: false,
+      reason: 'write',
+      file: MANIFEST,
+      message: 'permission denied',
+    })
   })
 
   it('waits for a take being chosen, which writes the same manifest', async () => {

@@ -2032,13 +2032,18 @@ describe('copying another image', () => {
       const { takes, file, root, settled } = await withHallChosen()
       mkdirSync(join(root, 'content-studio/cache/image-takes/inn'), { recursive: true })
       chmodSync(join(root, 'content-studio/cache/image-takes/inn'), 0o555)
+      const logged: unknown[][] = []
+      const quiet = console.error
+      console.error = (...args: unknown[]) => void logged.push(args)
       try {
-        const answer = await takes.copyFrom(file, 'inn', 'hall')
-        expect(answer).toMatchObject({ ok: false })
-        expect((answer as { message: string }).message).toContain(
-          'content-studio/cache/image-takes/inn/1.png could not be written: permission denied',
-        )
+        expect(await takes.copyFrom(file, 'inn', 'hall')).toEqual({
+          ok: false,
+          message:
+            'content-studio/cache/image-takes/inn/1.png could not be written: permission denied.',
+        })
+        expect(logged).toEqual([['copying the picture failed', expect.any(WriteRefused)]])
       } finally {
+        console.error = quiet
         chmodSync(join(root, 'content-studio/cache/image-takes/inn'), 0o755)
       }
       const view = await settled('inn')
