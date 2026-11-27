@@ -20,7 +20,7 @@ SAF-1  The studio writes only the files the project file names and its own files
        Proven by: nothing yet
 SAF-2  Only the studio's own page can change anything: a change asked for by another web page or
        address is refused.
-       Proven by: nothing yet
+       Proven by: test/system/SAF-2.test.ts
 SAF-3  No clip is deleted unless the person confirms it first.
        Proven by: nothing yet
 
