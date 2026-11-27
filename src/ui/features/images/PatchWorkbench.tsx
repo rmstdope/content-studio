@@ -5,7 +5,7 @@ import { wholeKeyText } from '../../wholeMark'
 import { useAfterSaved } from '../../useAfterSaved'
 import { useJobOpen } from './ImageJobTabs'
 import { cropWindow } from '../../../core/imagePixels'
-import { pictureShape } from './FitPicture'
+import { FitPicture } from './FitPicture'
 import { ChangeBadge, ChangeNote } from './MarkTag'
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import {
@@ -614,10 +614,7 @@ export function PatchWorkbench({
 
   const picture = (
     <>
-      <div
-        className="patch-picture"
-        style={{ ...pictureShape(space.width, space.height), maxWidth: pictureWidth }}
-      >
+      <FitPicture className="patch-picture" shape={space} drawnWidth={pictureWidth}>
         {game && (lookError !== null || shown?.look === 'bringing' || shown?.look === 'missing') ? (
           <div
             className={`look-empty${lookError !== null ? ' look-empty-err' : ''}`}
@@ -655,7 +652,7 @@ export function PatchWorkbench({
             {marking.drawn}
           </div>
         )}
-      </div>
+      </FitPicture>
       <span className="faint small">
         {game
           ? `${view.game.width} × ${view.game.height}`

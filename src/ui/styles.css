@@ -3304,6 +3304,15 @@ button.cue-chip[aria-expanded='true'] {
 .patches p {
   margin: 0;
 }
+/* A picture marked on, on Fine-tune, Patches and Named areas (`FitPicture`, which sets the ratio and
+   the widest it may be, the pixels drawn): as wide as the panel, and narrower when the window's
+   height, under a pinned bar where there is one (`--bar-height`), would not hold it whole, so a mark
+   reaches all of it (as-bt1m.1, as-zkky). Movement is not on this rule: its room starts where its
+   frame does on the page, with a floor and full screen, so `MovementPanel` measures it
+   (`--movement-room`). */
+.whole-in-view {
+  width: min(100%, calc((92dvh - var(--bar-height, 0px)) * var(--picture-ratio, 1)));
+}
 /* The picture as wide as its column. Patches overrides the width cap (`.patch-picture > .patch-stage`). */
 .patch-stage {
   position: relative;
@@ -5284,13 +5293,6 @@ textarea[aria-disabled='true'][data-why] {
   gap: 8px;
   min-width: 0;
 }
-/* As wide as the panel, and narrower when the window's height under the pinned bar (`--bar-height`,
-   measured by the panel) would not hold the picture whole, so a box reaches all of it, as on
-   Fine-tune and Patches (as-zkky). */
-.named-areas-picture > .named-area-stage,
-.named-areas-picture > .named-area-empty {
-  width: min(100%, calc((92dvh - var(--bar-height, 0px)) * var(--picture-ratio, 1)));
-}
 .named-area-stage {
   position: relative;
   border-radius: 10px;
@@ -5576,7 +5578,6 @@ textarea[aria-disabled='true'][data-why] {
 }
 .patch-picture {
   position: relative;
-  width: min(100%, calc(92dvh * var(--picture-ratio, 1)));
 }
 .patch-picture > .patch-stage,
 .patch-picture > .look-empty {
@@ -5939,9 +5940,8 @@ textarea[aria-disabled='true'][data-why] {
   outline-offset: 2px;
 }
 
-/* The Fine-tune job (as-uucl.2): every control above the picture, the picture as wide as the panel up
-   to its own pixel size (never stretched), and narrower when the window's height would not hold it
-   whole, so a mark reaches all of it (as-bt1m.1); the strip of fine-tunes below. */
+/* The Fine-tune job (as-uucl.2): every control above the picture, the picture (`.whole-in-view`)
+   centred, and the strip of fine-tunes below. */
 .fine-job {
   display: flex;
   flex-direction: column;
@@ -5949,7 +5949,6 @@ textarea[aria-disabled='true'][data-why] {
   min-width: 0;
 }
 .fine-picture {
-  width: min(100%, calc(92dvh * var(--picture-ratio, 1)));
   margin-inline: auto;
 }
 .fine-bar {
