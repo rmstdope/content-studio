@@ -14,6 +14,7 @@ import { useMoveTake } from '../../api'
 import { off } from '../../off'
 import { useTrackActions } from '../../trackActions'
 import { Overlay } from '../../components/Overlay'
+import { containerKeys, keepFocusOnBackdrop } from '../../components/containerKeys'
 
 /** Why the dialog's controls wait: the move is on its way. */
 const MOVING_WHY = 'Wait for the move to finish.'
@@ -126,35 +127,7 @@ export function MoveTakeDialog({
   }
 
   function onKeyDown(event: KeyboardEvent) {
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      if (!pending) onClose()
-      return
-    }
     const target = event.target as HTMLElement
-    if (event.key === 'Tab') {
-      // Tab and Shift+Tab wrap at the dialog's edges, so the keyboard never leaves it for the page
-      // behind, where Esc would no longer close it. The dialog holds only inputs and buttons; a
-      // link or a `[tabindex]` added to it must join this list.
-      const controls = [
-        ...(root.current?.querySelectorAll<HTMLInputElement | HTMLButtonElement>('input, button') ??
-          []),
-      ]
-      const first = controls[0]
-      const last = controls.at(-1)
-      const outside = !controls.includes(target as HTMLInputElement | HTMLButtonElement)
-      const wrapTo = event.shiftKey
-        ? outside || target === first
-          ? last
-          : null
-        : outside || target === last
-          ? first
-          : null
-      // While a move is under way every control is greyed: Tab then goes nowhere.
-      if (wrapTo !== null) event.preventDefault()
-      wrapTo?.focus()
-      return
-    }
     const onRow = target.getAttribute('role') === 'option'
     if (event.key === 'Enter' && (onRow || target === search.current)) {
       event.preventDefault()
@@ -181,15 +154,20 @@ export function MoveTakeDialog({
 
   return (
     <Overlay>
-      <div className="modal-back" onKeyDown={onKeyDown}>
+      <div className="modal-back" onMouseDown={keepFocusOnBackdrop()}>
         <div
           className="modal"
           role="dialog"
           aria-modal="true"
           aria-labelledby="move-take-title"
-          // A press on a spot that is not a control focuses the dialog rather than the page, so
-          // its keys (Esc above all) still reach `onKeyDown`.
-          tabIndex={-1}
+          {...containerKeys({
+            // Esc is the dialog's even while the move runs: it must not reach the page behind.
+            onEscape: () => {
+              if (!pending) onClose()
+            },
+            modal: true,
+            onKeyDown,
+          })}
           ref={root}
         >
           <h3 id="move-take-title">{moveTitle(take.n, kind)}</h3>

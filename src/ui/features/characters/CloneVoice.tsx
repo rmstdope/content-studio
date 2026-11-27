@@ -20,6 +20,7 @@ import { recordedLinesOf } from '../../inGame'
 import { off } from '../../off'
 import { routeHref } from '../../route'
 import { CLONING, cloneReasons } from '../../voiceOffText'
+import { containerKeys } from '../../components/containerKeys'
 
 /** A file chosen for the voice, with its length read in the browser (null: not audio). */
 interface Chosen extends Recording {
@@ -326,9 +327,7 @@ export function CloneVoice({
         event.preventDefault()
         if (state.canClone && !cloning) void submit()
       }}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape' && !cloning) close()
-      }}
+      {...containerKeys({ onEscape: cloning ? undefined : close })}
     >
       <span className="label">Voice · clone from recordings</span>
       <p className="muted">

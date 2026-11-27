@@ -9,6 +9,7 @@ const { act, createElement } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { CharacterView } = await import('./CharacterView')
+const { pressBlankThenEscape } = await import('../../../../test/pressBlank')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -113,6 +114,32 @@ describe('CharacterView', () => {
     // Focus comes back once the box is gone and the button is enabled again.
     await until(() => box() === null && document.activeElement === design())
 
+    await act(() => page.unmount())
+  })
+
+  it('closes the design box on Escape after a press on a spot that is not a control', async () => {
+    globalThis.fetch = studio
+    const container = document.createElement('div')
+    document.body.append(container)
+    const page = createRoot(container)
+    await act(() =>
+      page.render(
+        createElement(
+          QueryClientProvider,
+          { client: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+          createElement(CharacterView, { summary, characterId: 'keeper' }),
+        ),
+      ),
+    )
+    const design = () =>
+      [...container.querySelectorAll('button')].find((b) =>
+        b.textContent?.includes('Design a voice…'),
+      )!
+    await until(() => design().getAttribute('aria-disabled') !== 'true')
+    await act(() => design().click())
+    await until(() => container.querySelector('.design-box') !== null)
+    await act(() => pressBlankThenEscape(container.querySelector('.design-box h2')!))
+    expect(container.querySelector('.design-box') === null).toBe(true)
     await act(() => page.unmount())
   })
 

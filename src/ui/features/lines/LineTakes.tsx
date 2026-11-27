@@ -7,6 +7,7 @@ import { PauseIcon, PlayIcon } from '../../components/icons'
 import { Problems } from '../../components/Problems'
 import { percent, seconds } from '../../status'
 import { extraTakeWords } from '../../takes'
+import { containerKeys } from '../../components/containerKeys'
 
 /**
  * A line's extra takes, under its row: each played, compared by its score and length, and made
@@ -114,12 +115,8 @@ export function LineTakes({
       )}
       <div
         className="row-actions take-actions"
-        onKeyDown={(e) => {
-          if (e.key === 'Escape' && toConfirm !== null) {
-            e.stopPropagation()
-            back()
-          }
-        }}
+        // Only while a price is asked: the idle row takes no focus, and no keys, of its own.
+        {...(toConfirm !== null && containerKeys({ onEscape: back }))}
       >
         {toConfirm !== null ? (
           <>

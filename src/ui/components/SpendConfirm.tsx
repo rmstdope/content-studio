@@ -1,8 +1,9 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { usd } from '../../core/spend'
 import type { CreditResult } from '../../services/fish'
 import { off } from '../off'
 import { boxState, payLabel, payWhy } from '../sitting'
+import { containerKeys } from './containerKeys'
 
 /**
  * The box that asks how much a paid audition may spend before it does: the points about what is
@@ -60,9 +61,7 @@ export function SpendConfirm({
     event.preventDefault()
     if (state.kind === 'ask' && state.canPay && state.amount !== null && !busy) onPay(state.amount)
   }
-  const escape = (event: KeyboardEvent) => {
-    if (event.key === 'Escape') cancel()
-  }
+  const keys = containerKeys({ onEscape: cancel })
 
   if (state.kind === 'cant') {
     return (
@@ -70,7 +69,7 @@ export function SpendConfirm({
         className="panel confirm spend-confirm"
         role="alertdialog"
         aria-label="The audition can't start"
-        onKeyDown={escape}
+        {...keys}
       >
         <h2 className="section-title">The audition can’t start</h2>
         <p className="spend-reason">{state.message}</p>
@@ -93,7 +92,7 @@ export function SpendConfirm({
       role="alertdialog"
       aria-label={title}
       onSubmit={pay}
-      onKeyDown={escape}
+      {...keys}
     >
       <h2 className="section-title">{title}</h2>
       <ul className="confirm-effects">

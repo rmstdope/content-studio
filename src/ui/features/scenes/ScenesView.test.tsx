@@ -19,6 +19,7 @@ const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query
 const { summarizeScenes } = await import('../../../core/scenes')
 const { ScenesView } = await import('./ScenesView')
 const { WhyTip } = await import('../../components/WhyTip')
+const { pressBlankThenEscape } = await import('../../../../test/pressBlank')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -1204,6 +1205,37 @@ describe('leaving a scene with unsaved changes', () => {
     expect(dialog()).toBeNull()
     expect(document.activeElement).toBe(button(page, 'Refresh from the game'))
     expect(status(page)).toBe('Unsaved changes')
+  })
+
+  it('closes on Escape after a press on a spot that is not a control', async () => {
+    const page = render(open)
+    await ask(page)
+    act(() => pressBlankThenEscape(dialog()!.querySelector('h2')!))
+    expect(dialog() === null).toBe(true)
+    expect(status(page)).toBe('Unsaved changes')
+  })
+
+  it('keeps Tab inside the question, and the keyboard on a press on its backdrop', async () => {
+    const page = render(open)
+    await ask(page)
+    const first = button(document.body, "Don't save")
+    const save = dialog()!.querySelector<HTMLElement>('.btn-primary')!
+    const tab = (on: Element, shiftKey = false) =>
+      act(() => {
+        on.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true, cancelable: true }),
+        )
+      })
+    tab(save)
+    expect(document.activeElement).toBe(first)
+    tab(first, true)
+    expect(document.activeElement).toBe(save)
+    const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+    act(() => {
+      document.querySelector('.scene-leave-backdrop')!.dispatchEvent(down)
+    })
+    expect(down.defaultPrevented).toBe(true)
+    expect(dialog()).not.toBeNull()
   })
 
   it('refreshes after Don’t save, with the changes gone', async () => {

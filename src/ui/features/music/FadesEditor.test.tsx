@@ -10,6 +10,7 @@ const { act, createElement } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { FadesEditor } = await import('./FadesEditor')
+const { pressBlank, pressBlankThenEscape } = await import('../../../../test/pressBlank')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -292,6 +293,18 @@ describe('the fades editor', () => {
       h.box('Fade in').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
     })
     expect(sent).toHaveLength(1)
+  })
+
+  it('hears Escape after a press on a spot that is not a control, and saves nothing on Enter there', async () => {
+    const e = open()
+    e.type(e.box('Fade in'), '0.2')
+    const spot = e.q('.editor .take-row .muted')!
+    await act(async () => {
+      pressBlank(spot).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    })
+    expect(sent).toHaveLength(0)
+    act(() => pressBlankThenEscape(spot))
+    expect(e.closed).toEqual(['closed'])
   })
 
   it('moves a focused handle by 0.05 s, and by 0.5 s with Shift; the boxes follow', () => {

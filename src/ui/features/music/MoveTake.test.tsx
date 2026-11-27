@@ -419,6 +419,17 @@ describe('the Move dialog', () => {
     }
   })
 
+  it('keeps the keyboard in the dialog on a press on the backdrop, so Esc still closes it', async () => {
+    const page = render(village, view([take(3)]))
+    await click(page.buttons('Move…')[0])
+    const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+    await act(async () => {
+      document.querySelector('.modal-back')!.dispatchEvent(down)
+    })
+    expect(down.defaultPrevented).toBe(true)
+    expect(dialog()).not.toBeNull()
+  })
+
   it('moves with Up, Down and Enter, and closes with Esc, focus back on Move…', async () => {
     const page = render(village, view([take(3)]))
     const opener = page.buttons('Move…')[0]!

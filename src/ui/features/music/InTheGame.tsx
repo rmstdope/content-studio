@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { TrackRow } from '../../../core/music'
 import { envelopePoints, fadesLine, heardAs, type Fades } from '../../../core/fades'
 import { inTheGame, unchooseFailure, unchooseQuestion } from '../../../core/musicChoose'
@@ -21,6 +21,7 @@ import {
 import { movedFromLine } from '../../../core/musicMove'
 import { FadesEditor } from './FadesEditor'
 import { useTrackActions } from '../../trackActions'
+import { containerKeys } from '../../components/containerKeys'
 
 /** One clip at a time, shared with the takes below. */
 type Player = ReturnType<typeof useClipPlayer>
@@ -175,11 +176,7 @@ export function InTheGame({
       setAsking(false)
     }
     return (
-      <div
-        onKeyDown={(event: KeyboardEvent) => {
-          if (event.key === 'Escape' && !unchoose.isPending) cancel()
-        }}
-      >
+      <div {...containerKeys({ onEscape: unchoose.isPending ? undefined : cancel })}>
         <Confirm
           title={`Un-choose Take ${state.take}?`}
           effects={[]}

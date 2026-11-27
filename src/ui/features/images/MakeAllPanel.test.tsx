@@ -11,6 +11,7 @@ const { act, createElement } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { MakeAllPanel } = await import('./MakeAllPanel')
+const { pressBlankThenEscape } = await import('../../../../test/pressBlank')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -177,6 +178,15 @@ describe('Make takes for every image with no chosen take', () => {
     })
     expect(page.text()).not.toContain('Make 12 takes for 3 images?')
     expect(page.requests).toEqual([])
+  })
+
+  it('closes on Esc after a press on a spot in the question that is not a control', async () => {
+    const page = render(three)
+    await page.press('Make 4 takes each')
+    await act(async () =>
+      pressBlankThenEscape(page.container.querySelector('.make-all-question h3')!),
+    )
+    expect(page.container.querySelector('.make-all-question') === null).toBe(true)
   })
 
   it('asks the server on Make, closes the question and moves focus to Stop all', async () => {

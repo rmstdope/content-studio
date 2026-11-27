@@ -7,6 +7,7 @@ const { act, createElement } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { RetirementNotice } = await import('./RetirementNotice')
+const { pressBlankThenEscape } = await import('../../../test/pressBlank')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -36,6 +37,32 @@ describe('the s1 switch question', () => {
     })
     const mono = [...container.querySelectorAll('.confirm-effects .mono')].map((e) => e.textContent)
     expect(mono).toEqual(['s1', 's2.1-pro', 's1', 's2.1-pro', 'content-studio.json', 's1'])
+    act(() => root.unmount())
+  })
+
+  it('closes on Escape after a press on a spot in the question that is not a control', () => {
+    const container = document.createElement('div')
+    document.body.append(container)
+    const root = createRoot(container)
+    act(() =>
+      root.render(
+        createElement(
+          QueryClientProvider,
+          { client: new QueryClient() },
+          createElement(RetirementNotice, {
+            takes: ['draft'],
+            file: 'content-studio.json',
+            now: new Date('2026-10-26T00:00:00Z'),
+            onNotNow: () => {},
+          }),
+        ),
+      ),
+    )
+    act(() => {
+      container.querySelector<HTMLButtonElement>('.notice-actions .btn-primary')!.click()
+    })
+    act(() => pressBlankThenEscape(container.querySelector('.confirm h2')!))
+    expect(container.querySelector('.confirm') === null).toBe(true)
     act(() => root.unmount())
   })
 })

@@ -17,6 +17,7 @@ const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { EffectsView } = await import('./EffectsView')
 const { WhyTip } = await import('../../components/WhyTip')
+const { pressBlankThenEscape } = await import('../../../../test/pressBlank')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -521,6 +522,14 @@ describe('the dropped effects', () => {
     expect(text()).not.toContain('Forget your description of')
   })
 
+  it('treats Escape as Cancel after a press on a spot that is not a control', async () => {
+    const { button, container, text, settle } = render(list, effects({ dropped }))
+    act(() => button('Forget').click())
+    act(() => pressBlankThenEscape(container.querySelector('[role="alertdialog"] h2')!))
+    await settle()
+    expect(text()).not.toContain('Forget your description of')
+  })
+
   it('says so when the game turns out to list the effect again', async () => {
     const { button, container, text, settle } = render(
       list,
@@ -938,6 +947,13 @@ describe('Make all, on the Sound effects list', () => {
     expect(text()).not.toContain('Make 16 takes for 4 effects?')
     expect(document.activeElement).toBe(button('Make 4 takes each'))
     expect(posts(calls)).toEqual([])
+  })
+
+  it('closes on Escape after a press on a spot in the question that is not a control', () => {
+    const { container, button } = render(list, effects({ rows: four }), undefined, seeds())
+    act(() => button('Make 4 takes each').click())
+    act(() => pressBlankThenEscape(container.querySelector('.effects-make-all-question h2')!))
+    expect(container.querySelector('.effects-make-all-question') === null).toBe(true)
   })
 
   it('Make asks for the listed effects only', async () => {

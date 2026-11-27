@@ -7,6 +7,7 @@ const { act, createElement } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { CleanUp } = await import('./CleanUp')
+const { pressBlankThenEscape } = await import('../../../../test/pressBlank')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -186,6 +187,15 @@ describe('CleanLines', () => {
     expect(page.writes()).toEqual([])
     await act(() => page.button('Clean 26 lines…')!.click())
     await act(() => page.button('Cancel')!.click())
+    expect(page.writes()).toEqual([])
+  })
+
+  it('treats Escape as Cancel after a press on a spot in the question that is not a control', async () => {
+    const page = await show({ total: 38, cleaned: 12 })
+    await page.settle(() => page.button('Clean 26 lines…') !== null)
+    await act(() => page.button('Clean 26 lines…')!.click())
+    await act(() => pressBlankThenEscape(page.container.querySelector('.clean-ask h3')!))
+    expect(page.container.querySelector('.clean-ask') === null).toBe(true)
     expect(page.writes()).toEqual([])
   })
 
