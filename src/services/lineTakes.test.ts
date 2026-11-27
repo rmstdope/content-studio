@@ -2,7 +2,13 @@ import { describe, expect, it } from 'bun:test'
 import { mkdir } from 'node:fs/promises'
 import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { narrationInLanguages, projectJson, tempRepo } from '../../test/helpers'
+import {
+  narrationInLanguages,
+  projectJson,
+  tempRepo,
+  canRefuseWrites,
+  refusingWrites,
+} from '../../test/helpers'
 import { clipInputs, fingerprint } from '../core/fingerprint'
 import { ProjectSchema } from '../core/project'
 import { createBudget, type Budget } from '../core/spend'
@@ -516,5 +522,20 @@ describe('takeLine, its provider’s budget and slots', () => {
     expect(result).toMatchObject({ ok: true })
     expect(used).toEqual(['elevenlabs'])
     expect(credits.left).toBeLessThan(100)
+  })
+})
+
+describe.skipIf(!canRefuseWrites)('a take that cannot be kept', () => {
+  it('names the file and the reason instead of throwing', async () => {
+    const root = tempRepo(files)
+    const { fish } = fakeFish()
+    const made = await take(root, fish)
+    if (!made?.ok) throw new Error('expected a take')
+    const folder = dirname((await lineTakeFile(projectFileOf(root), 'act1', 'k1', made.take.id))!)
+    const before = readdirSync(folder)
+    const { answer } = await refusingWrites(folder, () => take(root, fish))
+    expect(answer).toMatchObject({ ok: false, reason: 'write' })
+    expect((answer as { message: string }).message).toEndWith('.wav could not be written.')
+    expect(readdirSync(folder)).toEqual(before)
   })
 })

@@ -3,7 +3,7 @@ import { dirname } from 'node:path'
 import { withNote } from '../core/notes'
 import type { Problem } from '../core/project'
 import { resolveInRoot } from '../core/paths'
-import { characterFile, writeAtomic } from './files'
+import { characterFile, writeOrRefuse } from './files'
 import { inPartTurn } from './partFiles'
 import { NOTES_DIR, readNotes, readPart, type ProjectFailure } from './workspace'
 
@@ -34,7 +34,7 @@ export async function setNote(
     if (next !== before) {
       const file = characterFile(NOTES_DIR, part.cacheName)
       if (Object.keys(next.lines).length) {
-        await writeAtomic(root, file, `${JSON.stringify(next, null, 1)}\n`)
+        await writeOrRefuse(root, file, `${JSON.stringify(next, null, 1)}\n`)
       } else {
         await rm(resolveInRoot(root, file), { force: true })
       }

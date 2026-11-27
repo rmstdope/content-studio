@@ -1,7 +1,7 @@
 import { rm, rmdir } from 'node:fs/promises'
 import type { Cleaned } from '../core/cleanedLines'
 import { resolveInRoot } from '../core/paths'
-import { formatEntriesPerLine, writeAtomic } from './files'
+import { formatEntriesPerLine, writeOrRefuse } from './files'
 
 /**
  * Saves a part's record of cleaned lines, then removes the originals kept for `forgotten` keys (in
@@ -17,7 +17,7 @@ export async function saveCleaned(
 ): Promise<void> {
   const empty = Object.keys(cleaned).length === 0
   if (empty) await rm(resolveInRoot(root, paths.cleanedPath), { force: true })
-  else await writeAtomic(root, paths.cleanedPath, formatEntriesPerLine(cleaned))
+  else await writeOrRefuse(root, paths.cleanedPath, formatEntriesPerLine(cleaned))
   for (const key of forgotten) {
     await rm(resolveInRoot(root, `${paths.originalsPath}/${key}.mp3`), { force: true })
   }

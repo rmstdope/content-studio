@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { DesignsSchema, emptyDesigns, type Designs } from '../core/designs'
 import { resolveInRoot } from '../core/paths'
-import { characterFile, readJson, writeAtomic } from './files'
+import { characterFile, readJson, writeOrRefuse } from './files'
 import { createSerial } from './serial'
 import { TAKES_DIR } from './takes'
 import { cacheNameFor } from './workspace'
@@ -65,7 +65,7 @@ export async function changeDesigns(
     const before = await readDesigns(projectFile, characterId, language)
     const next = edit(before)
     if (JSON.stringify(next) === JSON.stringify(before)) return before
-    await writeAtomic(
+    await writeOrRefuse(
       dirname(projectFile),
       characterFile(DESIGNS_DIR, name),
       `${JSON.stringify(next, null, 1)}\n`,

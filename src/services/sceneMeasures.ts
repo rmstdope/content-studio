@@ -9,7 +9,7 @@ import {
 import { sameMix } from '../core/sceneEdit'
 import { scenesLockFile, type Problem } from '../core/project'
 import type { SceneMix } from '../core/scenes'
-import { formatEntriesPerLine, readResource, writeAtomic } from './files'
+import { formatEntriesPerLine, readResource, writeOrRefuse } from './files'
 import { createSerial } from './serial'
 
 /**
@@ -46,7 +46,7 @@ function edit(projectFile: string, part: string, change: (lock: SceneLock) => vo
     }
     const lock = await readMeasures(root, part, [])
     change(lock)
-    await writeAtomic(root, file, formatEntriesPerLine(lock))
+    await writeOrRefuse(root, file, formatEntriesPerLine(lock))
   })
 }
 

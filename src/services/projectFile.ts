@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { basename, dirname } from 'node:path'
 import { parseProject, type Problem, type Project } from '../core/project'
-import { writeAtomic, writeFailure } from './files'
+import { writeOrRefuse, refusalProblems } from './files'
 import { createSerial } from './serial'
 import type { ProjectFailure } from './workspace'
 
@@ -62,19 +62,11 @@ export async function saveProject(
   const { text } = opened
   const indent = /\n([ \t]+)"/.exec(text)?.[1] ?? '  '
   const eol = text.includes('\r\n') ? '\r\n' : '\n'
-  try {
-    await writeAtomic(
-      dirname(projectFile),
-      basename(projectFile),
-      render(indent).replace(/\n/g, eol) + (/\n$/.test(text) ? eol : ''),
-    )
-    return { ok: true }
-  } catch (error) {
-    return {
-      ok: false,
-      problems: [{ file: basename(projectFile), path, message: writeFailure(error) }],
-    }
-  }
+  return writeOrRefuse(
+    dirname(projectFile),
+    basename(projectFile),
+    render(indent).replace(/\n/g, eol) + (/\n$/.test(text) ? eol : ''),
+  ).then(() => ({ ok: true as const }), refusalProblems('saving the project file failed', path))
 }
 
 /**

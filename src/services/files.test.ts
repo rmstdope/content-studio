@@ -7,7 +7,9 @@ import {
   isWriteFailure,
   listFiles,
   readJson,
-  writeAtomic,
+  refusalAnswer,
+  refusalFailed,
+  refusalProblems,
   writeFailure,
   writeOrRefuse,
   WriteRefused,
@@ -27,17 +29,18 @@ describe('formatEntriesPerLine', () => {
   })
 })
 
-describe('writeAtomic', () => {
+describe('writeOrRefuse', () => {
   it('creates the folder, writes the file and leaves no temporary file', async () => {
     const root = tempRepo({})
-    await writeAtomic(root, 'content-studio/narration/act1.lock.json', '{}\n')
+    await writeOrRefuse(root, 'content-studio/narration/act1.lock.json', '{}\n')
     expect(readFileSync(join(root, 'content-studio/narration/act1.lock.json'), 'utf8')).toBe('{}\n')
     expect(readdirSync(join(root, 'content-studio/narration'))).toEqual(['act1.lock.json'])
   })
 
   it('refuses to write outside the root', async () => {
     const root = tempRepo({})
-    await expect(writeAtomic(root, '../escape.json', '{}')).rejects.toThrow('outside')
+    const error = await writeOrRefuse(root, '../escape.json', '{}').catch((e) => e)
+    expect(error.reason).toContain('outside')
   })
 })
 
@@ -49,21 +52,21 @@ describe('listFiles', () => {
   })
 })
 
-describe('writeAtomic, twice at once', () => {
+describe('writeOrRefuse, twice at once', () => {
   it('leaves one complete write and no temporary files', async () => {
     const root = tempRepo({})
     const a = 'a'.repeat(200_000)
     const b = 'b'.repeat(200_000)
-    await Promise.all([writeAtomic(root, 'x.json', a), writeAtomic(root, 'x.json', b)])
+    await Promise.all([writeOrRefuse(root, 'x.json', a), writeOrRefuse(root, 'x.json', b)])
     expect([a, b]).toContain(readFileSync(join(root, 'x.json'), 'utf8'))
     expect(readdirSync(root)).toEqual(['x.json'])
   })
 })
 
-describe('writeAtomic, when the write fails', () => {
-  it('throws and leaves no temporary file', async () => {
+describe('writeOrRefuse, when the write fails', () => {
+  it('refuses and leaves no temporary file', async () => {
     const root = tempRepo({ 'taken/x': 'a folder where the file should go' })
-    await expect(writeAtomic(root, 'taken', '{}')).rejects.toThrow()
+    await expect(writeOrRefuse(root, 'taken', '{}')).rejects.toBeInstanceOf(WriteRefused)
     expect(readdirSync(root)).toEqual(['taken'])
   })
 })
@@ -117,7 +120,7 @@ describe('writeOrRefuse', () => {
     expect(refusalSentence(error)).toBe('blocked/board.json could not be written')
   })
 
-  it('writes like writeAtomic when nothing is wrong', async () => {
+  it('writes the file when nothing is wrong', async () => {
     const root = tempRepo({})
     await writeOrRefuse(root, 'a/b.json', '{}')
     expect(readFileSync(join(root, 'a/b.json'), 'utf8')).toBe('{}')
@@ -155,11 +158,40 @@ describe('writeTogether', () => {
           ['a.txt', 'new'],
           ['blocked/c.txt', 'new'],
         ],
-        write,
+        { write },
       ),
     ).toEqual({
       ok: false,
       message: "blocked/c.txt could not be written, and the game's files could not be put back.",
+    })
+  })
+
+  it('names the files as the caller does when they are not the game’s', async () => {
+    const root = tempRepo({})
+    const write = async (at: string, path: string, text: string | Uint8Array) => {
+      if (typeof text !== 'string') throw new WriteRefused(path, 'permission denied', null)
+      await writeOrRefuse(at, path, text)
+    }
+    const writes = [
+      ['a.txt', 'new'],
+      ['c.txt', 'new'],
+    ] as const
+    await writeOrRefuse(root, 'a.txt', 'old')
+    expect(await writeTogether(root, writes, { write, files: 'the files' })).toMatchObject({
+      ok: true,
+    })
+    expect(
+      await writeTogether(
+        root,
+        [
+          ['a.txt', 'newer'],
+          ['c.txt', new Uint8Array()],
+        ],
+        { write, files: 'the files' },
+      ),
+    ).toEqual({
+      ok: false,
+      message: 'c.txt could not be written, and the files could not be put back.',
     })
   })
 
@@ -181,4 +213,51 @@ describe('writeTogether', () => {
       expect(readFileSync(join(root, 'a.txt'), 'utf8')).toBe('old')
     },
   )
+})
+
+describe('the answers to a refused write', () => {
+  const refused = new WriteRefused('content-studio/b.json', 'permission denied', null)
+  /** `answer` for the refusal, and what it logged. */
+  function answered<T>(answer: (error: unknown) => T) {
+    const logged: unknown[][] = []
+    const quiet = console.error
+    console.error = (...args: unknown[]) => void logged.push(args)
+    try {
+      return { answer: answer(refused), logged }
+    } finally {
+      console.error = quiet
+    }
+  }
+
+  it('as a message: names the file, and keeps the refusal with its reason in the log', () => {
+    const { answer, logged } = answered(refusalAnswer('saving failed', (s) => `${s}.`))
+    expect(answer).toEqual({ ok: false, message: 'content-studio/b.json could not be written.' })
+    expect(logged).toEqual([['saving failed', refused]])
+  })
+
+  it('as problems: the reason at the file, at the path given', () => {
+    const { answer, logged } = answered(refusalProblems('saving failed', 'style'))
+    expect(answer).toEqual({
+      ok: false,
+      problems: [{ file: 'content-studio/b.json', path: 'style', message: 'permission denied' }],
+    })
+    expect(logged).toEqual([['saving failed', refused]])
+  })
+
+  it('as failed: the reason, with the file', () => {
+    const { answer, logged } = answered(refusalFailed('saving failed'))
+    expect(answer).toEqual({
+      ok: false,
+      kind: 'failed',
+      file: 'content-studio/b.json',
+      message: 'permission denied',
+    })
+    expect(logged).toEqual([['saving failed', refused]])
+  })
+
+  it('lets any other error go on', () => {
+    for (const answer of [refusalAnswer('x', (s) => s), refusalProblems('x'), refusalFailed('x')]) {
+      expect(() => answer(new Error('boom'))).toThrow('boom')
+    }
+  })
 })

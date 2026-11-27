@@ -6,7 +6,7 @@ import { resolveInRoot } from '../core/paths'
 import type { Problem } from '../core/project'
 import { LockSchema } from '../core/resources'
 import { gainClip } from './audio'
-import { formatLock, readResource, writeAtomic } from './files'
+import { formatLock, readResource, writeOrRefuse } from './files'
 import type { LineResult } from './cleanLines'
 import { inPartTurn } from './partFiles'
 import { readPart } from './workspace'
@@ -57,12 +57,12 @@ export async function levelLine(
       lock[key] = level === LEVEL.default ? rest : { ...rest, level }
       // The lock first: if the clip cannot then be put in place, the lock is put back, so the
       // next run never raises a clip that already has the gain.
-      await writeAtomic(root, read.paths.lockPath, formatLock(lock))
+      await writeOrRefuse(root, read.paths.lockPath, formatLock(lock))
       try {
         await rename(temporary, clip)
       } catch (error) {
         lock[key] = entry
-        await writeAtomic(root, read.paths.lockPath, formatLock(lock)).catch(() => {})
+        await writeOrRefuse(root, read.paths.lockPath, formatLock(lock)).catch(() => {})
         throw error
       }
       return { ok: true }

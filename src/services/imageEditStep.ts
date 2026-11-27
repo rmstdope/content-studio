@@ -10,7 +10,7 @@ import {
 } from '../core/imagePatches'
 import { smallMark, smallMarkText } from '../core/imageSmallMark'
 import { resolveInRoot } from '../core/paths'
-import { writeAtomic } from './files'
+import { writeOrRefuse } from './files'
 import { makeImageTake, type ImageGenerator } from './images'
 import { decodePng, encodePng, encodeTransparentPng } from './png'
 import type { Serial } from './serial'
@@ -61,7 +61,7 @@ export async function editStep(
       // The model gets the marked area with some context, not the whole picture: faster, and the
       // thing to change is larger in its view. Written in its turn, so the edit takes its place
       // in line with no await of its own: a caller that asks in order (the fine-tunes) is made in order.
-      () => writeAtomic(step.root, step.cropFile, encodePng(cropPixels(source, window))),
+      () => writeOrRefuse(step.root, step.cropFile, encodePng(cropPixels(source, window))),
     )
     if (signal.aborted) return null
     const part = decodePng(made.png)
