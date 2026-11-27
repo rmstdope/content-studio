@@ -171,6 +171,33 @@ describe('the Patches tab', () => {
     expect(patchLayoutOf({ width: 600, height: 600 })).toBe('chips')
   })
 
+  const door = { width: 160, height: 200 }
+
+  it('keeps the list beside only with room for it and the picture as Fine-tune draws it (as-fuaz)', () => {
+    // 92% of 806 px of window holds the whole take 590.9 px wide; the list and its gap take 236.
+    const room = { windowHeight: 806, take: { width: 816, height: 1024 } }
+    expect(patchLayoutOf(door, { ...room, width: 827 })).toBe('list')
+    expect(patchLayoutOf(door, { ...room, width: 826 })).toBe('chips')
+  })
+
+  it('asks for no more room than the pixels the image keeps of the take (as-fuaz)', () => {
+    const room = { windowHeight: 2000, take: { width: 400, height: 500 } }
+    expect(patchLayoutOf(door, { ...room, width: 636 })).toBe('list')
+    expect(patchLayoutOf(door, { ...room, width: 635 })).toBe('chips')
+  })
+
+  it('judges the room from the image’s shape alone while no take is known (as-fuaz)', () => {
+    // 92% of 1000 px at 4:5 is 736.
+    const room = { windowHeight: 1000, take: null }
+    expect(patchLayoutOf(door, { ...room, width: 972 })).toBe('list')
+    expect(patchLayoutOf(door, { ...room, width: 971 })).toBe('chips')
+  })
+
+  it('leaves a wide picture its chips whatever the room (as-fuaz)', () => {
+    const room = { width: 4000, windowHeight: 800, take: null }
+    expect(patchLayoutOf({ width: 320, height: 200 }, room)).toBe('chips')
+  })
+
   it('counts a patch chosen when it is chosen on the image’s chosen take', () => {
     const patch = { id: 'a', chosenOn: [3] } as unknown as PatchRow
     expect(patchChosen(3, patch)).toBe(true)

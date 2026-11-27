@@ -1,6 +1,7 @@
 import type { ImageRow, PatchRow } from '../core/images'
 import type { PatchWorkView } from '../core/imagePatches'
 import type { Chosen } from '../core/lockRead'
+import { markedFit } from '../core/imagePixels'
 import { movementTitle } from './motionText'
 import { IMAGE_STATUS_LABEL } from './imagesText'
 
@@ -111,9 +112,39 @@ export function patchesHeading(patches: readonly PatchRow[], chosen: Chosen): st
   return `Patches · ${done} of ${patches.length} chosen`
 }
 
-/** How the Patches tab lays out: a list beside a portrait image, chips above any other. */
-export function patchLayoutOf(size: { width: number; height: number }): 'list' | 'chips' {
-  return size.height > size.width ? 'list' : 'chips'
+/** The width of the list beside a portrait image, and the gap to the picture, as `.patches-lefty` has them. */
+export const PATCH_LIST_WIDTH = 220
+/** See `PATCH_LIST_WIDTH`. */
+export const PATCH_LIST_GAP = 16
+/** The share of the window's height `.whole-in-view` lets a picture take. */
+export const WINDOW_SHARE = 0.92
+
+/** What the Patches tab has to lay out in: its width and the window's height, and the chosen take. */
+export interface PatchRoom {
+  width: number
+  windowHeight: number
+  /** The chosen take's size; null until it is known, and then the image's shape alone is judged. */
+  take: { width: number; height: number } | null
+}
+
+/**
+ * How the Patches tab lays out: a list beside a portrait image, chips above any other. The list is
+ * beside only while there is room for it and the picture as wide as Fine-tune draws it (as-fuaz);
+ * `room` absent (not measured yet), a portrait image has its list beside.
+ */
+export function patchLayoutOf(
+  image: { width: number; height: number },
+  room?: PatchRoom | null,
+): 'list' | 'chips' {
+  const portrait = image.height > image.width
+  if (!portrait) return 'chips'
+  if (!room) return 'list'
+  const fit = markedFit(room.take ?? image, image)
+  const picture = Math.min(
+    room.take ? fit.pixels : Infinity,
+    WINDOW_SHARE * room.windowHeight * fit.ratio,
+  )
+  return picture + PATCH_LIST_WIDTH + PATCH_LIST_GAP <= room.width ? 'list' : 'chips'
 }
 
 /** What a patch says of how far it has come: its chosen take, or how many takes there are. */

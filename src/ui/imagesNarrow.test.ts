@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
+import { PATCH_LIST_GAP, PATCH_LIST_WIDTH, WINDOW_SHARE } from './imageJobs'
 
 const css = readFileSync(new URL('./styles.css', import.meta.url), 'utf8')
 
@@ -91,6 +92,14 @@ describe('the Patches tab in a narrow window', () => {
 describe('the Patches picture’s width (as-fuaz)', () => {
   it('takes none of it for the open patch: its box has no padding at the sides', () => {
     expect(rule('.game-patch-body')).toMatch(/padding:\s*0 0 14px;/)
+  })
+
+  it('judges the list’s room with the figures the stylesheet lays it out with', () => {
+    expect(rule('.patches-lefty')).toContain(
+      `grid-template-columns: ${PATCH_LIST_WIDTH}px minmax(0, 1fr);`,
+    )
+    expect(rule('.patches-lefty')).toContain(`gap: ${PATCH_LIST_GAP}px;`)
+    expect(rule('.whole-in-view')).toContain(`${WINDOW_SHARE * 100}dvh`)
   })
 })
 

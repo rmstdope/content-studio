@@ -108,6 +108,30 @@ async function render(
   return { host, sent }
 }
 
+/**
+ * Gives the patches' layout a width, which happy-dom, laying nothing out, never does, in a window
+ * 900 px high. `to` changes it and tells the page the window was resized.
+ */
+function panelWidth(first: number) {
+  let width = first
+  const real = HTMLElement.prototype.getBoundingClientRect
+  const height = window.innerHeight
+  HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+    return this.classList.contains('patches-layout') ? ({ width } as DOMRect) : real.call(this)
+  }
+  Object.assign(window, { innerHeight: 900 })
+  cleanups.push(() => {
+    HTMLElement.prototype.getBoundingClientRect = real
+    Object.assign(window, { innerHeight: height })
+  })
+  return {
+    to: async (next: number) => {
+      width = next
+      await act(async () => void window.dispatchEvent(new Event('resize')))
+    },
+  }
+}
+
 const pickButtons = (host: Element) => [
   ...host.querySelectorAll<HTMLButtonElement>('button.patch-pick'),
 ]
@@ -251,6 +275,97 @@ describe('GamePatchesPanel', () => {
         'dot',
       ])
     }
+  })
+
+  describe('where the list of a portrait image’s patches sits (as-fuaz)', () => {
+    const two = () => [patch('bread-taken'), patch('door-ajar')]
+    const portrait = { width: 600, height: 800 }
+    // A window 900 px high holds a 4:5 picture 662.4 px wide once its take's pixels are known.
+    const taken = {
+      chosen: chosenOf(true, { n: 2, width: 816, height: 1020, cropped: false }),
+      game: portrait,
+    }
+    const beside = (host: Element) => host.querySelector('.patches-layout.patches-lefty') !== null
+
+    it('is above, as chips, when the panel has no room for it and the whole picture', async () => {
+      panelWidth(800)
+      const { host } = await render(two(), undefined, taken, portrait)
+      expect(beside(host)).toBe(false)
+      expect(host.querySelector('.patches-side')).toBeNull()
+      expect(text(host.querySelector('.patches-chips .label'))).toBe('Patches · 0 of 2 chosen')
+      expect(pickButtons(host).map((r) => r.className)).toEqual([
+        'patch-pick pchip',
+        'patch-pick pchip',
+      ])
+    })
+
+    it('is beside when there is room for both', async () => {
+      panelWidth(900)
+      const { host } = await render(two(), undefined, taken, portrait)
+      expect(beside(host)).toBe(true)
+      expect(host.querySelector('.patches-side h3')).not.toBeNull()
+    })
+
+    it('asks only for the room of the pixels a small take has', async () => {
+      panelWidth(640)
+      const small = {
+        chosen: chosenOf(true, { n: 2, width: 400, height: 500, cropped: false }),
+        game: portrait,
+      }
+      const { host } = await render(two(), undefined, small, portrait)
+      expect(beside(host)).toBe(true)
+    })
+
+    it('moves as the window is resized, keeping the open patch, its words and the focus', async () => {
+      const panel = panelWidth(1200)
+      const { host } = await render(two(), undefined, taken, portrait)
+      await act(async () => pickButtons(host)[1]!.click())
+      const buttons = pickButtons(host)
+      const words = host.querySelector('textarea')!
+      buttons[1]!.focus()
+      for (const [width, list] of [
+        [600, false],
+        [1200, true],
+      ] as const) {
+        await panel.to(width)
+        expect(beside(host)).toBe(list)
+        // The very same elements: nothing of the patch is made again, and focus stays.
+        expect(pickButtons(host)[0]).toBe(buttons[0]!)
+        expect(pickButtons(host)[1]).toBe(buttons[1]!)
+        expect(document.activeElement).toBe(buttons[1]!)
+        expect(host.querySelector('textarea')).toBe(words)
+        expect(buttons[1]!.getAttribute('aria-current')).toBe('true')
+      }
+    })
+
+    it('stays put while the tab is hidden and the panel has no width', async () => {
+      const panel = panelWidth(600)
+      const { host } = await render(two(), undefined, taken, portrait)
+      await panel.to(0)
+      expect(beside(host)).toBe(false)
+    })
+
+    it('moves when the panel changes width without the window doing so', async () => {
+      let resized: () => void = () => {}
+      const real = globalThis.ResizeObserver
+      globalThis.ResizeObserver = class {
+        constructor(callback: () => void) {
+          resized = callback
+        }
+        observe() {}
+        disconnect() {}
+      } as unknown as typeof ResizeObserver
+      cleanups.push(() => void (globalThis.ResizeObserver = real))
+      let width = 1200
+      const rect = HTMLElement.prototype.getBoundingClientRect
+      HTMLElement.prototype.getBoundingClientRect = () => ({ width }) as DOMRect
+      cleanups.push(() => void (HTMLElement.prototype.getBoundingClientRect = rect))
+      const { host } = await render(two(), undefined, taken, portrait)
+      expect(beside(host)).toBe(true)
+      width = 500
+      await act(async () => resized())
+      expect(beside(host)).toBe(false)
+    })
   })
 
   it('opens by itself, instead of the first, the patch whose game words changed', async () => {
