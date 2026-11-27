@@ -226,6 +226,11 @@ beforeAll(async () => {
 describe('NAR-4: a character’s recorded lines are heard as the game plays them', () => {
   it('plays each line by itself, from the game’s own clip', async () => {
     await press(`All ${SAID.length} lines`)
+    // The narrator's recorded lines and no others: not the guide's, nor the one without a clip.
+    const offered = [...panel()!.querySelectorAll('li button')]
+    expect(offered.map((b) => b.getAttribute('aria-label'))).toEqual(
+      SAID.map(([, , text]) => `Play “${text}”`),
+    )
     for (const [act, key, text] of SAID) {
       await press(`Play “${text}”`)
       const [sound, ...more] = sounds()
@@ -250,7 +255,8 @@ describe('NAR-4: a character’s recorded lines are heard as the game plays them
     }
     // After the last one it is over.
     expect(sounds()).toEqual([])
-    button('Play all in turn')
+    // The button offers the list again.
+    expect(button('Play all in turn')).toBeDefined()
   })
 
   it('leaves the game’s files as they were', () => {
