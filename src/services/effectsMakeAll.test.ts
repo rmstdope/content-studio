@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { chmodSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { projectJson, tempRepo } from '../../test/helpers'
+import { projectJson, tempRepo, refusedSentence } from '../../test/helpers'
 import { writeWav } from '../core/wav'
 import type { Encoder } from './audio'
 import { createEffectTakes } from './effectTakes'
@@ -263,8 +263,7 @@ describe('a press that is stopped, or cannot start one effect', () => {
     try {
       expect(await takes.makeAll(file, ['door-creak'])).toEqual({
         ok: false,
-        message:
-          'No takes were made: content-studio/cache/effect-boards/door-creak.json could not be written: permission denied.',
+        message: `No takes were made: ${refusedSentence('content-studio/cache/effect-boards/door-creak.json')}.`,
       })
     } finally {
       console.error = quietLog

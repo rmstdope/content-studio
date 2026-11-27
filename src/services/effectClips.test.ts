@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { projectJson, tempRepo } from '../../test/helpers'
+import { projectJson, tempRepo, refusedSentence } from '../../test/helpers'
 import { EffectLockSchema, type EffectBoardTake } from '../core/effectTakes'
 import { ProjectSchema } from '../core/project'
 import { FileNotWritten, type Encoder, type EncodeOptions } from './audio'
@@ -68,7 +68,7 @@ describe('commitEffect', () => {
     try {
       expect(await choose(root, 'coins', 1, encode)).toMatchObject({
         ok: false,
-        message: 'audio/effects/coins.mp3 could not be written: permission denied.',
+        message: `${refusedSentence('audio/effects/coins.mp3')}.`,
       })
     } finally {
       console.error = quiet
@@ -308,7 +308,7 @@ describe('formatEffectLock', () => {
       try {
         expect(await uncommitEffect({ root, effects: config, id: 'coins' })).toMatchObject({
           ok: false,
-          message: 'audio/effects/manifest.json could not be written: permission denied.',
+          message: `${refusedSentence('audio/effects/manifest.json')}.`,
         })
       } finally {
         chmodSync(clips, 0o755)
@@ -329,8 +329,8 @@ describe('formatEffectLock', () => {
       try {
         expect(await uncommitEffect({ root, effects: config, id: 'coins' })).toEqual({
           ok: false,
-          message: 'content-studio/effects/lock.json could not be written: permission denied.',
-          reason: 'content-studio/effects/lock.json could not be written: permission denied',
+          message: `${refusedSentence('content-studio/effects/lock.json')}.`,
+          reason: refusedSentence('content-studio/effects/lock.json'),
         })
       } finally {
         chmodSync(studio, 0o755)

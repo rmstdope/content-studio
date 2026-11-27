@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { createTakeEngine, type BoardAccess, type TakeBoard, type TakeEntry } from './takeEngine'
 import { createSerial } from './serial'
 import { WriteRefused } from './files'
-import { tempRepo } from '../../test/helpers'
+import { tempRepo, refusedSentence } from '../../test/helpers'
 import { chmodSync, existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -439,7 +439,7 @@ describe('the take engine', () => {
             stop: new AbortController().signal,
             change: (board) => void board.next++,
           }),
-        ).rejects.toThrow('takes/1.wav could not be written: permission denied')
+        ).rejects.toThrow(refusedSentence('takes/1.wav'))
       } finally {
         chmodSync(join(root, 'takes'), 0o755)
       }
@@ -533,7 +533,7 @@ describe('the take engine', () => {
         console.error = quiet
       }
       expect(take!.state).toBe('failed')
-      expect(take!.message).toBe('takes/1.wav could not be written: permission denied.')
+      expect(take!.message).toBe(`${refusedSentence('takes/1.wav')}.`)
       expect(blamed).toBe(0)
       // A model's own failure still reaches it.
       const [other] = (await engine.reserve('p', 'x', access, 1, entry)) as TakeEntry[]

@@ -1,7 +1,13 @@
 import { afterAll, describe, expect, it } from 'bun:test'
 import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { canRefuseWrites, projectJson, refusingWrites, tempRepo } from '../../test/helpers'
+import {
+  canRefuseWrites,
+  projectJson,
+  refusingWrites,
+  tempRepo,
+  refusedSentence,
+} from '../../test/helpers'
 import { type FishClient } from '../services/fish'
 import { createLimiter } from '../services/limit'
 import { recordLine } from '../services/narration'
@@ -75,7 +81,7 @@ describe.skipIf(!canRefuseWrites)('server, a save nothing answers', () => {
     })
     expect(answer).toEqual([
       500,
-      { error: 'content-studio/narration/act1.lock.json could not be written: permission denied' },
+      { error: refusedSentence('content-studio/narration/act1.lock.json') },
     ])
   })
 })

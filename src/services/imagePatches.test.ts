@@ -11,7 +11,13 @@ import {
 } from 'node:fs'
 import * as fsPromises from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { projectJson, takeFailed, takesUnderWay, tempRepo } from '../../test/helpers'
+import {
+  projectJson,
+  takeFailed,
+  takesUnderWay,
+  tempRepo,
+  refusedSentence,
+} from '../../test/helpers'
 import type { EditModelId } from '../core/imageModels'
 import {
   keptBox,
@@ -181,7 +187,7 @@ describe.skipIf(process.getuid?.() === 0)(
         const view = await work()
         expect(view.failed).toMatchObject([{ n: 1 }])
         expect(view.failed[0]!.message).toBe(
-          `${FOLDER}/1.png could not be written: a file or folder is in the way.`,
+          `${refusedSentence(`${FOLDER}/1.png`, 'a file or folder is in the way')}.`,
         )
         expect(view.failedModels).toEqual([])
       } finally {
@@ -656,7 +662,7 @@ describe('takes of a declared patch', () => {
       try {
         expect(await patches.make(file, 'inn', 'door', { count: 2, area })).toEqual({
           ok: false,
-          message: `No takes were made: ${BOARD} could not be written: permission denied.`,
+          message: `No takes were made: ${refusedSentence(BOARD)}.`,
         })
       } finally {
         console.error = quiet
@@ -1308,7 +1314,7 @@ describe('a chosen take of a patch reaches the game', () => {
       try {
         expect(await patches.unchoose(file, 'inn', 'door')).toMatchObject({
           ok: false,
-          message: `${GAME_PATCH} could not be written: permission denied.`,
+          message: `${refusedSentence(GAME_PATCH)}.`,
         })
       } finally {
         chmodSync(clips, 0o755)

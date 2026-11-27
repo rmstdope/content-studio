@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import type { Voice } from '../src/core/voiceSearch'
 import type { ElevenAccount } from '../src/core/setup'
 import type { ElevenLabsClient, SpeechRequest } from '../src/services/elevenlabs'
+import { WriteRefused } from '../src/services/files'
 
 /** A minimal valid project file; override any top-level key. */
 export function projectJson(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -125,6 +126,24 @@ export function elevenVoiceOf(id: string, title = 'George'): Voice {
     author: '',
     sample: { text: '', audio: `https://example.com/${id}.mp3` },
   }
+}
+
+/**
+ * The sentence a refused write of `file` answers with, as `WriteRefused` words it, for a refused
+ * case to compare with: the wording itself is pinned in src/services/files.test.ts alone.
+ */
+export function refusedSentence(file: string, reason = 'permission denied'): string {
+  return new WriteRefused(file, reason, null).message
+}
+
+/**
+ * `refusedSentence` as the source of a regular expression, for a file that only a pattern can name
+ * (a take's random name): `file` matches where the sentence names it. Only the pattern's source is
+ * used, not its flags.
+ */
+export function refusedPattern(file: RegExp, reason = 'permission denied'): string {
+  const literal = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return refusedSentence('\0', reason).split('\0').map(literal).join(file.source)
 }
 
 /** Whether a read-only folder refuses writes: it does not for root, so those tests are skipped. */

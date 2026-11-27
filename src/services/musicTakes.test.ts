@@ -12,7 +12,14 @@ import { dirname, join } from 'node:path'
 import { tooLongLine } from '../core/fades'
 import { wavSeconds } from '../core/musicTake'
 import { readWav, writeWav } from '../core/wav'
-import { projectJson, tempRepo, canRefuseWrites, refusingWrites } from '../../test/helpers'
+import {
+  projectJson,
+  tempRepo,
+  canRefuseWrites,
+  refusingWrites,
+  refusedPattern,
+  refusedSentence,
+} from '../../test/helpers'
 import { setTrackBrief } from './briefs'
 import { createSerial } from './serial'
 import { choices } from './musicClips'
@@ -716,7 +723,9 @@ describe('createMusicTakes', () => {
       if (!view || !('ok' in view) || !view.ok) throw new Error('expected a view')
       expect(view.failed).toHaveLength(1)
       expect(view.failed[0]!.message).toMatch(
-        /^content-studio\/cache\/music-takes\/hall\/[^/]+\.1\.wav could not be written: permission denied\.$/,
+        new RegExp(
+          `^${refusedPattern(/content-studio\/cache\/music-takes\/hall\/[^/]+\.1\.wav/)}\\.$`,
+        ),
       )
     } finally {
       console.error = quiet
@@ -1430,9 +1439,13 @@ describe('moving a take', () => {
     expect(changed.status).toBe('changed')
   })
 
-  for (const [what, folder, refused] of [
-    ['sound', 'content-studio/cache/music-takes/hut', 'content-studio/cache/music-takes/hut/'],
-    ['board', 'content-studio/cache/music', 'content-studio/cache/music/hut.json'],
+  for (const [what, folder, named] of [
+    [
+      'sound',
+      'content-studio/cache/music-takes/hut',
+      /content-studio\/cache\/music-takes\/hut\/\S+/,
+    ],
+    ['board', 'content-studio/cache/music', /content-studio\/cache\/music\/hut\.json/],
   ] as const) {
     it.skipIf(!canRefuseWrites)(
       `moves nothing when the destination's ${what} cannot be written, and names the file`,
@@ -1448,8 +1461,7 @@ describe('moving a take', () => {
         )
         expect(answer).toMatchObject({ ok: false })
         const { message } = answer as { message: string }
-        expect(message).toStartWith(refused)
-        expect(message).toEndWith(' could not be written: permission denied.')
+        expect(message).toMatch(new RegExp(`^${refusedPattern(named)}\\.$`))
         expect(sounds()).toEqual(before)
         expect((await viewOf(m, 'hall')).takes).toHaveLength(2)
         expect((await viewOf(m, 'hut')).takes).toHaveLength(1)
@@ -1697,7 +1709,7 @@ describe('fading a stinger take', () => {
       expect(await made.takes.setFades(made.file, 'victory', made.name, fades)).toEqual({
         ok: false,
         message: expect.stringMatching(
-          /^content-studio\/cache\/music\/\S+\.json could not be written: permission denied\.$/,
+          new RegExp(`^${refusedPattern(/content-studio\/cache\/music\/\S+\.json/)}\\.$`),
         ),
       })
     } finally {
@@ -1717,8 +1729,7 @@ describe('fading a stinger take', () => {
     try {
       expect(await made.takes.make(made.file, 'victory', { count: 1 })).toEqual({
         ok: false,
-        message:
-          'No takes were made: content-studio/cache/music/victory.json could not be written: permission denied.',
+        message: `No takes were made: ${refusedSentence('content-studio/cache/music/victory.json')}.`,
       })
     } finally {
       console.error = quiet
@@ -1729,8 +1740,9 @@ describe('fading a stinger take', () => {
   it('names the board when dropping a take cannot save it', async () => {
     const made = await stinger()
     const folder = join(made.root, 'content-studio/cache/music')
-    const board =
-      /^The take could not be dropped: content-studio\/cache\/music\/\S+\.json could not be written: permission denied\.$/
+    const board = new RegExp(
+      `^The take could not be dropped: ${refusedPattern(/content-studio\/cache\/music\/\S+\.json/)}\\.$`,
+    )
     const quiet = console.error
     console.error = () => {}
     chmodSync(folder, 0o555)
@@ -1755,7 +1767,7 @@ describe('fading a stinger take', () => {
       expect(await made.takes.setFades(made.file, 'victory', made.name, fades)).toEqual({
         ok: false,
         message: expect.stringMatching(
-          /^content-studio\/cache\/music\/\S+\.json could not be written: permission denied\.$/,
+          new RegExp(`^${refusedPattern(/content-studio\/cache\/music\/\S+\.json/)}\\.$`),
         ),
       })
     } finally {
@@ -2073,7 +2085,7 @@ describe('trimming a stinger take', () => {
     await m.takes.choose(m.file, 'victory', one!.file)
     const refused = {
       ok: false,
-      message: 'content-studio/cache/music/victory.json could not be written: permission denied',
+      message: refusedSentence('content-studio/cache/music/victory.json'),
     } as const
     const before = gameOf(m)
     expect(await boardLocked(m, () => m.takes.trim(m.file, 'victory', one!.file, false))).toEqual(
@@ -2124,7 +2136,7 @@ describe('trimming a stinger take', () => {
       await boardLocked(m, () => m.takes.trim(m.file, 'victory', one!.file, false)),
     ).toMatchObject({
       ok: false,
-      message: 'content-studio/cache/music/victory.json could not be written: permission denied',
+      message: refusedSentence('content-studio/cache/music/victory.json'),
     })
     expect(Object.keys(lockOf(m.root)).sort()).toEqual(['defeat', 'victory'])
     expect(manifestOf(m.root).victory.duration).toBe(6)
@@ -2141,8 +2153,7 @@ describe('trimming a stinger take', () => {
       expect(await boardLocked(m, () => m.takes.trim(m.file, 'victory', one!.file, false))).toEqual(
         {
           ok: false,
-          message:
-            'content-studio/cache/music/victory.json could not be written: permission denied, and the game’s files could not be put back',
+          message: `${refusedSentence('content-studio/cache/music/victory.json')}, and the game’s files could not be put back`,
           gameChanged: true,
         },
       )
@@ -2156,7 +2167,7 @@ describe('trimming a stinger take', () => {
     const [one] = (await viewOf(m)).takes
     expect(await boardLocked(m, () => m.takes.trim(m.file, 'victory', one!.file, false))).toEqual({
       ok: false,
-      message: 'content-studio/cache/music/victory.json could not be written: permission denied',
+      message: refusedSentence('content-studio/cache/music/victory.json'),
     })
     expect((await viewOf(m)).takes[0]!.trim).toBeUndefined()
     expect(m.encoded).toHaveLength(0)
@@ -2170,7 +2181,7 @@ describe('trimming a stinger take', () => {
     m.fail(new FileNotWritten('permission denied'))
     const reason = {
       ok: false,
-      message: 'audio/music/victory.mp3 could not be written: permission denied',
+      message: refusedSentence('audio/music/victory.mp3'),
     } as const
     expect(await m.takes.trim(m.file, 'victory', one!.file, true)).toEqual(reason)
     m.fail(false)
@@ -2215,7 +2226,7 @@ describe('trimming a stinger take', () => {
     try {
       expect(await m.takes.trim(m.file, 'victory', one!.file, false)).toEqual({
         ok: false,
-        message: 'content-studio/cache/music/victory.json could not be written: permission denied',
+        message: refusedSentence('content-studio/cache/music/victory.json'),
       })
     } finally {
       console.error = quiet
