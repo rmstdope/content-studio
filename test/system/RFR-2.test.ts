@@ -130,6 +130,7 @@ async function refresh(path: string) {
 
 const before = game()
 
+// The cases are one session of a person's, in order: the last sums up what all of them ran.
 describe('RFR-2: Refresh from the game runs the game’s own command, and nothing else of it', () => {
   it('runs nothing of the game’s when the studio starts and its pages are read', async () => {
     expect(await listed()).toEqual({
@@ -143,7 +144,7 @@ describe('RFR-2: Refresh from the game runs the game’s own command, and nothin
     expect(renderer).toMatchObject({ named: true, ok: true })
 
     expect(ran()).toEqual([])
-    expect(game()).toMatchObject(before)
+    expect(game()).toEqual(before)
   })
 
   // The three pages of an act make the same request.
