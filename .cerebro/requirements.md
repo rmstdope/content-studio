@@ -101,7 +101,7 @@ MUS-3  Make all makes takes for every track of an act that has none, and can be 
 IMG-1  Each image the game lists can be made as takes with a local model, in the act's style,
        which the person sets. The person chooses a take, and the game gets it at the listed size
        and in the palette.
-       Proven by: nothing yet
+       Proven by: test/system/IMG-1.test.ts
 IMG-2  Patches: the person marks part of a chosen picture and has a change painted into it,
        compares the patch's takes and chooses one for the game.
        Proven by: nothing yet
