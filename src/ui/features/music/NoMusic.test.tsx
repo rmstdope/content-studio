@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -12,9 +13,9 @@ const { projectJson } = await import('../../../../test/helpers')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const cleanups: (() => void)[] = []
-afterAll(() => {
+afterAll(async () => {
   cleanups.forEach((c) => c())
-  GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 /** The no-music page, rendered into the test DOM. */

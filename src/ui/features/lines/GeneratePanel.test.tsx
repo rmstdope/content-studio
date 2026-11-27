@@ -2,6 +2,7 @@ import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { GenerationPlan } from '../../../core/generation'
 import type { Problem } from '../../../core/project'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -19,7 +20,7 @@ function Above({ problems }: { problems: Problem[] }) {
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 /** A plan of one line on Fish's free model and one with an ElevenLabs voice. */
 const plan: GenerationPlan = {

@@ -6,6 +6,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { ImageRow } from '../../../core/images'
 import type { CopyGroup } from '../../../core/imageCopy'
 import type { ImageTakeView, ImageTakesView } from '../../../core/imageTakes'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -32,7 +33,7 @@ afterEach(() => {
   cleanups.splice(0).forEach((c) => c())
   globalThis.fetch = realFetch
 })
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 const row: ImageRow = {
   id: 'inn',

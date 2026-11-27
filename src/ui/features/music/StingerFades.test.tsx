@@ -3,6 +3,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { TrackRow } from '../../../core/music'
 import type { MusicTakesView, TakeView } from '../../../core/musicTake'
 import { chosenAmong, type Marked } from '../../../../test/chosen'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -16,9 +17,9 @@ const { TakesPanel } = await import('./TakesPanel')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const cleanups: (() => void)[] = []
-afterAll(() => {
+afterAll(async () => {
   cleanups.forEach((c) => c())
-  GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 const track: TrackRow = {

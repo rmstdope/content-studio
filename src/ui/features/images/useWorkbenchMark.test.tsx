@@ -3,6 +3,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { PatchArea } from '../../../core/imagePatches'
 import type { PatchSpace } from '../../patchGameSpace'
 import type { WorkbenchMark } from './useWorkbenchMark'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -15,7 +16,7 @@ const { useWorkbenchMark } = await import('./useWorkbenchMark')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 const cleanups: (() => void)[] = []
 afterEach(() => cleanups.splice(0).forEach((c) => c()))
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 const take = { width: 1000, height: 500 }
 

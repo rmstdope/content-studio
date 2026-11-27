@@ -7,7 +7,9 @@ import type { SettleClock } from './FineTunePanel'
 import type { ProjectFailure } from '../../../services/workspace'
 
 import { drawnSize, SAME_SIZE } from '../../../../test/pictureSize'
+import { unregisterDom } from '../../../../test/dom'
 import { settle } from '../../../../test/settle'
+
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
 // The key cap and the key follow the computer: these tests are a Mac's unless they say otherwise.
@@ -34,7 +36,7 @@ afterEach(() => {
   platform = 'MacIntel'
   clock = undefined
 })
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 const tune = (n: number, over: Partial<FineTunesView['tunes'][number]> = {}) => ({
   n,

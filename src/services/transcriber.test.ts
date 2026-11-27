@@ -47,7 +47,8 @@ describe('createWhisperWorker', () => {
   })
 
   it('gives up on a request that takes too long, failing the waiting ones with the reason', async () => {
-    const slow = createWhisperWorker({ command: [process.execPath, fake], timeoutMs: 500 })
+    // Long enough for the worker that answers `after.wav` to start while every core is busy.
+    const slow = createWhisperWorker({ command: [process.execPath, fake], timeoutMs: 3000 })
     const waiting = Promise.allSettled([
       slow.transcribe('tiny', '/clips/hang.wav'),
       slow.transcribe('tiny', '/clips/next.wav'),

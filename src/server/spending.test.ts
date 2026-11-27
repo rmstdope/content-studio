@@ -66,12 +66,16 @@ describe('server, the spending record', () => {
       await new Promise((resolve) => setTimeout(resolve, 5))
     }
   }
+  /**
+   * The record, once it lists `rows` recordings and none as running: while a recording is being
+   * saved it is for a moment listed twice, saved and still running.
+   */
   const settle = async (rows: number) => {
     const giveUp = Date.now() + 2000
     for (;;) {
       const now = await spending()
-      if (now.ok && now.rows.filter((r: { state: string }) => r.state !== 'running').length >= rows)
-        return now
+      const running = now.ok && now.rows.some((r: { state: string }) => r.state === 'running')
+      if (now.ok && !running && now.rows.length >= rows) return now
       if (Date.now() > giveUp) throw new Error('waited in vain')
       await new Promise((resolve) => setTimeout(resolve, 5))
     }

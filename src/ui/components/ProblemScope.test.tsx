@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { Problem } from '../../core/project'
+import { unregisterDom } from '../../../test/dom'
 
 GlobalRegistrator.register()
 const { act, createElement } = await import('react')
@@ -8,7 +9,7 @@ const { createRoot } = await import('react-dom/client')
 const { ProblemScope, useBannerProblems } = await import('./ProblemScope')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 const cast: Problem = { file: 'cast.json', path: 'speakers', message: 'is wrong' }
 const notes: Problem = { file: 'notes.json', path: '', message: 'is not JSON' }

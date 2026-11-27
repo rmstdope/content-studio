@@ -1,5 +1,6 @@
 import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -11,7 +12,7 @@ const { HistoryMenu } = await import('./HistoryMenu')
 
 const cleanups: (() => void)[] = []
 afterEach(() => cleanups.splice(0).forEach((c) => c()))
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 /** Renders the menu with two steps (the second in the game); `props` change on `rerender`. */
 async function render(props: { resetKey?: string; active?: boolean } = {}) {

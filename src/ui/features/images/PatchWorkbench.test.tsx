@@ -9,7 +9,9 @@ import type { ImageRow, PatchRow } from '../../../core/images'
 import { cssLength, valuesInEveryWindow } from '../../../../test/stylesheet'
 
 import { drawnSize, SAME_SIZE } from '../../../../test/pictureSize'
+import { unregisterDom } from '../../../../test/dom'
 import { settle } from '../../../../test/settle'
+
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
 // The key cap and the key follow the computer: these tests are a Mac's unless they say otherwise.
@@ -32,7 +34,7 @@ afterEach(() => {
   globalThis.fetch = realFetch
   platform = 'MacIntel'
 })
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 const patchRow = (id: string, over: Partial<PatchRow> = {}): PatchRow => ({
   id,

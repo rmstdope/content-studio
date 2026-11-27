@@ -1,6 +1,7 @@
 import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { SceneState } from '../../../core/planner'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -11,7 +12,7 @@ const { SceneBand } = await import('./SceneBand')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 /** A scene with a cue of its own, two of whose following lines are recorded. */
 const ownCue: SceneState = {

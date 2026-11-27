@@ -1,6 +1,7 @@
 import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { CopyGroup, CopySource } from '../../../core/imageCopy'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -12,7 +13,7 @@ const { CopyImageDialog } = await import('./CopyImageDialog')
 
 const cleanups: (() => void)[] = []
 afterEach(() => cleanups.splice(0).forEach((c) => c()))
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 const src = (
   id: string,

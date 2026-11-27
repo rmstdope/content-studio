@@ -10,6 +10,7 @@ import { projectJson } from '../../../../test/helpers'
 import { valuesInEveryWindow } from '../../../../test/stylesheet'
 import { fakeHistory } from '../../../../test/fakeHistory'
 import { useRoute, type ScenesRoute } from '../../route'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -26,9 +27,9 @@ const { pressBlankThenEscape } = await import('../../../../test/pressBlank')
 // The layer that makes a greyed control do nothing when pressed, as in the studio.
 
 const cleanups: (() => void)[] = []
-afterAll(() => {
+afterAll(async () => {
   cleanups.forEach((c) => c())
-  GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 // What the page asked the studio for, and what the next refresh answers.
@@ -1318,7 +1319,7 @@ describe('leaving a scene with unsaved changes', () => {
       expect(dialog()).not.toBeNull()
       expect(text(container.querySelector('h1'))).toBe('General store')
       // The browser's moves along the history land a moment later.
-      const settle = () => act(async () => new Promise((resolve) => setTimeout(resolve, 5)))
+      const settle = () => act(() => history.landed())
       await settle()
       expect(window.location.hash).toBe('#/scenes/parts/act1?scene=act1-store')
       act(() => button(document.body, "Don't save").click())

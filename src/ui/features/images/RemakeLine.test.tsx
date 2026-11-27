@@ -3,6 +3,7 @@ import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { ImagePatchesView, PatchWorkView, RemakePressView } from '../../../core/imagePatches'
 import type { ImageRow, PatchRow } from '../../../core/images'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -20,7 +21,7 @@ afterEach(() => {
   cleanups.splice(0).forEach((c) => c())
   globalThis.fetch = realFetch
 })
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 const area = { x: 10, y: 10, width: 100, height: 100 }
 const patch = (id: string, over: Partial<PatchRow> = {}): PatchRow => ({

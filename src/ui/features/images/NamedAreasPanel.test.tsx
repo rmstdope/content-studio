@@ -8,7 +8,9 @@ import type { ImagePatchesView } from '../../../core/imagePatches'
 import { valuesInEveryWindow } from '../../../../test/stylesheet'
 import { mountPager } from '../../../../test/besidePager'
 import { drawnSize, SAME_SIZE } from '../../../../test/pictureSize'
+import { unregisterDom } from '../../../../test/dom'
 import { settle } from '../../../../test/settle'
+
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register({ url: 'http://localhost/' })
 const isOff = (element: Element) => element.getAttribute('aria-disabled') === 'true'
@@ -26,7 +28,7 @@ afterEach(() => {
   cleanups.splice(0).forEach((c) => c())
   globalThis.fetch = realFetch
 })
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 const area = (id: string, over: Partial<AreaRow> = {}): AreaRow => ({
   id,

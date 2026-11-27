@@ -2524,7 +2524,12 @@ Images' and scenes' routes are described with them:
   workspace's pages and panels (lines, characters, audition, music, images, effects, scenes, setup)
   and shared components (sidebar, pager, tips). There is no browser test.
 - A component test renders into a DOM from `@happy-dom/global-registrator`, registered by the test
-  file itself before it imports React, so the other suites run without one.
+  file itself before it imports React, so the other suites run without one, and taken down with
+  `unregisterDom` (`test/dom.ts`), which first lets React finish what it had scheduled.
+- `bun run test`, in CI and in `bun run check`, runs the test files side by side in one worker
+  process per core, each file in its own global; CI checks format and types in a job beside it.
+  Test files therefore share no file, port or global. The time limit per test is 20 s, not Bun's
+  5 s, for the tests that wait on ffmpeg or a server while every core is busy.
 
 - **Greyed controls explain themselves** (as-6v7r). No control uses the native `disabled` attribute
   (an `<option>` may): it is spread `off(reason, …)` from `src/ui/off.ts`, which writes `aria-disabled`,

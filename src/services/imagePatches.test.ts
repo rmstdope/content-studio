@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { projectJson, tempRepo } from '../../test/helpers'
+import { projectJson, takeFailed, takesUnderWay, tempRepo } from '../../test/helpers'
 import type { EditModelId } from '../core/imageModels'
 import {
   keptBox,
@@ -128,11 +128,19 @@ function setup({
   })
   /** The view, once nothing of the patch is waiting or being made. */
   async function settled(patch = 'door'): Promise<ImagePatchesView> {
+    // Two such views in a row: one that read the board just before a take was brought to the look
+    // can still call it old, with nothing left bringing it.
+    let quiet = 0
     for (let i = 0; i < 400; i++) {
       const view = await patches.view(file, 'inn')
       if (!view || !('patches' in view)) throw new Error('no view')
       const mine = view.patches.find((p) => p.id === patch)
-      if (!mine?.making.length && !mine?.takes.some((t) => t.look === 'bringing')) return view
+      const idle =
+        !mine?.making.length &&
+        !mine?.takes.some((t) => t.look === 'bringing') &&
+        !takesUnderWay('contentStudioPatchTakes', file)
+      quiet = idle ? quiet + 1 : 0
+      if (quiet === 2) return view
       await new Promise((resolve) => setTimeout(resolve, 5))
     }
     throw new Error('the takes never finished')
@@ -180,8 +188,8 @@ describe.skipIf(process.getuid?.() === 0)(
       const { root, file, patches, work, onMade } = spoiled()
       onMade(() => writeFileSync(join(root, BOARD), '{ nope'))
       await patches.make(file, 'inn', 'door', { count: 1, area })
-      // The view cannot be read while the board is broken: give the fake model time to be saved.
-      await new Promise((r) => setTimeout(r, 150))
+      // The view cannot be read while the board is broken: wait for the take to fail on it.
+      await takeFailed('contentStudioPatchTakes', file)
       writeFileSync(join(root, BOARD), JSON.stringify({ next: 2 }))
       const view = await work()
       expect(view.failed[0]!.message).toBe(`${BOARD} cannot be used.`)

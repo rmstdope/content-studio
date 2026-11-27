@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -12,7 +13,7 @@ const { CleanUp } = await import('./CleanUp')
 
 afterAll(async () => {
   await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 /** An audio element that only notes what it was told: which clips play, muted or not, and where. */

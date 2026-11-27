@@ -14,6 +14,8 @@ export interface FakeHistory {
   hashes: () => string[]
   /** Which entry the browser is at. */
   at: () => number
+  /** Resolves once every queued move, and any it set off, has landed. */
+  landed: () => Promise<void>
   /** Puts the real `window.history` back. */
   restore: () => void
 }
@@ -31,6 +33,8 @@ export function fakeHistory(start: string): FakeHistory {
   const replaceReal = real.replaceState.bind(real)
   const entries: Entry[] = [{ hash: start, state: null }]
   let at = 0
+  // Moves along the history that have not landed yet.
+  let queued = 0
   const show = () => replaceReal(null, '', entries[at]!.hash || '#')
   // happy-dom also fires hashchange when `replaceState` changes the hash, which a browser never
   // does: only the fake's own events get through.
@@ -64,7 +68,9 @@ export function fakeHistory(start: string): FakeHistory {
     },
     go(delta = 0) {
       // Traversals queue: each goes from wherever the one before it landed.
+      queued += 1
       setTimeout(() => {
+        queued -= 1
         const to = at + delta
         if (delta === 0 || to < 0 || to >= entries.length) return
         const before = entries[at]!.hash
@@ -92,6 +98,10 @@ export function fakeHistory(start: string): FakeHistory {
     back: () => fake.go(-1),
     hashes: () => entries.map((e) => e.hash),
     at: () => at,
+    landed: async () => {
+      do await new Promise((resolve) => setTimeout(resolve, 1))
+      while (queued)
+    },
     restore: () => {
       window.removeEventListener('hashchange', swallow, true)
       Object.defineProperty(window, 'history', { value: real, configurable: true })

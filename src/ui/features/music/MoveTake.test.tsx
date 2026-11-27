@@ -4,6 +4,7 @@ import type { MusicListSummary, TrackRow } from '../../../core/music'
 import type { MusicTakesView, TakeView } from '../../../core/musicTake'
 import { chosenAmong, type Marked } from '../../../../test/chosen'
 import { NOT_KNOWN } from '../../../core/lockRead'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -20,7 +21,7 @@ const cleanups: (() => void)[] = []
 afterEach(() => {
   cleanups.splice(0).forEach((c) => c())
 })
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 const row = (id: string, title: string, over: Partial<TrackRow> = {}): TrackRow => ({
   id,

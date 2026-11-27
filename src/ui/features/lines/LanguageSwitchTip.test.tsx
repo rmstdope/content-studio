@@ -1,5 +1,6 @@
 import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -16,7 +17,7 @@ afterEach(async () => {
   // Let React's scheduler and the observers settle before the DOM goes away.
   await new Promise<void>((r) => setTimeout(r, 20))
 })
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 const tabs = [
   { id: 'sv', name: 'Svenska', count: '3/3', title: '3 of 3 lines up to date', dimmed: false },

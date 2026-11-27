@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -9,7 +10,7 @@ const { NOT_YET, fieldOwnsKeys, typingIn, useDocumentKeys, usePendingFocus } =
   await import('./useWorkbenchKeys')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 /** An element of `tag`, with `type` for an input, inside the document. */
 function made(tag: string, type?: string): HTMLElement {
