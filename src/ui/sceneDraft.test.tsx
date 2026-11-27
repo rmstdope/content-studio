@@ -2,6 +2,7 @@ import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { fakeHistory, type FakeHistory } from '../../test/fakeHistory'
 import type { Leaving } from './sceneDraft'
+import { unregisterDom } from '../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -14,7 +15,7 @@ const { useLeaveGuard } = await import('./sceneDraft')
 
 const cleanups: (() => void)[] = []
 afterEach(() => cleanups.splice(0).forEach((c) => c()))
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 const music = '#/music'
 const store = '#/scenes/parts/act1?scene=act1-store'

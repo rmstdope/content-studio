@@ -7,6 +7,7 @@ import type { ProjectSummary } from '../../../core/summary'
 import { minWidthsInEveryWindow } from '../../../../test/stylesheet'
 import { projectJson } from '../../../../test/helpers'
 import { ProjectSchema } from '../../../core/project'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -25,9 +26,9 @@ const { ImagesView } = await import('./ImagesView')
 const cleanups: (() => void)[] = []
 // A page left mounted would keep hearing the document's keys in the next test.
 afterEach(() => cleanups.splice(0).forEach((c) => c()))
-afterAll(() => {
+afterAll(async () => {
   cleanups.forEach((c) => c())
-  GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 // What the page sent to the studio, and the answer it gets.

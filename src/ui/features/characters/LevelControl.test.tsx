@@ -1,5 +1,6 @@
 import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -12,7 +13,7 @@ const { LevelControl } = await import('./LevelControl')
 
 afterAll(async () => {
   await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 type Data = NonNullable<Parameters<typeof LevelControl>[0]['data']>

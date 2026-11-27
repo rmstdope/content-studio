@@ -1,5 +1,6 @@
 import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -10,7 +11,7 @@ const { SpeedEditor } = await import('./BriefEditors')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 /** Renders the speed editor of a character in one language, and lets the page switch language. */
 function speedPage() {

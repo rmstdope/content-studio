@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { unregisterDom } from '../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -8,7 +9,7 @@ const { createRoot } = await import('react-dom/client')
 const { useTrackActionsState, useTrackActions } = await import('./trackActions')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 describe('the track page’s last pressed action', () => {
   it('shows only the failure line of the action pressed last', async () => {

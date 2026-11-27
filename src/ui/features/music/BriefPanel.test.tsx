@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { TrackRow } from '../../../core/music'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -13,10 +14,10 @@ const { BriefPanel } = await import('./BriefPanel')
 
 const realFetch = globalThis.fetch
 const cleanups: (() => void)[] = []
-afterAll(() => {
+afterAll(async () => {
   cleanups.forEach((c) => c())
   globalThis.fetch = realFetch
-  GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 const track: TrackRow = {

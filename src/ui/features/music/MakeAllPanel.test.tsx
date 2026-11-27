@@ -4,6 +4,7 @@ import type { MusicListSummary, TrackRow } from '../../../core/music'
 import type { TrackStatus } from '../../../core/musicChoose'
 import type { MusicMakingSummary } from '../../../core/musicTake'
 import type { MakeAllBatch } from '../../api'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -18,10 +19,10 @@ const { pressBlankThenEscape } = await import('../../../../test/pressBlank')
 
 const cleanups: (() => void)[] = []
 const realFetch = globalThis.fetch
-afterAll(() => {
+afterAll(async () => {
   globalThis.fetch = realFetch
   cleanups.forEach((c) => c())
-  GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 const track = (id: string, title: string, status: TrackStatus, seconds = 30): TrackRow => ({

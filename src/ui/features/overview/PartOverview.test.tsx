@@ -5,6 +5,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { tempRepo } from '../../../../test/helpers'
 import { valuesInEveryWindow } from '../../../../test/stylesheet'
 import { loadPart, loadProject } from '../../../services/workspace'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -15,7 +16,7 @@ const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 describe('the cast on a part’s overview', () => {
   it.each([

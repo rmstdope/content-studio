@@ -4,6 +4,7 @@ import type { ImageModelId, ImageModelState } from '../../../core/imageModels'
 import type { ImageMakingSummary } from '../../../core/imageTakes'
 import type { ImageConflict, ImageRow, ImagesAct } from '../../../core/images'
 import type { ImagesBatch } from '../../api'
+import { unregisterDom } from '../../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -17,10 +18,10 @@ const { pressBlankThenEscape } = await import('../../../../test/pressBlank')
 
 const cleanups: (() => void)[] = []
 const realFetch = globalThis.fetch
-afterAll(() => {
+afterAll(async () => {
   globalThis.fetch = realFetch
   cleanups.forEach((c) => c())
-  GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 const image = (id: string, title: string, status: ImageRow['status'] = 'none yet'): ImageRow =>

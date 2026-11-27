@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { unregisterDom } from '../../../test/dom'
 
 GlobalRegistrator.register()
 const { act, createElement } = await import('react')
@@ -7,7 +8,7 @@ const { createRoot } = await import('react-dom/client')
 const { useStopFocus } = await import('./useStopFocus')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 function setup() {
   const lands: number[] = []

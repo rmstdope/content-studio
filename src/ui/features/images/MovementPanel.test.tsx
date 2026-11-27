@@ -4,6 +4,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { ImageRow } from '../../../core/images'
 import type { MotionRendererAnswer } from '../../../core/motion'
 import { valuesInEveryWindow } from '../../../../test/stylesheet'
+import { unregisterDom } from '../../../../test/dom'
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register({ url: 'http://localhost/' })
 const { act, createElement } = await import('react')
@@ -20,7 +21,7 @@ afterEach(() => {
   cleanups.splice(0).forEach((c) => c())
   globalThis.fetch = realFetch
 })
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 /** What the fake renderer's scene was asked, by the studio. */
 interface Calls {

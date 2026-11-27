@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { ProjectSummary } from '../../core/summary'
 import type { Route } from '../route'
+import { unregisterDom } from '../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -13,9 +14,9 @@ const { Sidebar } = await import('./Sidebar')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const cleanups: (() => void)[] = []
-afterAll(() => {
+afterAll(async () => {
   cleanups.forEach((c) => c())
-  GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 const part = (id: string, title: string, dialog: string, lineCount: number) => ({

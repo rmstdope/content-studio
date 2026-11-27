@@ -1,5 +1,6 @@
 import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { unregisterDom } from '../../../test/dom'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -17,7 +18,7 @@ afterEach(async () => {
   // Let React's scheduler and the observers settle before the DOM goes away.
   await new Promise<void>((r) => setTimeout(r, 20))
 })
-afterAll(() => GlobalRegistrator.unregister())
+afterAll(unregisterDom)
 
 type Clicks = { presses: number; changes: number }
 
