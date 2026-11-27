@@ -28,6 +28,39 @@ function project(part?: string) {
   }
 }
 
+/** A command that leaves a long-running helper behind, its pid in `helper.pid`. */
+const HELPER = 'sleep 30 & echo $! > helper.pid'
+
+/** The helper's pid once the command has written it. */
+async function helperPid(root: string): Promise<number> {
+  const file = join(root, 'helper.pid')
+  await until(() => existsSync(file) && readFileSync(file, 'utf8').endsWith('\n'))
+  return Number(readFileSync(file, 'utf8'))
+}
+
+/** Waits for the helper to be gone: a killed process takes a moment to be reaped. */
+async function expectGone(pid: number): Promise<void> {
+  await until(() => !isRunning(pid))
+}
+
+function isRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Polls until `done`, failing after two seconds. */
+async function until(done: () => boolean): Promise<void> {
+  const deadline = Date.now() + 2000
+  while (!done()) {
+    if (Date.now() > deadline) throw new Error('waited two seconds in vain')
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+}
+
 describe('refreshDialog', () => {
   it('runs the command in the project root for the part, and says what changed', async () => {
     const root = tempRepo(project(`printf '%s' '${after}' > tts/{part}/script.json && echo done`))
@@ -61,17 +94,18 @@ describe('refreshDialog', () => {
   })
 
   it('stops a command that takes too long, children included', async () => {
-    const root = tempRepo(project('(sleep 1; echo late > marker.txt); true'))
+    const root = tempRepo(project(`${HELPER}; wait`))
+    // The grace is far off, so only the timeout can stop the helper in time.
     const result = await refreshDialog(join(root, 'content-studio.json'), 'act1', {
-      timeoutMs: 300,
+      timeoutMs: 500,
+      graceMs: 60_000,
     })
     expect(result).toMatchObject({
       ok: false,
       reason: 'failed',
       message: expect.stringContaining('longer than'),
     })
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    expect(existsSync(join(root, 'marker.txt'))).toBe(false)
+    await expectGone(await helperPid(root))
   })
 
   it('names a signal from outside rather than calling it a timeout', async () => {
@@ -83,36 +117,38 @@ describe('refreshDialog', () => {
   })
 
   it('judges by the command, not by what it left running in the background', async () => {
-    const root = tempRepo(project(`sleep 30 & printf '%s' '${after}' > tts/{part}/script.json`))
+    const root = tempRepo(project(`${HELPER}; printf '%s' '${after}' > tts/{part}/script.json`))
     const started = Date.now()
     const result = await refreshDialog(join(root, 'content-studio.json'), 'act1', {
       timeoutMs: 20_000,
+      graceMs: 100,
     })
     expect(result).toMatchObject({ ok: true, lines: 2 })
-    expect(Date.now() - started).toBeLessThan(4000)
+    expect(Date.now() - started).toBeLessThan(1000)
+    await expectGone(await helperPid(root))
   })
 
   it('leaves nothing running in the background once the command is done', async () => {
-    const root = tempRepo(project('(sleep 1 && echo late > marker.txt) >/dev/null 2>&1 &'))
+    const root = tempRepo(project('sleep 30 >/dev/null 2>&1 & echo $! > helper.pid'))
     expect(await refreshDialog(join(root, 'content-studio.json'), 'act1')).toMatchObject({
       ok: true,
     })
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    expect(existsSync(join(root, 'marker.txt'))).toBe(false)
+    await expectGone(await helperPid(root))
   })
 
   it('says while a part is refreshing, and stops every refresh when the studio stops', async () => {
-    const root = tempRepo(project('(sleep 1; echo late > marker.txt); true'))
+    const root = tempRepo(project(`${HELPER}; wait`))
     const projectFile = join(root, 'content-studio.json')
-    const running = refreshDialog(projectFile, 'act1')
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    // The grace is far off, so only stopping everything can stop the helper in time.
+    const running = refreshDialog(projectFile, 'act1', { graceMs: 60_000 })
+    const helper = await helperPid(root)
+    expect(isRunning(helper)).toBe(true)
     expect(isRefreshing(projectFile, 'act1')).toBe(true)
     expect(isRefreshing(projectFile, 'act2')).toBe(false)
     stopAll()
     expect(await running).toMatchObject({ ok: false, reason: 'failed' })
     expect(isRefreshing(projectFile, 'act1')).toBe(false)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    expect(existsSync(join(root, 'marker.txt'))).toBe(false)
+    await expectGone(helper)
   })
 
   it('runs one refresh of a part at a time', async () => {
