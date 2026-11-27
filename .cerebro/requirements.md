@@ -117,7 +117,7 @@ IMG-5  Movement: the person puts effects and a slow zoom on a picture, with thei
        game at once.
        Proven by: nothing yet
 IMG-6  Make all makes takes for every image of an act that has none, and can be stopped.
-       Proven by: nothing yet
+       Proven by: test/system/IMG-6.test.ts
 IMG-7  When the act's look changes, the chosen pictures and their patches can be brought to the
        new look, and the studio says which could not be.
        Proven by: test/system/IMG-7.test.ts
