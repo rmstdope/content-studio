@@ -72,7 +72,7 @@ NAR-2  Each take is checked with Whisper and made again until enough of its word
        Proven by: test/system/NAR-2.test.ts
 NAR-3  The person can set a line's delivery cue, a character's style and speed, pronunciations
        and the words that sound the same; the lines these change then show as out of date.
-       Proven by: nothing yet
+       Proven by: test/system/NAR-3.test.ts
 NAR-4  The person can hear a character's recorded lines as the game plays them, one by one or all
        in turn.
        Proven by: nothing yet
