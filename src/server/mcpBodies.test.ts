@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 import { join } from 'node:path'
 import { projectJson, tempRepo } from '../../test/helpers'
-import { bodyAllowed, bodyShape, bodyText } from '../core/bodyText'
+import { bodyAllowed, bodyShape } from '../core/bodyText'
 import { startServer } from './index'
-import { ACTIONS, actionBody, type Action } from './mcpActions'
+import { ACTIONS } from './mcpActions'
 
 /** A value for each part of a route that varies, one the route takes as far as its body. */
 const PARTS: Record<string, string> = { part: 'act1', stage: 'draft', file: 'a.mp3', n: '1' }
@@ -41,8 +41,26 @@ describe('the body an agent is told, against the body the route takes', () => {
     expect(byHand).toEqual(['/api/characters/:id/clone-voice'])
   })
 
-  it('describes an action’s body from its schema', () => {
-    const [first] = withSchema as [Action & { schema: Parameters<typeof bodyText>[0] }]
-    expect(actionBody(first)).toBe(bodyText(first.schema))
+  it('shows each body to an agent in words, through studio_pages', async () => {
+    const response = await fetch(new URL('/mcp', studio.url), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'studio_pages', arguments: {} },
+      }),
+    })
+    const { result } = (await response.json()) as { result: { content: { text: string }[] } }
+    const { actions } = JSON.parse(result.content[0]!.text) as {
+      actions: Record<string, { path: string; body?: unknown }[]>
+    }
+    const shown = (path: string) =>
+      Object.values(actions)
+        .flat()
+        .find((a) => a.path === path)?.body
+    expect(shown('/api/take-fade')).toBe('{ seconds }. Allowed: seconds is a number 0 or more.')
+    expect(shown('/api/characters/:id/clone-voice')).toStartWith('form: title, ')
   })
 })

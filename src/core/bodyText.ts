@@ -18,6 +18,8 @@ type Node = {
   minimum?: number
   maximum?: number
   exclusiveMinimum?: number
+  exclusiveMaximum?: number
+  multipleOf?: number
 }
 
 /** What a body's schema accepts, as the sender writes it (a field with a default may be left out). */
@@ -34,24 +36,33 @@ const either = (words: string[]) =>
     : `${words.slice(0, -1).join(', ')} or ${words.at(-1)}`
 
 /** A number's words with its limits; zod's own limits of a whole number say nothing. */
-function numberWords({ type, minimum, maximum, exclusiveMinimum }: Node): string {
+function numberWords(node: Node): string {
+  const { type, minimum, maximum, exclusiveMinimum, exclusiveMaximum, multipleOf } = node
   const real = (limit: number | undefined) =>
     limit === undefined || Math.abs(limit) === Number.MAX_SAFE_INTEGER ? undefined : limit
   const name = type === 'integer' ? 'a whole number' : 'a number'
   const low = real(minimum)
   const high = real(maximum)
-  if (low !== undefined && high !== undefined) return `${name} ${low} to ${high}`
+  const steps = multipleOf === undefined ? '' : ` in steps of ${multipleOf}`
+  if (low !== undefined && high !== undefined) return `${name} ${low} to ${high}${steps}`
   const limits = [
     exclusiveMinimum !== undefined ? `above ${exclusiveMinimum}` : '',
     low !== undefined ? `${low} or more` : '',
     high !== undefined ? `at most ${high}` : '',
+    exclusiveMaximum !== undefined ? `below ${exclusiveMaximum}` : '',
   ].filter(Boolean)
-  return limits.length ? `${name} ${limits.join(', ')}` : name
+  return `${limits.length ? `${name} ${limits.join(', ')}` : name}${steps}`
 }
+
+/** The words for one branch of a choice: a bare list of values counts as that many choices. */
+const choices = (node: Node) =>
+  node.enum && !node.description
+    ? node.enum.map((value) => JSON.stringify(value))
+    : [typeWords(node)]
 
 /** A value's kind in words, without what is written about it. */
 function kindWords(node: Node): string {
-  if (node.anyOf || node.oneOf) return either(branches(node).map(typeWords))
+  if (node.anyOf || node.oneOf) return either(branches(node).flatMap(choices))
   if (node.const !== undefined) return JSON.stringify(node.const)
   if (node.enum) return either(node.enum.map((value) => JSON.stringify(value)))
   const { type } = node

@@ -46,7 +46,7 @@ function modelSave(kind: ModelKind) {
         .string()
         .min(1)
         .meta({
-          description: `the model now in force, as GET /api/models shows it (${was}), "${fallback}" when the project file names none`,
+          description: `the model now in force, ${was} in GET /api/models, "${fallback}" when the project file names none`,
         }),
     })
     .strict()

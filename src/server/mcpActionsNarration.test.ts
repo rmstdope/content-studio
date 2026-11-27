@@ -93,6 +93,18 @@ describe('what the bodies of the tier, the pronunciation table and the record jo
   })
 })
 
+describe('what an agent reads of money and of what it read before', () => {
+  const body = (method: string, path: string) => actionBody(matchAction(method, path)!) ?? ''
+  it('says a confirmed cost is in dollars', () => {
+    for (const path of ['/api/parts/act1/jobs', '/api/parts/act1/lines/a/record'])
+      expect(body('POST', path)).toContain('confirmedCost is a number 0 or more (dollars)')
+    expect(body('POST', '/api/parts/act1/lines/a/takes')).toContain('(dollars)')
+  })
+  it('says the ElevenLabs settings were as read', () => {
+    expect(body('PUT', '/api/elevenlabs/tts')).toContain('(the settings as you read them)')
+  })
+})
+
 describe('what an agent reads of the five model saves', () => {
   it.each([
     ['/api/image-model', ['"klein"', '"qwen-image"']],

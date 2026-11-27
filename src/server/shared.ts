@@ -163,7 +163,7 @@ export const SceneBody = z
 export const MeasureBody = z
   .object({ open: z.object({ scene: z.string(), entry: SceneMixSchema }).strict().optional() })
   .strict()
-  .meta({ description: 'open is the open scene with its unsaved changes; send {} for none' })
+  .meta({ description: 'open is the open scene with its unsaved changes; send {} for none.' })
 
 /** The new description of a sound effect: text, or null to take the game's back. */
 export const EffectDescriptionBody = z.object({ description: z.string().nullable() }).strict()
@@ -180,7 +180,12 @@ export const ElevenTtsShape = z
   .strict()
 
 /** The body of a voice settings save: the new settings, and the ones the page showed. */
-export const ElevenTtsBody = z.object({ tts: ElevenTtsShape, was: ElevenTtsShape }).strict()
+export const ElevenTtsBody = z
+  .object({
+    tts: ElevenTtsShape,
+    was: ElevenTtsShape.meta({ description: 'the settings as you read them' }),
+  })
+  .strict()
 
 /** Where an orphaned cue goes: a line key, or null to remove it. */
 export const MoveCueBody = z.object({ to: z.string().min(1).max(200).nullable() }).strict()
@@ -247,7 +252,7 @@ export const JobBody = z
       .max(100_000)
       .meta({ description: 'orphaned line keys, removed with a record job' }),
     /** The most the user agreed to spend, in dollars, for a paid model. */
-    confirmedCost: z.number().nonnegative().optional(),
+    confirmedCost: z.number().nonnegative().optional().meta({ description: 'dollars' }),
     /** The most ElevenLabs credits the user agreed to, for lines with ElevenLabs voices. */
     confirmedCredits: z.number().nonnegative().optional(),
   })
@@ -268,7 +273,7 @@ export function parseOrNull(text: string): unknown {
  */
 export const TakeLineBody = z
   .object({
-    confirmedCost: z.number().nonnegative().optional(),
+    confirmedCost: z.number().nonnegative().optional().meta({ description: 'dollars' }),
     confirmedCredits: z.number().nonnegative().optional(),
   })
   .strict()
@@ -276,7 +281,7 @@ export const TakeLineBody = z
 /** Recording one line: the most the user agreed to spend on it, for a paid model, or in credits. */
 export const RecordBody = z
   .object({
-    confirmedCost: z.number().nonnegative().optional(),
+    confirmedCost: z.number().nonnegative().optional().meta({ description: 'dollars' }),
     confirmedCredits: z.number().nonnegative().optional(),
     /** Record with the final model (a final clip recorded again), or the draft one (default). */
     stage: z.enum(['draft', 'final']).default('draft'),
