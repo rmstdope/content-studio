@@ -46,18 +46,28 @@ export function tempRepo(files: Record<string, unknown>): string {
   return root
 }
 
+/** The entries the take engine keeps in `slot` for the takes of the project at `projectFile`. */
+function takeEntries(slot: string, projectFile: string): { state: string }[] {
+  type Slots = Record<string, Map<string, Map<number, { state: string }>> | undefined>
+  return [...((globalThis as unknown as Slots)[slot] ?? [])]
+    .filter(([key]) => key.startsWith(`${projectFile}\0`))
+    .flatMap(([, entries]) => [...entries.values()])
+}
+
 /**
- * Waits until a take of the project at `projectFile` shows failed among the entries the take engine
- * keeps in `slot`: for a test that has broken the board, so that no view can be read meanwhile.
+ * Whether the take engine of `slot` still has a take of the project waiting or being made. One that
+ * is on the board already shows as made in a view while its job is not yet over.
+ */
+export function takesUnderWay(slot: string, projectFile: string): boolean {
+  return takeEntries(slot, projectFile).some((entry) => entry.state !== 'failed')
+}
+
+/**
+ * Waits until a take of the project shows failed in the engine of `slot`: for a test that has
+ * broken the board, so that no view can be read meanwhile.
  */
 export async function takeFailed(slot: string, projectFile: string): Promise<void> {
-  type Slots = Record<string, Map<string, Map<number, { state: string }>> | undefined>
-  const failed = () =>
-    [...((globalThis as unknown as Slots)[slot] ?? [])].some(
-      ([key, entries]) =>
-        key.startsWith(`${projectFile}\0`) &&
-        [...entries.values()].some((entry) => entry.state === 'failed'),
-    )
+  const failed = () => takeEntries(slot, projectFile).some((entry) => entry.state === 'failed')
   for (const giveUp = Date.now() + 10_000; !failed();) {
     if (Date.now() > giveUp) throw new Error('the take never failed')
     await new Promise((resolve) => setTimeout(resolve, 5))

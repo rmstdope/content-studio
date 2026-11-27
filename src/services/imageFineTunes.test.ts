@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { join } from 'node:path'
-import { projectJson, takeFailed, tempRepo } from '../../test/helpers'
+import { projectJson, takeFailed, takesUnderWay, tempRepo } from '../../test/helpers'
 import type { EditModelId } from '../core/imageModels'
 import type { FineTunesView } from '../core/imageFineTunes'
 import { createImageFineTunes } from './imageFineTunes'
@@ -117,7 +117,8 @@ function setup({
     for (let i = 0; i < 400; i++) {
       const view = await tunes.view(file, 'inn')
       if (!view || !('picture' in view)) throw new Error('no view')
-      if (!view.making.length) return view
+      // Until the job is over too: a make is refused while the engine still has the take.
+      if (!view.making.length && !takesUnderWay('contentStudioFineTunes', file)) return view
       await new Promise((resolve) => setTimeout(resolve, 5))
     }
     throw new Error('never finished')

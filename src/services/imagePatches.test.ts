@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { projectJson, takeFailed, tempRepo } from '../../test/helpers'
+import { projectJson, takeFailed, takesUnderWay, tempRepo } from '../../test/helpers'
 import type { EditModelId } from '../core/imageModels'
 import {
   keptBox,
@@ -135,7 +135,10 @@ function setup({
       const view = await patches.view(file, 'inn')
       if (!view || !('patches' in view)) throw new Error('no view')
       const mine = view.patches.find((p) => p.id === patch)
-      const idle = !mine?.making.length && !mine?.takes.some((t) => t.look === 'bringing')
+      const idle =
+        !mine?.making.length &&
+        !mine?.takes.some((t) => t.look === 'bringing') &&
+        !takesUnderWay('contentStudioPatchTakes', file)
       quiet = idle ? quiet + 1 : 0
       if (quiet === 2) return view
       await new Promise((resolve) => setTimeout(resolve, 5))
