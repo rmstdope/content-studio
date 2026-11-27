@@ -11,7 +11,7 @@ import { join } from 'node:path'
 import { projectJson } from '../helpers'
 import { startStudio } from './studio'
 
-/** The limit of the test, which waits on jobs and takes, as `bun run test` sets it. */
+/** The test waits on jobs and takes: `bun run test`'s limit, so a plain `bun test` has it too. */
 const SLOW = 20_000
 
 /** What the test looks at in a job or a list of takes. */
@@ -19,7 +19,7 @@ interface View {
   status?: string
   making?: unknown[]
   takes?: { file: string; n: number }[]
-  patches?: { takes: unknown[] }[]
+  patches?: { takes: { n: number }[] }[]
 }
 
 const track = (id: string) => ({ id, title: id, text: 'warm lute', seconds: 5 })
@@ -153,13 +153,16 @@ describe('SAF-3: no clip is deleted unless the person confirms it first', () => 
       await done('/api/images/inn/choose', { n: image.n }, true)
       const area = { x: 32, y: 20, width: 64, height: 40 }
       await done('/api/images/inn/patches/lamp/takes', { count: 1, area })
-      await settled('/api/images/inn/patches', (view) => Boolean(view.patches![0]!.takes.length))
-      await done('/api/images/inn/patches/lamp/choose', { n: 1 }, true)
+      const { patches } = await settled('/api/images/inn/patches', (view) =>
+        Boolean(view.patches![0]!.takes.length),
+      )
+      await done('/api/images/inn/patches/lamp/choose', { n: patches![0]!.takes[0]!.n }, true)
       // The game stops listing one of the tracks.
       writeFileSync(join(root, 'tts/act1/music.json'), JSON.stringify([track('hall')]))
 
       // Work that confirms no deletion deletes nothing: recording from the page without agreeing
-      // to remove the clip whose line is gone, and choosing other takes.
+      // to remove the clip whose line is gone, and choosing other takes of the music and the sound
+      // effect (choosing an image's take asks by itself).
       const response = await page.send('POST', '/api/parts/act1/jobs', {
         speaker: null,
         keys: ['a'],
