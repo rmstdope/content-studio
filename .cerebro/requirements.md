@@ -90,7 +90,7 @@ SPD-2  The Spending page shows what has been spent, dollars and credits apart.
 MUS-1  Each loop and stinger the game lists can be made as takes, with a local model or Eleven
        Music, from a brief the person can edit. The person listens and chooses a take, and the
        chosen take is the track the game gets.
-       Proven by: nothing yet
+       Proven by: test/system/MUS-1.test.ts
 MUS-2  A take can be trimmed and faded before it goes to the game.
        Proven by: nothing yet
 MUS-3  Make all makes takes for every track of an act that has none, and can be stopped.
