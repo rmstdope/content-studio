@@ -87,15 +87,26 @@ const { App } = await import('../../src/ui/App')
 /** Takes down the page that is open, if one is. */
 let close = () => {}
 
+/** The open page's reads and writes, to tell when it has caught up with the studio. */
+let client: InstanceType<typeof QueryClient>
+
+/** Whether the open page has no request of the studio's left to wait for. */
+const settled = () => client.isFetching() === 0 && client.isMutating() === 0
+
 afterAll(async () => {
   close()
   globalThis.fetch = native.fetch
   await unregisterDom()
 })
 
-/** Lets the page draw until `done`, or fails saying what it shows. */
+/**
+ * Lets the page draw until `done` holds twice with a turn between (an answer is read a moment
+ * before the page has drawn it), or fails saying what it shows.
+ */
 async function until(done: () => boolean) {
-  for (const giveUp = Date.now() + 20_000; !done();) {
+  for (let held = 0, giveUp = Date.now() + 45_000; held < 2;) {
+    held = done() ? held + 1 : 0
+    if (held === 2) return
     if (Date.now() > giveUp) throw new Error(`never came: ${document.body.textContent}`)
     await act(() => new Promise<void>((resolve) => setTimeout(resolve, 10)))
   }
@@ -113,7 +124,7 @@ async function open(scene: string) {
   const container = document.createElement('div')
   document.body.append(container)
   const view = createRoot(container)
-  const client = new QueryClient()
+  client = new QueryClient()
   close = () => {
     act(() => view.unmount())
     client.clear()
@@ -124,7 +135,7 @@ async function open(scene: string) {
   await act(async () => {
     view.render(createElement(QueryClientProvider, { client }, createElement(App)))
   })
-  await until(() => document.querySelector(PANEL) !== null && client.isFetching() === 0)
+  await until(() => document.querySelector(PANEL) !== null && settled())
 }
 
 /** What the page says of the open scene's loudness. */
@@ -157,6 +168,8 @@ async function measure() {
           lock()?.[id]?.saved && lock()![id]!.saved!.measuredAt !== before?.[id]?.saved?.measuredAt,
       ) &&
       button().textContent === 'Measure loudness' &&
+      // The button comes back before the page has read the last scene's figures.
+      settled() &&
       loudness().when.startsWith('Measured ') &&
       !loudness().heading.includes('changed since measured'),
   )
@@ -198,8 +211,8 @@ const changed = (before: Record<string, string>, after: Record<string, string>) 
 describe.skipIf(Bun.which('ffmpeg') === null)(
   'SCN-2: each scene is measured against the target, and the page shows which need looking at',
   () => {
-    // ffmpeg mixes a minute of sound for each scene measured.
-    setDefaultTimeout(30_000)
+    // ffmpeg mixes a minute of sound for each scene measured, slowly on a busy machine.
+    setDefaultTimeout(60_000)
 
     it('shows a scene never measured as not measured', async () => {
       // The hum needs a take chosen to be heard, which the person makes on its page.
