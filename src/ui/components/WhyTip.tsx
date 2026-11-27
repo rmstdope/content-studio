@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { browserClock, type DelayClock } from '../delayClock'
 import { tipPlace, tipReaction } from '../off'
 
 /** What a greyed control carries: `aria-disabled` and its reason (see `off`). */
@@ -46,19 +47,21 @@ function greyedIn(target: EventTarget | null): HTMLElement | null {
  * which gets the same tip without being made inert): the tip shows the control's reason at once on
  * hover, focus or a tap, above it (below when there is no room, inward near an edge), follows the
  * reason as it changes and goes when the control turns on. It also makes a greyed control inert:
- * pressing, typing in or changing it does nothing, while Tab still reaches it.
+ * pressing, typing in or changing it does nothing, while Tab still reaches it. The tip's linger
+ * runs on `clock`.
  */
-export function WhyTip() {
+export function WhyTip({ clock = browserClock }: { clock?: DelayClock }) {
   const [shown, setShown] = useState<{ target: HTMLElement; text: string } | null>(null)
   const [at, setAt] = useState<{ left: number; top: number } | null>(null)
   const tipRef = useRef<HTMLDivElement>(null)
   const shownRef = useRef(shown)
   shownRef.current = shown
-  const lingering = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** Cancels the linger that is running, if one is. */
+  const lingering = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     const cancel = () => {
-      if (lingering.current) clearTimeout(lingering.current)
+      lingering.current?.()
       lingering.current = null
     }
     const show = (target: HTMLElement) => {
@@ -72,7 +75,7 @@ export function WhyTip() {
     }
     const hideSoon = () => {
       cancel()
-      lingering.current = setTimeout(hide, LINGER_MS)
+      lingering.current = clock.after(LINGER_MS, hide)
     }
     // The tip lets the pointer through to what it covers, so being on it is where the pointer is.
     const onTip = (e: Event) => {
@@ -187,7 +190,7 @@ export function WhyTip() {
       watching.disconnect()
       cancel()
     }
-  }, [])
+  }, [clock])
 
   // The shown control is described by the tip, so a screen reader reads its reason after "dimmed".
   useEffect(() => {
