@@ -183,8 +183,14 @@ export function createLineWorker({
             reject(error)
           },
         })
-        current.proc.stdin.write(`${JSON.stringify({ id, ...payload })}\n`)
-        void current.proc.stdin.flush()
+        // A worker that is already going has no reader on its input, so the write fails (EPIPE):
+        // the request stays waiting and is failed with the reason it stopped once it has exited.
+        try {
+          current.proc.stdin.write(`${JSON.stringify({ id, ...payload })}\n`)
+          void Promise.resolve(current.proc.stdin.flush()).catch(() => {})
+        } catch {
+          // Its exit says why.
+        }
       })
     },
     async close() {
