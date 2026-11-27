@@ -1,5 +1,5 @@
 import { useJobOpen } from './ImageJobTabs'
-import { pictureShape } from './FitPicture'
+import { FitPicture } from './FitPicture'
 import { clampToWindow, revealDelta } from '../../areaReveal'
 import { off } from '../../off'
 import { flushSync } from 'react-dom'
@@ -8,7 +8,6 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type CSSProperties,
   type KeyboardEvent,
   type PointerEvent,
 } from 'react'
@@ -462,16 +461,14 @@ export function NamedAreasPanel({ row }: { row: ImageRow }) {
         ...boxes.filter((b) => b.area.id === selected),
       ]
   /**
-   * The picture's shape, and its own pixel size: as wide as the panel, never wider than the part of
-   * the take drawn (the image's size until there is one), nor taller than the window holds under the
-   * pinned bar (as-zkky).
+   * The picture's box: the image's shape, never wider than the part of the take drawn (the image's
+   * size until there is one), and held by the window under the pinned bar (as-zkky).
    */
-  const shape = {
-    ...pictureShape(row.width, row.height),
-    '--bar-height': `${barHeight}px`,
-    maxWidth: `${view?.take ? cropWindow(view.take, row).width : row.width}px`,
-  } as CSSProperties
-
+  const fit = {
+    shape: row,
+    drawnWidth: view?.take ? cropWindow(view.take, row).width : row.width,
+    barHeight,
+  }
   return (
     <section className="panel named-areas" aria-label="Named areas">
       {failure && (
@@ -586,10 +583,10 @@ export function NamedAreasPanel({ row }: { row: ImageRow }) {
       <div className="named-areas-picture">
         {ready && view?.take ? (
           <>
-            <div
+            <FitPicture
+              {...fit}
               ref={stage}
               className="named-area-stage"
-              style={shape}
               onPointerDown={down}
               onPointerMove={move}
               onPointerUp={up}
@@ -655,20 +652,20 @@ export function NamedAreasPanel({ row }: { row: ImageRow }) {
               {drawing && !clean && (
                 <div className="named-area-box drawing" style={placedStyle(drawing, row)} />
               )}
-            </div>
+            </FitPicture>
             <p className="muted named-area-line">{areaCaptionText(view.take.n, current)}</p>
           </>
         ) : (
-          <div
+          <FitPicture
+            {...fit}
             className={`named-area-empty${state === 'loading' ? '' : ' named-area-empty-text'}`}
-            style={shape}
             role={state === 'loading' ? undefined : 'status'}
           >
             {state === 'unknown' && IMAGE_TAKE_UNKNOWN}
             {state === 'none' && 'Choose a take to mark the areas on it.'}
             {state === 'gone' &&
               "The chosen take's picture is missing or cannot be read, so the areas cannot be marked on it."}
-          </div>
+          </FitPicture>
         )}
       </div>
     </section>

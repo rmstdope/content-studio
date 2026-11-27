@@ -4,6 +4,7 @@ import type { AreaBox, AreaRow, ImageRow } from '../../../core/images'
 import type { ImagePatchesView } from '../../../core/imagePatches'
 import { valuesInEveryWindow } from '../../../../test/stylesheet'
 import { mountPager } from '../../../../test/besidePager'
+import { drawnSize, SAME_SIZE } from '../../../../test/pictureSize'
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register({ url: 'http://localhost/' })
 const isOff = (element: Element) => element.getAttribute('aria-disabled') === 'true'
@@ -1181,7 +1182,7 @@ describe('the pinned bar and the full-width picture (as-uucl.4)', () => {
     expect(order).toEqual(['named-areas-head', 'named-areas-bar', 'named-areas-picture'])
     const picture = host.querySelector('.named-areas-picture')!
     expect([...picture.children].map((c) => c.className)).toEqual([
-      'named-area-stage',
+      'named-area-stage whole-in-view',
       'muted named-area-line',
     ])
   })
@@ -1258,6 +1259,35 @@ describe('the pinned bar and the full-width picture (as-uucl.4)', () => {
     bar.getBoundingClientRect = () => ({ top: 0, bottom: 112, height: 112 }) as DOMRect
     await act(async () => window.dispatchEvent(new Event('resize')))
     expect(stage!.style.getPropertyValue('--bar-height')).toBe('112px')
+  })
+
+  for (const { what, width, height, drawn } of SAME_SIZE) {
+    it(`draws ${what} at the size Fine-tune and Patches draw it, with no bar to clear (as-5068)`, async () => {
+      const { stage } = await render([area('a')], {
+        size: { width, height },
+        answer: view({ take: { n: 2, width, height, cropped: false } }),
+      })
+      expect(drawnSize(stage!)).toEqual([...drawn])
+    })
+  }
+
+  it('draws a portrait picture shorter by the pinned bar’s height (as-zkky)', async () => {
+    const { host, stage } = await render([area('a')], {
+      size: { width: 816, height: 1024 },
+      answer: view({ take: { n: 2, width: 816, height: 1024, cropped: false } }),
+    })
+    const bar = host.querySelector<HTMLElement>('.named-areas-bar')!
+    bar.getBoundingClientRect = () => ({ top: 0, bottom: 100, height: 100 }) as DOMRect
+    await act(async () => window.dispatchEvent(new Event('resize')))
+    expect(drawnSize(stage!)).toEqual([580, 728])
+  })
+
+  it('holds the box in the picture’s place to the same width rule (as-zkky)', async () => {
+    const { host } = await render([area('a')], {
+      size: { width: 816, height: 1024 },
+      answer: () => new Promise<Response>(() => {}),
+    })
+    expect(drawnSize(host.querySelector<HTMLElement>('.named-area-empty')!)).toEqual([660, 828])
   })
 
   it('keeps the same shape for the empty box and the row of areas', async () => {
