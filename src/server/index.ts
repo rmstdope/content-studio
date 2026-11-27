@@ -6,6 +6,7 @@ import { type EffectGenerator } from '../services/effects'
 import { type ImageGenerator } from '../services/images'
 import { type Transcriber } from '../services/transcriber'
 import { type SceneRender } from '../services/sceneAudio'
+import { type SpendLog } from '../services/spending'
 import index from '../ui/index.html'
 import { allowedHosts, notFound } from './shared'
 import { createContext, type RouteContext } from './context'
@@ -40,6 +41,8 @@ export interface ServerOptions {
   images?: ImageGenerator
   /** The sound effects generator to use (tests); by default the Small SFX worker, or a stand-in when `CONTENT_STUDIO_FAKE_EFFECTS=1`. */
   effects?: EffectGenerator
+  /** The spend log to use (tests); by default one saving into the project's spending record. */
+  spendLog?: SpendLog
 }
 
 export { allowedHosts }
