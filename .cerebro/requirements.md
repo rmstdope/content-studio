@@ -23,6 +23,9 @@ SAF-2  Only the studio's own page can change anything: a change asked for by ano
        Proven by: test/system/SAF-2.test.ts
 SAF-3  No clip is deleted unless the person confirms it first.
        Proven by: test/system/SAF-3.test.ts
+SAF-4  When the studio cannot save a file, it says which file and why (permission denied, the
+       disk is full, a file or folder is in the way), never a system error or a temporary path.
+       Proven by: nothing yet
 
 ## Overview and changes (OVW)
 
