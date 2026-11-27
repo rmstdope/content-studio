@@ -52,7 +52,7 @@ CST-1  Each character has one page with its cast voice, its lines per part, its 
 CST-2  The person auditions voices for a character (found by keywords in Fish Audio's or
        ElevenLabs' library, their own voices, a cloned voice or a designed one) by hearing each
        say the audition phrase, shortlisting some and ruling others out, and casts one.
-       Proven by: nothing yet
+       Proven by: test/system/CST-2.test.ts
 CST-3  A voice ruled out for a character stays ruled out for it and is not offered again; the
        character's page lists the voices ruled out.
        Proven by: test/system/CST-3.test.ts
