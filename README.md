@@ -79,7 +79,7 @@ repository while working on the studio.
 
 ```sh
 bun run dev          # the studio on test/fixtures/sample, with reloading
-bun test
+bun run test         # all tests, in parallel (bun test runs them one file at a time)
 bun run typecheck
 bun run format       # prettier
 bun run check        # format:check, typecheck and tests, as CI runs them
