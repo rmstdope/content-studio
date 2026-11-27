@@ -163,6 +163,7 @@ export function createContext({
   elevenlabs,
   images,
   effects,
+  sceneRender,
 }: ServerOptions) {
   /** The port the server listens on, set once it does: the guards need it. */
   const listening: { port?: number } = {}
@@ -927,6 +928,7 @@ export function createContext({
     reserved,
     ruledOut,
     saveToAccount,
+    sceneRender,
     shownAccount,
     sittingAnswer,
     sittingKey,

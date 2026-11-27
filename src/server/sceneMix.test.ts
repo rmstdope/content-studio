@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { projectJson, tempRepo } from '../../test/helpers'
 import { createFakeEffects } from '../services/effectsFake'
+import { ffmpegSceneRender } from '../services/sceneAudio'
 import { startServer } from './index'
 import { encode, fish } from './test-support'
 
@@ -29,6 +30,9 @@ describe.skipIf(!hasFfmpeg)('server, a scene’s mix as a sound', () => {
       { id: 'attic', title: 'Attic', states: [], triggers: [] },
     ],
   })
+  // The window the route asked for each time; one second of it is rendered, so the tests are quick.
+  // That ffmpeg renders the window asked is `sceneAudio.test.ts`'s to prove.
+  const asked: number[] = []
   const studio = startServer({
     projectFile: join(root, 'content-studio.json'),
     port: 0,
@@ -36,6 +40,10 @@ describe.skipIf(!hasFfmpeg)('server, a scene’s mix as a sound', () => {
     encode,
     transcriber: null,
     effects: createFakeEffects(5),
+    sceneRender: (parts, window) => {
+      asked.push(window)
+      return ffmpegSceneRender(root)(parts, 1)
+    },
   })
   afterAll(() => studio.stop(true))
   const origin = studio.url.origin
@@ -71,7 +79,7 @@ describe.skipIf(!hasFfmpeg)('server, a scene’s mix as a sound', () => {
     ])
   })
 
-  it('renders the saved mix as a minute of WAV, which studio_fetch hands over with its facts', async () => {
+  it('asks for a minute of the saved mix as WAV, which studio_fetch hands over with its facts', async () => {
     await send('POST', '/api/effects/wind/takes', { count: 1 })
     let file = ''
     for (let i = 0; i < 300 && !file; i++) {
@@ -95,7 +103,8 @@ describe.skipIf(!hasFfmpeg)('server, a scene’s mix as a sound', () => {
     expect(fetched.isError).toBeUndefined()
     expect(fetched.content.map((c) => c.type)).toEqual(['text', 'text', 'audio'])
     expect(fetched.content[0]!.text).toContain('audio/wav')
-    expect(fetched.content[1]!.text).toMatch(/Duration 60\.\d s, loudness -?\d+\.\d LUFS/)
+    expect(fetched.content[1]!.text).toMatch(/Duration 1\.0 s, loudness -?\d+\.\d LUFS/)
+    expect(asked).toEqual([60, 60])
     expect(listing(root)).toEqual(before)
   })
 
@@ -103,21 +112,13 @@ describe.skipIf(!hasFfmpeg)('server, a scene’s mix as a sound', () => {
   it('tells an agent fetching the mix what it leaves out, as the Scenes page does', async () => {
     const wind = { id: 'wind', play: { mode: 'loop' }, state: 'storm', level: 1 }
     const rain = { id: 'rain', play: { mode: 'loop' }, state: 'storm', level: 1 }
-    let was: object = { effects: [wind] }
-    const put = async (effects: object[]) => {
-      const saved = await send('PUT', '/api/scenes/act1/hall', { scene: { effects }, was })
-      was = { effects }
-      return saved
-    }
-    expect((await put([wind, rain])).status).toBe(200)
+    const body = { scene: { effects: [wind, rain] }, was: { effects: [wind] } }
+    expect((await send('PUT', '/api/scenes/act1/hall', body)).status).toBe(200)
     const left = await fetchTool('/api/scenes/act1/hall/mix?state=storm')
     expect(left.content.map((c) => c.type)).toEqual(['text', 'text', 'text', 'audio'])
     expect(left.content[2]!.text).toBe(
       'Left out of this mix: rain in storm, which has no take chosen.',
     )
-    expect((await put([wind])).status).toBe(200)
-    const whole = await fetchTool('/api/scenes/act1/hall/mix?state=storm')
-    expect(whole.content.map((c) => c.type)).toEqual(['text', 'text', 'audio'])
   })
 
   async function fetchTool(path: string) {

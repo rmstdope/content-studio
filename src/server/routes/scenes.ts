@@ -5,7 +5,7 @@ import { MeasureBody, SceneBody, WITHOUT_HEADER, badBody, notFound } from '../sh
 
 /** The scenes routes. */
 export function scenesRoutes(c: RouteContext) {
-  const { fromOwnPage, guard, projectFile } = c
+  const { fromOwnPage, guard, projectFile, sceneRender } = c
   return {
     '/api/scene-loudness': {
       GET: guard(async () => Response.json(measuring(projectFile))),
@@ -31,6 +31,7 @@ export function scenesRoutes(c: RouteContext) {
           request.params.part,
           request.params.id,
           state ?? undefined,
+          { render: sceneRender },
         ).catch((error: unknown) => ({
           ok: false as const,
           kind: 'failed' as const,
