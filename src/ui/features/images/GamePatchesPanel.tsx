@@ -31,6 +31,7 @@ import { patchChosen, patchesHeading, patchLayoutOf, patchStateText } from '../.
 import { patchRowId, RemakeLine } from './RemakeLine'
 import { PatchWorkbench, type PatchStack } from './PatchWorkbench'
 import { WordsField, type SaveWordsNow } from './WordsField'
+import { useRoom } from './useRoom'
 
 /**
  * One open patch: the notice when the game changed its words under the user's, then the field of
@@ -233,9 +234,9 @@ function stackOfPatch(
 
 /**
  * The patches the game asks for on an image, laid out by the image's shape: a list beside a
- * portrait image, a row of chips above any other. One patch is open at a time, the first whose
- * game words changed under the user's, else the first. Nothing on the page when the game asks for
- * none.
+ * portrait image while there is room for it and the whole picture, a row of chips above otherwise.
+ * One patch is open at a time, the first whose game words changed under the user's, else the first.
+ * Nothing on the page when the game asks for none.
  */
 export function GamePatchesPanel({ row }: { row: ImageRow }) {
   const [saved, setSaved] = useState(false)
@@ -247,6 +248,7 @@ export function GamePatchesPanel({ row }: { row: ImageRow }) {
   // The model picked in each patch's menu: not remembered past the page, so each starts on klein (`startEditModel`).
   const [picks, setPicks] = useState<Record<string, EditModelId>>({})
   const [remakePick, setRemakePick] = useState<EditModelId | null>(null)
+  const layout = useRoom()
   const view = query.data && 'patches' in query.data ? query.data : null
   // Nothing is said until the patches are loaded, nor when the lock cannot be read: unread, it gives no take as chosen.
   const chosen = imageChosen(row, view)
@@ -275,7 +277,14 @@ export function GamePatchesPanel({ row }: { row: ImageRow }) {
     return titles.length > 0 ? overlapOpenLine(titles) : null
   }
   const heading = patchesHeading(row.patches, chosen)
-  const list = patchLayoutOf(row) === 'list'
+  const list =
+    patchLayoutOf(
+      row,
+      layout.room && {
+        ...layout.room,
+        take: view?.chosen.known ? view.chosen.take : null,
+      },
+    ) === 'list'
   const workOf = (id: string) => view?.patches.find((p) => p.id === id) ?? null
   const pick = (p: PatchRow) => {
     const work = workOf(p.id)
@@ -381,18 +390,12 @@ export function GamePatchesPanel({ row }: { row: ImageRow }) {
           }}
         />
       )}
-      <div className={list ? 'patches-layout patches-lefty' : 'patches-layout'}>
-        {list ? (
-          <div className="patches-side">
-            <h3>{heading}</h3>
-            <ul className="patches-list">{row.patches.map(pick)}</ul>
-          </div>
-        ) : (
-          <div className="patches-chips">
-            <span className="label">{heading}</span>
-            <ul className="patches-chips-list">{row.patches.map(pick)}</ul>
-          </div>
-        )}
+      <div ref={layout.ref} className={list ? 'patches-layout patches-lefty' : 'patches-layout'}>
+        {/* The same elements beside and above, so that moving the list keeps its buttons, and focus. */}
+        <div className={list ? 'patches-side' : 'patches-chips'}>
+          {list ? <h3>{heading}</h3> : <span className="label">{heading}</span>}
+          <ul className={list ? 'patches-list' : 'patches-chips-list'}>{row.patches.map(pick)}</ul>
+        </div>
         <PatchBody
           key={patch.id}
           imageId={row.id}

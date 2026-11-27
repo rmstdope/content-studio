@@ -59,6 +59,19 @@ export function cropWindow(
   }
 }
 
+/**
+ * How wide a picture marked on is drawn, the same on Fine-tune, Patches and Named areas, whichever
+ * of the two shapes a tab shows, the whole take or the image's cut of it: the narrower shape of the
+ * two, so that either fits a window whole at that width, and no more pixels than the image keeps
+ * across, so that neither is ever enlarged.
+ */
+export function markedFit(take: LookSize, image: LookSize): { ratio: number; pixels: number } {
+  return {
+    ratio: math.min(take.width / take.height, image.width / image.height),
+    pixels: cropWindow(take, image).width,
+  }
+}
+
 /** A rectangle of a picture, in pixels. */
 export interface Window {
   x: number

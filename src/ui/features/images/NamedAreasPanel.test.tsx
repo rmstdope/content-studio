@@ -1248,7 +1248,8 @@ describe('the pinned bar and the full-width picture (as-uucl.4)', () => {
     })
     expect(stage!.style.maxWidth).toBe('816px')
     expect(stage!.style.aspectRatio).toBe('160 / 200')
-    expect(stage!.style.getPropertyValue('--picture-ratio')).toBe(String(160 / 200))
+    // As wide as Fine-tune draws the whole take, which is a little narrower than the image (as-fuaz).
+    expect(stage!.style.getPropertyValue('--picture-ratio')).toBe(String(816 / 1024))
   })
 
   it('never draws a cropped take larger than the part of it the image shows (as-zkky)', async () => {
@@ -1268,13 +1269,13 @@ describe('the pinned bar and the full-width picture (as-uucl.4)', () => {
     expect(stage!.style.getPropertyValue('--bar-height')).toBe('112px')
   })
 
-  for (const { what, width, height, drawn } of SAME_SIZE) {
+  for (const { what, width, height, game, cut } of SAME_SIZE) {
     it(`draws ${what} at the size Fine-tune and Patches draw it, with no bar to clear (as-5068)`, async () => {
       const { stage } = await render([area('a')], {
-        size: { width, height },
+        size: game,
         answer: view({ take: { n: 2, width, height, cropped: false } }),
       })
-      expect(drawnSize(stage!)).toEqual([...drawn])
+      expect(drawnSize(stage!)).toEqual([...cut])
     })
   }
 

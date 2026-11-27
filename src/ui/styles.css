@@ -5273,7 +5273,8 @@ textarea[aria-disabled='true'][data-why] {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 0 2px 14px 24px;
+  /* None at the sides: the picture is as wide here as on Fine-tune and Named areas (as-fuaz). */
+  padding: 0 0 14px;
 }
 
 /* The named areas the game wants placed on an image (as-qg4.1) */
@@ -5793,8 +5794,7 @@ textarea[aria-disabled='true'][data-why] {
   min-height: 44px;
 }
 @container panel (max-width: 700px) {
-  .patch-band,
-  .patches-lefty {
+  .patch-band {
     grid-template-columns: 1fr;
   }
   .patch-band-tools {

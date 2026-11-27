@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
+import { PATCH_LIST_GAP, PATCH_LIST_WIDTH, WINDOW_SHARE } from './imageJobs'
 
 const css = readFileSync(new URL('./styles.css', import.meta.url), 'utf8')
 
@@ -73,10 +74,11 @@ describe('the Patches workbench frame (as-uucl.3)', () => {
 })
 
 describe('the Patches tab in a narrow window', () => {
-  it('puts the list, the stage and the tools one above the other', () => {
-    const narrow = css.slice(css.indexOf('@container panel (max-width: 700px) {\n  .patch-band,'))
+  it('puts the stage’s words and tools one above the other', () => {
+    const narrow = css.slice(css.indexOf('@container panel (max-width: 700px) {\n  .patch-band {'))
     const block = narrow.slice(0, narrow.indexOf('\n}\n'))
-    expect(block).toMatch(/\.patches-lefty/)
+    // The list is moved by the panel itself, which knows the room the picture needs (as-fuaz).
+    expect(block).not.toMatch(/\.patches-lefty/)
     expect(block).toMatch(/\.patch-band/)
     expect(block).toMatch(/grid-template-columns:\s*1fr/)
   })
@@ -84,6 +86,20 @@ describe('the Patches tab in a narrow window', () => {
   it('wraps the chips, and lets the list scroll inside itself', () => {
     expect(rule('.patches-chips')).toMatch(/flex-wrap:\s*wrap/)
     expect(rule('.patches-list')).toMatch(/overflow-y:\s*auto/)
+  })
+})
+
+describe('the Patches picture’s width (as-fuaz)', () => {
+  it('takes none of it for the open patch: its box has no padding at the sides', () => {
+    expect(rule('.game-patch-body')).toMatch(/padding:\s*0 0 14px;/)
+  })
+
+  it('judges the list’s room with the figures the stylesheet lays it out with', () => {
+    expect(rule('.patches-lefty')).toContain(
+      `grid-template-columns: ${PATCH_LIST_WIDTH}px minmax(0, 1fr);`,
+    )
+    expect(rule('.patches-lefty')).toContain(`gap: ${PATCH_LIST_GAP}px;`)
+    expect(rule('.whole-in-view')).toContain(`${WINDOW_SHARE * 100}dvh`)
   })
 })
 

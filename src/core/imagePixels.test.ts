@@ -5,6 +5,7 @@ import {
   bringToLook,
   cropPixels,
   cropWindow,
+  markedFit,
   editWindow,
   fitToSize,
   isCropped,
@@ -184,6 +185,26 @@ describe('cropWindow', () => {
       width: 1024,
       height: 640,
     })
+  })
+})
+
+describe('markedFit', () => {
+  it('takes the narrower of the take’s and the image’s shapes, so both fit whole (as-fuaz)', () => {
+    // Cut at the top and bottom: the whole take is the narrower picture.
+    expect(markedFit({ width: 816, height: 1024 }, { width: 160, height: 200 })).toEqual({
+      ratio: 816 / 1024,
+      pixels: 816,
+    })
+    // Cut at the sides: what the game keeps is the narrower one.
+    expect(markedFit({ width: 1024, height: 512 }, { width: 320, height: 200 })).toEqual({
+      ratio: 320 / 200,
+      pixels: 819,
+    })
+  })
+
+  it('is the take’s own shape and width when the image has it too', () => {
+    const size = { width: 640, height: 400 }
+    expect(markedFit(size, { width: 320, height: 200 })).toEqual({ ratio: 1.6, pixels: 640 })
   })
 })
 
