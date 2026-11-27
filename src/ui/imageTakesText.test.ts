@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'bun:test'
-import { imageMakingStatusText, imageTimeLeftText } from './imageTakesText'
+import {
+  imageMakingStatusText,
+  imageTimeLeftText,
+  newFailuresText,
+  takeFailedText,
+} from './imageTakesText'
 
 describe('the time left on an image take', () => {
   it('waits, counts down in seconds then minutes, and owns up to running over', () => {
@@ -22,5 +27,18 @@ describe("an image row's status while takes are made", () => {
     expect(imageMakingStatusText({ takes: 2, left: 11 })).toBe('making 2 takes · about 15 s')
     expect(imageMakingStatusText({ takes: 1, left: 0 })).toBe('making 1 take · about 5 s')
     expect(imageMakingStatusText({ takes: 3, left: 400 })).toBe('making 3 takes · about 7 min')
+  })
+})
+
+describe('what is said as takes fail', () => {
+  it('names the take', () => {
+    expect(takeFailedText(5)).toBe('Take 5 could not be made.')
+  })
+
+  it('says only the takes that had not failed before, one sentence each', () => {
+    expect(newFailuresText(new Set([5]), [5, 6, 8])).toBe(
+      'Take 6 could not be made. Take 8 could not be made.',
+    )
+    expect(newFailuresText(new Set([5, 6]), [5])).toBe('')
   })
 })

@@ -6,8 +6,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   MAX_IMAGE_TAKES_AT_ONCE,
   rightAfterDrop,
+  rowOrder,
   stepRight,
-  type ImageMakingView,
   type ImageTakeView,
   type ImageTakesView,
 } from '../../../core/imageTakes'
@@ -74,10 +74,10 @@ import {
   unchooseNote,
   WAIT_FOR_CHANGE,
 } from '../../imagesText'
-import { failureLine, progressOf } from '../../musicTakesText'
-import { imageTimeLeftText } from '../../imageTakesText'
 import { routeHref } from '../../route'
 import { CopyImageDialog } from './CopyImageDialog'
+import { PendingThumb } from './PendingThumb'
+import { useFailedTakeNews } from './useFailedTakeNews'
 import { TakePicture, gameSource, modelSource, type Showing } from './TakePicture'
 import { scrollWithin } from '../../scrollWithin'
 
@@ -270,6 +270,7 @@ export function TakesSection({
     const thumb = onRight === null ? undefined : thumbs.current.get(onRight)
     scrollWithin(thumb, thumb?.closest<HTMLElement>('[data-strip]'))
   }, [onRight])
+  const news = useFailedTakeNews(ready?.failed.map((f) => f.n) ?? null)
   // While the takes load, no key does anything: the last render's handler must not outlive its takes.
   keys.current = () => {}
   if (!view || !ready) {
@@ -278,7 +279,6 @@ export function TakesSection({
     return (
       <>
         {null}
-        {[]}
         {null}
         <div className="image-workbench">
           <div className="image-band" data-area="band">
@@ -326,6 +326,27 @@ export function TakesSection({
     client.setQueryData<ImageTakesView>(['image-takes', id], (v) =>
       v && 'takes' in v ? update(v) : v,
     )
+
+  const retryOff = off(
+    !generator.ok && imageMakeWhy({ ...why, making: false, savingWords: false }),
+    make.isPending && WAIT_FOR_CHANGE,
+    waitingForWords && imageMakeWhy({ ...why, making: false }),
+  )
+  /** Makes failed take `n` again, once the words are saved. */
+  const onRetry = (n: number) => {
+    news.retrying()
+    afterWordsSaved(() =>
+      make.mutate(
+        { retry: n },
+        {
+          onSuccess: (answer) => {
+            const read = client.getQueryData<ImageTakesView>(['image-takes', id])
+            if (answer.ok) news.retried(n, read?.failed.map((f) => f.n) ?? [])
+          },
+        },
+      ),
+    )
+  }
 
   /** Stops a poll on its way (it would bring back what is about to change), and clears older refusals. */
   const beforeChange = () => {
@@ -577,26 +598,6 @@ export function TakesSection({
           </a>
         </div>
       )}
-      {failed.map((f) => (
-        <div className="errbox" role="alert" key={f.n}>
-          <div className="errbox-text">
-            <strong>Take {f.n} could not be made.</strong>
-            <span className="muted small">{failureLine(f.message, takes.length > 0)}</span>
-          </div>
-          <button
-            type="button"
-            className="btn"
-            {...off(
-              !generator.ok && imageMakeWhy({ ...why, making: false, savingWords: false }),
-              make.isPending && WAIT_FOR_CHANGE,
-              waitingForWords && imageMakeWhy({ ...why, making: false }),
-            )}
-            onClick={() => afterWordsSaved(() => make.mutate({ retry: f.n }))}
-          >
-            Try again
-          </button>
-        </div>
-      ))}
       {copyOpen && (
         <CopyImageDialog
           title={row.title}
@@ -853,8 +854,11 @@ export function TakesSection({
         </section>
         <section className="panel takes-panel image-takes" data-area="strip" aria-label="Takes">
           <div className="takes-head">
-            <h2>{none ? 'Takes' : `Takes · ${takes.length}`}</h2>
+            <h2>{takes.length === 0 ? 'Takes' : `Takes · ${takes.length}`}</h2>
           </div>
+          <span className="sr-only" role="status">
+            {news.said}
+          </span>
           {unread && !none && (
             <span className="takes-missing small">
               Choosing, dropping and un-choosing wait until the images lock can be read. You can
@@ -862,7 +866,20 @@ export function TakesSection({
             </span>
           )}
           <div className="image-thumbs" data-strip>
-            {takes.map((t) => {
+            {rowOrder(takes, making, failed).map((entry) => {
+              if (entry.kind !== 'take') {
+                return (
+                  <PendingThumb
+                    key={entry.n}
+                    take={entry}
+                    retryOff={retryOff}
+                    onRetry={() => onRetry(entry.n)}
+                    onGone={() => focusOn(entry.n, true)}
+                    {...size}
+                  />
+                )
+              }
+              const t = entry.take
               const src =
                 showing === 'game' ? gameSource(id, t, row, lookError) : modelSource(id, t)
               const picture = src ? (
@@ -922,9 +939,6 @@ export function TakesSection({
                 </button>
               )
             })}
-            {making.map((m) => (
-              <MakingThumb key={m.n} making={m} {...size} />
-            ))}
           </div>
         </section>
       </div>
@@ -1065,29 +1079,5 @@ function LeftSide({
       <div className="take-row">{label}</div>
       <EmptyFrame title="No picture yet" hint="Choose a take and the game shows it." {...size} />
     </>
-  )
-}
-
-/** A take waiting or being made, in the strip: its place, its time and a progress bar. */
-function MakingThumb({
-  making,
-  width,
-  height,
-}: {
-  making: ImageMakingView
-  width: number
-  height: number
-}) {
-  return (
-    <div className="image-thumb image-thumb-making">
-      <div className="image-take-empty" style={{ aspectRatio: `${width} / ${height}` }} />
-      <span className="image-thumb-label">
-        <span className="grow">Take {making.n}</span>
-      </span>
-      <span className="faint small">{imageTimeLeftText(making)}</span>
-      <div className="bar" role="progressbar" aria-label={`Take ${making.n}`}>
-        <i style={{ width: `${Math.round(progressOf(making) * 100)}%` }} />
-      </div>
-    </div>
   )
 }
