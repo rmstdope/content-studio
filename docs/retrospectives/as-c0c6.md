@@ -5,7 +5,8 @@
 **What happened.** On a branch that adds only a system test, `bun run test` failed once in about
 eight runs in `src/services/stopWithStudio.test.ts`, "stops a music or effects worker, and what it
 started, on SIGTERM": after the studio had exited, the worker's child was still alive
-(`expect(alive(child)).toBe(false)`, line 45). The file passed run alone.
+(`expect(alive(child)).toBe(false)`, line 45). The file passed run alone. A later run on the
+rebased branch failed the same way in the file's "stops an image take … on SIGTERM" case.
 
 **Why.** Not established. The test gives the child about one second to disappear after the studio
 exits, on the real clock, while every core is busy.
