@@ -12,6 +12,7 @@ const { WhyTip } = await import('../../components/WhyTip')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { MakeAllPanel } = await import('./MakeAllPanel')
+const { pressBlankThenEscape } = await import('../../../../test/pressBlank')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -192,6 +193,15 @@ describe('Make takes for every track with no chosen take', () => {
     expect(page.text()).not.toContain('Make 8 takes for')
     expect(document.activeElement).toBe(page.button('Make 4 takes each'))
     expect(page.requests).toEqual([])
+  })
+
+  it('closes on Esc after a press on a spot in the question that is not a control', async () => {
+    const page = render(four)
+    await page.press('Make 4 takes each')
+    await act(async () =>
+      pressBlankThenEscape(page.container.querySelector('.make-all-question h3')!),
+    )
+    expect(page.container.querySelector('.make-all-question') === null).toBe(true)
   })
 
   it('starts the takes on Make, then shows what is being made with focus on Stop all', async () => {

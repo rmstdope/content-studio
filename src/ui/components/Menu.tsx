@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { containerKeys } from './containerKeys'
 
 /** One thing a menu offers: the value it stands for (null: none) and the words for it. */
 export interface MenuOption {
@@ -52,12 +53,7 @@ export function Menu({
     setOpen(false)
     button.current?.focus()
   }
-  const keys = (event: React.KeyboardEvent) => {
-    if (event.key === 'Escape' && open) {
-      event.preventDefault()
-      event.stopPropagation()
-      return close()
-    }
+  const arrows = (event: React.KeyboardEvent) => {
     const step = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
     if (!step) return
     event.preventDefault()
@@ -67,8 +63,14 @@ export function Menu({
     all[Math.min(all.length - 1, Math.max(0, at + step))]?.focus()
   }
 
+  // The list takes focus on a press on a spot in it that is not an option; the menu hears keys.
+  const { tabIndex, onKeyDown } = containerKeys({
+    onEscape: open ? close : undefined,
+    onKeyDown: arrows,
+  })
+
   return (
-    <span className="menu" ref={root} onKeyDown={keys}>
+    <span className="menu" ref={root} onKeyDown={onKeyDown}>
       <button
         ref={button}
         type="button"
@@ -82,15 +84,7 @@ export function Menu({
         {face}
       </button>
       {open && (
-        <div
-          className="menu-list"
-          id={id}
-          role="listbox"
-          aria-label={label}
-          // A press on a spot that is not an option focuses the list rather than the page, so its
-          // keys (Esc above all) still reach the handler on the menu.
-          tabIndex={-1}
-        >
+        <div className="menu-list" id={id} role="listbox" aria-label={label} tabIndex={tabIndex}>
           {options.map((option) => (
             <button
               key={option.value ?? ''}

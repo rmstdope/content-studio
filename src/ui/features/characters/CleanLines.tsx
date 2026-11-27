@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { type CleanedLines, type CleaningLines } from '../../api'
 import { off } from '../../off'
 import {
@@ -14,6 +14,7 @@ import {
   puttingBackText,
   stillCleanedText,
 } from '../../cleanLines'
+import { containerKeys } from '../../components/containerKeys'
 
 /** A question with two buttons, the second confirming: focus starts on it, Escape is the first. */
 export function Ask({
@@ -38,12 +39,7 @@ export function Ask({
       className="clean-ask"
       role="group"
       aria-label={title}
-      onKeyDown={(event: KeyboardEvent) => {
-        if (event.key === 'Escape') {
-          event.stopPropagation()
-          onNo()
-        }
-      }}
+      {...containerKeys({ onEscape: onNo })}
     >
       <h3>{title}</h3>
       <ul>

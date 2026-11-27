@@ -7,6 +7,7 @@ const { act, createElement } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { CloneVoice } = await import('./CloneVoice')
+const { pressBlankThenEscape } = await import('../../../../test/pressBlank')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -90,5 +91,11 @@ describe('CloneVoice', () => {
       ),
     )
     expect(page.form()).toBeNull()
+  })
+
+  it('closes on Escape after a press on a spot in the form that is not a control', async () => {
+    page = await cloneForm(['one.wav'])
+    await act(() => pressBlankThenEscape(document.querySelector('.clone-form .label')!))
+    expect(page.form() === null).toBe(true)
   })
 })

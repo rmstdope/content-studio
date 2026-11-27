@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { off } from '../../off'
 import { Overlay } from '../../components/Overlay'
+import { containerKeys, keepFocusOnBackdrop } from '../../components/containerKeys'
 
 /**
  * The question asked when something would leave a scene with unsaved changes. Focus starts on
- * Save; Escape is Cancel, and closing returns focus to where it was.
+ * Save and Tab stays inside; Escape is Cancel, and closing returns focus to where it was.
  */
 export function LeaveDialog({
   name,
@@ -28,18 +29,13 @@ export function LeaveDialog({
   }, [])
   return (
     <Overlay>
-      <div className="scene-leave-backdrop">
+      <div className="scene-leave-backdrop" onMouseDown={keepFocusOnBackdrop()}>
         <div
           className="panel scene-leave"
           role="alertdialog"
           aria-modal="true"
           aria-labelledby="scene-leave-title"
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') {
-              event.stopPropagation()
-              onCancel()
-            }
-          }}
+          {...containerKeys({ onEscape: onCancel, modal: true })}
         >
           <h2 id="scene-leave-title">Save the changes to {name}?</h2>
           <p className="muted">If you don&apos;t, they are lost.</p>

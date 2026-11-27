@@ -18,6 +18,7 @@ import { useTrackActions, type TrackActions } from '../../trackActions'
 import { useSetFades } from '../../api'
 import { off } from '../../off'
 import type { useClipPlayer } from '../../components/useClipPlayer'
+import { containerKeys } from '../../components/containerKeys'
 
 /** Why the editor's controls wait: the fades are being saved. */
 const SAVING_WHY = 'Wait for the fades to be saved.'
@@ -295,11 +296,15 @@ export function FadesEditorBody({
   return (
     <div
       className="editor"
-      onKeyDown={(event) => {
-        if (saving) return
-        if (event.key === 'Escape') close()
-        else if (event.key === 'Enter' && !(event.target instanceof HTMLButtonElement)) save()
-      }}
+      {...containerKeys({
+        onEscape: saving ? undefined : close,
+        // Enter saves from a field: not from a button, nor from the editor itself after a press
+        // on a blank spot of it.
+        onKeyDown: (event) => {
+          if (event.key !== 'Enter' || event.target === event.currentTarget) return
+          if (!(event.target instanceof HTMLButtonElement)) save()
+        },
+      })}
     >
       <div className="take-row">
         <button

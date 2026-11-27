@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { placeMenu } from '../../../core/menuPlacement'
 import type { SceneEffectChoice } from '../../../core/scenes'
+import { containerKeys } from '../../components/containerKeys'
 import { PlayIcon, StopIcon } from '../../components/icons'
 import type { ScenePlayer } from './SceneDetail'
 
@@ -94,17 +95,10 @@ export function AddEffect({
     dismiss()
     button.current?.focus()
   }
+  // The popup takes focus on a press on a spot in it that is not a control; the menu hears keys.
+  const { tabIndex, onKeyDown } = containerKeys({ onEscape: open ? close : undefined })
   return (
-    <div
-      className="scene-add-menu"
-      ref={root}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape' && open) {
-          event.stopPropagation()
-          close()
-        }
-      }}
-    >
+    <div className="scene-add-menu" ref={root} onKeyDown={onKeyDown}>
       <button
         ref={button}
         type="button"
@@ -124,9 +118,7 @@ export function AddEffect({
           }
           role="dialog"
           aria-label="Add a sound effect"
-          // A press on a spot that is not a control focuses the menu rather than the page, so its
-          // keys (Esc above all) still reach the handler above.
-          tabIndex={-1}
+          tabIndex={tabIndex}
         >
           <input
             type="text"

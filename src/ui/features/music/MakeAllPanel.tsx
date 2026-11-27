@@ -32,6 +32,7 @@ import { WAIT_FOR_CHANGE } from '../../musicTakesText'
 import { off } from '../../off'
 import { useMakeAllPanel } from '../../components/useMakeAllPanel'
 import { routeHref } from '../../route'
+import { containerKeys } from '../../components/containerKeys'
 
 /**
  * The action of the "Tracks up to date" (or "Stingers up to date") panel on a list: a button that makes four takes for every
@@ -208,9 +209,7 @@ export function MakeAllPanel({
       <section
         className="make-all-question"
         aria-label={makeAllHeading(plan.takes, plan.tracks.length, noun)}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') cancel()
-        }}
+        {...containerKeys({ onEscape: cancel })}
       >
         <h3>{makeAllHeading(plan.takes, plan.tracks.length, noun)}</h3>
         <span className="muted">

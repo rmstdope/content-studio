@@ -10,6 +10,7 @@ const { act, createElement } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { TakesPanel } = await import('./TakesPanel')
+const { pressBlankThenEscape } = await import('../../../../test/pressBlank')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -238,6 +239,15 @@ describe('Un-choose', () => {
     })
     expect(page.block()).not.toBeNull()
     expect(document.activeElement).toBe(page.button('Un-choose') ?? null)
+  })
+
+  it('puts the block back on Esc after a press on a spot that is not a control', async () => {
+    const page = chosen()
+    await click(page.button('Un-choose'))
+    await act(async () =>
+      pressBlankThenEscape(page.container.querySelector('[role="alertdialog"] h2')!),
+    )
+    expect(page.block()).not.toBeNull()
   })
 
   it('un-chooses on the question’s Un-choose', async () => {

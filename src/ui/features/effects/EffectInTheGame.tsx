@@ -1,6 +1,6 @@
 import { EFFECTS_LOCK_UNREAD, EFFECTS_PENDING, effectFadesOpenWhy } from '../../effectsText'
 import { off } from '../../off'
-import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { effectSeconds, type EffectRow } from '../../../core/effects'
 import {
   effectFadable,
@@ -27,6 +27,7 @@ import { cutShares, wavePosition } from '../music/trimSilence'
 import { EffectFadesEditor } from './EffectFadesEditor'
 import { useTrackActions } from '../../trackActions'
 import { EffectTrimmedTag, useEffectTrimControl } from './effectTrim'
+import { containerKeys } from '../../components/containerKeys'
 
 /** One clip at a time, shared with the takes below. */
 export type Player = ReturnType<typeof useClipPlayer>
@@ -96,11 +97,7 @@ export function EffectInTheGame({
       setAsking(false)
     }
     return (
-      <div
-        onKeyDown={(event: KeyboardEvent) => {
-          if (event.key === 'Escape' && !unchoose.isPending) cancel()
-        }}
-      >
+      <div {...containerKeys({ onEscape: unchoose.isPending ? undefined : cancel })}>
         <Confirm
           title={`Un-choose Take ${state.take}?`}
           effects={[]}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   DESIGN_COUNT,
   DESIGN_PRICE,
@@ -18,6 +18,7 @@ import { designFailureLine } from '../../board'
 import { Confirm } from '../../components/Confirm'
 import { planLeftLine } from '../../sitting'
 import { off } from '../../off'
+import { containerKeys } from '../../components/containerKeys'
 
 /** Why the design box waits while voices are being designed. */
 const DESIGNING = 'Voices are being designed. Wait for them to finish.'
@@ -90,9 +91,8 @@ export function DesignVoice({
     else if (ready === 'cannot') retry.current?.focus()
   }, [confirming, eleven, elevenState, money.kind])
 
-  function onKeyDown(event: KeyboardEvent) {
-    if (event.key !== 'Escape' || pending) return
-    event.stopPropagation()
+  /** Esc: back from the cost question, else the box closes. */
+  function back() {
     if (confirming) setConfirming(false)
     else onClose()
   }
@@ -110,7 +110,7 @@ export function DesignVoice({
   }
 
   return (
-    <div className="design" onKeyDown={onKeyDown}>
+    <div className="design" {...containerKeys({ onEscape: pending ? undefined : back })}>
       <section className="panel design-box" aria-label="Design a voice">
         <h2 className="section-title">Design a voice</h2>
         <div className="stage-switch" role="radiogroup" aria-label="Design with">
