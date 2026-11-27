@@ -197,6 +197,13 @@ A page's problem banners share a `ProblemScope` (`src/ui/components/ProblemScope
 asks `useBannerProblems(id, problems)` for its own problems less those of the banners before it, so a
 problem appears once on a page however many banners it has, and no banner knows the others.
 
+A window, menu or inline question hears its keys through one function, `containerKeys`
+(`src/ui/components/containerKeys.ts`, as-7pd8): it makes the container focusable, so a press on a
+spot that is not a control keeps focus in it and Esc still arrives, takes Esc to what it closes
+(passing it on while there is nothing to close), and with `modal` keeps Tab inside; a modal's
+backdrop uses `keepFocusOnBackdrop`. A new one uses these and writes no Esc handler, `tabIndex` or
+Tab trap of its own.
+
 Rule of thumb: `core/` decides, `services/` does, `server/` exposes, `ui/` shows. `core/` has no
 imports from the others, so the rules for status, staleness and alignment are tested without
 audio, network or disk.

@@ -11,6 +11,7 @@ import { useSwitchModels } from '../api'
 import { noticeReducer, startNotice } from '../retirementNotice'
 import { clearSwitched, useSwitchedTakes } from '../retirementSwitched'
 import { Confirm } from './Confirm'
+import { containerKeys } from './containerKeys'
 
 /** Text with the model names and the project file's name set in the mono face. */
 function Words({ text, file }: { text: string; file: string }) {
@@ -165,11 +166,7 @@ export function RetirementNotice({
   if (state.phase === 'question' || state.phase === 'saving') {
     const saving = state.phase === 'saving'
     return (
-      <div
-        onKeyDown={(event) => {
-          if (event.key === 'Escape' && !saving) dispatch({ type: 'keep' })
-        }}
-      >
+      <div {...containerKeys({ onEscape: saving ? undefined : () => dispatch({ type: 'keep' }) })}>
         <Confirm
           title="Switch this project to s2.1-pro?"
           effects={questionItems(state.takes, file).map((item) => (

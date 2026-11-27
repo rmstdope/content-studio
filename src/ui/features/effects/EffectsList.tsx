@@ -25,6 +25,7 @@ import { routeHref } from '../../route'
 import { showingAttentionText } from '../../status'
 import { FailedPanel, RefreshPanel } from '../music/MusicView'
 import { EffectsMakeAll } from './EffectsMakeAll'
+import { containerKeys } from '../../components/containerKeys'
 
 /** The chip class of each status: green when chosen, amber when it needs a look. */
 const STATUS_CHIP: Record<EffectStatus, string> = {
@@ -283,11 +284,7 @@ function ForgetConfirm({
 }) {
   const forget = useForgetEffect(id)
   return (
-    <div
-      onKeyDown={(event) => {
-        if (event.key === 'Escape' && !forget.isPending) onBack()
-      }}
-    >
+    <div {...containerKeys({ onEscape: forget.isPending ? undefined : onBack })}>
       <Confirm
         title={`Forget your description of ${id}?`}
         effects={[]}

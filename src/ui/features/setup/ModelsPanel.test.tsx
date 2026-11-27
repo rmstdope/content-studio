@@ -8,6 +8,7 @@ const { act, createElement } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { ModelsPanel } = await import('./ModelsPanel')
+const { pressBlankThenEscape } = await import('../../../../test/pressBlank')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -642,6 +643,32 @@ describe('the ElevenLabs rows of the Models panel', () => {
     expect(elevenPut).toHaveLength(1)
   })
 
+  it('closes either question on Escape after a press on a spot that is not a control', async () => {
+    const recorded = { lines: 12, bytes: 400, characters: 380, bare: 300 }
+    const page = render({
+      ...withEleven({ eleven_v3: recorded, 's2.1-pro': recorded }, 'eleven_multilingual_v2'),
+      models: { audition: 's2.1-pro-free', draft: 's2.1-pro', final: 's2.1-pro-free' },
+      dialog: { lines: 12, bytes: 400 },
+    })
+    for (const [label, model] of [
+      ['Draft model', 's2.1-pro-free'],
+      ['ElevenLabs draft model', 'eleven_flash_v2_5'],
+    ] as const) {
+      await act(async () => {
+        const menu = page.container.querySelector<HTMLSelectElement>(
+          `select[aria-label="${label}"]`,
+        )!
+        menu.value = model
+        menu.dispatchEvent(new Event('change', { bubbles: true }))
+      })
+      const title = () => page.container.querySelector('.confirm h2')
+      expect(title()).not.toBeNull()
+      await act(async () => pressBlankThenEscape(title()!))
+      expect(title() === null).toBe(true)
+    }
+    expect(elevenPut).toEqual([])
+  })
+
   it('says a switch failed, with Keep and Try again', async () => {
     globalThis.fetch = (async () =>
       new Response(JSON.stringify({ ok: false, problems: [{ message: 'Act I is recording' }] }), {
@@ -815,6 +842,16 @@ describe('the ElevenLabs voice row of the Models panel', () => {
     expect(alert).toContain('Try again')
     await act(async () => button(page.container, 'Keep the saved settings')!.click())
     expect(field<HTMLInputElement>(page.container, 'similarity').value).toBe('0.75')
+  })
+
+  it('closes its question on Escape after a press on a spot that is not a control', async () => {
+    const page = render(
+      withEleven({ eleven_v3: { lines: 12, bytes: 400, characters: 380, bare: 300 } }),
+    )
+    await slide(page.container, 'style', '0.3')
+    await act(async () => button(page.container, 'Save voice settings')!.click())
+    await act(async () => pressBlankThenEscape(page.container.querySelector('.confirm h2')!))
+    expect(page.container.querySelector('.confirm') === null).toBe(true)
   })
 
   it('keeps its question while the saved settings change under it, and Escape closes it', async () => {

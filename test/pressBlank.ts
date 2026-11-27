@@ -11,3 +11,10 @@ export function pressBlank(spot: Element): Element {
   else (document.activeElement as HTMLElement | null)?.blur()
   return document.activeElement ?? document.body
 }
+
+/** A press on `spot` (see {@link pressBlank}) and then Esc, as a keyboard sends it. */
+export function pressBlankThenEscape(spot: Element): void {
+  pressBlank(spot).dispatchEvent(
+    new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+  )
+}

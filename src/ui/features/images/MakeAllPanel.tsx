@@ -28,6 +28,7 @@ import { off } from '../../off'
 import { listSeparator, WAIT_FOR_CHANGE } from '../../imagesText'
 import { useMakeAllPanel } from '../../components/useMakeAllPanel'
 import { routeHref } from '../../route'
+import { containerKeys } from '../../components/containerKeys'
 
 /**
  * The action of the "Images finished" panel on an act: a button that makes four takes for every
@@ -198,9 +199,7 @@ export function MakeAllPanel({ act, children }: { act: ImagesAct; children: Reac
       <section
         className="make-all-question"
         aria-label={heading}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') cancel()
-        }}
+        {...containerKeys({ onEscape: cancel })}
       >
         <h3>{heading}</h3>
         <span className="muted">

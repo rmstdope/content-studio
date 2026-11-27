@@ -69,6 +69,7 @@ import { off, type Why } from '../../off'
 import { OTHER_ROW, SAVING } from '../../voiceOffText'
 import { markSwitched } from '../../retirementSwitched'
 import { focusAfter, rowReducer, startRow } from '../../modelsRow'
+import { containerKeys } from '../../components/containerKeys'
 
 type View = Extract<ModelsAnswer, { ok: true }>
 
@@ -639,11 +640,7 @@ function Question({
 }): ReactNode {
   const words = questionWords(stage, from, to, change, file, now)
   return (
-    <div
-      onKeyDown={(event) => {
-        if (event.key === 'Escape' && !switching) onKeep()
-      }}
-    >
+    <div {...containerKeys({ onEscape: switching ? undefined : onKeep })}>
       <Confirm
         title={words.heading}
         effects={words.items}
@@ -785,9 +782,9 @@ function ElevenRow({
         {/* The audition model never asks (nothing recorded depends on it); this narrows `stage`. */}
         {change?.kind === 'ask' && stage !== 'audition' && (
           <div
-            onKeyDown={(event) => {
-              if (event.key === 'Escape' && state.phase === 'asking') dispatch({ type: 'keep' })
-            }}
+            {...containerKeys({
+              onEscape: state.phase === 'asking' ? () => dispatch({ type: 'keep' }) : undefined,
+            })}
           >
             {(() => {
               const words = elevenQuestionWords(
@@ -999,11 +996,7 @@ function ElevenVoiceRow({ view, locked }: { view: View; locked: boolean }) {
           {state.phase === 'saving' && !words && <span className="muted">Saving…</span>}
         </div>
         {words && (
-          <div
-            onKeyDown={(event) => {
-              if (event.key === 'Escape' && state.phase === 'asking') keep()
-            }}
-          >
+          <div {...containerKeys({ onEscape: state.phase === 'asking' ? keep : undefined })}>
             <Confirm
               title={words.heading}
               effects={words.items}

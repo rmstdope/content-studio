@@ -12,6 +12,7 @@ const { act, createElement } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { EffectTakesPanel } = await import('./EffectTakesPanel')
+const { pressBlankThenEscape } = await import('../../../../test/pressBlank')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -312,6 +313,13 @@ describe('Un-choose', () => {
         .dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
     })
     expect(container.querySelector('[role="alertdialog"]')).toBeNull()
+  })
+
+  it('Escape cancels after a press on a spot in the question that is not a control', async () => {
+    const { container, button, click } = render(chosenRow(), data)
+    await click(button('Un-choose'))
+    await act(async () => pressBlankThenEscape(container.querySelector('[role="alertdialog"] h2')!))
+    expect(container.querySelector('[role="alertdialog"]') === null).toBe(true)
   })
 
   it('un-chooses on the second Un-choose', async () => {

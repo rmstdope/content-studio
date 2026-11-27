@@ -30,6 +30,7 @@ import {
 } from '../../api'
 import { useMakeAllPanel } from '../../components/useMakeAllPanel'
 import { routeHref } from '../../route'
+import { containerKeys } from '../../components/containerKeys'
 
 /**
  * The panel's action on the Sound effects list: how many effects have no chosen take and a button
@@ -221,9 +222,7 @@ function Question({
       className="effects-make-all-question"
       role="alertdialog"
       aria-label={heading}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape' && !pending) onCancel()
-      }}
+      {...containerKeys({ onEscape: pending ? undefined : onCancel })}
     >
       <h2 className="section-title">{heading}</h2>
       <p className="muted">{makeAllModelLine(models.projectModel, model, reason, takes)}</p>
