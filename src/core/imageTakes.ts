@@ -198,6 +198,28 @@ export interface ImageFailedView {
   message: string
 }
 
+/** One place in the row of an image's takes: a take made, being made or failed. */
+export type RowEntry<T> =
+  | { kind: 'take'; n: number; take: T }
+  | { kind: 'making'; n: number; making: ImageMakingView }
+  | { kind: 'failed'; n: number; failed: ImageFailedView }
+
+/**
+ * The row of an image's takes in number order, made, being made and failed alike, so a take keeps
+ * its place from the press that asks for it until it is dropped.
+ */
+export function rowOrder<T extends { n: number }>(
+  takes: readonly T[],
+  making: readonly ImageMakingView[],
+  failed: readonly ImageFailedView[],
+): RowEntry<T>[] {
+  return [
+    ...takes.map((take): RowEntry<T> => ({ kind: 'take', n: take.n, take })),
+    ...making.map((m): RowEntry<T> => ({ kind: 'making', n: m.n, making: m })),
+    ...failed.map((f): RowEntry<T> => ({ kind: 'failed', n: f.n, failed: f })),
+  ].sort((a, b) => a.n - b.n)
+}
+
 /** Whether takes can be made on this computer, and what is missing if not. */
 export type ImageGeneratorView = { ok: true } | { ok: false; message: string; fix: string }
 

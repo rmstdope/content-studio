@@ -7,6 +7,7 @@ import {
   keepAccept,
   madeBeforeAccept,
   rightAfterDrop,
+  rowOrder,
   stepRight,
   takeIsEarlier,
   takeSize,
@@ -273,5 +274,27 @@ describe('an accept kept on its take', () => {
     const it = board({ copiedFrom: { image: 'hall', title: 'Hall', take: 1 } })
     expect(keepAccept(it, { ...entry, ...accepted })).toBe(false)
     expect(it.takes[0]!.accepted).toBeUndefined()
+  })
+})
+
+describe('rowOrder', () => {
+  const making = (n: number) => ({ n, state: 'waiting' as const, elapsed: 0, expected: 60 })
+  const failed = (n: number) => ({ n, message: 'It broke.' })
+
+  it('stands the takes made, being made and failed in number order', () => {
+    const order = rowOrder([{ n: 1 }, { n: 6 }], [making(7), making(4)], [failed(5), failed(2)])
+    expect(order.map((e) => [e.n, e.kind])).toEqual([
+      [1, 'take'],
+      [2, 'failed'],
+      [4, 'making'],
+      [5, 'failed'],
+      [6, 'take'],
+      [7, 'making'],
+    ])
+  })
+
+  it('carries each entry as it was', () => {
+    const broke = failed(3)
+    expect(rowOrder([], [], [broke])).toEqual([{ kind: 'failed', n: 3, failed: broke }])
   })
 })

@@ -171,9 +171,28 @@ async function show(
   const right = () => container.querySelector('[data-side="right"] b')?.textContent
   const left = () => container.querySelector('[data-side="left"] b')?.textContent
   const rerender = (now: RowOver) => draw(now)
+  /** A later read of the takes arrives. */
+  const read = async (next: ImageTakesView) => {
+    await act(async () => {
+      client.setQueryData(['image-takes', 'inn'], next)
+      await new Promise((r) => setTimeout(r, 0))
+    })
+  }
+  /** The tile of a take being made or failed. */
+  const tile = (n: number) => {
+    const found = container.querySelector<HTMLElement>(
+      `[data-strip] [role="group"][aria-label="Take ${n}"]`,
+    )
+    if (!found) throw new Error(`no tile of take ${n}`)
+    return found
+  }
+  const said = () => container.querySelector('[data-area="strip"] [role="status"]')?.textContent
   const setActive = (active: boolean) => draw({}, active)
   return {
     setActive,
+    read,
+    tile,
+    said,
     client,
     container,
     calls,
@@ -948,21 +967,6 @@ describe('making takes', () => {
 })
 
 describe('what can go wrong', () => {
-  it('a take that failed says why, keeps the others, and Try again asks for the same number', async () => {
-    const s = await show(
-      view({
-        takes: [take(1)],
-        failed: [{ n: 7, message: 'The image generator: out of memory.' }],
-      }),
-    )
-    expect(s.text()).toContain('Take 7 could not be made.')
-    expect(s.text()).toContain('The image generator: out of memory. Your other takes are kept.')
-    await s.click(s.button('Try again'))
-    expect(s.calls.at(-1)).toMatchObject({ body: { retry: 7 } })
-    const alone = await show(view({ failed: [{ n: 1, message: 'It broke.' }] }))
-    expect(alone.text()).not.toContain('Your other takes are kept.')
-  })
-
   it('when images cannot be made, it says so and links Setup, but takes can still be chosen and dropped', async () => {
     const s = await show(
       view({
@@ -2128,5 +2132,141 @@ describe('copying another image', () => {
     })
     expect(document.body.querySelector('[role="dialog"]')).toBeNull()
     expect(document.activeElement).toBe(s.button('Copy another image…'))
+  })
+})
+
+describe('a take that could not be made', () => {
+  const reason =
+    'content-studio/cache/image-takes/inn/5.png could not be written: permission denied.'
+  const failed = (n: number) => ({ n, message: reason })
+  const waiting = (n: number) => ({ n, state: 'waiting' as const, elapsed: 0, expected: 60 })
+  const strip = (s: Awaited<ReturnType<typeof show>>) => [
+    ...s.container.querySelector('[data-strip]')!.children,
+  ]
+  const heading = (s: Awaited<ReturnType<typeof show>>) =>
+    s.container.querySelector('[data-area="strip"] h2')?.textContent
+
+  it('keeps its tile at its number, saying why, with Try again as its only control', async () => {
+    const s = await show(
+      view({ takes: [take(4), take(6)], failed: [failed(5)], making: [waiting(7)] }),
+    )
+    expect(strip(s).map((e) => e.querySelector('.image-thumb-label .grow')?.textContent)).toEqual([
+      'Take 4',
+      'Take 5',
+      'Take 6',
+      'Take 7',
+    ])
+    const tile = s.tile(5)
+    expect(tile.tagName).toBe('DIV')
+    expect(tile.querySelector('.image-thumb-well')?.textContent).toBe('!')
+    expect(tile.querySelector('.image-thumb-well')?.getAttribute('aria-hidden')).toBe('true')
+    expect(tile.textContent).toBe(`!Take 5Could not be made${reason}Try again`)
+    expect([...tile.querySelectorAll('button')].map(labelOf)).toEqual(['Try again'])
+    expect(tile.querySelector('[role="progressbar"]')).toBeNull()
+  })
+
+  it('is told there only: no box above the page, and no word of the other takes', async () => {
+    const s = await show(view({ takes: [take(1)], failed: [failed(5)] }))
+    expect(s.container.querySelector('.errbox')).toBeNull()
+    expect(s.text()).not.toContain('Your other takes are kept.')
+    expect(s.text()).not.toContain('Take 5 could not be made.')
+  })
+
+  it('is not counted by the heading', async () => {
+    const s = await show(view({ takes: [take(1)], failed: [failed(2)] }))
+    expect(heading(s)).toBe('Takes · 1')
+    const none = await show(view({ failed: [failed(1), failed(2)] }))
+    expect(heading(none)).toBe('Takes')
+    expect(strip(none)).toHaveLength(2)
+    const making = await show(view({ making: [waiting(1)] }))
+    expect(heading(making)).toBe('Takes')
+  })
+
+  it('is passed over by the arrows, which step the made takes', async () => {
+    const s = await show(view({ takes: [take(1), take(3)], failed: [failed(2)] }))
+    expect(s.right()).toBe('Take 3')
+    await s.key('ArrowLeft')
+    expect(s.right()).toBe('Take 1')
+  })
+
+  it('Try again asks for the same number, with focus on its tile as it is made again', async () => {
+    const s = await show(view({ failed: [failed(5), failed(6)] }))
+    const tile = s.tile(5)
+    const button = tile.querySelector('button')!
+    button.focus()
+    await s.click(button)
+    expect(s.calls.at(-1)).toMatchObject({ url: '/api/images/inn/takes', body: { retry: 5 } })
+    expect(document.activeElement === tile).toBe(true)
+    await s.read(view({ making: [waiting(5)], failed: [failed(6)] }))
+    expect(s.tile(5) === tile).toBe(true)
+    expect(document.activeElement === tile).toBe(true)
+    expect(tile.textContent).toBe('Take 5waiting')
+    expect(tile.querySelector('[role="progressbar"]')).not.toBeNull()
+    expect(s.tile(6).textContent).toContain('Could not be made')
+  })
+
+  it('once made, is an ordinary new take in its place, and focus follows to it', async () => {
+    const s = await show(view({ takes: [take(4)], making: [waiting(5)], failed: [failed(6)] }))
+    s.tile(5).focus()
+    await s.read(view({ takes: [take(4), take(5, { isNew: true })], failed: [failed(6)] }))
+    const made = strip(s)[1] as HTMLElement
+    expect(made.tagName).toBe('BUTTON')
+    expect(made.textContent).toBe('Take 5new')
+    expect(document.activeElement === made).toBe(true)
+  })
+
+  it('a take made elsewhere in the row moves no focus', async () => {
+    const s = await show(view({ takes: [take(4)], making: [waiting(5)] }))
+    const make = s.button('Make 4 takes')
+    make.focus()
+    await s.read(view({ takes: [take(4), take(5)] }))
+    expect(document.activeElement === make).toBe(true)
+  })
+
+  it('greys Try again with the reason while another change is on its way', async () => {
+    const s = await show(view({ failed: [failed(5), failed(6)] }))
+    globalThis.fetch = (() => new Promise<Response>(() => {})) as unknown as typeof fetch
+    await s.click(s.tile(5).querySelector('button')!)
+    await act(async () => await new Promise((r) => setTimeout(r, 0)))
+    const other = s.tile(6).querySelector('button')!
+    expect(isOff(other)).toBe(true)
+    expect(other.getAttribute('data-why')).toBe('Wait for the current change to finish.')
+  })
+
+  it('is spoken as it fails, and not for a failure already there', async () => {
+    const s = await show(view({ making: [waiting(6), waiting(7)], failed: [failed(5)] }))
+    expect(s.said()).toBe('')
+    await s.read(view({ making: [waiting(7)], failed: [failed(5), failed(6)] }))
+    expect(s.said()).toBe('Take 6 could not be made.')
+    await s.read(view({ failed: [failed(5), failed(6), failed(7)] }))
+    expect(s.said()).toBe('Take 7 could not be made.')
+  })
+
+  it('is spoken again when it fails again after Try again', async () => {
+    const s = await show(view({ making: [waiting(5)] }))
+    await s.read(view({ failed: [failed(5)] }))
+    globalThis.fetch = (() => new Promise<Response>(() => {})) as unknown as typeof fetch
+    await s.click(s.button('Try again'))
+    expect(s.said()).toBe('')
+    await s.read(view({ making: [waiting(5)] }))
+    await s.read(view({ failed: [failed(5)] }))
+    expect(s.said()).toBe('Take 5 could not be made.')
+  })
+
+  it('is spoken again when it fails before the takes are read after Try again', async () => {
+    const s = await show(view({ failed: [failed(5)] }))
+    await s.click(s.button('Try again'))
+    for (let i = 0; i < 3; i++) await act(async () => await new Promise((r) => setTimeout(r, 0)))
+    expect(s.said()).toBe('Take 5 could not be made.')
+  })
+
+  it('is not spoken after a Try again the studio refused', async () => {
+    const s = await show(view({ failed: [failed(5)] }), {}, undefined, {
+      ok: false,
+      message: 'Take 5 did not fail, so it is not made again.',
+    })
+    await s.click(s.button('Try again'))
+    for (let i = 0; i < 3; i++) await act(async () => await new Promise((r) => setTimeout(r, 0)))
+    expect(s.said()).toBe('')
   })
 })
