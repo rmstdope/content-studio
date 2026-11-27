@@ -748,14 +748,14 @@ its scenes show no figures and the studio refuses to measure that part, so nothi
 The record of a part's lines cleaned of background noise in the game (a language besides the
 source has its code before `.cleaned`), by line id. `at` is when the clip that was cleaned was
 made (its lock entry's `at`), so a line recorded again no longer counts as cleaned. `original` is
-the file of the clip as it was, kept in `narration/originals/<part>[.<language>]/` for putting it
-back. A part with no cleaned lines has no record.
+the name of the file holding the clip as it was, in `narration/originals/<part>[.<language>]/`, kept
+for putting it back. A part with no cleaned lines has no record.
 
 ```json
 {
   "a1": {
     "at": "2026-11-04T08:12:09.511Z",
-    "original": "content-studio/narration/originals/act1/a1.mp3"
+    "original": "a1.mp3"
   }
 }
 ```
