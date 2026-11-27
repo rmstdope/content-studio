@@ -63,7 +63,7 @@ const noTakes: MusicTakesView = {
   takes: [],
   making: [],
   failed: [],
-  lockUnread: false,
+  chosen: { known: true, take: null },
 }
 
 const oneFailed: Partial<MusicTakesView> = {
@@ -76,7 +76,6 @@ const take: TakeView = {
   seconds: 30,
   peaks: [],
   earlier: false,
-  chosen: false,
   model: 'Balanced · XL turbo · 4B',
 }
 

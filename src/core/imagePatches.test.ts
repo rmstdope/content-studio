@@ -1,7 +1,9 @@
+import { chosenOf, NOT_KNOWN } from './lockRead'
 import { describe, expect, it } from 'bun:test'
 import {
   keptBox,
   checkPatchArea,
+  type PatchArea,
   gamePatch,
   ChoosePatchTakeBody,
   keepChanged,
@@ -16,11 +18,10 @@ import {
   matchToTake,
   PATCH_FEATHER,
   PatchBoardSchema,
-  imageLockUnread,
+  imageChosen,
   makeAgainOf,
   overlappingPatches,
   patchBoxesOverlap,
-  patchSummary,
   planRemake,
   remakeCovered,
   setAsideQuestion,
@@ -545,39 +546,6 @@ describe('matchToTake', () => {
   })
 })
 
-describe('patchSummary', () => {
-  it('says no takes yet for a patch without takes', () => {
-    expect(patchSummary([])).toEqual({ text: 'no takes yet', chip: null })
-  })
-
-  it('counts takes and says none is chosen', () => {
-    expect(patchSummary([{ n: 1, chosen: false }])).toEqual({
-      text: '1 take, none chosen',
-      chip: null,
-    })
-    expect(
-      patchSummary([
-        { n: 1, chosen: false },
-        { n: 2, chosen: false },
-      ]),
-    ).toEqual({ text: '2 takes, none chosen', chip: null })
-  })
-
-  it('names the chosen take in a chip', () => {
-    expect(
-      patchSummary([
-        { n: 1, chosen: true },
-        { n: 2, chosen: false },
-        { n: 3, chosen: false },
-      ]),
-    ).toEqual({ text: '3 takes', chip: 'Take 1 chosen' })
-    expect(patchSummary([{ n: 4, chosen: true }])).toEqual({
-      text: '1 take',
-      chip: 'Take 4 chosen',
-    })
-  })
-})
-
 describe('the patch board and what is asked of it', () => {
   it('reads a board with a choice per image take', () => {
     const board = {
@@ -732,64 +700,55 @@ describe('patches set aside', () => {
     gameWas: null,
     chosenOn,
     chosenOnGone,
-    chosenArea: null,
+    chosenArea: chosenOf(true, null),
   })
   const bread = patch('Bread taken', [2])
   const door = patch('Door open', [1, 2])
   const lamp = patch('Lamp lit', [1])
   const well = patch('Well covered', [])
   const row = (chosenTake: number | null, ...patches: PatchRow[]) => ({
-    chosenTake,
+    chosen: chosenOf(true, chosenTake),
     patches,
     areas: [] as AreaRow[],
   })
 
   describe('makeAgainOf', () => {
     it('is the patches chosen on another take only, in the game’s order', () => {
-      expect(makeAgainOf(row(4, bread, well, lamp), false).map((p) => p.title)).toEqual([
+      expect(makeAgainOf(row(4, bread, well, lamp)).map((p) => p.title)).toEqual([
         'Bread taken',
         'Lamp lit',
       ])
     })
     it('leaves out a patch chosen on the take in the game too', () => {
-      expect(makeAgainOf(row(2, bread, door, lamp), false).map((p) => p.title)).toEqual([
-        'Lamp lit',
-      ])
+      expect(makeAgainOf(row(2, bread, door, lamp)).map((p) => p.title)).toEqual(['Lamp lit'])
     })
     it('keeps a patch whose only choice is on a dropped take, and with no take chosen', () => {
       const gone = patch('Gone', [], true)
-      expect(makeAgainOf(row(4, gone, well), false).map((p) => p.title)).toEqual(['Gone'])
-      expect(makeAgainOf(row(null, bread), false).map((p) => p.title)).toEqual(['Bread taken'])
+      expect(makeAgainOf(row(4, gone, well)).map((p) => p.title)).toEqual(['Gone'])
+      expect(makeAgainOf(row(null, bread)).map((p) => p.title)).toEqual(['Bread taken'])
     })
   })
 
-  describe('imageLockUnread', () => {
-    it('is true when the list row says unknown, whatever the views say', () => {
-      expect(imageLockUnread({ status: 'unknown' })).toBe(true)
-      expect(imageLockUnread({ status: 'unknown' }, { lockUnread: false })).toBe(true)
+  describe('imageChosen', () => {
+    const read = { chosen: chosenOf(true, 2) }
+    it('is not known when the list row does not know, whatever the views say', () => {
+      expect(imageChosen({ chosen: NOT_KNOWN })).toEqual(NOT_KNOWN)
+      expect(imageChosen({ chosen: NOT_KNOWN }, read)).toEqual(NOT_KNOWN)
     })
-    it('is true when any view found the lock unreadable, though the row is older', () => {
-      expect(
-        imageLockUnread({ status: 'chosen' }, { lockUnread: false }, { lockUnread: true }),
-      ).toBe(true)
+    it('is not known when any view found the lock unreadable, though the row is older', () => {
+      expect(imageChosen(row(2), read, { chosen: NOT_KNOWN })).toEqual(NOT_KNOWN)
     })
-    it('is false for views not loaded or in error, and for a row and views that read it', () => {
-      expect(imageLockUnread({ status: 'chosen' })).toBe(false)
-      expect(
-        imageLockUnread(
-          { status: 'chosen' },
-          undefined,
-          null,
-          { ok: false },
-          { lockUnread: false },
-        ),
-      ).toBe(false)
+    it('is the row’s for views not loaded or in error, and for views that read the lock', () => {
+      expect(imageChosen(row(2))).toEqual(chosenOf(true, 2))
+      expect(imageChosen(row(null), undefined, null, { ok: false }, read)).toEqual(
+        chosenOf(true, null),
+      )
     })
   })
 
   describe('makeAgainOf while the lock is unread', () => {
     it('lists nothing, whatever the patches say', () => {
-      expect(makeAgainOf(row(null, bread), true)).toEqual([])
+      expect(makeAgainOf({ ...row(null, bread), chosen: NOT_KNOWN })).toEqual([])
     })
   })
 
@@ -853,7 +812,7 @@ describe('patches set aside', () => {
 
 describe('overlapping chosen patches', () => {
   const box = (x: number, y: number, width = 10, height = 10) => ({ x, y, width, height })
-  const patch = (title: string, chosenArea: PatchRow['chosenArea']): PatchRow => ({
+  const patch = (title: string, area: PatchArea | null): PatchRow => ({
     id: title.toLowerCase().replace(/ /g, '-'),
     title,
     description: '',
@@ -863,7 +822,7 @@ describe('overlapping chosen patches', () => {
     gameWas: null,
     chosenOn: [],
     chosenOnGone: false,
-    chosenArea,
+    chosenArea: chosenOf(true, area),
   })
 
   it('counts areas that share a dot, even only at a corner', () => {
@@ -893,7 +852,7 @@ describe('overlapping chosen patches', () => {
 
 describe('remakeCovered', () => {
   const row = (chosenTake: number | null, patches: Partial<PatchRow>[]) => ({
-    chosenTake,
+    chosen: chosenOf(true, chosenTake),
     patches: patches.map((p) => ({ chosenOn: [], chosenOnGone: false, ...p }) as PatchRow),
   })
   const idle = (id: string) => ({ id, takes: [], making: [], failed: [] })
@@ -992,7 +951,7 @@ describe('named areas set aside', () => {
   const bell = area('Bell', 1)
   const none = area('Notice')
   const row = (chosenTake: number | null, areas: AreaRow[], patches: PatchRow[] = []) => ({
-    chosenTake,
+    chosen: chosenOf(true, chosenTake),
     patches,
     areas,
   })
@@ -1051,7 +1010,7 @@ describe('named areas set aside', () => {
       gameWas: null,
       chosenOn: [2],
       chosenOnGone: false,
-      chosenArea: null,
+      chosenArea: chosenOf(true, null),
     }
     expect(setAsideQuestion(row(2, [well], [bread]), { kind: 'choose', n: 4 })).toEqual({
       from: 2,
@@ -1215,15 +1174,17 @@ describe('stacked patches in the rest', () => {
     gameWas: null,
     chosenOn: [1],
     chosenOnGone: false,
-    chosenArea: { x: 0, y: 0, width: 10, height: 10 },
+    chosenArea: chosenOf(true, { x: 0, y: 0, width: 10, height: 10 }),
     ...(over && { over }),
   })
   it('lists a patch set aside as one to make again, though it has a choice on the take in the game', () => {
     const stale = { ...patch('Stick', 'vines'), chosenOn: [], stale: { title: 'Vines cut', n: 1 } }
     expect(
-      makeAgainOf({ chosenTake: 1, patches: [patch('Vines'), stale] }, false).map((p) => p.title),
+      makeAgainOf({ chosen: chosenOf(true, 1), patches: [patch('Vines'), stale] }).map(
+        (p) => p.title,
+      ),
     ).toEqual(['Stick'])
-    expect(makeAgainOf({ chosenTake: 1, patches: [stale] }, true)).toEqual([])
+    expect(makeAgainOf({ chosen: NOT_KNOWN, patches: [stale] })).toEqual([])
   })
   it('does not warn about a pair of which one lies on top of the other', () => {
     const vines = patch('Vines')
@@ -1267,7 +1228,7 @@ describe('what lies on a take of a patch', () => {
 
   describe('the question on the patch underneath', () => {
     const row = (chosenTake: number | null) => ({
-      chosenTake,
+      chosen: chosenOf(true, chosenTake),
       patches: [
         { ...base('Vines cut'), id: 'vines', carries: { 1: ['stick', 'snare'], 3: ['stick'] } },
         { ...base('Stick'), id: 'stick', over: 'vines', chosenOn: [1] },
@@ -1285,7 +1246,7 @@ describe('what lies on a take of a patch', () => {
         gameWas: null,
         chosenOn: [1],
         chosenOnGone: false,
-        chosenArea: null,
+        chosenArea: chosenOf(true, null),
       }
     }
     it('names the patches painted on the take being left, on Choose and Un-choose', () => {

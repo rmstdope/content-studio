@@ -1,3 +1,4 @@
+import { chosenOf } from '../core/lockRead'
 import { rm } from 'node:fs/promises'
 import { figuresOf } from '../core/takeTimes'
 import { readTakeTimes, recordTakeTime } from './takeTimes'
@@ -815,8 +816,10 @@ export function createImageTakes({
       const lock = await lockNow(found, problems)
       const chosen = lock?.[id]?.take
       const takes: ImageTakeView[] = []
+      let inGame: number | null = null
       for (const take of board.takes) {
         if (!(await Bun.file(resolveInRoot(found.root, pictureOf(id, take.n))).exists())) continue
+        if (chosen === take.n) inGame = take.n
         takes.push({
           n: take.n,
           width: take.width,
@@ -824,7 +827,6 @@ export function createImageTakes({
           // A copy was made by no model of this image's: no model name.
           model: take.copiedFrom ? null : imageByMflux(take.model),
           earlier: takeIsEarlier(take, lock?.[id], found.row.words),
-          chosen: chosen === take.n,
           isNew: !take.seen,
           look: bringing.has(`${found.key}\0${take.n}`)
             ? 'bringing'
@@ -871,7 +873,7 @@ export function createImageTakes({
         takes,
         making,
         failed,
-        lockUnread: lock === null,
+        chosen: chosenOf(lock !== null, inGame),
         lookError: found.row.look.error,
       }
     },
@@ -989,7 +991,7 @@ export function createImageTakes({
       const source = await resolve(projectFile, sourceId)
       if (!source) return { ok: false, message: `${sourceId} is not an image of the game.` }
       if (!('row' in source)) return source
-      const from = source.row.chosenTake
+      const from = source.row.chosen.known ? source.row.chosen.take : null
       const title = source.row.title
       if (from === null) return { ok: false, message: `${title} has no picture in the game yet.` }
       const picture = await Bun.file(resolveInRoot(source.root, pictureOf(sourceId, from)))
@@ -1061,7 +1063,8 @@ export function createImageTakes({
           }
         }
         // The boxes of no take yet belong to the take in the game, else to the one chosen now.
-        const adopted = await adoptImageAreas(projectFile, id, found.row.chosenTake ?? n)
+        const was = found.row.chosen.known ? found.row.chosen.take : null
+        const adopted = await adoptImageAreas(projectFile, id, was ?? n)
         if (adopted && !adopted.ok) return notAdopted(adopted)
         const unsaved = await saveAccept(found, board, (await lockNow(found, []))?.[id])
         if (unsaved) return unsaved
@@ -1158,8 +1161,8 @@ export function createImageTakes({
       return engine.inTurn(found.projectFile, found.id, async () => {
         // Before the image-choice turn, as in choose: saving a box holds the edits and then waits for it.
         // A lock entry with no take number leaves the boxes of no take yet where they are.
-        if (found.row.chosenTake !== null) {
-          const adopted = await adoptImageAreas(projectFile, id, found.row.chosenTake)
+        if (found.row.chosen.known && found.row.chosen.take !== null) {
+          const adopted = await adoptImageAreas(projectFile, id, found.row.chosen.take)
           if (adopted && !adopted.ok) return notAdopted(adopted)
         }
         return choices().run(

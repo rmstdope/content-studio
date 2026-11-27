@@ -16,6 +16,7 @@ import {
   type MusicTakesView,
   type TakeView,
 } from '../core/musicTake'
+import { chosenOf } from '../core/lockRead'
 import {
   DEFAULT_MUSIC_MODEL,
   MUSIC_MODELS,
@@ -511,11 +512,13 @@ export function createMusicTakes({
       if ('ok' in board) return board
       const chosenTracks = await readChosen(root, found.music, [])
       const chosen = chosenTracks.read ? chosenTracks.entries[id]?.lock : undefined
+      let inGame: number | null = null
       const takes: TakeView[] = []
       for (const take of board.takes) {
         const path = join(root, folder, fileOf(take))
         if (!(await Bun.file(path).exists())) continue
         const trimmable = inputs.kind === 'stinger' && !take.trim ? await scan(path) : null
+        if (chosen?.take === take.n && chosen.fp === take.hash) inGame = take.n
         takes.push({
           n: take.n,
           file: fileOf(take),
@@ -523,7 +526,6 @@ export function createMusicTakes({
           ...(take.seed !== undefined && { seed: take.seed }),
           peaks: take.peaks,
           earlier: take.hash !== hash,
-          chosen: chosen?.take === take.n && chosen.fp === take.hash,
           model: modelLine(take.model),
           ...(take.movedFrom && { movedFrom: take.movedFrom }),
           ...(take.trim && {
@@ -566,7 +568,7 @@ export function createMusicTakes({
         takes,
         making,
         failed,
-        lockUnread: !chosenTracks.read,
+        chosen: chosenOf(chosenTracks.read, inGame),
       }
     },
 

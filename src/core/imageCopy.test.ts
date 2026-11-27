@@ -1,3 +1,4 @@
+import { chosenOf } from './lockRead'
 import { describe, expect, it } from 'bun:test'
 import {
   CopyImageBody,
@@ -19,7 +20,7 @@ const row = (
   width = 320,
   height = 200,
   title = id,
-): CopySourceRow => ({ id, title, chosenTake, width, height })
+): CopySourceRow => ({ id, title, chosen: chosenOf(true, chosenTake), width, height })
 
 const acts = [
   {

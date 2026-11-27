@@ -1,3 +1,4 @@
+import type { Chosen } from './lockRead'
 import { z } from 'zod'
 import { outOfDateReasons, type ChosenEntry, type MadeFrom } from './images'
 import { IMAGE_MODEL_IDS, MAX_IMAGE_SIDE, type ImageModelId } from './imageModels'
@@ -166,8 +167,6 @@ export interface ImageTakeView {
   model: ImageModelId | null
   /** Made from words that have since changed, and not accepted for the words now. */
   earlier: boolean
-  /** The game uses it. */
-  chosen: boolean
   /** Not yet shown on the right. */
   isNew: boolean
   /**
@@ -220,10 +219,14 @@ export interface ImageTakesView {
   takes: ImageTakeView[]
   making: ImageMakingView[]
   failed: ImageFailedView[]
-  /** The lock cannot be read, so which take is chosen is not known. */
-  lockUnread: boolean
   /** Why the takes cannot be brought to the game's look (the style); null when they can. */
   lookError: string | null
+  /**
+   * The number of the chosen take among those listed here (its picture is there); not known while
+   * the images lock cannot be read. A null take is not by itself "none chosen": the lock may name
+   * a take that is not listed.
+   */
+  chosen: Chosen
 }
 
 /** What is being made for an image, for the act's list. */

@@ -23,16 +23,21 @@ export interface EffectBatch {
   running: boolean
 }
 
-/** The effects of the page, sorted by what a press does with each. */
-export interface MakeAllPlan {
+/**
+ * The effects of the page, sorted by what a press does with each; not known while the lock cannot
+ * be read, when there are no lists and the panel offers nothing.
+ */
+export type MakeAllPlan = { known: false } | KnownMakeAllPlan
+
+/** A plan made from a lock that was read. */
+export interface KnownMakeAllPlan {
+  known: true
   /** No chosen take and not making: they get takes. */
   startable: EffectRow[]
   /** A take is chosen (even one out of date or missing): left out. */
   chosen: EffectRow[]
   /** Already making takes: left out. */
   busy: EffectRow[]
-  /** Which takes are chosen is not known: the panel offers nothing. */
-  lockUnread: boolean
 }
 
 /** Sorts every effect, whatever the list is filtered to. */
@@ -40,11 +45,8 @@ export function planMakeAll(
   rows: EffectRow[],
   making: Record<string, EffectMakingSummary>,
 ): MakeAllPlan {
-  const plan: MakeAllPlan = { startable: [], chosen: [], busy: [], lockUnread: false }
-  if (rows.some((row) => row.current.kind === 'unknown')) {
-    plan.lockUnread = true
-    return plan
-  }
+  if (rows.some((row) => row.current.kind === 'unknown')) return { known: false }
+  const plan: KnownMakeAllPlan = { known: true, startable: [], chosen: [], busy: [] }
   for (const row of rows) {
     if (making[row.id]) plan.busy.push(row)
     else if (row.current.kind === 'take') plan.chosen.push(row)

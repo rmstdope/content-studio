@@ -1,3 +1,4 @@
+import { chosenOf } from '../../../core/lockRead'
 import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { ImagePatchesView, PatchWorkView, RemakePressView } from '../../../core/imagePatches'
@@ -32,14 +33,13 @@ const patch = (id: string, over: Partial<PatchRow> = {}): PatchRow => ({
   gameWas: null,
   chosenOn: [3],
   chosenOnGone: false,
-  chosenArea: null,
+  chosenArea: chosenOf(true, null),
   ...over,
 })
 const takeOf = (n: number, isNew = false) => ({
   n,
   area,
   earlier: false,
-  chosen: false,
   isNew,
   look: 'ready' as const,
   model: 'klein' as const,
@@ -52,6 +52,7 @@ const idle = (id: string, over: Partial<PatchWorkView> = {}): PatchWorkView => (
   failed: [],
   oldLook: false,
   failedModels: [],
+  chosen: chosenOf(true, null),
   ...over,
 })
 const press = (over: Partial<RemakePressView> = {}): RemakePressView => ({
@@ -97,12 +98,13 @@ async function render({
     if (path.split('?')[0] === '/api/images/inn/patches') {
       return Response.json({
         ok: true,
-        take:
+        chosen: chosenOf(
+          true,
           chosenTake === null ? null : { n: chosenTake, width: 1024, height: 640, cropped: false },
+        ),
         game: { width: 400, height: 400 },
         lookError: null,
         lookKey: 'k',
-        lockUnread: false,
         pictureGone,
         maker,
         models,
@@ -130,7 +132,7 @@ async function render({
             id: 'inn',
             width: 400,
             height: 640,
-            chosenTake,
+            chosen: chosenOf(true, chosenTake),
             areas: [],
             patches,
           } as unknown as ImageRow,

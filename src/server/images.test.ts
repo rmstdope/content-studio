@@ -442,11 +442,11 @@ describe('the image takes routes', () => {
     })
     expect((await fetch(new URL('/api/images/inn/current', studio.url))).status).toBe(200)
     expect(existsSync(join(root, 'web/images/inn.png'))).toBe(true)
-    expect((await view()).takes.find((t: { n: number }) => t.n === 2).chosen).toBe(true)
+    expect((await view()).chosen).toEqual({ known: true, take: 2 })
     const project = await (await fetch(new URL('/api/project', studio.url))).json()
     expect(project.summary.images.acts[0].rows[0]).toMatchObject({
       status: 'chosen',
-      chosenTake: 2,
+      chosen: { known: true, take: 2 },
     })
   })
 
@@ -981,7 +981,6 @@ describe('the image copy route', () => {
     expect(copied.ok).toBe(true)
     const v = await settled('inn')
     expect(v.takes.find((t: { n: number }) => t.n === copied.n)).toMatchObject({
-      chosen: false,
       copiedFrom: { title: 'Hall', take: 1 },
     })
   })

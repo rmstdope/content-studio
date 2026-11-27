@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { imageLockUnread, makeAgainOf, overlappingPatches, tieOf } from '../../../core/imagePatches'
+import { imageChosen, makeAgainOf, overlappingPatches, tieOf } from '../../../core/imagePatches'
 import type { ImageRow, PatchRow } from '../../../core/images'
 import { off } from '../../off'
 import { WAIT_FOR_CHANGE } from '../../imagesText'
@@ -59,7 +59,7 @@ function PatchBody({
 }: {
   /** What the patch lies on top of, once the patches have loaded; null for a patch straight on the image. */
   stack: PatchStack | null
-  imageRow: Pick<ImageRow, 'chosenTake' | 'patches'>
+  imageRow: Pick<ImageRow, 'chosen' | 'patches'>
   imageId: string
   patch: PatchRow
   /** Where the patch was chosen and how to get it back, when it needs making again. */
@@ -249,8 +249,10 @@ export function GamePatchesPanel({ row }: { row: ImageRow }) {
   const [remakePick, setRemakePick] = useState<EditModelId | null>(null)
   const view = query.data && 'patches' in query.data ? query.data : null
   // Nothing is said until the patches are loaded, nor when the lock cannot be read: unread, it gives no take as chosen.
-  const lockUnread = imageLockUnread(row, view)
-  const again = new Set(view ? makeAgainOf(row, lockUnread).map((patch) => patch.id) : [])
+  const chosen = imageChosen(row, view)
+  const again = new Set(
+    view ? makeAgainOf({ patches: row.patches, chosen }).map((patch) => patch.id) : [],
+  )
   const [openPick, setOpenId] = useState<string | null>(
     () => row.patches.find((patch) => patch.gameChanged)?.id ?? null,
   )
@@ -265,14 +267,14 @@ export function GamePatchesPanel({ row }: { row: ImageRow }) {
   const patch = row.patches.find((p) => p.id === openPick) ?? row.patches[0]!
   const openId = patch.id
   // Nothing is said until the patches are loaded, nor when the chosen picture or the lock cannot be read.
-  const pairs = view && !view.pictureGone && !lockUnread ? overlappingPatches(row.patches) : []
+  const pairs = view && !view.pictureGone && chosen.known ? overlappingPatches(row.patches) : []
   const overlapsOf = (id: string) =>
     pairs.flatMap(([a, b]) => (a.id === id ? [b.title] : b.id === id ? [a.title] : []))
   const overlapLineOf = (id: string) => {
     const titles = overlapsOf(id)
     return titles.length > 0 ? overlapOpenLine(titles) : null
   }
-  const heading = patchesHeading(row, lockUnread)
+  const heading = patchesHeading(row.patches, chosen)
   const list = patchLayoutOf(row) === 'list'
   const workOf = (id: string) => view?.patches.find((p) => p.id === id) ?? null
   const pick = (p: PatchRow) => {
@@ -311,8 +313,10 @@ export function GamePatchesPanel({ row }: { row: ImageRow }) {
                       {rowMaking(work.making)}
                     </span>
                   ) : (
-                    <span className={`chip ${work.takes.some((t) => t.chosen) ? 'chip-ok' : ''}`}>
-                      {patchStateText(work.takes)}
+                    <span
+                      className={`chip ${work.chosen.known && work.chosen.take !== null ? 'chip-ok' : ''}`}
+                    >
+                      {patchStateText(work)}
                     </span>
                   )}
                   {rowFailed(work.failed.length) && (
@@ -324,8 +328,11 @@ export function GamePatchesPanel({ row }: { row: ImageRow }) {
             </>
           ) : (
             <>
-              {!lockUnread && (
-                <span className={`dot${patchChosen(row, p) ? ' ok' : ''}`} aria-hidden="true" />
+              {chosen.known && (
+                <span
+                  className={`dot${patchChosen(chosen.take, p) ? ' ok' : ''}`}
+                  aria-hidden="true"
+                />
               )}
               <span className="pchip-unit">
                 {p.title}
@@ -404,13 +411,13 @@ export function GamePatchesPanel({ row }: { row: ImageRow }) {
           onSaved={() => setSaved(true)}
           onEdit={() => setSaved(false)}
           overlapLine={overlapLineOf(patch.id)}
-          stack={lockUnread ? null : stackOfPatch(row, patch, workOf(patch.id))}
+          stack={chosen.known ? stackOfPatch(row, patch, workOf(patch.id)) : null}
           imageRow={row}
           makeAgainLine={
             again.has(patch.id)
               ? patch.stale !== undefined
                 ? onTopStale(patch.stale, patch.overTitle ?? '')
-                : makeAgainOpenLine(patch.chosenOn, row.chosenTake)
+                : makeAgainOpenLine(patch.chosenOn, chosen.known ? chosen.take : null)
               : null
           }
         />

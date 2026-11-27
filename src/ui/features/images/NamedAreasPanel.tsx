@@ -53,10 +53,12 @@ interface ListedPatch {
 function patchesOf(row: ImageRow, view: ReturnType<typeof useImagePatches>['data']): ListedPatch[] {
   if (!view || !('patches' in view)) return []
   return row.patches.map((patch) => {
-    const take = view.patches.find((p) => p.id === patch.id)?.takes.find((t) => t.chosen)
-    const src = take
-      ? `/api/images/${encodeURIComponent(row.id)}/patches/${encodeURIComponent(patch.id)}/takes/${take.n}`
-      : null
+    const chosen = view.patches.find((p) => p.id === patch.id)?.chosen
+    const n = chosen?.known ? chosen.take : null
+    const src =
+      n !== null
+        ? `/api/images/${encodeURIComponent(row.id)}/patches/${encodeURIComponent(patch.id)}/takes/${n}`
+        : null
     return { id: patch.id, title: patch.title, src }
   })
 }
@@ -170,12 +172,13 @@ export function NamedAreasPanel({ row }: { row: ImageRow }) {
   }, [row.areas])
 
   // A new take in the game: the first area still needing a place is selected, as on arrival.
-  const taken = useRef(row.chosenTake)
+  const inGame = row.chosen.known ? row.chosen.take : null
+  const taken = useRef(inGame)
   useEffect(() => {
-    if (taken.current === row.chosenTake) return
-    taken.current = row.chosenTake
+    if (taken.current === inGame) return
+    taken.current = inGame
     select(row.areas.find((area) => !area.placed)?.id ?? null)
-  }, [row.chosenTake, row.areas])
+  }, [inGame, row.areas])
 
   // The picture's size on the screen decides how the points are drawn: redraw when it changes.
   const [, remeasure] = useState(0)
@@ -248,18 +251,19 @@ export function NamedAreasPanel({ row }: { row: ImageRow }) {
   const current = areas.find((area) => area.id === selected) ?? null
 
   const view = picture && 'patches' in picture ? picture : null
+  const take = view?.chosen.known ? view.chosen.take : null
   const state = !picture
     ? 'loading'
     : !view
       ? 'gone'
-      : view.pictureGone || unreadable === view.take?.n
+      : view.pictureGone || unreadable === take?.n
         ? 'gone'
-        : view.take
+        : take
           ? 'ready'
-          : view.lockUnread
-            ? 'unknown'
-            : 'none'
-  const ready = state === 'ready' && !!view?.take
+          : view.chosen.known
+            ? 'none'
+            : 'unknown'
+  const ready = state === 'ready' && !!take
 
   /** Sends a box (or a clear) to be saved, showing it at once and taking it back if it fails. */
   const commit = (area: AreaRow, box: AreaBox | null) => {
@@ -466,7 +470,7 @@ export function NamedAreasPanel({ row }: { row: ImageRow }) {
    */
   const fit = {
     shape: row,
-    drawnWidth: view?.take ? cropWindow(view.take, row).width : row.width,
+    drawnWidth: take ? cropWindow(take, row).width : row.width,
     barHeight,
   }
   return (
@@ -481,9 +485,7 @@ export function NamedAreasPanel({ row }: { row: ImageRow }) {
         <span className="muted"> · {areasCountText(placedCount, areas.length)}</span>
       </div>
       {again.length > 0 && (
-        <p className="place-again-line">
-          {placeAgainLine(againTakes, row.chosenTake, again.length)}
-        </p>
+        <p className="place-again-line">{placeAgainLine(againTakes, inGame, again.length)}</p>
       )}
       <div className="named-areas-bar" ref={bar}>
         <ul className="named-area-list">
@@ -581,7 +583,7 @@ export function NamedAreasPanel({ row }: { row: ImageRow }) {
         )}
       </div>
       <div className="named-areas-picture">
-        {ready && view?.take ? (
+        {ready && take ? (
           <>
             <FitPicture
               {...fit}
@@ -594,10 +596,10 @@ export function NamedAreasPanel({ row }: { row: ImageRow }) {
             >
               <img
                 className="named-area-take"
-                src={`/api/images/${encodeURIComponent(row.id)}/takes/${view.take.n}`}
+                src={`/api/images/${encodeURIComponent(row.id)}/takes/${take.n}`}
                 alt="The chosen take"
                 draggable={false}
-                onError={() => setUnreadable(view.take?.n ?? null)}
+                onError={() => setUnreadable(take.n)}
               />
               {patches
                 .filter(
@@ -653,7 +655,7 @@ export function NamedAreasPanel({ row }: { row: ImageRow }) {
                 <div className="named-area-box drawing" style={placedStyle(drawing, row)} />
               )}
             </FitPicture>
-            <p className="muted named-area-line">{areaCaptionText(view.take.n, current)}</p>
+            <p className="muted named-area-line">{areaCaptionText(take.n, current)}</p>
           </>
         ) : (
           <FitPicture

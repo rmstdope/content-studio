@@ -43,7 +43,6 @@ const row = (id: string, extra: Partial<EffectRow> = {}): EffectRow => ({
   status: 'none-yet',
   current: { kind: 'nothing' },
   changed: [],
-  chosen: false,
   ...extra,
 })
 
@@ -118,7 +117,6 @@ describe('the Sound effects list, with takes', () => {
   const chosen = (id: string, extra: Partial<EffectRow> = {}) =>
     row(id, {
       status: 'chosen',
-      chosen: true,
       current: { kind: 'take', take: 2, exists: true },
       ...extra,
     })
@@ -615,7 +613,7 @@ describe("an effect's page", () => {
       takes: [],
       making: [],
       failed: [],
-      lockUnread: false,
+      chosen: { known: true, take: null },
     }
     const oneFailed = { failed: [{ n: 1, message: 'It broke.' }] }
 
@@ -847,7 +845,6 @@ describe('Make all, on the Sound effects list', () => {
   const chosen = (id: string, extra: Partial<EffectRow> = {}) =>
     row(id, {
       status: 'chosen',
-      chosen: true,
       current: { kind: 'take', take: 2, exists: true },
       ...extra,
     })
