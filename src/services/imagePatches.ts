@@ -527,8 +527,15 @@ export function createImagePatches({
       }),
     )
     const boards: Record<string, PatchBoard> = {}
+    // Read in the board's turn with the marks, so a take brought after the read still shows bringing.
+    const brought = new Set<string>()
     for (const patch of image.row.patches) {
-      const board = await readBoard(patchOf(image, patch))
+      const found = patchOf(image, patch)
+      const board = await engine.inTurn(found.projectFile, found.engineId, async () => {
+        const read = await readBoard(found)
+        for (const mark of bringing) if (mark.startsWith(`${found.key}\0`)) brought.add(mark)
+        return read
+      })
       if ('ok' in board) return board
       boards[patch.id] = board
     }
@@ -560,7 +567,7 @@ export function createImagePatches({
           model: t.model ?? BEFORE_CHOICE,
           ...(t.under && { under: t.under }),
           ...(await readKept(image.root, `${found.folder}/${t.n}.png`)),
-          look: bringing.has(`${found.key}\0${t.n}`)
+          look: brought.has(`${found.key}\0${t.n}`)
             ? 'bringing'
             : !(await Bun.file(
                   resolveInRoot(image.root, patchGameOf(image.id, patch.id, t.n)),
