@@ -7,6 +7,7 @@ import { type ImageGenerator } from '../services/images'
 import { type Transcriber } from '../services/transcriber'
 import { type SceneRender } from '../services/sceneAudio'
 import { type SpendLog } from '../services/spending'
+import type { Computer } from '../services/setup'
 import index from '../ui/index.html'
 import { allowedHosts, notFound } from './shared'
 import { createContext, type RouteContext } from './context'
@@ -43,6 +44,8 @@ export interface ServerOptions {
   effects?: EffectGenerator
   /** The spend log to use (tests); by default one saving into the project's spending record. */
   spendLog?: SpendLog
+  /** What Setup looks at for tools, keys and model folders (tests); by default this computer. */
+  computer?: Computer
 }
 
 export { allowedHosts }
