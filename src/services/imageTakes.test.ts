@@ -19,7 +19,7 @@ import { patchFolder, patchGameOf } from './imagePatchGame'
 import type { EditModelId, ImageModelId } from '../core/imageModels'
 import { ImageToolError, type ImageGenerator, type ImageReady, type ImageRequest } from './images'
 import { createImageHealth } from './imageHealth'
-import { decodePng } from './png'
+import { decodePng, pngSize } from './png'
 import { fakePng } from './imagesFake'
 import { createSerial } from './serial'
 import { openProject } from './workspace'
@@ -43,11 +43,19 @@ function writeStyle(root: string, style: object) {
   writeFileSync(file, JSON.stringify({ ...edits, style }))
 }
 
+/**
+ * How big the fake model's pictures are: the size asked for ('full', for the groups that read
+ * pixels or picture sizes), or with each side a sixteenth of it ('small': the same shape, and the
+ * service spends next to nothing decoding it).
+ */
+type Pictures = 'small' | 'full'
+
 /** A generator that makes a patterned picture of the seed and fails for a prompt saying "fail"; `gate` holds it back. */
 function fakeGenerator(
   ready: ImageReady = { ok: true },
   gate?: Promise<void>,
   here: Partial<Record<ImageModelId | EditModelId, boolean>> = {},
+  pictures: Pictures = 'small',
 ) {
   const requests: ImageRequest[] = []
   const generator: ImageGenerator = {
@@ -63,7 +71,10 @@ function fakeGenerator(
           request.prompt.includes('silent') ? '' : 'FileNotFoundError: model.safetensors',
         )
       if (request.prompt.includes('fail')) throw new Error('The image generator: out of memory')
-      return { png: fakePng(request.width, request.height, request.seed), seed: request.seed }
+      // A take's asked sides are multiples of 16, so a sixteenth keeps the shape exactly.
+      const part = pictures === 'full' ? 1 : 16
+      const png = fakePng(request.width / part, request.height / part, request.seed)
+      return { png, seed: request.seed }
     },
   }
   return { generator, requests }
@@ -73,7 +84,11 @@ function setup(
   ready?: ImageReady,
   extra: Record<string, unknown> = {},
   gate?: Promise<void>,
-  options: { here?: Partial<Record<ImageModelId, boolean>>; model?: ImageModelId } = {},
+  options: {
+    here?: Partial<Record<ImageModelId, boolean>>
+    model?: ImageModelId
+    pictures?: Pictures
+  } = {},
 ) {
   const root = tempRepo({
     'content-studio.json': projectJson({
@@ -84,7 +99,7 @@ function setup(
     ...extra,
   })
   const file = join(root, 'content-studio.json')
-  const { generator, requests } = fakeGenerator(ready, gate, options.here)
+  const { generator, requests } = fakeGenerator(ready, gate, options.here, options.pictures)
   const clock = { now: 0 }
   let seed = 100
   const takes = createImageTakes({
@@ -239,8 +254,8 @@ describe('making takes', () => {
     expect(requests).toHaveLength(2)
     expect(requests[0]).toMatchObject({ width: 1024, height: 640, seed: 100, model: 'klein' })
     expect(requests[0]!.prompt).toBe((await row()).prompt)
-    expect(read('content-studio/cache/image-takes/inn/1.png')).toBe(bytes(fakePng(1024, 640, 100)))
-    expect(read('content-studio/cache/image-takes/inn/2.png')).toBe(bytes(fakePng(1024, 640, 101)))
+    expect(read('content-studio/cache/image-takes/inn/1.png')).toBe(bytes(fakePng(64, 40, 100)))
+    expect(read('content-studio/cache/image-takes/inn/2.png')).toBe(bytes(fakePng(64, 40, 101)))
     const board = JSON.parse(read('content-studio/cache/images/inn.json'))
     expect(board.next).toBe(3)
     expect(board.takes[0].madeFrom).toEqual((await row()).madeFrom)
@@ -1214,7 +1229,7 @@ describe('the game’s look', () => {
   })
   /** Two takes made under `files`' style. */
   async function made(files: Record<string, unknown> = style()) {
-    const s = setup(undefined, files)
+    const s = setup(undefined, files, undefined, { pictures: 'full' })
     await s.takes.make(s.file, 'inn', { count: 2 })
     await s.settled('inn')
     return s
@@ -1355,12 +1370,13 @@ async function takes_bringAll(
 describe('bringing everything to a new look', () => {
   const warm = ['#000000', '#ffffff', '#ff0000']
   async function chosenImages() {
-    const s = setup(undefined, {
+    const files = {
       [EDITS]: {
         style: { look: 'pixel art', keepOut: 'text', palette: warm, parts: {} },
         images: {},
       },
-    })
+    }
+    const s = setup(undefined, files, undefined, { pictures: 'full' })
     await s.takes.make(s.file, 'inn', { count: 2 })
     await s.takes.make(s.file, 'hall', { count: 1 })
     await s.settled('inn')
@@ -1438,6 +1454,9 @@ describe('bringing everything to a new look', () => {
     // the game keeps what it has until the button is pressed
     expect(colours(s, 'web/images/inn.png')).not.toContain('0,255,0')
     const model = s.read('content-studio/cache/image-takes/inn/2.png')
+    // These tests read pixels, so the model's pictures are as big as a real take.
+    const taken = readFileSync(join(s.root, 'content-studio/cache/image-takes/inn/2.png'))
+    expect(pngSize(taken)).toEqual({ width: 1024, height: 640 })
 
     const run = await takes_bringAll(s, { palette: ['#00ff00', '#0000ff'] })
     expect(run).toBeNull()
