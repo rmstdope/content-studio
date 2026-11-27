@@ -42,7 +42,7 @@ SET-1  Setup shows every tool, key and model each kind of content needs, whether
        Proven by: nothing yet
 SET-2  The person chooses the models for narration (audition, draft, final), music, images and
        sound effects on Setup, and the choice is saved in the project file.
-       Proven by: nothing yet
+       Proven by: test/system/SET-2.test.ts
 
 ## Casting voices (CST)
 
