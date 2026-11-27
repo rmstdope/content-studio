@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { actionBody, matchAction } from './mcpActions'
+import { actionBody, confirmLine, matchAction } from './mcpActions'
 import { FishTierBody, JobBody, PronounceBody } from './shared'
 import { SETUP_AND_NARRATION_ACTIONS } from './mcpActionsNarration'
 
@@ -57,6 +57,44 @@ describe('what an agent may do on Setup and Narration', () => {
   it('lists each method and route once', () => {
     const keys = SETUP_AND_NARRATION_ACTIONS.map((a) => `${a.method} ${a.path}`)
     expect(new Set(keys).size).toBe(keys.length)
+  })
+})
+
+describe('when a batch asks for confirmation', () => {
+  const line = (body: unknown) => confirmLine(matchAction('POST', '/api/parts/act1/jobs')!, body)
+  const batch = (orphans: string[], kind?: string) => ({
+    ...(kind ? { kind } : {}),
+    speaker: null,
+    keys: ['a'],
+    orphans,
+  })
+
+  it('names how many orphaned clips it removes', () => {
+    expect(line(batch(['x', 'y', 'z']))).toBe(
+      'deletes 3 orphaned clips from the game (their lines left the dialog)',
+    )
+    expect(line(batch(['x'], 'record'))).toBe(
+      'deletes 1 orphaned clip from the game (its line left the dialog)',
+    )
+  })
+
+  it('counts a key listed twice once', () => {
+    expect(line(batch(['x', 'x']))).toBe(
+      'deletes 1 orphaned clip from the game (its line left the dialog)',
+    )
+  })
+
+  it('asks nothing of a batch that removes none', () => {
+    expect(line(batch([]))).toBeNull()
+    // Measuring and checking again remove no clip, whatever they list.
+    expect(line(batch(['x'], 'measure'))).toBeNull()
+    expect(line(batch(['x'], 'check'))).toBeNull()
+  })
+
+  it('leaves a body the route refuses to the route', () => {
+    for (const body of [undefined, null, 'x', { orphans: ['x'] }, { ...batch(['x']), extra: 1 }]) {
+      expect(line(body)).toBeNull()
+    }
   })
 })
 

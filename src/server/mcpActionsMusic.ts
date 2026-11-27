@@ -50,7 +50,9 @@ export const MUSIC_ACTIONS: readonly Action[] = [
     confirm: "deletes the track's music file from the game; the take stays on the board",
   }),
   change('POST', '/api/music/tracks/:id/accept', null, 'accepts a changed brief for the track'),
-  change('DELETE', '/api/music/tracks/:id/takes/:file', null, 'drops a take from the board'),
+  change('DELETE', '/api/music/tracks/:id/takes/:file', null, 'drops a take from the board', {
+    confirm: "deletes this take's music from the studio",
+  }),
   change('PUT', '/api/music/tracks/:id/takes/:file/fades', SetFadesBody, "saves a take's fades"),
   change('DELETE', '/api/music/tracks/:id/takes/:file/fades', null, "removes a take's fades"),
   change(

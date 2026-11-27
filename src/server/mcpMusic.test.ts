@@ -126,7 +126,9 @@ describe('an agent doing the Music and Stingers steps', () => {
       (await change('POST', '/api/music/tracks/hall/choose', { file })).isError,
     ).toBeUndefined()
     expect(existsSync(clip)).toBe(true)
-    expect((await change('DELETE', `/api/music/tracks/hall/takes/${file}`)).isError).toBe(true)
+    // Confirmed, the take the game plays is still refused by the route.
+    const chosen = await change('DELETE', `/api/music/tracks/hall/takes/${file}`, undefined, true)
+    expect(chosen.content[0]!.text).toContain('That take is the one in the game')
   })
 
   it('does the other steps of a track and a list', async () => {
@@ -154,13 +156,20 @@ describe('an agent doing the Music and Stingers steps', () => {
     expect(existsSync(join(musicRoot, 'refreshed-act1'))).toBe(true)
   })
 
-  it('drops an unchosen take', async () => {
+  it('drops an unchosen take only once the user has agreed', async () => {
     await change('POST', '/api/music/tracks/hall/takes', { count: 1, model: 'quick' })
     const view = await takes()
     const spare = view.takes.find((t: { n: number }) => t.n !== view.chosen.take)
     expect(spare).toBeDefined()
     const path = `/api/music/tracks/hall/takes/${spare.file}`
-    expect((await change('DELETE', path)).isError).toBeUndefined()
+    const before = snapshot(musicRoot)
+    const asked = await change('DELETE', path)
+    expect(asked.isError).toBe(true)
+    expect(asked.content[0]!.text).toBe(
+      "Needs the user's confirmation first: this deletes this take's music from the studio. Once the user has agreed, call again with confirmed: true.",
+    )
+    expect(snapshot(musicRoot)).toEqual(before)
+    expect((await change('DELETE', path, undefined, true)).isError).toBeUndefined()
     const after = await takes()
     expect(after.takes.map((t: { file: string }) => t.file)).not.toContain(spare.file)
   })

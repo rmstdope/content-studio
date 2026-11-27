@@ -1,0 +1,117 @@
+import { describe, expect, it } from 'bun:test'
+import { ACTIONS } from './mcpActions'
+
+/**
+ * The steps `studio_act` does without asking, because removing a clip or a take is not what they
+ * do (the few that do on the side say so). A step that removes one carries `confirm` instead ("no
+ * clip is deleted unconfirmed", §9), so a new step passes only once somebody has said which of the
+ * two it is.
+ */
+const ASKS_NOTHING = [
+  'DELETE /api/jobs/:id',
+  'PATCH /api/fish-tier',
+  'PATCH /api/take-fade',
+  'PUT /api/image-model',
+  'PUT /api/effect-model',
+  'POST /api/parts/:part/adopt',
+  'PATCH /api/parts/:part/lines/:key/note',
+  'POST /api/parts/:part/lines/:key/check',
+  'POST /api/parts/:part/lines/:key/accept',
+  'POST /api/parts/:part/lines/:key/record',
+  'POST /api/cleaned',
+  'POST /api/characters/:id/cleaned-lines/stop',
+  'PATCH /api/characters/:id',
+  'POST /api/parts/:part/cues/:key/move',
+  'PATCH /api/pronounce',
+  'PATCH /api/sound-alike',
+  'POST /api/parts/:part/lines/:key/takes',
+  'POST /api/parts/:part/lines/:key/takes/:id/use',
+  'POST /api/parts/:part/lines/:key/try',
+  'PATCH /api/parts/:part/cues/:key/inside',
+  'PATCH /api/parts/:part/cues/:key',
+  'PATCH /api/parts/:part/scene-cues',
+  'POST /api/parts/:part/scene-cues/move',
+  'POST /api/characters/:id/takes',
+  'POST /api/auditions/:id/start',
+  'POST /api/auditions/:id/sitting',
+  'DELETE /api/auditions/:id/sitting',
+  'POST /api/auditions/:id/sitting/add',
+  'POST /api/auditions/:id/own',
+  'POST /api/auditions/:id/move',
+  'POST /api/auditions/:id/undo',
+  'POST /api/auditions/:id/more',
+  'POST /api/auditions/:id/add',
+  'POST /api/characters/:id/clone-voice',
+  'POST /api/characters/:id/design',
+  'DELETE /api/characters/:id/ruled-out/:voice',
+  'POST /api/parts/:part/refresh',
+  'PATCH /api/image-style',
+  'PATCH /api/images/:id',
+  'PATCH /api/images/:id/act-style',
+  'POST /api/images/:id/compare',
+  'PATCH /api/images/:id/game-patches/:patch',
+  'POST /api/images/:id/game-patches/:patch/compare',
+  'PUT /api/images/:id/areas/:area',
+  'PUT /api/images/:id/effects',
+  'PUT /api/images/:id/zoom',
+  'POST /api/images/:id/takes',
+  'POST /api/images/:id/takes/:n/seen',
+  'POST /api/images/:id/accept',
+  'POST /api/images/:id/unaccept',
+  'POST /api/images/:id/stop',
+  'POST /api/images/:id/copy',
+  'POST /api/image-acts/:id/batch/close',
+  'POST /api/image-acts/:id/stop',
+  'POST /api/images/bring-all',
+  'POST /api/images/:id/patches/remake',
+  'POST /api/images/:id/patches/remake/stop',
+  'POST /api/images/:id/patches/remake/close',
+  'POST /api/images/:id/patches/:patch/takes',
+  'POST /api/images/:id/patches/:patch/takes/:n/seen',
+  'POST /api/images/:id/patches/:patch/stop',
+  'POST /api/images/:id/fine-tunes',
+  'POST /api/images/:id/fine-tunes/stop',
+  // Empties the fine-tune board, deleting the other fine-tunes; the page doesn't ask either.
+  'POST /api/images/:id/fine-tunes/use',
+  'POST /api/images/:id/fine-tunes/:n/seen',
+  'POST /api/effects/refresh',
+  'PATCH /api/effects/:id',
+  'POST /api/effects/:id/keep-mine',
+  'POST /api/effects/:id/takes',
+  'POST /api/effects/:id/accept',
+  'POST /api/effects/:id/stop',
+  'PUT /api/effects/:id/takes/:file/fades',
+  'DELETE /api/effects/:id/takes/:file/fades',
+  'PUT /api/effects/:id/takes/:file/level',
+  'POST /api/effects/:id/choose',
+  'POST /api/effects/:id/trim',
+  'POST /api/effects/batch/close',
+  'POST /api/effects/stop-all',
+  'POST /api/scene-loudness/:part',
+  'PUT /api/scenes/:part/:id',
+  // Also drops the takes of never-chosen tracks the game no longer lists; the page doesn't ask either.
+  'PATCH /api/music/tracks/:id',
+  'POST /api/music/tracks/:id/keep-mine',
+  'POST /api/music/tracks/:id/takes',
+  'POST /api/music/tracks/:id/stop',
+  'POST /api/music/tracks/:id/choose',
+  'POST /api/music/tracks/:id/accept',
+  'PUT /api/music/tracks/:id/takes/:file/fades',
+  'DELETE /api/music/tracks/:id/takes/:file/fades',
+  'POST /api/music/tracks/:id/trim',
+  'POST /api/music/tracks/:id/move',
+  'PUT /api/music/model',
+  'POST /api/music/lists/:id/make-all',
+  'POST /api/music/lists/:id/batch/close',
+  'POST /api/music/lists/:id/stop',
+  'POST /api/music/stingers/refresh',
+]
+
+describe('no clip is deleted through the MCP unconfirmed', () => {
+  const key = (a: (typeof ACTIONS)[number]) => `${a.method} ${a.path}`
+
+  it('has every step ask for confirmation, or listed as asking nothing', () => {
+    const silent = ACTIONS.filter((a) => !a.confirm).map(key)
+    expect(silent.sort()).toEqual([...ASKS_NOTHING].sort())
+  })
+})
