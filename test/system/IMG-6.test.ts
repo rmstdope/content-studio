@@ -36,12 +36,15 @@ describe('IMG-6: Make all makes an act’s missing takes, and can be stopped', (
         generate: async (request, signal) => {
           asked.push(words(request))
           if (finishes-- <= 0) {
-            await new Promise<never>((_, reject) =>
-              signal!.addEventListener('abort', () => {
+            await new Promise<never>((_, reject) => {
+              const giveUp = () => {
                 givenUp.push(words(request))
                 reject(new Error('stopped'))
-              }),
-            )
+              }
+              // The stop may come before the model is called.
+              if (signal!.aborted) giveUp()
+              else signal!.addEventListener('abort', giveUp)
+            })
           }
           return {
             png: fakePng(request.width, request.height, request.seed),
@@ -94,6 +97,7 @@ describe('IMG-6: Make all makes an act’s missing takes, and can be stopped', (
     })
   }
 
+  // The cases follow on from one another: the second starts from the takes the first made.
   it('makes takes for every image of the act that has none, and for no other', async () => {
     // One image of the act has a take the person chose.
     await send('/api/images/inn/takes', { count: 1 })
@@ -117,7 +121,7 @@ describe('IMG-6: Make all makes an act’s missing takes, and can be stopped', (
     asked.length = 0
     finishes = 1
     await send('/api/image-acts/act2/make-all')
-    await until('the second take of the press', async () => {
+    await until('ford’s second take', async () => {
       return asked.length === 2 && (await making()).ford?.takes === 3
     })
 
