@@ -2,6 +2,7 @@ import { describe, expect, it, spyOn } from 'bun:test'
 import { settle } from './settle'
 
 describe('settle', () => {
+  // Reads the delays asked for, not the clock: it keeps a longer sleep from creeping back.
   it('waits five turns of the event loop, none longer than a millisecond', async () => {
     const timers = spyOn(globalThis, 'setTimeout')
     try {
