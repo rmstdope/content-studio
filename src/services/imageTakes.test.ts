@@ -1644,10 +1644,9 @@ describe('adding a fine-tuned take', () => {
     words: 'Add a cat',
   }
   it('adds the next take with its picture and what it came from, made from the image’s words now', async () => {
-    const { takes, file, read, row, root } = setup()
+    const { takes, file, read, row, root, settled } = setup()
     await takes.make(file, 'inn', { count: 1 })
-    const first = await takes.view(file, 'inn')
-    if (!first || !('takes' in first)) throw new Error('no view')
+    await settled('inn')
     const answer = await takes.addTake(file, 'inn', { ...made, from: null })
     expect(answer).toEqual({ ok: true, n: 2 })
     expect(read('content-studio/cache/image-takes/inn/2.png')).toBe(bytes(made.png))
@@ -1665,8 +1664,9 @@ describe('adding a fine-tuned take', () => {
     expect(existsSync(join(root, 'content-studio/cache/image-takes/inn/1.png'))).toBe(true)
   })
   it('copies the words and style of the take it came from, not the image’s now', async () => {
-    const { takes, file, read } = setup()
+    const { takes, file, read, settled } = setup()
     await takes.make(file, 'inn', { count: 1 })
+    await settled('inn')
     await setImageWords(file, 'inn', 'a high inn')
     expect(await takes.addTake(file, 'inn', { ...made, from: 1 })).toEqual({ ok: true, n: 2 })
     const board = JSON.parse(read('content-studio/cache/images/inn.json'))
