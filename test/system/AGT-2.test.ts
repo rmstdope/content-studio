@@ -71,14 +71,16 @@ describe('AGT-2: a page open in the browser follows what an agent changed', () =
     await unregisterDom()
   })
 
-  /** Waits until the open page shows `text`, in its words or in one of its fields. */
+  /** Whether the page has `text`, in its words or in one of its fields. */
+  const has = (text: string) =>
+    container.textContent!.includes(text) ||
+    [...container.querySelectorAll('textarea, input')].some((field) =>
+      (field as HTMLInputElement).value.includes(text),
+    )
+
+  /** Waits until the open page shows `text`. */
   async function shows(text: string) {
-    const found = () =>
-      container.textContent!.includes(text) ||
-      [...container.querySelectorAll('textarea, input')].some((field) =>
-        (field as HTMLInputElement).value.includes(text),
-      )
-    for (const giveUp = Date.now() + 10_000; !found();) {
+    for (const giveUp = Date.now() + 10_000; !has(text);) {
       if (Date.now() > giveUp) {
         throw new Error(`the page never showed "${text}": ${container.textContent}`)
       }
@@ -104,6 +106,6 @@ describe('AGT-2: a page open in the browser follows what an agent changed', () =
     })
 
     await shows(AFTER)
-    expect(container.textContent).not.toContain(BEFORE)
+    expect(has(BEFORE)).toBe(false)
   }, 30_000)
 })
