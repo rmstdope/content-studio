@@ -108,7 +108,7 @@ IMG-2  Patches: the person marks part of a chosen picture and has a change paint
 IMG-3  Fine-tune: the person makes variations of a picture, compares them and chooses or drops
        each; Choose and Drop stay off for a second on a card that has just turned ready, and a
        choice can be undone.
-       Proven by: nothing yet
+       Proven by: test/system/IMG-3.test.ts
 IMG-4  Named areas: the person places a box (and a point, where it has one) for each area the game
        names on the picture, and they are saved for the game with the image.
        Proven by: nothing yet
