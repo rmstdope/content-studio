@@ -104,7 +104,7 @@ IMG-1  Each image the game lists can be made as takes with a local model, in the
        Proven by: test/system/IMG-1.test.ts
 IMG-2  Patches: the person marks part of a chosen picture and has a change painted into it,
        compares the patch's takes and chooses one for the game.
-       Proven by: nothing yet
+       Proven by: test/system/IMG-2.test.ts
 IMG-3  Fine-tune: the person makes variations of a picture, compares them and chooses or drops
        each; Choose and Drop stay off for a second on a card that has just turned ready, and a
        choice can be undone.
