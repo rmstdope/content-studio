@@ -4,7 +4,6 @@ import { useWorkbenchMark } from './useWorkbenchMark'
 import { wholeKeyText } from '../../wholeMark'
 import { useAfterSaved } from '../../useAfterSaved'
 import { useJobOpen } from './ImageJobTabs'
-import { cropWindow } from '../../../core/imagePixels'
 import { FitPicture } from './FitPicture'
 import { ChangeBadge, ChangeNote } from './MarkTag'
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
@@ -333,9 +332,6 @@ export function PatchWorkbench({
   }
 
   const space = game ? gameSpace(take, view.game) : modelSpace(take)
-  // The picture's own pixels: the take's, or in the game view the part of it the game keeps, so a
-  // cropped take is never enlarged and a mark sits at one scale in both views.
-  const pictureWidth = game ? cropWindow(take, view.game).width : take.width
   const version = tag(`${view.lookKey ?? ''}${take.n}`)
   const image = encodeURIComponent(imageId)
   const patch = encodeURIComponent(patchId)
@@ -617,7 +613,7 @@ export function PatchWorkbench({
 
   const picture = (
     <>
-      <FitPicture className="patch-picture" shape={space} drawnWidth={pictureWidth}>
+      <FitPicture className="patch-picture" shape={space} take={take} game={view.game}>
         {game && (lookError !== null || shown?.look === 'bringing' || shown?.look === 'missing') ? (
           <div
             className={`look-empty${lookError !== null ? ' look-empty-err' : ''}`}

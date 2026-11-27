@@ -744,7 +744,9 @@ export function FineTunePanel({
         <FitPicture
           className="patch-stage fine-picture"
           shape={picture}
-          drawnWidth={picture.width}
+          take={picture}
+          // The game's own image is no take to be cut to the image's shape.
+          game={picture.kind === 'take' ? row : picture}
           {...marking.stage}
         >
           <img

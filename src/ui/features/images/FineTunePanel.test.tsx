@@ -69,6 +69,7 @@ async function render(
   postedAs: PostedAnswer | ((path: string) => PostedAnswer) = { status: 200, body: { ok: true } },
   takes: () => unknown = () => ({}),
   open = true,
+  image: { width: number; height: number } = { width: 1024, height: 576 },
 ) {
   const sent: { method: string; path: string; body: unknown }[] = []
   globalThis.fetch = (async (path: string, init?: RequestInit) => {
@@ -103,7 +104,7 @@ async function render(
           JobOpenProvider,
           { value: open },
           createElement(FineTunePanel, {
-            row: { id: 'inn', width: 1024, height: 576 } as ImageRow,
+            row: { id: 'inn', ...image } as ImageRow,
             clock,
           }),
         ),
@@ -217,9 +218,15 @@ describe('the states of the panel', () => {
     expect(host.querySelectorAll('select.takes-count option')).toHaveLength(10)
   })
 
-  for (const { what, width, height, drawn } of SAME_SIZE) {
+  for (const { what, width, height, game, drawn } of SAME_SIZE) {
     it(`draws ${what} at the size Patches and Named areas draw it (as-5068)`, async () => {
-      const { host } = await render(() => view({ picture: { kind: 'take', n: 3, width, height } }))
+      const { host } = await render(
+        () => view({ picture: { kind: 'take', n: 3, width, height } }),
+        undefined,
+        undefined,
+        undefined,
+        game,
+      )
       expect(drawnSize(host.querySelector<HTMLElement>('.patch-stage')!)).toEqual([...drawn])
     })
   }
@@ -249,6 +256,19 @@ describe('the states of the panel', () => {
       ])
     })
   }
+
+  it('is no wider than what the game keeps of a take cut at the sides, as on Patches (as-fuaz)', async () => {
+    const picture = { kind: 'take' as const, n: 3, width: 1024, height: 512 }
+    const { host } = await render(() => view({ picture }), undefined, undefined, undefined, {
+      width: 320,
+      height: 200,
+    })
+    const stage = host.querySelector<HTMLElement>('.patch-stage')!
+    // The image is 320 x 200.
+    expect(stage.style.getPropertyValue('--picture-ratio')).toBe(String(320 / 200))
+    expect(stage.style.maxWidth).toBe('819px')
+    expect(stage.style.aspectRatio).toBe('1024 / 512')
+  })
 
   it('names the game’s own image when no take is chosen', async () => {
     const { host } = await render(() =>

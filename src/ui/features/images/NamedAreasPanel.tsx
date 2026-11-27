@@ -11,7 +11,6 @@ import {
   type KeyboardEvent,
   type PointerEvent,
 } from 'react'
-import { cropWindow } from '../../../core/imagePixels'
 import type { AreaBox, AreaRow, ImageRow } from '../../../core/images'
 import { useImagePatches, useSetImageAreaBox } from '../../api'
 import {
@@ -465,14 +464,10 @@ export function NamedAreasPanel({ row }: { row: ImageRow }) {
         ...boxes.filter((b) => b.area.id === selected),
       ]
   /**
-   * The picture's box: the image's shape, never wider than the part of the take drawn (the image's
-   * size until there is one), and held by the window under the pinned bar (as-zkky).
+   * The picture's box: the image's shape, as wide as Fine-tune and Patches draw the take (the
+   * image's size until there is one), and held by the window under the pinned bar (as-zkky).
    */
-  const fit = {
-    shape: row,
-    drawnWidth: take ? cropWindow(take, row).width : row.width,
-    barHeight,
-  }
+  const fit = { shape: row, take: take ?? row, game: row, barHeight }
   return (
     <section className="panel named-areas" aria-label="Named areas">
       {failure && (

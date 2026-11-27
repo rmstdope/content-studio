@@ -6,9 +6,29 @@ import { cssLength, valuesInEveryWindow } from './stylesheet'
  */
 export const SAME_SIZE = [
   // 92% of the window's height holds it: 828 high.
-  { what: 'a portrait picture', width: 816, height: 1024, drawn: [660, 828] },
+  {
+    what: 'a portrait picture',
+    width: 816,
+    height: 1024,
+    game: { width: 408, height: 512 },
+    drawn: [660, 828],
+  },
   // Its own pixels hold it.
-  { what: 'a landscape picture', width: 1024, height: 640, drawn: [1024, 640] },
+  {
+    what: 'a landscape picture',
+    width: 1024,
+    height: 640,
+    game: { width: 512, height: 320 },
+    drawn: [1024, 640],
+  },
+  // A model's take a few rows taller than the image: the whole take is what holds all three (as-fuaz).
+  {
+    what: 'a take a little off the image’s shape',
+    width: 816,
+    height: 1024,
+    game: { width: 160, height: 200 },
+    drawn: [660, 828],
+  },
 ] as const
 
 /**
