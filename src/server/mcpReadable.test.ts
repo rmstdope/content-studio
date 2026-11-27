@@ -8,6 +8,8 @@ describe('what an agent may read', () => {
     expect(matchReadable('/api/parts/act1/clips/a.mp3?v=2')?.kind).toBe('file')
     expect(matchReadable('/api/images/castle/takes/3')?.page).toBe('Images')
     expect(matchReadable('/api/effects/door/takes/x.wav')?.page).toBe('Sound effects')
+    // A picture, so studio_fetch hands it over.
+    expect(matchReadable('/api/images/castle/fine-tunes/base')?.kind).toBe('file')
   })
 
   it('refuses what is not listed, however it is written', () => {

@@ -19,6 +19,12 @@ interface Told {
   kind: 'state' | 'file'
 }
 
+/**
+ * The limit of the tests that wait on takes or on ffmpeg (which `studio_fetch` measures a sound
+ * with), as `bun run test` sets it, so a plain `bun test` does not cut them off at 5 s.
+ */
+const SLOW = 20_000
+
 /** The states the pages of this game show, `job` being the narration job run here. */
 const states = (job: string) => [
   // Setup, with the changes and the spending.
@@ -149,45 +155,49 @@ describe('AGT-1: an agent over MCP reads what every page shows and does the stud
     )
   })
 
-  it('does a step of every page, with the game getting the result', async () => {
-    // Setup
-    await done('PATCH', '/api/take-fade', { seconds: 0.25 })
-    expect(file('content-studio/cache/settings.json')).toContain('0.25')
+  it(
+    'does a step of every page, with the game getting the result',
+    async () => {
+      // Setup
+      await done('PATCH', '/api/take-fade', { seconds: 0.25 })
+      expect(file('content-studio/cache/settings.json')).toContain('0.25')
 
-    // Narration: record the one line.
-    const recording = await done('POST', '/api/parts/act1/jobs', {
-      speaker: null,
-      keys: ['a'],
-      orphans: [],
-    })
-    jobId = JSON.parse(recording).id
-    await settled(`/api/jobs/${jobId}`, (job) => job.status !== 'running')
-    expect(JSON.parse(file('audio/act1/manifest.json')).a).toBeDefined()
+      // Narration: record the one line.
+      const recording = await done('POST', '/api/parts/act1/jobs', {
+        speaker: null,
+        keys: ['a'],
+        orphans: [],
+      })
+      jobId = JSON.parse(recording).id
+      await settled(`/api/jobs/${jobId}`, (job) => job.status !== 'running')
+      expect(JSON.parse(file('audio/act1/manifest.json')).a).toBeDefined()
 
-    // Music, images and sound effects: make a take and choose it for the game.
-    await done('POST', '/api/music/tracks/hall/takes', { count: 1 })
-    const music = await settled('/api/music/tracks/hall/takes', made)
-    await done('POST', '/api/music/tracks/hall/choose', { file: music.takes![0]!.file })
-    expect(file('audio/music/manifest.json')).toContain('hall')
+      // Music, images and sound effects: make a take and choose it for the game.
+      await done('POST', '/api/music/tracks/hall/takes', { count: 1 })
+      const music = await settled('/api/music/tracks/hall/takes', made)
+      await done('POST', '/api/music/tracks/hall/choose', { file: music.takes![0]!.file })
+      expect(file('audio/music/manifest.json')).toContain('hall')
 
-    await done('POST', '/api/images/inn/takes', { count: 1 })
-    const image = await settled('/api/images/inn/takes', made)
-    await done('POST', '/api/images/inn/choose', { n: image.takes![0]!.n }, true)
-    expect(file('web/images/manifest.json')).toContain('inn')
+      await done('POST', '/api/images/inn/takes', { count: 1 })
+      const image = await settled('/api/images/inn/takes', made)
+      await done('POST', '/api/images/inn/choose', { n: image.takes![0]!.n }, true)
+      expect(file('web/images/manifest.json')).toContain('inn')
 
-    await done('POST', '/api/effects/coins/takes', { count: 1 })
-    const effect = await settled('/api/effects/coins/takes', made)
-    await done('POST', '/api/effects/coins/choose', { file: effect.takes![0]!.file })
-    expect(file('audio/effects/manifest.json')).toContain('coins')
+      await done('POST', '/api/effects/coins/takes', { count: 1 })
+      const effect = await settled('/api/effects/coins/takes', made)
+      await done('POST', '/api/effects/coins/choose', { file: effect.takes![0]!.file })
+      expect(file('audio/effects/manifest.json')).toContain('coins')
 
-    // Scenes: save the scene's mix.
-    const scene = {
-      music: { track: 'hall', level: 0.5 },
-      effects: [{ id: 'coins', play: { mode: 'loop' }, level: 1 }],
-    }
-    await done('PUT', '/api/scenes/act1/store', { scene, was: null })
-    expect(file('game/act1.mix.json')).toContain('0.5')
-  })
+      // Scenes: save the scene's mix.
+      const scene = {
+        music: { track: 'hall', level: 0.5 },
+        effects: [{ id: 'coins', play: { mode: 'loop' }, level: 1 }],
+      }
+      await done('PUT', '/api/scenes/act1/store', { scene, was: null })
+      expect(file('game/act1.mix.json')).toContain('0.5')
+    },
+    SLOW,
+  )
 
   it('reads the state every page shows, as the page gets it', async () => {
     const told = await pagesTold()
@@ -217,34 +227,39 @@ describe('AGT-1: an agent over MCP reads what every page shows and does the stud
     }
   })
 
-  it('fetches the pictures and sounds of every page that has them, as the page gets them', async () => {
-    const shown = [
-      '/api/parts/act1/clips/a.mp3',
-      '/api/music/tracks/hall/current',
-      '/api/images/inn/current',
-      '/api/images/inn/fine-tunes/base',
-      '/api/effects/coins/current',
-      '/api/scenes/act1/store/mix',
-    ]
-    const told = await pagesTold()
-    const pageNames = (entries: Told[]) => [...new Set(entries.map((entry) => entry.page))].sort()
-    expect(
-      pageNames(shown.flatMap((path) => told.find((e) => fitsTemplate(e.path, path)) ?? [])),
-    ).toEqual(pageNames(told.filter((entry) => entry.kind === 'file')))
-    for (const path of shown) {
-      const answer = await agent.fetch(path)
-      const media = answer.content.find((block) => block.data !== undefined)
-      const bytes = Buffer.from(await (await page.get(path)).arrayBuffer())
-      expect(bytes.byteLength).toBeGreaterThan(0)
-      expect({ path, data: media?.data }).toEqual({ path, data: bytes.toString('base64') })
-    }
-  })
+  it(
+    'fetches the pictures and sounds of every page that has them, as the page gets them',
+    async () => {
+      const shown = [
+        '/api/parts/act1/clips/a.mp3',
+        '/api/music/tracks/hall/current',
+        '/api/images/inn/current',
+        '/api/images/inn/fine-tunes/base',
+        '/api/effects/coins/current',
+        '/api/scenes/act1/store/mix',
+      ]
+      const told = await pagesTold()
+      const pageNames = (entries: Told[]) => [...new Set(entries.map((entry) => entry.page))].sort()
+      expect(
+        pageNames(shown.flatMap((path) => told.find((e) => fitsTemplate(e.path, path)) ?? [])),
+      ).toEqual(pageNames(told.filter((entry) => entry.kind === 'file')))
+      for (const path of shown) {
+        const answer = await agent.fetch(path)
+        const media = answer.content.find((block) => block.data !== undefined)
+        const bytes = Buffer.from(await (await page.get(path)).arrayBuffer())
+        expect(bytes.byteLength).toBeGreaterThan(0)
+        expect({ path, data: media?.data }).toEqual({ path, data: bytes.toString('base64') })
+      }
+    },
+    SLOW,
+  )
 
   it('refuses an agent what it refuses the page, in the same words', async () => {
     for (const [method, path, body, status, why] of [
       // A value the page cannot save.
       ['PATCH', '/api/take-fade', { seconds: -1 }, 400, 'seconds'],
-      // A paid recording whose cost nobody has confirmed.
+      // A paid recording whose cost nobody has confirmed: the agent is answered by the step's
+      // /cost route, before the step, which must say what the step itself says to the page.
       ['POST', '/api/parts/act1/lines/a/record', { stage: 'final' }, 409, '"ceiling"'],
     ] as const) {
       const response = await page.send(method, path, body)

@@ -66,8 +66,10 @@ function agentOf(url: URL) {
 
 /**
  * The start-up of a system test: the studio's real server on a temporary game holding `files`,
- * with every provider and model faked, so nothing reaches the network, uv or ffmpeg. `fakes`
- * replaces any of them. The server stops when the test file is done.
+ * with every provider and model faked, so nothing reaches the network or uv. ffmpeg is the real
+ * one where the studio uses it to measure a sound an agent fetches; without it that answer says
+ * so and the sound is still handed over. `fakes` replaces any of the fakes. The server stops when
+ * the test file is done.
  */
 export function startStudio(files: Record<string, unknown>, fakes: Partial<ServerOptions> = {}) {
   const root = tempRepo(files)
