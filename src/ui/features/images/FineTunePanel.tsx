@@ -1,4 +1,5 @@
 import { fieldOwnsKeys, NOT_YET, useDocumentKeys, usePendingFocus } from './useWorkbenchKeys'
+import { browserClock, type DelayClock } from '../../delayClock'
 import { WholeMarkLink } from './WholeMarkLink'
 import { useWorkbenchMark } from './useWorkbenchMark'
 import { useJobOpen } from './ImageJobTabs'
@@ -65,21 +66,6 @@ const MAX_AT_ONCE = 10
 
 /** How long a card that has just turned ready keeps Choose and Drop off, in milliseconds. */
 const SETTLE_MS = 1000
-
-/** The clock that second runs on: the time in milliseconds, and a later call that can be cancelled. */
-export interface SettleClock {
-  now(): number
-  after(ms: number, fn: () => void): () => void
-}
-
-/** The browser's clock: `Date.now` and a timeout. */
-export const browserClock: SettleClock = {
-  now: () => Date.now(),
-  after(ms, fn) {
-    const id = setTimeout(fn, ms)
-    return () => clearTimeout(id)
-  },
-}
 
 /** The keys the open Fine-tune tab hears anywhere on the page. */
 const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'c', 'd', 's', 'z'])
@@ -185,7 +171,7 @@ export function FineTunePanel({
   /** The short name of the act with this id, for a shared image's change of act style. */
   actNameOf?: (id: string | null) => string | null
   /** What times the second a card that has just turned ready is off; a test gives its own. */
-  clock?: SettleClock
+  clock?: DelayClock
 }) {
   const query = useFineTunes(row.id)
   const make = useMakeFineTunes(row.id)
