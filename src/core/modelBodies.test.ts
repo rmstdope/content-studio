@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { modelAllowed, modelBody, type ModelKind } from './modelBodies'
+import { bodyText } from './bodyText'
+import { MODEL_BODIES, modelAllowed, type ModelKind } from './modelBodies'
 
 const KINDS: [ModelKind, string[], string][] = [
   ['music', ['balanced', 'eleven'], 'balanced'],
@@ -12,11 +13,11 @@ const KINDS: [ModelKind, string[], string][] = [
 describe('model bodies', () => {
   for (const [kind, ids] of KINDS) {
     test(`${kind}: the body and the refusal name the ids and where was is read`, () => {
-      for (const text of [modelBody(kind), modelAllowed(kind)]) {
+      for (const text of [bodyText(MODEL_BODIES[kind]), modelAllowed(kind)]) {
         for (const id of ids) expect(text).toContain(`"${id}"`)
         expect(text).toContain('GET /api/models')
       }
-      expect(modelBody(kind)).toStartWith('{ model, was }')
+      expect(bodyText(MODEL_BODIES[kind])).toStartWith('{ model, was }')
     })
   }
 

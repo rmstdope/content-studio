@@ -87,7 +87,9 @@ describe('takeRoutes', () => {
       request({ id: 'a' }, {}),
     )
     expect(bad.status).toBe(400)
-    expect(await bad.json()).toEqual({ error: 'expected { file }' })
+    expect(await bad.json()).toEqual({
+      error: expect.stringMatching(/^expected \{ file \}: .*\. Allowed: file is text\.$/),
+    })
     const none = await setup(null).routes['/api/things/:id/choose']!.POST!(
       request({ id: 'a' }, { file: 'f.wav' }),
     )
@@ -150,7 +152,11 @@ describe('takeRoutes', () => {
     const make = await routes['/api/things/:id/takes']!.POST!(request({ id: 'a' }, {}))
     expect([make.status, await make.json()]).toEqual([
       400,
-      { error: 'expected { count } or { retry }' },
+      {
+        error: expect.stringMatching(
+          /^expected \{ count \}: count: .*Allowed: count is a number\.$/,
+        ),
+      },
     ])
     const fades = await routes['/api/things/:id/takes/:file/fades']!.PUT!(
       request({ id: 'a', file: 'f' }, {}),
@@ -165,7 +171,9 @@ describe('takeRoutes', () => {
     expect(linearLine).toContain('smooth')
     expect(linearLine).toContain('straight')
     const trim = await routes['/api/things/:id/trim']!.POST!(request({ id: 'a' }, {}))
-    expect(await trim.json()).toEqual({ error: 'expected { file, undo? }' })
+    expect(await trim.json()).toEqual({
+      error: expect.stringContaining('expected { file, undo? }: file: '),
+    })
   })
 
   it('serves a take’s file, 404 when it is not there, from any medium’s base', async () => {

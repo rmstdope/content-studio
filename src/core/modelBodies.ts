@@ -1,3 +1,5 @@
+import { z } from 'zod'
+import { bodyAllowed } from './bodyText'
 import { DEFAULT_EFFECT_MODEL, EFFECT_MODEL_IDS } from './effectModels'
 import { DEFAULT_ELEVEN_MODEL, ELEVEN_MODEL_IDS } from './elevenSpeech'
 import { DEFAULT_IMAGE_MODEL, IMAGE_MODEL_IDS } from './imageModels'
@@ -29,15 +31,37 @@ function facts(kind: ModelKind): { ids: readonly string[]; fallback: string; was
   }
 }
 
-/** What a model save's `model` and `was` take, for a refusal and for the body in the registry. */
-export function modelAllowed(kind: ModelKind): string {
+/** The body of a model save: the model chosen and the one shown, saying which ids it takes. */
+function modelSave(kind: ModelKind) {
   const { ids, fallback, was } = facts(kind)
   const named = ids.map((id) => `"${id}"`).join(', ')
-  const none = ` ("${fallback}" when the project file names none)`
-  return `Allowed: model is one of ${named}; was is the model now in force, as GET /api/models shows it (${was})${none}.`
+  return z
+    .object({
+      // Any text here: an id the studio does not know is refused by the save, with a 409.
+      model: z
+        .string()
+        .min(1)
+        .meta({ description: `one of ${named}` }),
+      was: z
+        .string()
+        .min(1)
+        .meta({
+          description: `the model now in force, ${was} in GET /api/models, "${fallback}" when the project file names none`,
+        }),
+    })
+    .strict()
 }
 
-/** The body of a model save as the registry describes it: its shape, then what it takes. */
-export function modelBody(kind: ModelKind): string {
-  return `{ model, was }. ${modelAllowed(kind)}`
+/** Each model save's body: what the page chose for a stage or a medium, and what it showed. */
+export const MODEL_BODIES = {
+  music: modelSave('music'),
+  images: modelSave('images'),
+  effects: modelSave('effects'),
+  fish: modelSave('fish'),
+  elevenlabs: modelSave('elevenlabs'),
+} satisfies Record<ModelKind, z.ZodType>
+
+/** What a model save takes, in words, for the save's refusal of an id the studio does not know. */
+export function modelAllowed(kind: ModelKind): string {
+  return bodyAllowed(MODEL_BODIES[kind])
 }

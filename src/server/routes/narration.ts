@@ -99,8 +99,6 @@ import {
   CleanedBody,
   notFound,
   badBody,
-  JOB_ALLOWED,
-  PRONOUNCE_ALLOWED,
   parseOrNull,
 } from '../shared'
 
@@ -194,7 +192,7 @@ export function narrationRoutes(c: RouteContext) {
     '/api/parts/:part/lines/:key/note': {
       PATCH: fromOwnPage(async (request) => {
         const body = NoteBody.safeParse(await request.json().catch(() => null))
-        if (!body.success) return Response.json({ error: 'expected { note }' }, { status: 400 })
+        if (!body.success) return badBody(NoteBody, body.error)
         const { part, key } = request.params
         const result = await setNote(projectFile, part, key, body.data.note, languageOf(request))
         if (!result) return notFound()
@@ -232,7 +230,7 @@ export function narrationRoutes(c: RouteContext) {
         const text = await request.text()
         const body = RecordBody.safeParse(parseOrNull(text || '{}'))
         if (!body.success) {
-          return Response.json({ error: 'expected { confirmedCost?, stage? }' }, { status: 400 })
+          return badBody(RecordBody, body.error)
         }
         // Fails closed: without a plan, nothing is priced, so nothing is recorded.
         const planned = await planFor(part, undefined, true, body.data.stage, languageOf(request))
@@ -292,11 +290,7 @@ export function narrationRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = JobBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return badBody(
-            '{ kind, stage, speaker, keys, orphans, retakeWeak, confirmedCost, confirmedCredits }',
-            body.error,
-            JOB_ALLOWED,
-          )
+          return badBody(JobBody, body.error)
         }
         const { part } = request.params
         const { retakeWeak } = body.data
@@ -424,7 +418,7 @@ export function narrationRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = CleanedBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { part, file } or { take }' }, { status: 400 })
+          return badBody(CleanedBody, body.error)
         }
         const made = await cleanedCopy(projectFile, body.data, {
           encode,
@@ -491,10 +485,7 @@ export function narrationRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = LevelBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json(
-            { error: 'expected { level: a whole number, 10 to 200 }' },
-            { status: 400 },
-          )
+          return badBody(LevelBody, body.error)
         }
         const { id } = request.params
         const language = await languageFor(request)
@@ -530,13 +521,7 @@ export function narrationRoutes(c: RouteContext) {
       PATCH: fromOwnPage(async (request) => {
         const body = CharacterBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json(
-            {
-              error:
-                'expected { keywords: string[] }, { phrase: string | null }, { style: string }, { speed: number | null } or { clean: boolean }',
-            },
-            { status: 400 },
-          )
+          return badBody(CharacterBody, body.error)
         }
         const { id } = request.params
         const result = await changeCharacter(id, body.data, languageOf(request))
@@ -559,7 +544,7 @@ export function narrationRoutes(c: RouteContext) {
     '/api/parts/:part/cues/:key/move': {
       POST: fromOwnPage(async (request) => {
         const body = MoveCueBody.safeParse(await request.json().catch(() => null))
-        if (!body.success) return Response.json({ error: 'expected { to }' }, { status: 400 })
+        if (!body.success) return badBody(MoveCueBody, body.error)
         const { part, key } = request.params
         const result = await moveCue(projectFile, part, key, body.data.to, languageOf(request))
         if (!result) return notFound()
@@ -601,7 +586,7 @@ export function narrationRoutes(c: RouteContext) {
       PATCH: fromOwnPage(async (request) => {
         const body = PronounceBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return badBody('{ table, was }', body.error, PRONOUNCE_ALLOWED)
+          return badBody(PronounceBody, body.error)
         }
         const result = await setPronunciations(
           projectFile,
@@ -617,7 +602,7 @@ export function narrationRoutes(c: RouteContext) {
       PATCH: fromOwnPage(async (request) => {
         const body = SoundAlikeBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { groups, was }' }, { status: 400 })
+          return badBody(SoundAlikeBody, body.error)
         }
         const result = await setSoundAlike(
           projectFile,
@@ -649,7 +634,7 @@ export function narrationRoutes(c: RouteContext) {
     '/api/elevenlabs/voices/free': {
       POST: fromOwnPage(async (request) => {
         const body = FreeBody.safeParse(await request.json().catch(() => null))
-        if (!body.success) return Response.json({ error: 'expected { voices }' }, { status: 400 })
+        if (!body.success) return badBody(FreeBody, body.error)
         const used = await voicesInUse(projectFile)
         if (!used) return unknownUse()
         const result = await freeVoices(
@@ -672,7 +657,7 @@ export function narrationRoutes(c: RouteContext) {
       PUT: fromOwnPage(async (request) => {
         const body = ElevenTtsBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { tts, was }' }, { status: 400 })
+          return badBody(ElevenTtsBody, body.error)
         }
         const busy = await busyRefusal('narration.generate.elevenlabs')
         if (busy) return busy
@@ -692,7 +677,7 @@ export function narrationRoutes(c: RouteContext) {
         const text = await request.text()
         const body = TakeLineBody.safeParse(parseOrNull(text || '{}'))
         if (!body.success) {
-          return Response.json({ error: 'expected { confirmedCost? }' }, { status: 400 })
+          return badBody(TakeLineBody, body.error)
         }
         // Fails closed, as recording does: a take is priced for one request per piece.
         const planned = await planFor(part, undefined, false, 'draft', languageOf(request))
@@ -752,7 +737,7 @@ export function narrationRoutes(c: RouteContext) {
     '/api/parts/:part/lines/:key/try': {
       POST: fromOwnPage(async (request) => {
         const body = TryBody.safeParse(await request.json().catch(() => null))
-        if (!body.success) return Response.json({ error: 'expected { cue }' }, { status: 400 })
+        if (!body.success) return badBody(TryBody, body.error)
         const { part, key } = request.params
         const result = await whileGoing('part', part, () =>
           tryLine(
@@ -775,7 +760,7 @@ export function narrationRoutes(c: RouteContext) {
       PATCH: fromOwnPage(async (request) => {
         const body = InsideCueBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { at, cue, text }' }, { status: 400 })
+          return badBody(InsideCueBody, body.error)
         }
         const { part, key } = request.params
         const result = await setInsideCue(projectFile, part, key, body.data, languageOf(request))
@@ -786,7 +771,7 @@ export function narrationRoutes(c: RouteContext) {
     '/api/parts/:part/cues/:key': {
       PATCH: fromOwnPage(async (request) => {
         const body = CueBody.safeParse(await request.json().catch(() => null))
-        if (!body.success) return Response.json({ error: 'expected { cue }' }, { status: 400 })
+        if (!body.success) return badBody(CueBody, body.error)
         const { part, key } = request.params
         const result = await setCue(projectFile, part, key, body.data.cue, languageOf(request))
         if (!result) return notFound()
@@ -797,7 +782,7 @@ export function narrationRoutes(c: RouteContext) {
       PATCH: fromOwnPage(async (request) => {
         const body = SceneCueBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { scene, cue }' }, { status: 400 })
+          return badBody(SceneCueBody, body.error)
         }
         const { scene, cue } = body.data
         const result = await setSceneCue(
@@ -815,7 +800,7 @@ export function narrationRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = MoveSceneCueBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { from, to }' }, { status: 400 })
+          return badBody(MoveSceneCueBody, body.error)
         }
         const { from, to } = body.data
         const result = await moveSceneCue(
@@ -833,7 +818,7 @@ export function narrationRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = AuditionTakeBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { voice, board? }' }, { status: 400 })
+          return badBody(AuditionTakeBody, body.error)
         }
         const { id } = request.params
         const { voice, board } = body.data
@@ -908,8 +893,7 @@ export function narrationRoutes(c: RouteContext) {
     '/api/auditions/:id/start': {
       POST: fromOwnPage(async (request) => {
         const body = StartBody.safeParse(await request.json().catch(() => ({})))
-        if (!body.success)
-          return Response.json({ error: 'expected { spendUpTo?, creditsUpTo? }' }, { status: 400 })
+        if (!body.success) return badBody(StartBody, body.error)
         const { id } = request.params
         const money = await auditionMoney(projectFile, id, languageOf(request))
         if (!money) return notFound()
@@ -940,7 +924,7 @@ export function narrationRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = AmountBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { amount?, credits? }' }, { status: 400 })
+          return badBody(AmountBody, body.error)
         }
         const { id } = request.params
         const money = await auditionMoney(projectFile, id, languageOf(request))
@@ -959,7 +943,7 @@ export function narrationRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = AddBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { amount } or { credits }' }, { status: 400 })
+          return badBody(AddBody, body.error)
         }
         const { id } = request.params
         const key = await sittingKey(id, request)
@@ -1019,10 +1003,7 @@ export function narrationRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = MoveBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json(
-            { error: "expected { voice, move: 'shortlist' | 'unlist' | 'drop' }" },
-            { status: 400 },
-          )
+          return badBody(MoveBody, body.error)
         }
         const { voice, move } = body.data
         const { id } = request.params
@@ -1050,7 +1031,7 @@ export function narrationRoutes(c: RouteContext) {
           text ? await Promise.try(() => JSON.parse(text)).catch(() => null) : {},
         )
         if (!body.success) {
-          return Response.json({ error: 'expected { provider? }' }, { status: 400 })
+          return badBody(MoreBody, body.error)
         }
         const { provider } = body.data
         return answer(
@@ -1068,7 +1049,7 @@ export function narrationRoutes(c: RouteContext) {
     '/api/auditions/:id/add': {
       POST: fromOwnPage(async (request) => {
         const body = VoiceBody.safeParse(await request.json().catch(() => null))
-        if (!body.success) return Response.json({ error: 'expected { voice }' }, { status: 400 })
+        if (!body.success) return badBody(VoiceBody, body.error)
         const { id } = request.params
         const language = languageOf(request)
         return answer(
@@ -1119,7 +1100,7 @@ export function narrationRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = DesignBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { description, spendUpTo? }' }, { status: 400 })
+          return badBody(DesignBody, body.error)
         }
         const { id } = request.params
         if ((await designsFor(projectFile, id, languageOf(request))) === null) return notFound()
@@ -1178,7 +1159,7 @@ export function narrationRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = CastOwnBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { voice, name }' }, { status: 400 })
+          return badBody(CastOwnBody, body.error)
         }
         const { voice, name } = body.data
         const result = await castOwnVoice(
@@ -1195,7 +1176,7 @@ export function narrationRoutes(c: RouteContext) {
     '/api/auditions/:id/cast': {
       POST: fromOwnPage(async (request) => {
         const body = VoiceBody.safeParse(await request.json().catch(() => null))
-        if (!body.success) return Response.json({ error: 'expected { voice }' }, { status: 400 })
+        if (!body.success) return badBody(VoiceBody, body.error)
         const { voice } = body.data
         const language = languageOf(request)
         // A designed voice is saved to the account first; Fish makes no voice from a design.

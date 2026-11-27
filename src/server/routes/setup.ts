@@ -7,21 +7,13 @@ import {
   switchRetiredModels,
 } from '../../services/models'
 import { modelsView } from '../../services/modelsView'
-import { modelAllowed } from '../../core/modelBodies'
+import { MODEL_BODIES } from '../../core/modelBodies'
 import { setFishTier } from '../../services/fishTier'
 import { setTakeFade } from '../../services/takeFade'
 import { checkSetup } from '../../services/setup'
 import { loadProject } from '../../services/workspace'
 import type { RouteContext } from '../context'
-import {
-  FISH_TIER_ALLOWED,
-  FishTierBody,
-  ModelsBody,
-  StageModelBody,
-  TakeFadeBody,
-  badBody,
-  notFound,
-} from '../shared'
+import { FishTierBody, ModelsBody, TakeFadeBody, badBody, notFound } from '../shared'
 
 /** The setup routes. */
 export function setupRoutes(c: RouteContext) {
@@ -79,7 +71,7 @@ export function setupRoutes(c: RouteContext) {
       PATCH: fromOwnPage(async (request) => {
         const body = FishTierBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return badBody('{ tier }', body.error, FISH_TIER_ALLOWED)
+          return badBody(FishTierBody, body.error)
         }
         const result = await setFishTier(projectFile, body.data.tier)
         return Response.json(result, { status: result.ok ? 200 : 409 })
@@ -89,7 +81,7 @@ export function setupRoutes(c: RouteContext) {
       PATCH: fromOwnPage(async (request) => {
         const body = TakeFadeBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { seconds }' }, { status: 400 })
+          return badBody(TakeFadeBody, body.error)
         }
         const result = await setTakeFade(projectFile, body.data.seconds)
         return Response.json(result, { status: result.ok ? 200 : 409 })
@@ -110,7 +102,7 @@ export function setupRoutes(c: RouteContext) {
       PATCH: fromOwnPage(async (request) => {
         const body = ModelsBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { takes }' }, { status: 400 })
+          return badBody(ModelsBody, body.error)
         }
         const result = await switchRetiredModels(projectFile, body.data.takes)
         return Response.json(result, { status: result.ok ? 200 : 409 })
@@ -118,9 +110,9 @@ export function setupRoutes(c: RouteContext) {
     },
     '/api/image-model': {
       PUT: fromOwnPage(async (request) => {
-        const body = StageModelBody.safeParse(await request.json().catch(() => null))
+        const body = MODEL_BODIES.images.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return badBody('{ model, was }', body.error, modelAllowed('images'))
+          return badBody(MODEL_BODIES.images, body.error)
         }
         const result = await setImageModel(projectFile, body.data.model, body.data.was)
         return Response.json(result, { status: result.ok ? 200 : 409 })
@@ -128,9 +120,9 @@ export function setupRoutes(c: RouteContext) {
     },
     '/api/effect-model': {
       PUT: fromOwnPage(async (request) => {
-        const body = StageModelBody.safeParse(await request.json().catch(() => null))
+        const body = MODEL_BODIES.effects.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return badBody('{ model, was }', body.error, modelAllowed('effects'))
+          return badBody(MODEL_BODIES.effects, body.error)
         }
         const result = await setEffectModel(projectFile, body.data.model, body.data.was)
         return Response.json(result, { status: result.ok ? 200 : 409 })

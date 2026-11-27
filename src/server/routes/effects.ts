@@ -12,7 +12,7 @@ import { effectClipFile, effectCurrentFile } from '../../services/workspace'
 import type { RouteContext } from '../context'
 import { makeAllRoutes } from '../makeAllRoutes'
 import { takeRoutes } from '../takeRoutes'
-import { EffectDescriptionBody, effectAnswer, fileRoute, notFound } from '../shared'
+import { EffectDescriptionBody, badBody, effectAnswer, fileRoute, notFound } from '../shared'
 
 /** The effects routes. */
 export function effectsRoutes(c: RouteContext) {
@@ -37,7 +37,6 @@ export function effectsRoutes(c: RouteContext) {
       base: '/api/effects',
       stop: 'stop-all',
       body: MakeAllBody,
-      expected: '{ ids }',
       service: {
         makeAll: (file, _request, body) => effectTakes.makeAll(file, body.ids),
         batch: (file) => effectTakes.batch(file),
@@ -70,10 +69,7 @@ export function effectsRoutes(c: RouteContext) {
       PATCH: fromOwnPage(async (request) => {
         const body = EffectDescriptionBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json(
-            { error: 'expected { description: string | null }' },
-            { status: 400 },
-          )
+          return badBody(EffectDescriptionBody, body.error)
         }
         return effectAnswer(
           await setEffectDescription(projectFile, request.params.id, body.data.description),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { matchAction } from './mcpActions'
+import { actionBody, matchAction } from './mcpActions'
 import { FishTierBody, JobBody, PronounceBody } from './shared'
 import { SETUP_AND_NARRATION_ACTIONS } from './mcpActionsNarration'
 
@@ -61,7 +61,7 @@ describe('what an agent may do on Setup and Narration', () => {
 })
 
 describe('what the bodies of the tier, the pronunciation table and the record job say', () => {
-  const body = (method: string, path: string) => matchAction(method, path)?.body ?? ''
+  const body = (method: string, path: string) => actionBody(matchAction(method, path)!) ?? ''
   it('names the Fish tiers', () => {
     const text = body('PATCH', '/api/fish-tier')
     for (const word of ['under-100', '"100"', '1000', 'null']) expect(text).toContain(word)
@@ -93,6 +93,18 @@ describe('what the bodies of the tier, the pronunciation table and the record jo
   })
 })
 
+describe('what an agent reads of money and of what it read before', () => {
+  const body = (method: string, path: string) => actionBody(matchAction(method, path)!) ?? ''
+  it('says a confirmed cost is in dollars', () => {
+    for (const path of ['/api/parts/act1/jobs', '/api/parts/act1/lines/a/record'])
+      expect(body('POST', path)).toContain('confirmedCost is a number 0 or more (dollars)')
+    expect(body('POST', '/api/parts/act1/lines/a/takes')).toContain('(dollars)')
+  })
+  it('says the ElevenLabs settings were as read', () => {
+    expect(body('PUT', '/api/elevenlabs/tts')).toContain('(the settings as you read them)')
+  })
+})
+
 describe('what an agent reads of the five model saves', () => {
   it.each([
     ['/api/image-model', ['"klein"', '"qwen-image"']],
@@ -100,7 +112,7 @@ describe('what an agent reads of the five model saves', () => {
     ['/api/models/draft', ['"s2.1-pro"', '"drama-3"']],
     ['/api/models/elevenlabs/draft', ['"eleven_v3"']],
   ])('%s names its model ids and where was is read', (path, ids) => {
-    const body = matchAction('PUT', path)?.body ?? ''
+    const body = actionBody(matchAction('PUT', path)!) ?? ''
     for (const word of ['{ model, was }', 'GET /api/models', ...ids]) {
       expect(body).toContain(word)
     }

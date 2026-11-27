@@ -14,8 +14,8 @@ import { musicClipFile, musicCurrentFile } from '../../services/workspace'
 import type { RouteContext } from '../context'
 import { makeAllRoutes } from '../makeAllRoutes'
 import { takeRoutes } from '../takeRoutes'
-import { modelAllowed } from '../../core/modelBodies'
-import { StageModelBody, badBody, fileRoute, notFound } from '../shared'
+import { MODEL_BODIES } from '../../core/modelBodies'
+import { badBody, fileRoute, notFound } from '../shared'
 
 /** The music routes. */
 export function musicRoutes(c: RouteContext) {
@@ -31,10 +31,7 @@ export function musicRoutes(c: RouteContext) {
       PATCH: fromOwnPage(async (request) => {
         const body = BriefChangeBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json(
-            { error: 'expected one of { brief }, { seconds }, { bpm } or { key }' },
-            { status: 400 },
-          )
+          return badBody(BriefChangeBody, body.error)
         }
         const result = await setTrackBrief(projectFile, request.params.id, body.data)
         if (!result) return notFound()
@@ -62,7 +59,7 @@ export function musicRoutes(c: RouteContext) {
       POST: fromOwnPage(async (request) => {
         const body = MoveTakeBody.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return Response.json({ error: 'expected { file, to }' }, { status: 400 })
+          return badBody(MoveTakeBody, body.error)
         }
         const result = await musicTakes.move(
           projectFile,
@@ -112,9 +109,9 @@ export function musicRoutes(c: RouteContext) {
     },
     '/api/music/model': {
       PUT: fromOwnPage(async (request) => {
-        const body = StageModelBody.safeParse(await request.json().catch(() => null))
+        const body = MODEL_BODIES.music.safeParse(await request.json().catch(() => null))
         if (!body.success) {
-          return badBody('{ model, was }', body.error, modelAllowed('music'))
+          return badBody(MODEL_BODIES.music, body.error)
         }
         const result = await setMusicModel(projectFile, body.data.model, body.data.was)
         return Response.json(result, { status: result.ok ? 200 : 409 })
