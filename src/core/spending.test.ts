@@ -79,6 +79,17 @@ describe('summariseSpending', () => {
     expect(s.acts[1]!.total).toBeCloseTo(1.21, 9)
   })
 
+  it('lists a recording once, saved, when it is read while its end is being saved', () => {
+    // `end` has appended the recording to the record and not yet stopped following it.
+    const saved = rec({ id: 'live', part: 'act2', cost: 1.21, credits: 5 })
+    const s = summariseSpending([saved], [running({ credits: 5 })], parts)
+    expect(s.rows.map((r) => [r.id, r.state])).toEqual([['live', 'done']])
+    expect(s.count).toBe(1)
+    expect(s.total).toBeCloseTo(1.21, 9)
+    expect(s.credits).toBe(5)
+    expect(s.acts[1]).toMatchObject({ total: 1.21, credits: 5 })
+  })
+
   it('puts an act no longer in the project after the project’s acts, under its id', () => {
     const s = summariseSpending([rec({ part: 'act9', cost: 4 })], [], parts)
     expect(s.acts.map((a) => a.part)).toEqual(['act1', 'act2', 'act9'])
