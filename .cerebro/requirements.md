@@ -22,7 +22,7 @@ SAF-2  Only the studio's own page can change anything: a change asked for by ano
        address is refused.
        Proven by: test/system/SAF-2.test.ts
 SAF-3  No clip is deleted unless the person confirms it first.
-       Proven by: nothing yet
+       Proven by: test/system/SAF-3.test.ts
 
 ## Overview and changes (OVW)
 
