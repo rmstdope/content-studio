@@ -2,6 +2,8 @@ import { chosenOf, NOT_KNOWN } from '../../../core/lockRead'
 import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { ImageRow } from '../../../core/images'
+import type { DelayClock } from '../../delayClock'
+import { heldClock } from '../../../../test/heldClock'
 import type { MotionRendererAnswer } from '../../../core/motion'
 import { valuesInEveryWindow } from '../../../../test/stylesheet'
 import { unregisterDom } from '../../../../test/dom'
@@ -83,6 +85,8 @@ interface Options {
   onEffectsOn?: (count: number | null) => void
   /** The images lock cannot be read (the page's one answer). */
   lockUnread?: boolean
+  /** What times the Saving and Saved chips (default: the browser's). */
+  clock?: DelayClock
 }
 
 /** Renders the Movement panel of an image as the page gives it; gives what it asked of the server. */
@@ -164,6 +168,7 @@ async function render(options: Options = {}) {
               chosen: options.lockUnread ? NOT_KNOWN : row.chosen,
               onGoToMake: () => goneToMake.push(1),
               onEffectsOn: options.onEffectsOn,
+              clock: options.clock,
             }),
           ),
         ),
@@ -914,17 +919,24 @@ describe('the effects of an image', () => {
 
   it('says “Saving…” only when a save takes more than a moment', async () => {
     let release: () => void = () => {}
+    const time = heldClock()
     const { host } = await render({
+      clock: time.clock,
       saved: () => new Promise((resolve) => (release = () => resolve(Response.json({ ok: true })))),
     })
     await click(switchFor(host, 'Dust'))
+    await time.pass(399)
     expect(text(host)).not.toContain('Saving…')
-    await act(async () => await new Promise((r) => setTimeout(r, 450)))
+    await time.pass(1)
     expect(text(host)).toContain('Saving…')
     await act(async () => release())
     await settle()
     expect(text(host)).toContain('Saved')
     expect(text(host)).not.toContain('Saving…')
+    await time.pass(1999)
+    expect(text(host)).toContain('Saved')
+    await time.pass(1)
+    expect(text(host)).not.toContain('Saved')
   })
 
   it('names what is saved when the renderer could not load, and the plain line when nothing is', async () => {
@@ -2651,14 +2663,17 @@ describe('the slow zoom of an image', () => {
 
   it('says “Saving…” only when the save takes a moment', async () => {
     let done: () => void = () => {}
+    const time = heldClock()
     const { host } = await render({
+      clock: time.clock,
       zoom: own,
       zoomSaved: () =>
         new Promise((resolve) => (done = () => resolve(Response.json({ ok: true })))),
     })
     await click(switchFor(host, 'Zoom in and out'))
+    await time.pass(399)
     expect(text(group(host))).not.toContain('Saving…')
-    await act(async () => await new Promise((r) => setTimeout(r, 450)))
+    await time.pass(1)
     expect(text(group(host))).toContain('Saving…')
     await act(async () => done())
     await settle()
@@ -2703,10 +2718,14 @@ describe('the slow zoom of an image', () => {
   })
 
   it('shows the Saved chip as long as a zoom is saved, even before anything is pressed, and none when nothing is', async () => {
-    const saved = await render({ zoom: own })
+    const time = heldClock()
+    const saved = await render({ zoom: own, clock: time.clock })
     expect(group(saved.host).querySelector('.movement-save')!.textContent).toBe('Saved')
-    await settle()
-    await act(async () => await new Promise((r) => setTimeout(r, 2100)))
+    await time.pass(2100)
+    expect(group(saved.host).querySelector('.movement-save')!.textContent).toBe('Saved')
+    // Nor does a save's own two seconds take it away.
+    await click(switchFor(saved.host, 'Zoom in and out'))
+    await time.pass(2000)
     expect(group(saved.host).querySelector('.movement-save')!.textContent).toBe('Saved')
     const hand = await render({ zoom: { on: true, seconds: 90, percent: 12 } })
     expect(group(hand.host).querySelector('.movement-save')!.textContent).toBe('Saved')
