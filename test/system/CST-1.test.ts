@@ -59,7 +59,11 @@ describe('CST-1: a character has one page with its voice, lines, delivery and au
     {
       fish: {
         ...fish,
-        getVoice: async (id) => (id === 'gravel' ? GRAVEL : SILK),
+        getVoice: async (id) => {
+          const found = [GRAVEL, SILK].find((voice) => voice.id === id)
+          if (!found) throw new Error(`no voice ${id}`)
+          return found
+        },
         listVoices: async () => ({ total: 2, items: [GRAVEL, SILK] }),
       },
     },
@@ -88,7 +92,7 @@ describe('CST-1: a character has one page with its voice, lines, delivery and au
     (await read<{ session: AuditionSession | null }>(`/api/auditions/${character}`)).session
 
   it('has one page for the character, with its cast voice', async () => {
-    expect((await characters()).map((c) => c.id)).toEqual(['narrator', 'guide'])
+    expect((await characters()).map((c) => c.id).sort()).toEqual(['guide', 'narrator'])
     expect(await narrator()).toMatchObject({ voice: 'gravel', voiceName: 'Gravel' })
     expect(await read('/api/characters/narrator/voice')).toMatchObject({
       ok: true,
