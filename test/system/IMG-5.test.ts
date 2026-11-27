@@ -42,7 +42,7 @@ const SPEED = { id: 'speed', title: 'Speed', min: 0, max: 3, step: 0.5, default:
 
 /** The effects the game's renderer has. */
 const EFFECTS = [
-  { type: 'smoke', title: 'Smoke', spot: false, settings: [SPEED] },
+  { type: 'smoke', title: 'Smoke', spot: true, settings: [SPEED] },
   { type: 'glints', title: 'Glints', spot: false, placement: 'whole', settings: [SPEED] },
 ]
 
@@ -60,10 +60,20 @@ const HEARTH: [number, number][] = [
   [0.25, 0.5],
 ]
 
-const SMOKE = { title: 'Smoke', on: true, settings: { speed: 2 }, spot: [CHIMNEY] }
-const GLINTS = { title: 'Glints', on: true, settings: { speed: 0.5 } }
+const SMOKE: SavedEffects[string] = {
+  title: 'Smoke',
+  on: true,
+  settings: { speed: 2 },
+  spot: [CHIMNEY],
+}
+const GLINTS: SavedEffects[string] = { title: 'Glints', on: true, settings: { speed: 0.5 } }
 /** The smoke tuned, moved, and given a mark where its light comes from. */
-const MOVED = { ...SMOKE, settings: { speed: 3 }, spot: [HEARTH], mark: [0.25, 0.75] } as const
+const MOVED: SavedEffects[string] = {
+  ...SMOKE,
+  settings: { speed: 3 },
+  spot: [HEARTH],
+  mark: [0.25, 0.75],
+}
 
 describe('IMG-5: effects and a slow zoom are put on a picture, seen moving and saved at once', () => {
   setDefaultTimeout(30_000)
@@ -174,7 +184,7 @@ describe('IMG-5: effects and a slow zoom are put on a picture, seen moving and s
     const glints = { kind: 'glints', settings: { speed: 0.5 } }
     expect(entry()).toStrictEqual({ ...ENTRY, effects: [glints, smoke] })
 
-    await saveEffects({ smoke: MOVED as never, glints: GLINTS })
+    await saveEffects({ smoke: MOVED, glints: GLINTS })
     expect(entry()).toStrictEqual({
       ...ENTRY,
       effects: [
@@ -185,6 +195,8 @@ describe('IMG-5: effects and a slow zoom are put on a picture, seen moving and s
   })
 
   it('moves them as the game shows them, by the game’s own renderer', async () => {
+    // The renderer is given what the game is given. What the tab itself hands it to preview, and
+    // the canvas it draws on, are the page's, which its component tests keep.
     const scene = (await renderer()).createScene()
     scene.resize(320, 200, { width: 320, height: 200 })
     scene.setEffects(entry().effects as Parameters<MotionScene['setEffects']>[0], true)
@@ -223,7 +235,7 @@ describe('IMG-5: effects and a slow zoom are put on a picture, seen moving and s
   it('takes out of the game what the person switches off, and shows what is saved', async () => {
     const zoom = { on: true, seconds: 8, percent: 2 }
     await saveZoom(zoom)
-    const off = { smoke: { ...MOVED, on: false }, glints: GLINTS } as unknown as SavedEffects
+    const off = { smoke: { ...MOVED, on: false }, glints: GLINTS }
     await saveEffects(off)
 
     expect(entry().effects).toEqual([{ kind: 'glints', settings: { speed: 0.5 } }])
