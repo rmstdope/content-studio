@@ -17,6 +17,7 @@ import {
   makeAllLine,
   makeAllModelLine,
   planMakeAll,
+  type KnownMakeAllPlan,
   runningLine,
 } from '../../../core/effectsMakeAll'
 import {
@@ -54,7 +55,7 @@ export function EffectsMakeAll({ effects }: { effects: EffectsSummary }) {
   })
   const { open: asking, setOpen: setAsking, stopFocus } = ui
   const plan = planMakeAll(effects.rows, making)
-  if (plan.lockUnread) return null
+  if (!plan.known) return null
   const names = Object.fromEntries(effects.rows.map((row) => [row.id, row.name]))
   const summary = batch && !batch.running && !running ? batchSummary(batch) : null
   const close = () => {
@@ -188,7 +189,7 @@ function Question({
   onCancel,
   onMake,
 }: {
-  plan: ReturnType<typeof planMakeAll>
+  plan: KnownMakeAllPlan
   models: {
     projectModel: EffectModelId
     uv: boolean

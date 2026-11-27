@@ -1,5 +1,7 @@
+import type { Chosen } from '../core/lockRead'
+import type { PatchWorkView } from '../core/imagePatches'
 import { describe, expect, it } from 'bun:test'
-import { imageLockUnread } from '../core/imagePatches'
+import { chosenOf, NOT_KNOWN } from '../core/lockRead'
 import type { ImageRow, ImageStatus } from '../core/images'
 import type { PatchRow } from '../core/images'
 import {
@@ -21,7 +23,7 @@ function row(over: {
 }): ImageRow {
   return {
     status: over.status ?? 'none yet',
-    chosenTake: over.chosenTake ?? null,
+    chosen: chosenOf(over.status !== 'unknown', over.chosenTake ?? null),
     patches: over.patches ?? [],
     areas: over.areas ?? [],
     effects: over.effects ?? {},
@@ -33,17 +35,20 @@ const quiet = {
   newFineTunes: 0,
   makingFineTunes: false,
   makingPatches: false,
-  lockUnread: false,
 }
+
+/** The tabs, with the row's own word on what is chosen unless the page has another. */
+const tabsOf = (input: Omit<Parameters<typeof imageJobTabs>[0], 'chosen'> & { chosen?: Chosen }) =>
+  imageJobTabs({ chosen: input.row.chosen, ...input })
 
 describe('imageJobTabs', () => {
   it('lists Make, Fine-tune and Movement when the game asks for no patches or areas', () => {
-    const tabs = imageJobTabs({ row: row({}), ...quiet })
+    const tabs = tabsOf({ row: row({}), ...quiet })
     expect(tabs.map((t) => t.title)).toEqual(['Make', 'Fine-tune', 'Movement'])
   })
 
   it('lists every tab in order, Movement last when the game asks for patches and areas', () => {
-    const tabs = imageJobTabs({
+    const tabs = tabsOf({
       row: row({
         patches: [{ id: 'p', chosenOn: [] }],
         areas: [{ id: 'a', placed: false }],
@@ -60,22 +65,21 @@ describe('imageJobTabs', () => {
   })
 
   it('says which take is chosen, or that none is', () => {
-    expect(imageJobTabs({ row: row({ chosenTake: 3 }), ...quiet })[0]!.chip).toEqual({
+    expect(tabsOf({ row: row({ chosenTake: 3 }), ...quiet })[0]!.chip).toEqual({
       text: 'Take 3 chosen',
       tone: 'ok',
     })
-    expect(imageJobTabs({ row: row({}), ...quiet })[0]!.chip?.text).toBe('No take chosen')
+    expect(tabsOf({ row: row({}), ...quiet })[0]!.chip?.text).toBe('No take chosen')
   })
 
   it('says not known on Make and Patches, and leaves the others, while the lock cannot be read', () => {
-    const tabs = imageJobTabs({
+    const tabs = tabsOf({
       row: row({
         status: 'unknown',
         patches: [{ id: 'p', chosenOn: [] }],
         areas: [{ id: 'a', placed: true }],
       }),
       ...quiet,
-      lockUnread: imageLockUnread({ status: 'unknown' }),
     })
     const warn = { text: 'not known', tone: 'warn' as const }
     expect(tabs[0]!.chip).toEqual(warn)
@@ -85,10 +89,10 @@ describe('imageJobTabs', () => {
   })
 
   it('says not known on Make and Patches when the image’s own views find the lock unread, whatever the row says', () => {
-    const tabs = imageJobTabs({
+    const tabs = tabsOf({
       row: row({ status: 'chosen', chosenTake: 1, patches: [{ id: 'p', chosenOn: [1] }] }),
       ...quiet,
-      lockUnread: true,
+      chosen: NOT_KNOWN,
     })
     const warn = { text: 'not known', tone: 'warn' as const }
     expect(tabs[0]!.chip).toEqual(warn)
@@ -96,11 +100,11 @@ describe('imageJobTabs', () => {
   })
 
   it('counts the unseen fine-tunes, and has no chip without any', () => {
-    expect(imageJobTabs({ row: row({}), ...quiet, newFineTunes: 2 })[1]!.chip).toEqual({
+    expect(tabsOf({ row: row({}), ...quiet, newFineTunes: 2 })[1]!.chip).toEqual({
       text: '2 new',
       tone: 'accent',
     })
-    expect(imageJobTabs({ row: row({}), ...quiet })[1]!.chip).toBeNull()
+    expect(tabsOf({ row: row({}), ...quiet })[1]!.chip).toBeNull()
   })
 
   it('counts the patches chosen on the chosen take: amber until all, then green', () => {
@@ -108,12 +112,12 @@ describe('imageJobTabs', () => {
       { id: 'a', chosenOn: [3] },
       { id: 'b', chosenOn: [2] },
     ]
-    expect(imageJobTabs({ row: row({ chosenTake: 3, patches }), ...quiet })[2]!.chip).toEqual({
+    expect(tabsOf({ row: row({ chosenTake: 3, patches }), ...quiet })[2]!.chip).toEqual({
       text: '1 of 2',
       tone: 'warn',
     })
     const all = patches.map((p) => ({ ...p, chosenOn: [3] }))
-    expect(imageJobTabs({ row: row({ chosenTake: 3, patches: all }), ...quiet })[2]!.chip).toEqual({
+    expect(tabsOf({ row: row({ chosenTake: 3, patches: all }), ...quiet })[2]!.chip).toEqual({
       text: '2 of 2',
       tone: 'ok',
     })
@@ -124,18 +128,17 @@ describe('imageJobTabs', () => {
       { id: 'a', placed: true },
       { id: 'b', placed: false },
     ]
-    const tabs = imageJobTabs({ row: row({ areas }), ...quiet })
+    const tabs = tabsOf({ row: row({ areas }), ...quiet })
     expect(tabs[2]!.chip).toEqual({ text: '1 of 2', tone: 'warn' })
   })
 
   it('marks the tabs whose work is running', () => {
-    const tabs = imageJobTabs({
+    const tabs = tabsOf({
       row: row({ patches: [{ id: 'p', chosenOn: [] }] }),
       makingTakes: true,
       newFineTunes: 0,
       makingFineTunes: true,
       makingPatches: true,
-      lockUnread: false,
     })
     expect(tabs.map((t) => t.making)).toEqual([true, true, true, false])
   })
@@ -143,17 +146,15 @@ describe('imageJobTabs', () => {
 
 describe('the Movement tab', () => {
   it('is there with no chip and nothing making, whether or not anything else is asked for', () => {
-    for (const lockUnread of [false, true]) {
-      const tab = imageJobTabs({ row: row({}), ...quiet, lockUnread }).find(
-        (t) => t.job === 'movement',
-      )
+    for (const chosen of [chosenOf(true, null), NOT_KNOWN]) {
+      const tab = tabsOf({ row: row({}), ...quiet, chosen }).find((t) => t.job === 'movement')
       expect(tab).toEqual({ job: 'movement', title: 'Movement', chip: null, making: false })
     }
   })
 })
 
 describe('jobAtKey', () => {
-  const tabs = imageJobTabs({ row: row({ areas: [{ id: 'a', placed: true }] }), ...quiet })
+  const tabs = tabsOf({ row: row({ areas: [{ id: 'a', placed: true }] }), ...quiet })
   it('follows the tabs shown', () => {
     expect(jobAtKey(tabs, '1')).toBe('make')
     expect(jobAtKey(tabs, '3')).toBe('areas')
@@ -172,9 +173,9 @@ describe('the Patches tab', () => {
 
   it('counts a patch chosen when it is chosen on the image’s chosen take', () => {
     const patch = { id: 'a', chosenOn: [3] } as unknown as PatchRow
-    expect(patchChosen(row({ chosenTake: 3 }), patch)).toBe(true)
-    expect(patchChosen(row({ chosenTake: 2 }), patch)).toBe(false)
-    expect(patchChosen(row({}), patch)).toBe(false)
+    expect(patchChosen(3, patch)).toBe(true)
+    expect(patchChosen(2, patch)).toBe(false)
+    expect(patchChosen(null, patch)).toBe(false)
   })
 
   it('heads the patches with how many are chosen', () => {
@@ -183,7 +184,9 @@ describe('the Patches tab', () => {
       { id: 'b', chosenOn: [] },
       { id: 'c', chosenOn: [1] },
     ]
-    expect(patchesHeading(row({ chosenTake: 1, patches }))).toBe('Patches · 2 of 3 chosen')
+    expect(patchesHeading(row({ patches }).patches, chosenOf(true, 1))).toBe(
+      'Patches · 2 of 3 chosen',
+    )
   })
 
   it('heads the patches with only how many the game asks for while the lock cannot be read', () => {
@@ -191,33 +194,27 @@ describe('the Patches tab', () => {
       { id: 'a', chosenOn: [1] },
       { id: 'b', chosenOn: [] },
     ]
-    expect(patchesHeading(row({ chosenTake: 1, patches }), true)).toBe('Patches · 2')
-    expect(patchesHeading(row({ patches: patches.slice(0, 1) }), true)).toBe('Patches · 1')
+    expect(patchesHeading(row({ patches }).patches, NOT_KNOWN)).toBe('Patches · 2')
+    expect(patchesHeading(row({ patches: patches.slice(0, 1) }).patches, NOT_KNOWN)).toBe(
+      'Patches · 1',
+    )
   })
 
   it('says how far a patch has come', () => {
-    expect(patchStateText([])).toBe('no takes yet')
-    expect(patchStateText([{ n: 1, chosen: false }])).toBe('1 take')
-    expect(
-      patchStateText([
-        { n: 1, chosen: false },
-        { n: 2, chosen: false },
-        { n: 3, chosen: false },
-      ]),
-    ).toBe('3 takes')
-    expect(
-      patchStateText([
-        { n: 1, chosen: false },
-        { n: 2, chosen: true },
-      ]),
-    ).toBe('Take 2 chosen')
+    const state = (ns: number[], chosen: Chosen) =>
+      patchStateText({ takes: ns.map((n) => ({ n })) as PatchWorkView['takes'], chosen })
+    expect(state([], chosenOf(true, null))).toBe('no takes yet')
+    expect(state([1], chosenOf(true, null))).toBe('1 take')
+    expect(state([1, 2, 3], chosenOf(true, null))).toBe('3 takes')
+    expect(state([1, 2], chosenOf(true, 2))).toBe('Take 2 chosen')
+    expect(state([1, 2], NOT_KNOWN)).toBe('2 takes')
   })
 
   it('counts the effects in the game in its title', () => {
     const on = { on: true, settings: {} }
     const off = { on: false, settings: {} }
-    const title = (input: Partial<Parameters<typeof imageJobTabs>[0]> & { effects?: never }) =>
-      imageJobTabs({ row: row({}), ...quiet, ...input }).find((t) => t.job === 'movement')!.title
+    const title = (input: Partial<Parameters<typeof tabsOf>[0]> & { effects?: never }) =>
+      tabsOf({ row: row({}), ...quiet, ...input }).find((t) => t.job === 'movement')!.title
     const saved = (effects: Record<string, typeof on>) => title({ row: row({ effects }) })
     expect(saved({})).toBe('Movement')
     expect(saved({ dust: off })).toBe('Movement')

@@ -183,8 +183,6 @@ export interface EffectRow {
   current: EffectCurrent
   /** What differs from the chosen take's inputs (empty when none is chosen). */
   changed: EffectChangedField[]
-  /** A take is chosen, an out-of-date one included (not while the lock cannot be read). */
-  chosen: boolean
 }
 
 /** What the studio knows of the effects' takes, read from the lock, the clips folder and the boards. */
@@ -277,7 +275,6 @@ export function summarizeEffects(input: {
             ? ({ kind: 'take', take: entry.lock.take, exists: entry.fileExists } as const)
             : ({ kind: 'nothing' } as const),
       changed: entry ? effectChangedFields(entry.lock, now) : [],
-      chosen: Boolean(entry),
     }
   })
   const listed = new Set([...rows.map((r) => r.id), ...list.seenIds])

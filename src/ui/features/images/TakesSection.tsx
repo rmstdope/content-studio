@@ -1,3 +1,4 @@
+import { chosenOf, type Chosen } from '../../../core/lockRead'
 import { fieldOwnsKeys, useDocumentKeys, usePendingFocus } from './useWorkbenchKeys'
 import { useAfterSaved } from '../../useAfterSaved'
 import { useQueryClient } from '@tanstack/react-query'
@@ -245,7 +246,9 @@ export function TakesSection({
   const focusLeft = useFocusWhenClosed(open, leftHeading)
 
   const ready = view && 'takes' in view ? view : null
-  const others = ready ? ready.takes.filter((t) => !t.chosen) : []
+  // While the lock cannot be read no take is known to be in the game: every take is in the strip.
+  const inGame = ready?.chosen.known ? ready.chosen.take : null
+  const others = ready ? ready.takes.filter((t) => t.n !== inGame) : []
   const strip = others.map((t) => t.n)
   const onRight = right !== null && strip.includes(right) ? right : (strip.at(-1) ?? null)
 
@@ -293,7 +296,8 @@ export function TakesSection({
     )
   }
 
-  const { generator, takes, making, failed, lockUnread, lookError } = ready
+  const { generator, takes, making, failed, lookError } = ready
+  const unread = !ready.chosen.known
   const states = Object.fromEntries(ready.models.map((m) => [m.id, m])) as Record<
     ImageModelId,
     ImageTakesView['models'][number]
@@ -306,7 +310,7 @@ export function TakesSection({
   // A pick that has since gone missing falls back; the pick is this page's and is never saved.
   const model = picked && installed[picked] ? picked : fallback
   const otherInUse = fallback !== ready.projectModel
-  const chosen = takes.find((t) => t.chosen)
+  const chosen = takes.find((t) => t.n === inGame)
   const rightTake = takes.find((t) => t.n === onRight)
   const none = takes.length === 0 && making.length === 0
   const busy = making.length > 0
@@ -358,7 +362,7 @@ export function TakesSection({
       },
     })
   }
-  const copyWhy = lockUnread
+  const copyWhy = unread
     ? COPY_LOCK_WHY
     : lookError !== null
       ? COPY_STYLE_WHY
@@ -368,13 +372,9 @@ export function TakesSection({
           ? NO_OTHER_PICTURE
           : null
   const canChoose = (t: ImageTakeView) =>
-    !lockUnread &&
-    !choose.isPending &&
-    !drop.isPending &&
-    lookError === null &&
-    t.look !== 'bringing'
-  const canDrop = !lockUnread && !drop.isPending && !choose.isPending
-  const dropWhy = lockUnread ? IMAGES_LOCK_WHY : WAIT_FOR_CHANGE
+    !unread && !choose.isPending && !drop.isPending && lookError === null && t.look !== 'bringing'
+  const canDrop = !unread && !drop.isPending && !choose.isPending
+  const dropWhy = unread ? IMAGES_LOCK_WHY : WAIT_FOR_CHANGE
   const chooseWhy = (t: ImageTakeView) =>
     !canDrop
       ? dropWhy
@@ -393,11 +393,8 @@ export function TakesSection({
     const show = () => {
       set((v) => ({
         ...v,
-        takes: v.takes.map((t) => ({
-          ...t,
-          chosen: t.n === n,
-          isNew: t.n === n ? false : t.isNew,
-        })),
+        chosen: v.chosen.known ? { known: true, take: n } : v.chosen,
+        takes: v.takes.map((t) => ({ ...t, isNew: t.n === n ? false : t.isNew })),
       }))
       setWasChosen(before)
       setRight(before ?? rightAfterDrop(strip, n))
@@ -739,8 +736,7 @@ export function TakesSection({
               ) : (
                 <LeftSide
                   row={row}
-                  chosen={chosen}
-                  lockUnread={lockUnread}
+                  chosen={chosenOf(!unread, chosen ?? null)}
                   heading={leftHeading}
                   opener={unchooseButton}
                   unchoosing={unchoose.isPending || open}
@@ -859,7 +855,7 @@ export function TakesSection({
           <div className="takes-head">
             <h2>{none ? 'Takes' : `Takes · ${takes.length}`}</h2>
           </div>
-          {lockUnread && !none && (
+          {unread && !none && (
             <span className="takes-missing small">
               Choosing, dropping and un-choosing wait until the images lock can be read. You can
               still look and make more takes.
@@ -901,7 +897,7 @@ export function TakesSection({
                 </span>
               )
               // The chosen take already stands on the left: it is marked here, not pressed.
-              if (t.chosen) {
+              if (t === chosen) {
                 return (
                   <div key={t.n} className="image-thumb image-thumb-chosen" data-chosen="true">
                     {picture}
@@ -964,8 +960,7 @@ function ModelName({ id }: { id: ImageModelId | null }) {
 /** The left side: the chosen take, the game's own image, or nothing. */
 function LeftSide({
   row,
-  chosen,
-  lockUnread,
+  chosen: inGame,
   heading,
   opener,
   unchoosing,
@@ -978,8 +973,7 @@ function LeftSide({
   showing,
 }: {
   row: ImageRow
-  chosen: ImageTakeView | undefined
-  lockUnread: boolean
+  chosen: Chosen<ImageTakeView>
   heading: React.RefObject<HTMLSpanElement | null>
   opener: React.RefObject<HTMLButtonElement | null>
   unchoosing: boolean
@@ -997,7 +991,7 @@ function LeftSide({
     </span>
   )
   // The lock cannot be read: nothing is claimed about which take the game shows.
-  if (lockUnread) {
+  if (!inGame.known) {
     return (
       <div className="image-side-unknown" data-unknown="true">
         <div className="take-row">{label}</div>
@@ -1007,6 +1001,7 @@ function LeftSide({
       </div>
     )
   }
+  const chosen = inGame.take
   if (chosen) {
     return (
       <>

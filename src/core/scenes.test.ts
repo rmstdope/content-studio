@@ -134,7 +134,6 @@ const effectRow = (id: string, over: Record<string, unknown> = {}) => ({
   id,
   name: id,
   loops: false,
-  chosen: true,
   current: { kind: 'take', take: 1, exists: true },
   ...over,
 })
@@ -330,7 +329,7 @@ describe('summarizeScenes', () => {
   })
 
   it('counts a silent effect, and gone takes precedence over silent', () => {
-    const silent = effectRow('bell', { chosen: false, current: { kind: 'nothing' } })
+    const silent = effectRow('bell', { current: { kind: 'nothing' } })
     const scene = summarize({
       declarations: decl(store),
       mix: mixOf({

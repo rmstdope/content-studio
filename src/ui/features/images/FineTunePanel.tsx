@@ -364,13 +364,14 @@ export function FineTunePanel({
       : null
   const changingPicture = use.isPending || drop.isPending || choose.isPending
   // Choosing (a fine-tune, or an earlier or later step) is refused while the lock cannot be read or the style is broken.
-  const chooseWhy = takes?.lockUnread
-    ? IMAGES_LOCK_WHY
-    : takes?.lookError
-      ? STYLE_BROKEN_WHY
-      : changingPicture
-        ? WAIT_FOR_CHANGE
-        : null
+  const chooseWhy =
+    takes && !takes.chosen.known
+      ? IMAGES_LOCK_WHY
+      : takes?.lookError
+        ? STYLE_BROKEN_WHY
+        : changingPicture
+          ? WAIT_FOR_CHANGE
+          : null
   const problem =
     refusal(make.data) ?? refusal(drop.data) ?? refusal(use.data) ?? refusal(choose.data)
   const error = make.error ?? drop.error ?? use.error ?? stop.error ?? choose.error

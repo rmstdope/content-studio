@@ -3,6 +3,8 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { EffectRow } from '../../../core/effects'
 import type { EffectTakesView, EffectTakeView } from '../../../core/effectTakes'
 import { installFakeWebAudio } from '../../../../test/fakeWebAudio'
+import { chosenAmong, type Marked } from '../../../../test/chosen'
+import { NOT_KNOWN } from '../../../core/lockRead'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -23,7 +25,7 @@ afterEach(() => {
 })
 afterAll(() => GlobalRegistrator.unregister())
 
-const take = (n: number, over: Partial<EffectTakeView> = {}): EffectTakeView => ({
+const take = (n: number, over: Partial<Marked<EffectTakeView>> = {}): Marked<EffectTakeView> => ({
   n,
   file: `0123456789abcdef.${n}.wav`,
   seconds: 1.4,
@@ -48,7 +50,7 @@ const view = (over: Partial<EffectTakesView> = {}): EffectTakesView => ({
   takes: [],
   making: [],
   failed: [],
-  lockUnread: false,
+  chosen: chosenAmong(over.takes ?? []),
   ...over,
 })
 const row = (over: Partial<EffectRow> = {}): EffectRow => ({
@@ -63,13 +65,11 @@ const row = (over: Partial<EffectRow> = {}): EffectRow => ({
   status: 'not-chosen',
   current: { kind: 'nothing' },
   changed: [],
-  chosen: false,
   ...over,
 })
 const chosenRow = () =>
   row({
     status: 'chosen',
-    chosen: true,
     current: { kind: 'take', take: 2, exists: true },
   })
 
@@ -133,7 +133,7 @@ function render(
   return { container, calls, text, slider, button, move, release, settle, levelCalls }
 }
 
-const card = (n: number, over: Partial<EffectTakeView> = {}) => take(n, over)
+const card = (n: number, over: Partial<Marked<EffectTakeView>> = {}) => take(n, over)
 
 describe('the level slider', () => {
   const data = view({
@@ -372,7 +372,7 @@ describe('the level slider', () => {
   it('greys the slider and Back to 100% while the lock cannot be read, with the reason', async () => {
     const { slider, button, move, levelCalls, release, text } = render(
       row(),
-      view({ lockUnread: true, takes: [card(1, { level: 1.5 })] }),
+      view({ chosen: NOT_KNOWN, takes: [card(1, { level: 1.5 })] }),
     )
     const why =
       'The sound effects lock cannot be read. Choosing, dropping, fading and levels wait until it can be.'

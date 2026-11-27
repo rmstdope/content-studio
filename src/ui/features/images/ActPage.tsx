@@ -1,4 +1,4 @@
-import { imageLockUnread, makeAgainOf, overlappingPatches } from '../../../core/imagePatches'
+import { makeAgainOf, overlappingPatches } from '../../../core/imagePatches'
 import { imagesDone, type ImagesAct, type ImageRow, type ImagesSummary } from '../../../core/images'
 import { useImageMaking, useRefreshDialog } from '../../api'
 import { shortTitle } from '../../format'
@@ -178,7 +178,7 @@ export function ActPage({
                   )
                 }
                 const row = act.rows.find((r) => r.id === id)
-                const again = row ? makeAgainOf(row, imageLockUnread(row)) : []
+                const again = row ? makeAgainOf(row) : []
                 const overlaps = row ? overlappingPatches(row.patches) : []
                 return (
                   row && (

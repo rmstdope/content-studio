@@ -2,6 +2,8 @@ import { afterAll, beforeEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { TrackRow } from '../../../core/music'
 import type { MusicTakesView, TakeView } from '../../../core/musicTake'
+import { chosenAmong, type Marked } from '../../../../test/chosen'
+import { NOT_KNOWN } from '../../../core/lockRead'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -43,7 +45,7 @@ const inGame: TrackRow = {
   current: { kind: 'take', take: 1, exists: true },
 }
 
-const take = (n: number, over: Partial<TakeView> = {}): TakeView => ({
+const take = (n: number, over: Partial<Marked<TakeView>> = {}): Marked<TakeView> => ({
   n,
   file: `aaaaaaaaaaaaaaaa.${n}.wav`,
   seconds: 10,
@@ -64,7 +66,7 @@ const view = (takes: TakeView[], kind: 'loop' | 'stinger' = 'stinger'): MusicTak
   takes,
   making: [],
   failed: [],
-  lockUnread: false,
+  chosen: chosenAmong(takes),
 })
 const trimmed = { start: 1.2, end: 3, seconds: 5.8 }
 
@@ -134,7 +136,7 @@ describe('Trim silence on a stinger’s takes', () => {
   })
 
   it('waits while the music lock cannot be read, like Choose', () => {
-    const { buttons } = render({ ...view([take(1)]), lockUnread: true })
+    const { buttons } = render({ ...view([take(1)]), chosen: NOT_KNOWN })
     expect(isOff(buttons('Trim silence')[0]!)).toBe(true)
   })
 

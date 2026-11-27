@@ -407,7 +407,6 @@ describe('takes of a declared patch', () => {
           n: 1,
           area,
           earlier: false,
-          chosen: false,
           isNew: true,
           look: 'ready',
           model: 'klein',
@@ -419,6 +418,7 @@ describe('takes of a declared patch', () => {
       failed: [],
       oldLook: false,
       failedModels: [],
+      chosen: { known: true, take: null },
     })
     expect(JSON.parse(readFileSync(join(root, BOARD), 'utf8'))).toEqual({
       next: 2,
@@ -689,7 +689,7 @@ describe('takes of a declared patch', () => {
         'Choose a take of the image first. Patches are painted onto the take the game shows.',
     })
     expect(await patches.view(file, 'inn')).toMatchObject({
-      take: null,
+      chosen: { known: true, take: null },
       pictureGone: false,
       patches: [{ id: 'door', takes: [] }, { id: 'sign' }],
     })
@@ -698,7 +698,7 @@ describe('takes of a declared patch', () => {
   it("refuses, and says so, when the chosen take's picture is gone or cannot be read", async () => {
     const gone = setup({ picture: false })
     expect(await gone.patches.view(gone.file, 'inn')).toMatchObject({
-      take: null,
+      chosen: { known: true, take: null },
       pictureGone: true,
     })
     expect(await gone.patches.make(gone.file, 'inn', 'door', { count: 1, area })).toEqual({
@@ -707,7 +707,10 @@ describe('takes of a declared patch', () => {
     })
     const bad = setup()
     writeFileSync(join(bad.root, TAKE), 'not a picture')
-    expect(await bad.patches.view(bad.file, 'inn')).toMatchObject({ take: null, pictureGone: true })
+    expect(await bad.patches.view(bad.file, 'inn')).toMatchObject({
+      chosen: { known: true, take: null },
+      pictureGone: true,
+    })
   })
 
   it('refuses, and queues nothing, when the chosen take reads as a picture but its pixels cannot be', async () => {
@@ -933,18 +936,29 @@ describe('takes of a patch across takes of the image', () => {
   })
 })
 
+describe('the patches while the images lock cannot be read', () => {
+  it('knows neither the image’s take nor any patch’s', async () => {
+    const { root, file, patches } = setup()
+    writeFileSync(join(root, LOCK), '{ nope')
+    const view = (await patches.view(file, 'inn')) as ImagePatchesView
+    expect(view.chosen).toEqual({ known: false })
+    expect(view.patches.map((p) => p.chosen)).toEqual([{ known: false }, { known: false }])
+  })
+})
+
 describe('choosing, un-choosing and dropping a take of a patch', () => {
   it('chooses a take, in place of another chosen one, and marks it seen', async () => {
     const { root, file, patches, work } = setup()
     await patches.make(file, 'inn', 'door', { count: 2, area })
     await work()
     expect(await patches.choose(file, 'inn', 'door', 1)).toEqual({ ok: true })
-    expect((await work()).takes.map((t) => [t.n, t.chosen, t.isNew])).toEqual([
-      [1, true, false],
-      [2, false, true],
+    expect((await work()).chosen).toEqual({ known: true, take: 1 })
+    expect((await work()).takes.map((t) => [t.n, t.isNew])).toEqual([
+      [1, false],
+      [2, true],
     ])
     expect(await patches.choose(file, 'inn', 'door', 2)).toEqual({ ok: true })
-    expect((await work()).takes.map((t) => t.chosen)).toEqual([false, true])
+    expect((await work()).chosen).toEqual({ known: true, take: 2 })
     expect(JSON.parse(readFileSync(join(root, BOARD), 'utf8')).chosen).toEqual({ '3': 2 })
   })
 
@@ -962,7 +976,7 @@ describe('choosing, un-choosing and dropping a take of a patch', () => {
     await work()
     await patches.choose(file, 'inn', 'door', 1)
     expect(await patches.unchoose(file, 'inn', 'door')).toEqual({ ok: true })
-    expect((await work()).takes).toMatchObject([{ n: 1, chosen: false }])
+    expect(await work()).toMatchObject({ takes: [{ n: 1 }], chosen: { known: true, take: null } })
   })
 
   it('drops a take that is not chosen and deletes its picture, but not the chosen one', async () => {
@@ -1011,14 +1025,12 @@ describe('choosing, un-choosing and dropping a take of a patch', () => {
     writeFileSync(join(root, LOCK), JSON.stringify({ inn: { ...lock.inn, take: 4 } }))
     writeTake(root, 'content-studio/cache/image-takes/inn/4.png')
     expect(await patches.view(file, 'inn')).toMatchObject({
-      take: { n: 4 },
+      chosen: { known: true, take: { n: 4 } },
       patches: [{ id: 'door', takes: [] }, { id: 'sign' }],
     })
     writeFileSync(join(root, LOCK), JSON.stringify(lock))
-    expect((await work()).takes.map((t) => [t.n, t.chosen])).toEqual([
-      [1, false],
-      [2, true],
-    ])
+    expect((await work()).takes.map((t) => t.n)).toEqual([1, 2])
+    expect((await work()).chosen).toEqual({ known: true, take: 2 })
   })
 
   it('does not show a take being made on another take of the image', async () => {
@@ -1250,7 +1262,7 @@ describe('a chosen take of a patch reaches the game', () => {
       join(root, BOARD),
       JSON.stringify({ ...board, chosen: { '3': 1 }, inGame: undefined }),
     )
-    expect((await work()).takes[0]!.chosen).toBe(true)
+    expect((await work()).chosen).toEqual({ known: true, take: 1 })
     expect(manifestOf(root)).toEqual(gameManifest)
   })
 })
@@ -1667,9 +1679,8 @@ describe('a patch the game asks for on top of another', () => {
     // The door's other take is chosen: the sign's take lies on take 1, so it is not shown any more.
     await patches.choose(file, 'inn', 'door', 2)
     const view = await work('sign')
-    expect(view.takes.map((t) => [t.n, t.chosen, t.under])).toEqual([
-      [1, false, { patch: 'door', n: 1 }],
-    ])
+    expect(view.chosen).toEqual({ known: true, take: null })
+    expect(view.takes.map((t) => [t.n, t.under])).toEqual([[1, { patch: 'door', n: 1 }]])
     expect(await patches.choose(file, 'inn', 'sign', 1)).toEqual({
       ok: false,
       message:

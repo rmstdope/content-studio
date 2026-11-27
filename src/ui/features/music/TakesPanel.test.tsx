@@ -48,7 +48,7 @@ function stopButton(making: MakingView[]) {
     takes: [],
     making,
     failed: [],
-    lockUnread: false,
+    chosen: { known: true, take: null },
   }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, enabled: false } } })
   client.setQueryData(['music-takes', 'hall'], view)
@@ -181,13 +181,12 @@ async function withTake(kind: 'loop' | 'stinger') {
         seconds: 10,
         peaks: [0.5, 0.5, 0.5, 0.5],
         earlier: false,
-        chosen: false,
         model: 'Balanced · XL turbo · 4B',
       },
     ],
     making: [],
     failed: [],
-    lockUnread: false,
+    chosen: { known: true, take: null },
   }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, enabled: false } } })
   client.setQueryData(['music-takes', 'hall'], view)
@@ -249,7 +248,7 @@ describe('accepting what changed since the take was chosen', () => {
       takes: [],
       making: [],
       failed: [],
-      lockUnread: false,
+      chosen: { known: true, take: null },
     }
     const calls: string[] = []
     const realFetch = globalThis.fetch

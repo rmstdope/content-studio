@@ -226,10 +226,14 @@ describe('making takes', () => {
     const { takes, file, requests, settled, read, row } = setup()
     expect(await takes.make(file, 'inn', { count: 2 })).toEqual({ ok: true })
     const view = await settled('inn')
-    expect(view).toMatchObject({ ok: true, generator: { ok: true }, lockUnread: false })
+    expect(view).toMatchObject({
+      ok: true,
+      generator: { ok: true },
+      chosen: { known: true, take: null },
+    })
     if (!view || !('takes' in view)) throw new Error('no view')
     expect(view.takes).toMatchObject([
-      { n: 1, width: 1024, height: 640, earlier: false, chosen: false, isNew: true },
+      { n: 1, width: 1024, height: 640, earlier: false, isNew: true },
       { n: 2, isNew: true },
     ])
     expect(requests).toHaveLength(2)
@@ -463,12 +467,13 @@ describe('choosing', () => {
     })
     expect(read(LOCK)).toStartWith('{\n "inn": {"model":')
     const r = await row()
-    expect(r).toMatchObject({ status: 'chosen', chosenTake: 2 })
+    expect(r).toMatchObject({ status: 'chosen', chosen: { known: true, take: 2 } })
     const view = await takes.view(file, 'inn')
     if (!view || !('takes' in view)) throw new Error('no view')
-    expect(view.takes.map((t) => [t.n, t.chosen, t.isNew])).toEqual([
-      [1, false, true],
-      [2, true, false],
+    expect(view.chosen).toEqual({ known: true, take: 2 })
+    expect(view.takes.map((t) => [t.n, t.isNew])).toEqual([
+      [1, true],
+      [2, false],
     ])
     expect(await takes.currentFile(file, 'inn')).toBe(join(root, 'web/images/inn.png'))
   })
@@ -511,7 +516,7 @@ describe('choosing', () => {
     expect(await lockBroken.takes.choose(lockBroken.file, 'inn', 1)).toMatchObject({ ok: false })
     expect(existsSync(join(lockBroken.root, 'web/images/inn.png'))).toBe(false)
     const view = await lockBroken.takes.view(lockBroken.file, 'inn')
-    expect(view).toMatchObject({ ok: true, lockUnread: true })
+    expect(view).toMatchObject({ ok: true, chosen: { known: false } })
     const manifestBroken = await made({ 'web/images/manifest.json': '[1' })
     const result = await manifestBroken.takes.choose(manifestBroken.file, 'inn', 1)
     expect(result).toMatchObject({ ok: false })
@@ -1907,7 +1912,6 @@ describe('copying another image', () => {
     expect(view.takes).toHaveLength(1)
     expect(view.takes[0]).toMatchObject({
       n: 1,
-      chosen: false,
       isNew: true,
       earlier: false,
       look: 'ready',

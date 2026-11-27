@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { TrackRow } from '../../../core/music'
 import type { MusicTakesView, TakeView } from '../../../core/musicTake'
+import { chosenAmong, type Marked } from '../../../../test/chosen'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -38,7 +39,7 @@ const track: TrackRow = {
   gameFile: null,
 }
 
-const take = (n: number, over: Partial<TakeView> = {}): TakeView => ({
+const take = (n: number, over: Partial<Marked<TakeView>> = {}): Marked<TakeView> => ({
   n,
   file: `0123456789abcdef.${n}.wav`,
   seconds: 4.2,
@@ -59,7 +60,7 @@ function render(kind: 'loop' | 'stinger', takes: TakeView[], lockUnread = false)
     takes,
     making: [],
     failed: [],
-    lockUnread,
+    chosen: chosenAmong(takes, lockUnread),
   }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, enabled: false } } })
   client.setQueryData(['music-takes', 'victory'], view)

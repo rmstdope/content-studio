@@ -1,3 +1,4 @@
+import { chosenOf, NOT_KNOWN } from '../../../core/lockRead'
 import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { ImageRow } from '../../../core/images'
@@ -124,7 +125,8 @@ async function render(options: Options = {}) {
       ok: true,
       patches: (options.patches ?? []).map((p) => ({
         id: p.id,
-        takes: p.take === null ? [] : [{ n: p.take, chosen: true }],
+        takes: p.take === null ? [] : [{ n: p.take }],
+        chosen: chosenOf(true, p.take),
         making: [],
       })),
       remake: { press: null },
@@ -142,7 +144,7 @@ async function render(options: Options = {}) {
       title: options.title ?? 'The Inn',
       width: 320,
       height: 200,
-      chosenTake: options.chosenTake === undefined ? 3 : options.chosenTake,
+      chosen: chosenOf(true, options.chosenTake === undefined ? 3 : options.chosenTake),
       gameFile: options.gameFile ?? null,
       patches: (options.patches ?? []).map((p) => ({ id: p.id, title: p.title })),
       effects: options.effects ?? {},
@@ -158,7 +160,7 @@ async function render(options: Options = {}) {
             { value: open },
             createElement(MovementPanel, {
               row,
-              lockUnread: options.lockUnread ?? false,
+              chosen: options.lockUnread ? NOT_KNOWN : row.chosen,
               onGoToMake: () => goneToMake.push(1),
               onEffectsOn: options.onEffectsOn,
             }),
