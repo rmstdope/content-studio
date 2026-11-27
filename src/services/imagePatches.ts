@@ -11,7 +11,6 @@ import {
 } from '../core/imageModels'
 import { isCropped, type Pixels } from '../core/imagePixels'
 import { ImageLockSchema } from '../core/images'
-import { smallMark, smallMarkText } from '../core/imageSmallMark'
 import { createKeptReader } from './keptRead'
 import { ImageManifestSchema, type ImageManifest } from '../core/imageTakes'
 import {
@@ -47,7 +46,7 @@ import {
   restack,
 } from './imagePatchGame'
 import { downloadOf, type ImageGenerator } from './images'
-import { editStep } from './imageEditStep'
+import { editStep, queuedAnswer } from './imageEditStep'
 import { takeOut } from './takeOut'
 import { choices, sorted } from './musicClips'
 import { boardQueue, isSafeId } from './musicTakes'
@@ -509,8 +508,7 @@ export function createImagePatches({
     }
     // No await from here until every take is in line, so the takes of one press are made in number order.
     for (const entry of queued) void run(found, entry, around)
-    const small = 'count' in request ? smallMark(request.area, picture) : null
-    return small ? { ok: true, warning: smallMarkText(small) } : { ok: true }
+    return queuedAnswer(request, picture)
   }
 
   /** Each patch's takes on the chosen take, and the area of its earlier choice; a failure when a board cannot be read. */

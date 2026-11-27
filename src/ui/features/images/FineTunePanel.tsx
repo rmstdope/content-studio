@@ -1,25 +1,11 @@
-import {
-  fieldOwnsKeys,
-  NOT_YET,
-  typesText,
-  useDocumentKeys,
-  usePendingFocus,
-} from './useWorkbenchKeys'
-import { onWholeMarkLink, WholeMarkLink } from './WholeMarkLink'
-import { isWholeKey } from '../../wholeMark'
+import { fieldOwnsKeys, NOT_YET, useDocumentKeys, usePendingFocus } from './useWorkbenchKeys'
+import { WholeMarkLink } from './WholeMarkLink'
+import { useWorkbenchMark } from './useWorkbenchMark'
 import { useJobOpen } from './ImageJobTabs'
 import { pictureShape } from './FitPicture'
-import { ChangeBadge, ChangeNote, MarkTag } from './MarkTag'
-import { smallMark, smallMarkText } from '../../../core/imageSmallMark'
+import { ChangeBadge, ChangeNote } from './MarkTag'
 import { HistoryMenu } from './HistoryMenu'
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type PointerEvent,
-} from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   cameAlongLine,
   fineTuneHistory,
@@ -36,7 +22,7 @@ import {
   startEditModel,
   type EditModelId,
 } from '../../../core/imageModels'
-import { isWholeArea, wholeArea, type PatchArea } from '../../../core/imagePatches'
+import type { PatchArea } from '../../../core/imagePatches'
 import type { ImageRow } from '../../../core/images'
 import { rightAfterDrop, stepRight } from '../../../core/imageTakes'
 import { timeText } from '../../../core/takeTimes'
@@ -51,7 +37,6 @@ import {
   useUnacceptImageChange,
   useUseFineTune,
 } from '../../api'
-import { areaFromDrag } from '../../imagePatchArea'
 import {
   acceptedLineText,
   acceptFailedText,
@@ -83,16 +68,6 @@ const SETTLE_MS = 1000
 
 /** The keys the open Fine-tune tab hears anywhere on the page. */
 const KEYS = new Set(['ArrowLeft', 'ArrowRight', 'c', 'd', 's', 'z'])
-
-/** Where an area lies on a picture of this size, in the percentages the page draws with. */
-function placed(area: PatchArea, size: { width: number; height: number }): CSSProperties {
-  return {
-    left: `${(area.x / size.width) * 100}%`,
-    top: `${(area.y / size.height) * 100}%`,
-    width: `${(area.width / size.width) * 100}%`,
-    height: `${(area.height / size.height) * 100}%`,
-  }
-}
 
 /** The caption under the big picture: which picture it is. */
 export function pictureCaption(picture: FineTunesView['picture']): string {
@@ -215,8 +190,6 @@ export function FineTunePanel({
   const [count, setCount] = useState(4)
   const [looking, setLooking] = useState<number | null>(null)
   const [showing, setShowing] = useState(true)
-  // What a screen reader is told when a drag ends on a mark too small to change anything.
-  const [announced, setAnnounced] = useState('')
   // What a use brought along, with the picture it was made from: the line is about the picture in
   // the game then or the new take, and goes quiet when another take is chosen.
   const [came, setCame] = useState<{
@@ -235,7 +208,6 @@ export function FineTunePanel({
     // A Stop that is not there yet waits for the page to show the next fine-tune being made.
     return !target && typeof want === 'object' ? NOT_YET : target
   }, query.data)
-  const start = useRef<{ x: number; y: number } | null>(null)
   const asked = useRef(new Set<number>())
   const changing = useRef(false)
   const cameShown = useRef(false)
@@ -243,6 +215,7 @@ export function FineTunePanel({
   const clearButton = useRef<HTMLButtonElement>(null)
   const cards = useRef(new Map<number, HTMLButtonElement>())
   const stops = useRef(new Map<number, HTMLButtonElement>())
+  const markOn = useWorkbenchMark()
   // The keys are heard anywhere on the page, but only while this tab is the open one.
   const keys = useDocumentKeys(jobOpen)
 
@@ -351,8 +324,13 @@ export function FineTunePanel({
   const { picture } = view
   const pictureKey = picture.kind === 'take' ? `take-${picture.n}` : 'game'
   const mark = marked?.picture === pictureKey ? marked.area : null
-  const whole = isWholeArea(mark, picture)
-  const small = smallMark(mark, picture)
+  const marking = markOn({
+    take: picture,
+    mark,
+    onMark: (area) => setMarked({ picture: pictureKey, area }),
+    // The link goes once the whole picture is marked: focus moves to Clear the mark.
+    onLinkGone: () => focusOn('clear', true),
+  })
   const model = pick ?? startEditModel(view.models)
   const id = encodeURIComponent(row.id)
   const baseSrc =
@@ -447,18 +425,6 @@ export function FineTunePanel({
       },
     })
   }
-  const dragTo = (event: PointerEvent<HTMLDivElement>) => {
-    if (!start.current) return
-    const dragged = areaFromDrag(
-      start.current,
-      { x: event.clientX, y: event.clientY },
-      event.currentTarget.getBoundingClientRect(),
-      picture,
-    )
-    // A click, or a drag too small to change, changes nothing.
-    if (dragged) setMarked({ picture: pictureKey, area: dragged })
-    return dragged
-  }
   /** Chooses an earlier or later step of the history again: an ordinary choose of that take. */
   const onStep = (n: number) => {
     if (changing.current || chooseWhy !== null) return
@@ -476,19 +442,9 @@ export function FineTunePanel({
       },
     })
   }
-  /** Marks the whole picture; focus on the link, which then goes, moves to Clear the mark. */
-  const markWhole = (fromLink = onWholeMarkLink()) => {
-    setMarked({ picture: pictureKey, area: wholeArea(picture) })
-    setAnnounced('')
-    if (fromLink) focusOn('clear', true)
-  }
   keys.current = (event) => {
     const target = event.target
-    if (isWholeKey(event) && !typesText(target)) {
-      event.preventDefault()
-      markWhole()
-      return
-    }
+    if (marking.wholeKey(event)) return
     if (event.metaKey || event.ctrlKey || event.altKey) return
     const key = event.key.toLowerCase()
     if (!KEYS.has(event.key) && !KEYS.has(key)) return
@@ -522,7 +478,6 @@ export function FineTunePanel({
   }
 
   const overlaid = showing ? shown : null
-  const showMark = mark !== null
   const stepLabel = (step: Extract<(typeof steps)[number], { kind: 'take' }>) =>
     [
       `Take ${step.n}`,
@@ -603,7 +558,7 @@ export function FineTunePanel({
               />
             </label>
             <span className="muted small">
-              {whole ? (
+              {marking.whole ? (
                 FINE_TUNE_WHOLE
               ) : (
                 <>
@@ -611,7 +566,7 @@ export function FineTunePanel({
                   <WholeMarkLink
                     label={MARK_WHOLE_LINK}
                     after="."
-                    onPress={() => markWhole(true)}
+                    onPress={() => marking.markWhole(true)}
                   />
                   {!mark && ` ${FINE_TUNE_NO_MARK}`}
                 </>
@@ -788,25 +743,7 @@ export function FineTunePanel({
             ...pictureShape(picture.width, picture.height),
             maxWidth: `${picture.width}px`,
           }}
-          onPointerDown={(event) => {
-            if (event.button !== 0 || event.ctrlKey) return
-            event.preventDefault()
-            event.currentTarget.setPointerCapture(event.pointerId)
-            start.current = { x: event.clientX, y: event.clientY }
-            setAnnounced('')
-          }}
-          onPointerMove={dragTo}
-          onPointerUp={(event) => {
-            const dragged = dragTo(event)
-            if (dragged) {
-              const tooSmall = smallMark(dragged, picture)
-              setAnnounced(tooSmall ? smallMarkText(tooSmall) : '')
-            }
-            start.current = null
-          }}
-          onPointerCancel={() => {
-            start.current = null
-          }}
+          {...marking.stage}
         >
           <img
             className="patch-take"
@@ -822,16 +759,7 @@ export function FineTunePanel({
               draggable={false}
             />
           )}
-          {showMark && mark && (
-            <div
-              className={`patch-mark${small ? ' patch-mark-small' : ''}`}
-              style={placed(mark, picture)}
-            />
-          )}
-          {showMark && mark && small && <MarkTag placed={mark} picture={picture} size={small} />}
-          <span className="sr-only" aria-live="polite">
-            {small ? announced : ''}
-          </span>
+          {marking.drawn}
         </div>
         <div className="fine-strip">
           <span className="fine-strip-label">Fine-tunes</span>
