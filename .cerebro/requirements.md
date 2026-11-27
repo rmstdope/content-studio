@@ -141,7 +141,7 @@ SCN-1  The person hears a scene's music, effects and narration together as the g
        Proven by: test/system/SCN-1.test.ts
 SCN-2  Each scene's loudness is measured against the project's target, and the page shows which
        scenes are off it or not measured since they changed.
-       Proven by: nothing yet
+       Proven by: test/system/SCN-2.test.ts
 
 ## Refresh from the game (RFR)
 
