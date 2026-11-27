@@ -350,7 +350,8 @@ describe.each([
   const retry = (n: number, confirmed?: boolean) =>
     call('studio_act', { method: 'POST', path, body: { retry: n }, confirmed })
 
-  // For the paid model the table of refusals below holds these two.
+  // For the paid model these two are held below: the first by the table of refusals, the second by
+  // 'names a track or list that is not there'.
   if (!paid) {
     it('says there is no failed take, and asks nothing, for a take that did not fail', async () => {
       const answer = await retry(9)
