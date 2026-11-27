@@ -1662,6 +1662,19 @@ describe('adding a fine-tuned take', () => {
     expect((await row()).reasons).toEqual([])
     expect((await row()).status).toBe('chosen')
   })
+  it('ignores a lock entry with the take’s number that is of another take', async () => {
+    const { takes, file, read, root, settled } = setup()
+    await takes.make(file, 'inn', { count: 1 })
+    await settled('inn')
+    await takes.choose(file, 'inn', 1)
+    // A board made again numbers from 1, so the lock can name a take that is no longer this one.
+    const lock = JSON.parse(read(LOCK))
+    lock.inn = { ...lock.inn, seed: lock.inn.seed + 1, words: 'a high inn' }
+    writeFileSync(join(root, LOCK), JSON.stringify(lock))
+    expect(await takes.addTake(file, 'inn', { ...made, from: 1 })).toEqual({ ok: true, n: 2 })
+    const board = JSON.parse(read('content-studio/cache/images/inn.json'))
+    expect(board.takes[1].madeFrom).toEqual(board.takes[0].madeFrom)
+  })
   it('of a take not in the game keeps that take’s own words and style, whatever was accepted', async () => {
     const { takes, file, read, settled } = setup()
     await takes.make(file, 'inn', { count: 2 })

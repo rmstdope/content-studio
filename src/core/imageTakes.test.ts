@@ -5,6 +5,7 @@ import {
   MakeImageTakesBody,
   countedFrom,
   keepAccept,
+  madeBeforeAccept,
   rightAfterDrop,
   stepRight,
   takeIsEarlier,
@@ -70,6 +71,61 @@ describe('the board', () => {
     const board = ImageBoardSchema.parse({ next: 2, takes: [take] })
     expect(board.takes[0]!.seen).toBe(false)
     expect(ImageBoardSchema.safeParse({ next: 2, takes: [{ ...take, n: 0 }] }).success).toBe(false)
+  })
+})
+
+describe('what a take counts as made from', () => {
+  const madeFrom = { words: 'a low inn', style: 's', width: 320, height: 200 }
+  const take = (over: object = {}) =>
+    ImageBoardSchema.parse({
+      takes: [{ n: 1, seed: 7, model: 'm', width: 1024, height: 640, madeFrom, ...over }],
+    }).takes[0]!
+  const accepted = { words: 'a high inn', style: 'oil' }
+  const later = { words: 'a red inn', style: 'ink' }
+  const entry = { ...madeFrom, ...later, take: 1, seed: 7, model: 'm' }
+
+  it('is its own without an entry or an accept', () => {
+    expect(countedFrom(take(), undefined)).toEqual(madeFrom)
+  })
+
+  it('is what the board remembers it was accepted for, once it has left the game', () => {
+    expect(countedFrom(take({ accepted }), undefined)).toEqual({ ...madeFrom, ...accepted })
+  })
+
+  it('is what the lock’s entry of it holds while it is in the game, whatever the board remembers', () => {
+    expect(countedFrom(take({ accepted }), entry)).toEqual({ ...madeFrom, ...later })
+    expect(countedFrom(take({ accepted }), { ...entry, ...madeFrom })).toEqual(madeFrom)
+  })
+
+  it('counts an entry that records no seed or model', () => {
+    const old = { ...entry, seed: undefined, model: undefined }
+    expect(countedFrom(take(), old)).toEqual({ ...madeFrom, ...later })
+  })
+
+  it('ignores an entry that is not of that take', () => {
+    for (const not of [
+      { take: 2 },
+      { take: undefined },
+      { seed: 8 },
+      { model: 'n' },
+      { width: 160 },
+      { height: 100 },
+    ]) {
+      expect(countedFrom(take({ accepted }), { ...entry, ...not })).toEqual({
+        ...madeFrom,
+        ...accepted,
+      })
+    }
+  })
+
+  it('counts a copy’s entry whatever size it records, and keeps the take’s own size', () => {
+    const copy = take({ copiedFrom: { image: 'x', title: 'X', take: 3 } })
+    expect(countedFrom(copy, { ...entry, width: 160 })).toEqual({ ...madeFrom, ...later })
+    expect(countedFrom(copy, { ...entry, seed: 8 })).toEqual(madeFrom)
+  })
+
+  it('has a reader for its own, before any accept', () => {
+    expect(madeBeforeAccept(take({ accepted }))).toEqual(madeFrom)
   })
 })
 
@@ -178,7 +234,7 @@ describe('an accept kept on its take', () => {
     const it = board()
     expect(keepAccept(it, { ...entry, ...accepted })).toBe(true)
     expect(it.takes[0]!.accepted).toEqual(accepted)
-    expect(countedFrom(it.takes[0]!)).toEqual({ ...madeFrom, ...accepted })
+    expect(countedFrom(it.takes[0]!, undefined)).toEqual({ ...madeFrom, ...accepted })
     expect(ImageBoardSchema.parse(it).takes[0]!.accepted).toEqual(accepted)
     expect(keepAccept(it, { ...entry, ...accepted })).toBe(false)
   })
@@ -187,7 +243,7 @@ describe('an accept kept on its take', () => {
     const it = board({ accepted })
     expect(keepAccept(it, entry)).toBe(true)
     expect(it.takes[0]!.accepted).toBeUndefined()
-    expect(countedFrom(it.takes[0]!)).toEqual(madeFrom)
+    expect(countedFrom(it.takes[0]!, undefined)).toEqual(madeFrom)
     expect(keepAccept(it, entry)).toBe(false)
   })
 
