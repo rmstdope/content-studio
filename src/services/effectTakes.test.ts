@@ -123,12 +123,12 @@ function setup(
     now: () => 0,
     newSeed: () => seed++,
   })
-  /** The view once nothing is waiting or being made. */
+  /** The view once nothing is waiting or being made, and the take engine is done with it too. */
   async function settled(id: string) {
     for (let i = 0; i < 200; i++) {
       const view = await takes.view(file, id)
       if (!view || !('ok' in view) || !view.ok) throw new Error('expected a view')
-      if (!view.making.length) return view
+      if (!view.making.length && !(await takes.making(file))[id]) return view
       await new Promise((resolve) => setTimeout(resolve, 5))
     }
     throw new Error('takes never finished')

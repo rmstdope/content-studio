@@ -96,12 +96,15 @@ function setup(
     now: () => 0,
     newSeed: () => seed++,
   })
-  /** The view once nothing is waiting or being made. */
+  /**
+   * The view once nothing is waiting or being made, and the take engine is done with it too: a take
+   * shows on the board a moment before its job lets go of the GPU and its entry is dropped.
+   */
   async function settled(id: string) {
     for (let i = 0; i < 200; i++) {
       const view = await takes.view(file, id)
       if (!view || !('ok' in view) || !view.ok) return view
-      if (!view.making.length) return view
+      if (!view.making.length && !(await takes.making(file))[id]?.takes) return view
       await new Promise((resolve) => setTimeout(resolve, 5))
     }
     throw new Error('takes never finished')

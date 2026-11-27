@@ -364,6 +364,17 @@ describe('the image takes routes', () => {
     throw new Error('never finished')
   }
 
+  // First in this file's studio: a fake take that took long enough to count is timed, and the
+  // figures are then no guesses.
+  it('tells every image time figure as a guess until a take has been timed here', async () => {
+    const figures = await (await fetch(new URL('/api/images/take-times', studio.url))).json()
+    expect(figures.klein).toEqual({ seconds: 20, guess: true })
+    expect(figures['z-image-turbo']).toEqual({ seconds: 60, guess: true })
+    expect(figures['qwen-edit']).toEqual({ seconds: 480, guess: true })
+    expect(figures['klein-edit']).toEqual({ seconds: 20, guess: true })
+    expect((await send('POST', '/api/images/take-times')).status).not.toBe(200)
+  })
+
   it('takes changes from the studio’s own page only', async () => {
     for (const [method, path, body] of [
       ['POST', '/api/images/inn/takes', { count: 1 }],
@@ -461,15 +472,6 @@ describe('the image takes routes', () => {
     expect((await send('POST', '/api/images/inn/unchoose')).status).toBe(409)
     expect((await send('POST', '/api/images/inn/stop')).status).toBe(200)
     expect(await (await fetch(new URL('/api/images/making', studio.url))).json()).toEqual({})
-  })
-
-  it('tells every image time figure as a guess until a take has been timed here', async () => {
-    const figures = await (await fetch(new URL('/api/images/take-times', studio.url))).json()
-    expect(figures.klein).toEqual({ seconds: 20, guess: true })
-    expect(figures['z-image-turbo']).toEqual({ seconds: 60, guess: true })
-    expect(figures['qwen-edit']).toEqual({ seconds: 480, guess: true })
-    expect(figures['klein-edit']).toEqual({ seconds: 20, guess: true })
-    expect((await send('POST', '/api/images/take-times')).status).not.toBe(200)
   })
 
   it('has nothing to bring to a new look while every picture is up to date', async () => {

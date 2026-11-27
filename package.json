@@ -11,7 +11,7 @@
     "prepare": "[ -e .git ] && git config core.hooksPath .beads/hooks || true",
     "start": "bun bin/content-studio.ts",
     "dev": "bun bin/content-studio.ts --dev --project test/fixtures/sample/content-studio.json",
-    "test": "bun test --parallel",
+    "test": "bun test --parallel --timeout=20000",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

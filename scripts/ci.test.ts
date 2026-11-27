@@ -17,8 +17,9 @@ const jobRunning = (command: string) =>
 
 describe('the tests', () => {
   it('run side by side in worker processes, all of them', () => {
-    // Nothing after --parallel: no file pattern and no shard that would leave some out.
-    expect(scripts.test).toBe('bun test --parallel')
+    // No file pattern and no shard that would leave some out. The longer time limit is for a test
+    // that waits on ffmpeg or a server while every other core is busy.
+    expect(scripts.test).toBe('bun test --parallel --timeout=20000')
     expect(scripts.check).toEndWith('&& bun run test')
   })
 
