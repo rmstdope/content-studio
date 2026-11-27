@@ -89,7 +89,10 @@ describe.skipIf(Bun.which('ffmpeg') === null)(
       expect(loudness(samples, length - 0.1) / full).toBeCloseTo(0.125, 1)
     }
 
-    /** The one take's file, and the length it has once its silent ends are cut. */
+    /**
+     * The one take's file, and the length it has once its silent ends are cut. The tests below are
+     * one person's steps in order, each going on from the one before.
+     */
     let take = { file: '', seconds: 0 }
 
     it('cuts the silence off both ends of a take', async () => {
@@ -102,14 +105,15 @@ describe.skipIf(Bun.which('ffmpeg') === null)(
       }
       expect(made.failed).toEqual([])
       expect(made.takes).toMatchObject([{ trimmable: 'cut' }])
-      const { file, seconds } = made.takes[0]!
+      const { file } = made.takes[0]!
 
       await press('POST', '/trim', { file })
 
       const [trimmed] = (await view()).takes
       // Two seconds of sound, and a moment of lead-in kept at each cut.
       expect(trimmed!.trim!.seconds).toBeCloseTo(2.1, 1)
-      expect(trimmed!.trim!.seconds).toBeLessThan(seconds - 0.9)
+      // The second of silence goes from the start, but for that moment.
+      expect(trimmed!.trim!.start).toBeCloseTo(0.95, 2)
       take = { file, seconds: trimmed!.trim!.seconds }
 
       const sound = await heard(`${file}?trimmed=1`)
