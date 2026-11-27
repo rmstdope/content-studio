@@ -38,8 +38,8 @@ const MOSTLY: [string, number, number][] = [
 ]
 
 /** The entry a line recorded earlier has, as the studio wrote it: it must stay byte for byte. */
-const EARLIER = ` "a1": {
-  "file": "a1.mp3",
+const EARLIER = ` "a2": {
+  "file": "a2.mp3",
   "speaker": "narrator",
   "duration": 2.0,
   "words": [
@@ -84,15 +84,15 @@ describe('NAR-2: each take is checked with Whisper, and the game gets real word 
       'content-studio.json': projectJson(),
       'content-studio/narration/cast.json': { speakers: { narrator: { voice: 'v1' } } },
       'tts/act1/script.json': [
-        { id: 'a1', speaker: 'narrator', text: 'Before.' },
+        { id: 'a2', speaker: 'narrator', text: 'Before.' },
         {
-          id: 'a2',
+          id: 'a1',
           speaker: 'narrator',
           text: 'The old café door creaked open as night fell softly.',
         },
       ],
       'audio/act1/manifest.json': `{\n${EARLIER}\n}\n`,
-      'audio/act1/a1.mp3': 'ID3-not-really-audio',
+      'audio/act1/a2.mp3': 'ID3-not-really-audio',
     },
     { fish: takes, transcriber: whisper },
   )
@@ -101,7 +101,7 @@ describe('NAR-2: each take is checked with Whisper, and the game gets real word 
   it('takes the line again until enough is heard, and writes it as the game reads it', async () => {
     const started = await page.send('POST', '/api/parts/act1/jobs', {
       speaker: null,
-      keys: ['a2'],
+      keys: ['a1'],
       orphans: [],
     })
     expect(started.status).toBe(200)
@@ -119,8 +119,9 @@ describe('NAR-2: each take is checked with Whisper, and the game gets real word 
     expect(spoken).toEqual([3, 4])
     expect(heard).toEqual([3, 4])
 
-    // The game's own format, whole: one-space indents, floats, é escaped, the earlier entry as it
-    // was. The times are Whisper's; "as", which it lost, lies between its neighbours.
+    // The game's own format, whole: one-space indents, floats, é escaped, the new entry sorted
+    // before the earlier one, which is as it was. The times are Whisper's; "as", which it lost, lies
+    // between its neighbours.
     const word = (text: string, start: string, end: string) =>
       `   {\n    "word": "${text}",\n    "start": ${start},\n    "end": ${end}\n   }`
     const words = [
@@ -136,16 +137,16 @@ describe('NAR-2: each take is checked with Whisper, and the game gets real word 
       word('softly.', '3.5', '3.9'),
     ].join(',\n')
     expect(file('audio/act1/manifest.json').toString()).toBe(
-      `{\n${EARLIER},\n "a2": {\n  "file": "a2.mp3",\n  "speaker": "narrator",\n` +
-        `  "duration": 4.0,\n  "words": [\n${words}\n  ]\n }\n}\n`,
+      `{\n "a1": {\n  "file": "a1.mp3",\n  "speaker": "narrator",\n` +
+        `  "duration": 4.0,\n  "words": [\n${words}\n  ]\n },\n${EARLIER}\n}\n`,
     )
     // The clip in the game is the take that was heard well enough.
-    expect(secondsOf(file('audio/act1/a2.mp3'))).toBe(4)
+    expect(secondsOf(file('audio/act1/a1.mp3'))).toBe(4)
 
     const { part } = (await (await page.get('/api/parts/act1')).json()) as {
       part: { lines: { key: string }[] }
     }
-    expect(part.lines.find((line) => line.key === 'a2')).toMatchObject({
+    expect(part.lines.find((line) => line.key === 'a1')).toMatchObject({
       status: 'ok',
       heard: 0.9,
     })
