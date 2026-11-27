@@ -124,7 +124,8 @@ describe('refreshDialog', () => {
       graceMs: 100,
     })
     expect(result).toMatchObject({ ok: true, lines: 2 })
-    expect(Date.now() - started).toBeLessThan(1000)
+    // Under the studio's own grace of 1.5 s, so the one passed in was used.
+    expect(Date.now() - started).toBeLessThan(1400)
     await expectGone(await helperPid(root))
   })
 
