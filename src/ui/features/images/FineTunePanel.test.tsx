@@ -236,13 +236,10 @@ describe('the states of the panel', () => {
     ['a landscape picture', { kind: 'take', n: 3, width: 320, height: 200 }],
     ['the game’s whole image', { kind: 'game', width: 1024, height: 576 }],
   ] as const) {
-    it(`shows ${what} as wide as the panel, up to its own size and never upscaled, under every control (as-uucl.2)`, async () => {
+    it(`shows ${what} in its own shape, with no measured frame, under every control (as-uucl.2)`, async () => {
       const { host } = await render(() => view({ picture }))
       const stage = host.querySelector<HTMLElement>('.patch-stage')!
-      expect(stage.style.getPropertyValue('--picture-ratio')).toBe(
-        String(picture.width / picture.height),
-      )
-      expect(stage.style.maxWidth).toBe(`${picture.width}px`)
+      expect(stage.style.aspectRatio).toBe(`${picture.width} / ${picture.height}`)
       // No measured frame: the stylesheet caps it to the window's height (as-bt1m.1).
       expect(stage.classList.contains('fit-shape')).toBe(false)
       expect(stage.closest('.fit-picture')).toBeNull()
@@ -256,19 +253,6 @@ describe('the states of the panel', () => {
       ])
     })
   }
-
-  it('is no wider than what the game keeps of a take cut at the sides, as on Patches (as-fuaz)', async () => {
-    const picture = { kind: 'take' as const, n: 3, width: 1024, height: 512 }
-    const { host } = await render(() => view({ picture }), undefined, undefined, undefined, {
-      width: 320,
-      height: 200,
-    })
-    const stage = host.querySelector<HTMLElement>('.patch-stage')!
-    // The image is 320 x 200.
-    expect(stage.style.getPropertyValue('--picture-ratio')).toBe(String(320 / 200))
-    expect(stage.style.maxWidth).toBe('819px')
-    expect(stage.style.aspectRatio).toBe('1024 / 512')
-  })
 
   it('names the game’s own image when no take is chosen', async () => {
     const { host } = await render(() =>

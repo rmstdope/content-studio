@@ -33,6 +33,15 @@ export const SAME_SIZE = [
     drawn: [660, 828],
     cut: [660, 825],
   },
+  // Cut at the sides: what the game keeps holds all three, in its own shape.
+  {
+    what: 'a take cut at the sides',
+    width: 1024,
+    height: 512,
+    game: { width: 320, height: 200 },
+    drawn: [819, 410],
+    cut: [819, 512],
+  },
 ] as const
 
 /**
