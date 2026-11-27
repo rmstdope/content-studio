@@ -181,9 +181,13 @@ async function render(options: Options = {}) {
   return { host, asked, puts, zoomPuts, goneToMake, setOpen }
 }
 
-/** Lets pending requests, state updates and animation frames run. */
+/**
+ * Lets pending requests, state updates and animation frames run: five turns of the event loop,
+ * which is all they wait for (the fetch is faked, and a happy-dom frame is a `setImmediate`). A
+ * test that needs one of the panel's own timers to run out waits for that time itself.
+ */
 async function settle() {
-  for (let i = 0; i < 5; i++) await act(async () => await new Promise((r) => setTimeout(r, 20)))
+  for (let i = 0; i < 5; i++) await act(async () => await new Promise((r) => setTimeout(r, 1)))
 }
 
 const text = (host: HTMLElement) => host.textContent ?? ''
