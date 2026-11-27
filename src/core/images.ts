@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { describeLook, lookChanges, lookKey, lookOf, type Look } from './imageLook'
 import { stackOf, type Choice, type PatchArea, type StackProblem } from './imagePatches'
-import { lockEntry, type LockRead } from './lockRead'
+import { chosenOf, lockEntry, type Chosen, type LockRead } from './lockRead'
 import { problemsFrom, type Problem } from './project'
 
 /** The path of the picture the game shows for an image now: inside the project root, and a picture. */
@@ -1036,8 +1036,11 @@ export interface PatchRow {
   chosenOn: number[]
   /** The patch has a chosen take on a take of the image that has since been dropped. */
   chosenOnGone: boolean
-  /** The area the patch's chosen take on the image's take in the game was made with; null when it has none there. */
-  chosenArea: PatchArea | null
+  /**
+   * The area the patch's chosen take on the image's take in the game was made with, none when it
+   * has none there; not known while the images lock cannot be read.
+   */
+  chosenArea: Chosen<PatchArea>
   /** The id of the patch the game asks this one to lie on top of. */
   over?: string | undefined
   /** The title of that patch, or the id as the game wrote it when the image has no such patch. */
@@ -1119,8 +1122,11 @@ export interface ImageRow {
   sharedWith: { id: string; title: string }[]
   /** For a shared image out of date because of its act style: the acts now and when it was chosen (null: none). */
   actStyleChange: { now: string | null; was: string | null } | null
-  /** The number of the chosen take on the image's board; null when none is chosen. */
-  chosenTake: number | null
+  /**
+   * The number of the chosen take on the image's board, or none; not known while the images lock
+   * cannot be read.
+   */
+  chosen: Chosen
   /** The picture the game itself shows for it, and whether it is on disk; null when it names none. */
   gameFile: { file: string; exists: boolean } | null
   /** What a new take would be made from. */
@@ -1195,7 +1201,7 @@ export function actImageReport(act: {
   id: string
   title: string
   state: ImagesAct['state']
-  rows: (Pick<ImageRow, 'id' | 'title' | 'status' | 'reasons' | 'chosenTake'> & {
+  rows: (Pick<ImageRow, 'id' | 'title' | 'status' | 'reasons' | 'chosen'> & {
     patches: Pick<PatchRow, 'id' | 'chosenOn'>[]
     areas: Pick<AreaRow, 'id' | 'placed'>[]
   })[]
@@ -1206,7 +1212,8 @@ export function actImageReport(act: {
     state: act.state,
     images: act.rows.map((row) => {
       const made = row.status !== 'none yet' && row.status !== 'unknown'
-      const take = row.chosenTake
+      // Not known while the lock is unread: nothing then counts as chosen on it, as `made` says.
+      const take = row.chosen.known ? row.chosen.take : null
       return {
         id: row.id,
         title: row.title,
@@ -1415,10 +1422,12 @@ export function summarizeImages(input: ImagesInput): {
           gameWas: mine?.gameWas ?? null,
           chosenOn: bases.filter((base) => there.has(base)).sort((a, b) => a - b),
           chosenOnGone: bases.some((base) => !there.has(base)),
-          chosenArea:
+          chosenArea: chosenOf(
+            standing.standing !== 'unknown',
             made?.take == null
               ? null
               : (input.patchAreas?.[image.id]?.[patch.id]?.[made.take] ?? null),
+          ),
           ...(patch.over !== undefined && {
             over: patch.over,
             overTitle: image.patches.find((p) => p.id === patch.over)?.title ?? patch.over,
@@ -1470,7 +1479,7 @@ export function summarizeImages(input: ImagesInput): {
         shared && reasons.includes('the act style')
           ? { now: pick, was: choices.find((c) => c.text === wasText)?.id ?? null }
           : null,
-      chosenTake: made?.take ?? null,
+      chosen: chosenOf(standing.standing !== 'unknown', made?.take ?? null),
       gameFile: image.file
         ? { file: image.file, exists: input.gameFiles?.[image.id] ?? false }
         : null,

@@ -1,3 +1,4 @@
+import { type Chosen } from '../../../core/lockRead'
 import {
   useCallback,
   useEffect,
@@ -97,13 +98,13 @@ function tieOf(saved: SavedEffects[string] | undefined) {
  */
 export function MovementPanel({
   row,
-  lockUnread,
+  chosen,
   onGoToMake,
   onEffectsOn,
 }: {
   row: ImageRow
-  /** The page's one answer (`imageLockUnread`): which take the game shows is not known. */
-  lockUnread: boolean
+  /** The page's one answer (`imageChosen`): which take the game shows, or that it is not known. */
+  chosen: Chosen
   onGoToMake: () => void
   onEffectsOn?: (count: number | null) => void
 }) {
@@ -199,10 +200,10 @@ export function MovementPanel({
   }, [open])
 
   // While the lock cannot be read no take is known to be chosen: no picture, none of its patches.
-  const src = lockUnread
+  const src = !chosen.known
     ? null
-    : row.chosenTake !== null
-      ? `/api/images/${encodeURIComponent(row.id)}/takes/${row.chosenTake}`
+    : chosen.take !== null
+      ? `/api/images/${encodeURIComponent(row.id)}/takes/${chosen.take}`
       : row.gameFile?.exists
         ? `/api/images/${encodeURIComponent(row.id)}/current`
         : null
@@ -214,17 +215,19 @@ export function MovementPanel({
       ? new Set(motion.module.types.filter((t) => t.placement === 'fixed').map((t) => t.type))
       : null
 
-  const patches: MovementPatch[] | null = lockUnread
+  const patches: MovementPatch[] | null = !chosen.known
     ? row.patches.map((patch) => ({ id: patch.id, title: patch.title, src: null }))
     : patchView && 'patches' in patchView
       ? row.patches.map((patch) => {
-          const take = patchView.patches.find((p) => p.id === patch.id)?.takes.find((t) => t.chosen)
+          const own = patchView.patches.find((p) => p.id === patch.id)?.chosen
+          const n = own?.known ? own.take : null
           return {
             id: patch.id,
             title: patch.title,
-            src: take
-              ? `/api/images/${encodeURIComponent(row.id)}/patches/${encodeURIComponent(patch.id)}/takes/${take.n}`
-              : null,
+            src:
+              n !== null
+                ? `/api/images/${encodeURIComponent(row.id)}/patches/${encodeURIComponent(patch.id)}/takes/${n}`
+                : null,
           }
         })
       : null
@@ -746,7 +749,7 @@ export function MovementPanel({
   /** The groups, with spot links (the tab) or without (full screen, which only shows the lines). */
   const controls = (spot: SpotControls | undefined) => (
     <MotionControls
-      lockUnread={lockUnread}
+      chosen={chosen}
       patches={patches}
       patchesOn={patchesOn}
       onPatch={(id, on) => setPatchesOn((now) => toggle(now, id, on))}
@@ -1023,7 +1026,7 @@ export function MovementPanel({
   let caption: string | null = null
   if (picture !== null) {
     if (motion.status === 'failed') caption = MOVEMENT_WORDS.failedCaption
-    else if (row.chosenTake !== null) caption = takeCaption(row.chosenTake, paused)
+    else if (chosen.known && chosen.take !== null) caption = takeCaption(chosen.take, paused)
     else caption = MOVEMENT_WORDS.gameOwn
   }
 
@@ -1045,17 +1048,17 @@ export function MovementPanel({
               className={full ? 'movement-wrap movement-wrap-full' : 'movement-wrap'}
               style={
                 full
-                  ? picture !== null && !lockUnread
+                  ? picture !== null && chosen.known
                     ? ({ '--ar': row.width / row.height } as CSSProperties)
                     : undefined
                   : ({
                       aspectRatio: `${row.width} / ${row.height}`,
                       // Only a picture is fitted to the window; the empty and "not known" stages stay as wide as the column.
-                      ...(picture !== null && !lockUnread && { '--ar': row.width / row.height }),
+                      ...(picture !== null && chosen.known && { '--ar': row.width / row.height }),
                     } as CSSProperties)
               }
             >
-              {lockUnread ? (
+              {!chosen.known ? (
                 <div className="movement-empty movement-unknown" data-unknown="true">
                   {motion.status === 'failed' && (
                     <div role="alert" className="movement-failure">

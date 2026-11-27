@@ -137,16 +137,19 @@ export function createImageFineTunes({
     const summary = await readImages(root, opened.project, [])
     const row = summary?.acts.flatMap((act) => act.rows).find((r) => r.id === id)
     if (!row) return null
+    // The take in the game: none when none is chosen, or while that is not known.
+    const inGame = row.chosen.known ? row.chosen.take : null
     return {
       projectFile,
       root,
       id,
       row,
+      inGame,
       key: `${projectFile}\0${id}`,
       folder: folderOf(id),
       board: `${folderOf(id)}/board.json`,
       /** The picture in the game: a take's number, or 0 for the game's own image. */
-      base: row.chosenTake ?? 0,
+      base: inGame ?? 0,
     }
   }
   type Image = Exclude<Awaited<ReturnType<typeof resolve>>, ProjectFailure | null>
@@ -177,11 +180,8 @@ export function createImageFineTunes({
   /** The picture in the game, in the pixels fine-tunes are made in; the game's own image scaled to the take size. */
   async function pictureOf(image: Image): Promise<Pixels | null> {
     try {
-      if (image.row.chosenTake !== null) {
-        const path = resolveInRoot(
-          image.root,
-          `${IMAGE_TAKES_DIR}/${image.id}/${image.row.chosenTake}.png`,
-        )
+      if (image.inGame !== null) {
+        const path = resolveInRoot(image.root, `${IMAGE_TAKES_DIR}/${image.id}/${image.inGame}.png`)
         return decodePng(new Uint8Array(await Bun.file(path).arrayBuffer()))
       }
       const own = image.row.gameFile
@@ -200,11 +200,8 @@ export function createImageFineTunes({
   /** The size of the picture in the game as `pictureOf` gives it, without decoding it; null when it cannot be read. */
   async function pictureSize(image: Image): Promise<{ width: number; height: number } | null> {
     try {
-      if (image.row.chosenTake !== null) {
-        const path = resolveInRoot(
-          image.root,
-          `${IMAGE_TAKES_DIR}/${image.id}/${image.row.chosenTake}.png`,
-        )
+      if (image.inGame !== null) {
+        const path = resolveInRoot(image.root, `${IMAGE_TAKES_DIR}/${image.id}/${image.inGame}.png`)
         return pngSize(new Uint8Array(await Bun.file(path).slice(0, 33).arrayBuffer()))
       }
       const own = image.row.gameFile
@@ -311,7 +308,7 @@ export function createImageFineTunes({
       return {
         ok: false,
         message:
-          image.row.chosenTake === null
+          image.inGame === null
             ? "There's no picture to fine-tune yet. Make takes and choose one, then change it here."
             : "The chosen take's picture is missing or cannot be read, so it cannot be fine-tuned.",
       }
@@ -411,10 +408,10 @@ export function createImageFineTunes({
         ok: true,
         picture: !picture
           ? { kind: 'none' }
-          : image.row.chosenTake !== null
+          : image.inGame !== null
             ? {
                 kind: 'take',
-                n: image.row.chosenTake,
+                n: image.inGame,
                 width: picture.width,
                 height: picture.height,
               }
@@ -596,7 +593,7 @@ export function createImageFineTunes({
     const edited = decodePng(part)
     // A marked fine-tune keeps only what changed: the rest is the picture it was made from.
     const png = encodePng(tune.area ? layOver(source, edited) : edited)
-    const from = image.row.chosenTake
+    const from = image.inGame
     const added = await takes.addTake(projectFile, id, {
       png,
       model: editModel(tune.model).mflux,

@@ -1,3 +1,4 @@
+import { chosenOf } from '../../../core/lockRead'
 import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { FineTunesView } from '../../../core/imageFineTunes'
@@ -870,15 +871,15 @@ describe('a late click meant for Stop', () => {
 const takesView = (
   chosen: number | null,
   chain: [number, number | null | undefined, string?][],
-  over: Record<string, unknown> = {},
+  { lockUnread, ...over }: Record<string, unknown> = {},
 ) => ({
   ok: true,
+  chosen: chosenOf(!lockUnread, chosen),
   generator: { ok: true },
   projectModel: 'klein',
   models: [],
   making: [],
   failed: [],
-  lockUnread: false,
   lookError: null,
   takes: chain.map(([n, from, words]) => ({
     n,
@@ -886,7 +887,6 @@ const takesView = (
     height: 576,
     model: 'klein',
     earlier: false,
-    chosen: n === chosen,
     isNew: false,
     look: 'ready',
     cropped: false,
