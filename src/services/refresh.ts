@@ -89,17 +89,18 @@ const refreshes = createSerial()
  * Runs the project's `refresh.part` command for a part (with `{part}` replaced by its id) in the
  * project root, the way the game extracts its dialog, then reads the dialog again and says what
  * changed. The command is the project's own (its project file), run only from the studio's page.
+ * `graceMs` is how long what it leaves running may hold the output open after it ends.
  */
 export function refreshDialog(
   projectFile: string,
   partId: string,
-  { timeoutMs = TIMEOUT_MS }: { timeoutMs?: number } = {},
+  { timeoutMs = TIMEOUT_MS, graceMs = GRACE_MS }: { timeoutMs?: number; graceMs?: number } = {},
 ): Promise<RefreshResult> {
   const key = partKey(projectFile, partId)
   // Counted from the click, so a generation is refused while one waits in line too.
   active.set(key, (active.get(key) ?? 0) + 1)
   return refreshes
-    .run(key, () => refresh(projectFile, partId, timeoutMs))
+    .run(key, () => refresh(projectFile, partId, timeoutMs, graceMs))
     .finally(() => {
       const left = (active.get(key) ?? 1) - 1
       if (left) active.set(key, left)
@@ -176,6 +177,7 @@ async function refresh(
   projectFile: string,
   partId: string,
   timeoutMs: number,
+  graceMs: number,
 ): Promise<RefreshResult> {
   const opened = await openProject(projectFile)
   if (!opened.ok) return opened
@@ -199,7 +201,7 @@ async function refresh(
   const loopsBefore = loopsFile ? await readTracks(root, loopsFile, LoopListSchema) : 'invalid'
 
   const command = partPathFor(partCommand, part.id)
-  const run = await shell(command, root, timeoutMs)
+  const run = await shell(command, root, timeoutMs, graceMs)
   if (!run.ok) {
     return { ok: false, reason: 'failed', message: run.message, output: run.output }
   }
@@ -360,6 +362,7 @@ async function shell(
   command: string,
   cwd: string,
   timeoutMs: number,
+  graceMs = GRACE_MS,
 ): Promise<{ ok: true; output: string } | { ok: false; message: string; output: string }> {
   const child = Bun.spawn(['sh', '-c', command], {
     cwd,
@@ -379,7 +382,7 @@ async function shell(
   const exit = child.exited.then((code) => {
     ended = true
     clearTimeout(timer)
-    grace = setTimeout(() => killGroup(child.pid), GRACE_MS)
+    grace = setTimeout(() => killGroup(child.pid), graceMs)
     grace.unref()
     return code
   })
