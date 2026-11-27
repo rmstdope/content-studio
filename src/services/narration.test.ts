@@ -294,10 +294,36 @@ describe('recordLine', () => {
     const { fish, requests } = fakeFish()
     const limiter = createLimiter()
     const projectFile = join(root, 'content-studio.json')
+    // The first request is held until the second call has joined it, so the recording cannot end
+    // first, however slow that call's reads are. Asking for Fish is a call's last wait before it
+    // looks for a recording under way, so it has looked by the next turn of the event loop.
+    let release = () => {}
+    const joined = new Promise<void>((resolve) => (release = resolve))
+    const held: FishClient = {
+      ...fish,
+      async tts(request) {
+        const wav = await fish.tts(request)
+        await joined
+        return wav
+      },
+    }
+    let asked = 0
     const once = () =>
-      recordLine(projectFile, 'act1', 'k1', async () => fish, { encode: keepWav, limiter })
-    await Promise.all([once(), once()])
+      recordLine(
+        projectFile,
+        'act1',
+        'k1',
+        async () => {
+          if (++asked === 2) setImmediate(release)
+          return held
+        },
+        { encode: keepWav, limiter },
+      )
+    const [first, second] = await Promise.all([once(), once()])
     expect(requests).toHaveLength(1)
+    expect(first).toMatchObject({ ok: true })
+    // One result: the limiter would share a held request between two recordings of its own.
+    expect(second).toBe(first)
   })
 
   it('adopts in the part’s turn, so it never writes over a recording’s lock entry', async () => {
