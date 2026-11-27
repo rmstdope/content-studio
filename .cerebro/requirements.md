@@ -55,7 +55,7 @@ CST-2  The person auditions voices for a character (found by keywords in Fish Au
        Proven by: nothing yet
 CST-3  A voice ruled out for a character stays ruled out for it and is not offered again; the
        character's page lists the voices ruled out.
-       Proven by: nothing yet
+       Proven by: test/system/CST-3.test.ts
 CST-4  The person can switch on clean-up of a cast voice and set its level, hearing the
        difference first. Cleaning the lines already in the game asks first, and they can be put
        back.
