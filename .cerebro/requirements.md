@@ -127,7 +127,7 @@ IMG-7  When the act's look changes, the chosen pictures and their patches can be
 SFX-1  Each sound effect the game lists can be made as takes with a local model, from a
        description the person can reword. The person chooses a take for the game; a looping
        effect loops without a seam.
-       Proven by: nothing yet
+       Proven by: test/system/SFX-1.test.ts
 SFX-2  A take can be trimmed and faded, and an effect's level set, before it goes to the game.
        Proven by: nothing yet
 SFX-3  Make all makes takes for every effect that has none, and can be stopped.
