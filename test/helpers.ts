@@ -138,7 +138,8 @@ export function refusedSentence(file: string, reason = 'permission denied'): str
 
 /**
  * `refusedSentence` as the source of a regular expression, for a file that only a pattern can name
- * (a take's random name): `file` matches where the sentence names it.
+ * (a take's random name): `file` matches where the sentence names it. Only the pattern's source is
+ * used, not its flags.
  */
 export function refusedPattern(file: RegExp, reason = 'permission denied'): string {
   const literal = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
