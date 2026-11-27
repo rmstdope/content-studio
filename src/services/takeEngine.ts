@@ -59,6 +59,17 @@ export function noneMade(noun: string, reason: string): string {
   return `No ${noun} were made: ${reason}.`
 }
 
+/** What a view reads of one id: its board and the in-memory state that goes with it, of one moment. */
+export interface TakeRead<E, B, X> {
+  board: B
+  /** Copies of the id's entries, in number order. */
+  entries: E[]
+  /** The takes the medium has marked (being brought to the look). */
+  marked: ReadonlySet<number>
+  /** What else the medium keeps in memory and asked to have read with them. */
+  also: X
+}
+
 /** A failure as a sentence for the page. */
 export function describeFailure(error: unknown): string {
   const text = error instanceof Error ? error.message : String(error)
@@ -87,6 +98,10 @@ export function createTakeEngine<E extends TakeEntry, B extends TakeBoard>({
 }) {
   const shared = globalThis as unknown as Record<string, Map<string, Map<number, E>> | undefined>
   const active = (shared[slot] ??= new Map<string, Map<number, E>>())
+  // The marked takes of each id, kept like the entries.
+  const marks = ((globalThis as unknown as Record<string, Map<string, Set<number>> | undefined>)[
+    `${slot}Marks`
+  ] ??= new Map<string, Set<number>>())
   const keyOf = (projectFile: string, id: string) => `${projectFile}\0${id}`
 
   /** An id's entries: waiting, being made, or failed. */
@@ -105,6 +120,46 @@ export function createTakeEngine<E extends TakeEntry, B extends TakeBoard>({
 
   return {
     entriesOf,
+
+    /** Marks take `n` of an id as being brought to the look, until `unmark`. */
+    mark(projectFile: string, id: string, n: number): void {
+      const key = keyOf(projectFile, id)
+      marks.set(key, (marks.get(key) ?? new Set<number>()).add(n))
+    },
+
+    /** Takes the mark off take `n` of an id, if it has one. */
+    unmark(projectFile: string, id: string, n: number): void {
+      const key = keyOf(projectFile, id)
+      const marked = marks.get(key)
+      marked?.delete(n)
+      if (marked?.size === 0) marks.delete(key)
+    },
+
+    /**
+     * What a page's view reads: the board, in the id's turn, and then at once the entries, the
+     * marked takes and what `also` answers, so no change falls between the board and the state in
+     * memory that goes with it. A view asks nothing more of that state afterwards. A take dropped
+     * from the entries once the board has it is thus in the board or in the entries, never in
+     * neither, and a save under way (what it does after listing the take included) is over first.
+     * Answers the failure of a board that cannot be read.
+     */
+    read<X = undefined>(
+      projectFile: string,
+      id: string,
+      access: Pick<BoardAccess<B>, 'read'>,
+      also?: () => X,
+    ): Promise<TakeRead<E, B, X> | ProjectFailure> {
+      return this.inTurn(projectFile, id, async () => {
+        const board = await access.read()
+        if ('ok' in board) return board
+        return {
+          board,
+          entries: entriesOf(projectFile, id).map((entry) => ({ ...entry })),
+          marked: new Set(marks.get(keyOf(projectFile, id))),
+          also: also?.() as X,
+        }
+      })
+    },
 
     /** Runs `job` in the id's turn on the board, so nothing else changes the board meanwhile. */
     inTurn<T>(projectFile: string, id: string, job: () => Promise<T>): Promise<T> {
@@ -373,9 +428,8 @@ export function createTakeEngine<E extends TakeEntry, B extends TakeBoard>({
     },
 
     /**
-     * What a view shows of the entries it read before the board: the ones still waiting or being
-     * made and not yet on the board, and the failed ones. The entries are read first, so a take
-     * dropped from them after the board has it is in the board read after, never in neither.
+     * What a view shows of the entries it got from `read`: the ones still waiting or being made
+     * and not yet on the board, and the failed ones.
      */
     split(entries: E[], onBoard: { n: number }[]): { pending: E[]; failed: E[] } {
       return {

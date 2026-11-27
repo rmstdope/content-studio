@@ -9,6 +9,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
+import * as fsPromises from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { projectJson, takeFailed, takesUnderWay, tempRepo } from '../../test/helpers'
 import type { EditModelId } from '../core/imageModels'
@@ -459,7 +460,6 @@ describe('takes of a declared patch', () => {
   it('never shows a take as of an old look when it is brought to the look while the page reads', async () => {
     const { root, file, patches, work } = setup()
     const picture = join(root, FOLDER, '1.png')
-    const mark = `${patchBoardKey(file, 'inn', 'door')}\0${1}`
     // The bring reads the take's picture with `bytes`, the page with `arrayBuffer`: each can be held.
     let bringStarted = () => {}
     const bringing = new Promise<void>((resolve) => (bringStarted = resolve))
@@ -497,9 +497,6 @@ describe('takes of a declared patch', () => {
     try {
       await patches.make(file, 'inn', 'door', { count: 1, area })
       await bringing
-      expect(
-        (globalThis as { contentStudioPatchBringing?: Set<string> }).contentStudioPatchBringing,
-      ).toContain(mark)
       // The page has read the board, the take not yet brought; the bring ends before it asks.
       pageRead = async () => {
         releaseBring()
@@ -507,9 +504,9 @@ describe('takes of a declared patch', () => {
           const board = JSON.parse(readFileSync(join(root, BOARD), 'utf8')) as {
             takes: { look?: string }[]
           }
-          const marks = (globalThis as { contentStudioPatchBringing?: Set<string> })
-            .contentStudioPatchBringing
-          if (board.takes[0]?.look && !marks?.has(mark)) return
+          const marks = (globalThis as unknown as Record<string, Map<string, Set<number>>>)
+            .contentStudioPatchTakesMarks
+          if (board.takes[0]?.look && !marks?.has(patchBoardKey(file, 'inn', 'door'))) return
           await new Promise((resolve) => setTimeout(resolve, 5))
         }
         throw new Error('the take was never brought')
@@ -1507,6 +1504,45 @@ describe('remaking patches on a new take', () => {
     expect(await patches.closeRemake(file, 'inn')).toEqual({ ok: true })
     view = (await patches.view(file, 'inn')) as ImagePatchesView
     expect(view.remake.press).toBeNull()
+  })
+
+  it('never counts a take as stopped when it lands while the page reads the press', async () => {
+    let release = () => {}
+    const queue = createSerial()
+    void queue.run('gpu', () => new Promise<void>((resolve) => (release = resolve)))
+    const { root, file, patches, settled } = setup({ queue })
+    chosenEarlier(root, ['door'])
+    await patches.remake(file, 'inn', { count: 1, marks: {} })
+    const board = join(root, BOARD)
+    const realRead = fsPromises.readFile
+    let reads = 0
+    // The press reads the board last of all: which read of a view that is.
+    let pressRead = Infinity
+    const spy = spyOn(fsPromises, 'readFile').mockImplementation((async (
+      path: string,
+      encoding: 'utf8',
+    ) => {
+      const text = await realRead(path, encoding)
+      if (path === board && ++reads === pressRead) {
+        // The take lands now, unless the page holds the board's turn meanwhile.
+        release()
+        for (let i = 0; i < 60 && takesUnderWay('contentStudioPatchTakes', file); i++) {
+          await new Promise((resolve) => setTimeout(resolve, 5))
+        }
+      }
+      return text
+    }) as typeof fsPromises.readFile)
+    try {
+      await patches.view(file, 'inn')
+      pressRead = reads
+      reads = 0
+      const view = (await patches.view(file, 'inn')) as ImagePatchesView
+      expect(view.remake.press).toMatchObject({ total: 1, stopped: 0 })
+    } finally {
+      release()
+      spy.mockRestore()
+    }
+    await settled('door')
   })
 
   it('keeps the takes already made when the press is stopped', async () => {

@@ -270,13 +270,10 @@ export function createImageTakes({
 }): ImageTakes {
   const shared = globalThis as {
     contentStudioImageBoards?: Serial
-    contentStudioImageBringing?: Set<string>
     contentStudioLookRuns?: Map<string, LookRunView>
     contentStudioImageStopped?: Map<string, number>
     contentStudioImageBatches?: Map<string, StoredBatch>
   }
-  /** Takes being brought to the look right now (`<image key>\0<n>`). */
-  const bringing = (shared.contentStudioImageBringing ??= new Set())
   const lookRuns = (shared.contentStudioLookRuns ??= new Map())
   /** How many takes of each image were stopped since the studio started (`<image key>`). */
   const stoppedCount = (shared.contentStudioImageStopped ??= new Map())
@@ -507,7 +504,6 @@ export function createImageTakes({
   /** Brings a take just made to the look and notes it on the board; a take that cannot be stays as the model made it. */
   async function bringTake(found: Found, n: number): Promise<void> {
     const key = found.row.look.key
-    const mark = `${found.key}\0${n}`
     try {
       if (!key) return
       const made = await renderGame(found, n)
@@ -517,7 +513,7 @@ export function createImageTakes({
         if (take) take.look = key
       })
     } finally {
-      bringing.delete(mark)
+      engine.unmark(found.projectFile, found.id, n)
     }
   }
 
@@ -566,8 +562,7 @@ export function createImageTakes({
           seen: false,
         }
         // Marked before it is on the board, so the page never sees it between made and brought.
-        const mark = `${found.key}\0${take.n}`
-        bringing.add(mark)
+        engine.mark(found.projectFile, found.id, take.n)
         const saved = await engine.save(found.projectFile, found.id, accessOf(found), {
           root: found.root,
           path: pictureOf(found.id, take.n),
@@ -578,7 +573,7 @@ export function createImageTakes({
               (a, b) => a.n - b.n,
             )
           },
-          cleanup: () => bringing.delete(mark),
+          cleanup: () => engine.unmark(found.projectFile, found.id, take.n),
         })
         if (!saved) return
         made = { n: take.n, took }
@@ -810,9 +805,9 @@ export function createImageTakes({
     async view(projectFile, id) {
       const found = await resolve(projectFile, id)
       if (!found || !('row' in found)) return found
-      const entries = entriesOf(found.projectFile, id)
-      const board = await readBoard(found)
-      if ('ok' in board) return board
+      const read = await engine.read(found.projectFile, id, accessOf(found))
+      if ('ok' in read) return read
+      const { board, entries, marked } = read
       const problems: Problem[] = []
       const lock = await lockNow(found, problems)
       const chosen = lock?.[id]?.take
@@ -829,7 +824,7 @@ export function createImageTakes({
           model: take.copiedFrom ? null : imageByMflux(take.model),
           earlier: takeIsEarlier(take, lock?.[id], found.row.words),
           isNew: !take.seen,
-          look: bringing.has(`${found.key}\0${take.n}`)
+          look: marked.has(take.n)
             ? 'bringing'
             : !(await Bun.file(resolveInRoot(found.root, gameOf(id, take.n))).exists())
               ? 'missing'
@@ -844,17 +839,14 @@ export function createImageTakes({
         })
       }
       const secondsOf = await secondsFor(projectFile)
-      const making: ImageMakingView[] = entries
-        .filter((e) => e.state !== 'failed' && !takes.some((t) => t.n === e.n))
-        .map((e) => ({
-          n: e.n,
-          state: e.state as 'waiting' | 'making',
-          elapsed: e.state === 'making' ? Math.max(0, (now() - e.startedAt) / 1000) : 0,
-          expected: secondsOf(e.model),
-        }))
-      const failed: ImageFailedView[] = entries
-        .filter((e) => e.state === 'failed')
-        .map((e) => ({ n: e.n, message: e.message }))
+      const split = engine.split(entries, takes)
+      const making: ImageMakingView[] = split.pending.map((e) => ({
+        n: e.n,
+        state: e.state as 'waiting' | 'making',
+        elapsed: e.state === 'making' ? Math.max(0, (now() - e.startedAt) / 1000) : 0,
+        expected: secondsOf(e.model),
+      }))
+      const failed: ImageFailedView[] = split.failed.map((e) => ({ n: e.n, message: e.message }))
       const models = await installedModels()
       const failures = await health.read(projectFile)
       const mflux = await generator.ready()
@@ -1002,7 +994,6 @@ export function createImageTakes({
       const sourceBoard = await readBoard(source)
       if ('ok' in sourceBoard) return sourceBoard
       const origin = sourceBoard.takes.find((t) => t.n === from)
-      const mark = (n: number) => `${found.key}\0${n}`
       const added = await changeBoard(found, async (board) => {
         const n = board.next
         const size = pngSize(picture.subarray(0, 33))
@@ -1027,7 +1018,7 @@ export function createImageTakes({
         refusalAnswer('copying the picture failed', (sentence) => `${sentence}.`),
       )
       if ('n' in added) {
-        bringing.add(mark(added.n))
+        engine.mark(found.projectFile, found.id, added.n)
         await bringTake(found, added.n)
       }
       return added

@@ -51,7 +51,7 @@ import { choices, sorted } from './musicClips'
 import { boardQueue, isSafeId } from './musicTakes'
 import { pngSize } from './png'
 import type { Serial } from './serial'
-import { createTakeEngine, type BoardAccess, type TakeEntry } from './takeEngine'
+import { createTakeEngine, type TakeRead, type BoardAccess, type TakeEntry } from './takeEngine'
 import { openProject, type ProjectFailure } from './workspace'
 
 /** The model that made every take before there was a choice, so a board take without `model` reads as this. */
@@ -170,10 +170,6 @@ export function createImagePatches({
     now,
   })
   const readKept = createKeptReader()
-  // Takes being brought to the look right now (`<patch key>\0<n>`), kept across `--dev` reloads.
-  const bringing = ((
-    globalThis as { contentStudioPatchBringing?: Set<string> }
-  ).contentStudioPatchBringing ??= new Set())
   // The latest press of each image (`<project file>\0<image>`): the takes it queued, by patch.
   const presses = ((
     globalThis as {
@@ -291,7 +287,6 @@ export function createImagePatches({
     base: number,
     under: PatchTake['under'],
   ): Promise<void> {
-    const mark = `${found.key}\0${n}`
     try {
       const key = found.row.look.key
       if (!key || !found.look) return
@@ -306,7 +301,7 @@ export function createImagePatches({
         if (take) take.look = key
       })
     } finally {
-      bringing.delete(mark)
+      engine.unmark(found.projectFile, found.engineId, n)
     }
   }
 
@@ -341,7 +336,7 @@ export function createImagePatches({
     // Whether the take is on the board, and the seconds it took from when it started making.
     let saved = false
     let took: number | null = null
-    const mark = `${found.key}\0${entry.n}`
+    const unmark = () => engine.unmark(found.projectFile, found.engineId, entry.n)
     return engine
       .run(found.projectFile, found.engineId, entry, {
         // A take waits for the GPU first, and says so until the model starts.
@@ -376,7 +371,7 @@ export function createImagePatches({
             ...(entry.under && { under: entry.under }),
           }
           // Marked before it is on the board, so the page never sees it between made and brought.
-          bringing.add(mark)
+          engine.mark(found.projectFile, found.engineId, saving.n)
           const onBoard = await engine.save(found.projectFile, found.engineId, accessOf(found), {
             root: found.root,
             path: `${found.folder}/${entry.n}.png`,
@@ -387,7 +382,7 @@ export function createImagePatches({
                 (a, b) => a.n - b.n,
               )
             },
-            cleanup: () => bringing.delete(mark),
+            cleanup: unmark,
           })
           if (!onBoard) return
           saved = true
@@ -396,7 +391,7 @@ export function createImagePatches({
         },
         failed() {
           // Called right after the entry shows failed with no await between, so a view never shows the failed take without its model's warning.
-          bringing.delete(mark)
+          unmark()
           const failedHere = failedModels.get(found.key) ?? new Set<EditModelId>()
           failedHere.add(entry.model)
           failedModels.set(found.key, failedHere)
@@ -516,34 +511,27 @@ export function createImagePatches({
     const figures = figuresOf(await readTakeTimes(image.projectFile))
     const patches: PatchWorkView[] = []
     const earlier: Record<string, PatchArea> = {}
-    // Before the boards: a take that lands in between then shows as made, never as neither.
-    const reads = new Map(
-      image.row.patches.map((patch) => {
-        const found = patchOf(image, patch)
-        return [
-          patch.id,
-          engine.entriesOf(found.projectFile, found.engineId).filter((e) => e.base === image.base),
-        ] as const
-      }),
-    )
+    const reads = new Map<string, TakeRead<Entry, PatchBoard, ReadonlySet<EditModelId>>>()
     const boards: Record<string, PatchBoard> = {}
-    // Read in the board's turn with the marks, so a take brought after the read still shows bringing.
-    const bringingSeen = new Set<string>()
     for (const patch of image.row.patches) {
       const found = patchOf(image, patch)
-      const board = await engine.inTurn(found.projectFile, found.engineId, async () => {
-        const read = await readBoard(found)
-        for (const mark of bringing) if (mark.startsWith(`${found.key}\0`)) bringingSeen.add(mark)
-        return read
-      })
-      if ('ok' in board) return board
-      boards[patch.id] = board
+      const read = await engine.read(
+        found.projectFile,
+        found.engineId,
+        accessOf(found),
+        () => new Set<EditModelId>(failedModels.get(found.key)),
+      )
+      if ('ok' in read) return read
+      reads.set(patch.id, read)
+      boards[patch.id] = read.board
     }
     for (const patch of image.row.patches) {
       const found = patchOf(image, patch)
-      const read = reads.get(patch.id)!
-      const board = boards[patch.id]!
-      const split = engine.split(read, board.takes)
+      const { board, entries, marked, also: failedHere } = reads.get(patch.id)!
+      const split = engine.split(
+        entries.filter((e) => e.base === image.base),
+        board.takes,
+      )
       // The take chosen on the newest other take of the image that is still on the board.
       const was = Object.keys(board.chosen)
         .map(Number)
@@ -567,7 +555,7 @@ export function createImagePatches({
           model: t.model ?? BEFORE_CHOICE,
           ...(t.under && { under: t.under }),
           ...(await readKept(image.root, `${found.folder}/${t.n}.png`)),
-          look: bringingSeen.has(`${found.key}\0${t.n}`)
+          look: marked.has(t.n)
             ? 'bringing'
             : !(await Bun.file(
                   resolveInRoot(image.root, patchGameOf(image.id, patch.id, t.n)),
@@ -604,7 +592,7 @@ export function createImagePatches({
           area: e.area,
           model: e.model,
         })),
-        failedModels: EDIT_MODEL_IDS.filter((m) => failedModels.get(found.key)?.has(m)),
+        failedModels: EDIT_MODEL_IDS.filter((m) => failedHere.has(m)),
         ...(stack.ok &&
           stack.under.length > 0 && {
             under: stack.under.map((u) => ({
@@ -636,11 +624,16 @@ export function createImagePatches({
     let failedTakes = 0
     const failed: string[] = []
     for (const [patch, ns] of press.takes) {
-      const board = await readPatchBoard(image.root, image.id, patch)
-      if ('ok' in board) return board
+      const read = await engine.read(
+        image.projectFile,
+        patchEngineId(image.id, patch),
+        accessOf({ root: image.root, id: image.id, patchId: patch }),
+      )
+      if ('ok' in read) return read
+      const { board, entries } = read
       total += ns.length
       for (const n of ns) {
-        const entry = engine.entry(image.projectFile, patchEngineId(image.id, patch), n)
+        const entry = entries.find((e) => e.n === n)
         if (entry?.state === 'failed') {
           failedTakes++
           if (!failed.includes(patch)) failed.push(patch)
