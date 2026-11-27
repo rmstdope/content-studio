@@ -131,7 +131,11 @@ describe('MUS-3: Make all makes an act’s missing takes, and can be stopped', (
       return asked.length === 2 && (await making()).ford?.takes === 3
     })
 
-    expect(await send('/api/music/lists/act2/stop')).toMatchObject({ ok: true, stopped: 7 })
+    expect(await send('/api/music/lists/act2/stop')).toEqual({
+      ok: true,
+      stopped: 7,
+      byTrack: { ford: 3, barn: 4 },
+    })
 
     expect(await read('/api/music/lists/act2/batch')).toMatchObject({ running: false })
     expect((await making()).ford?.takes ?? 0).toBe(0)
