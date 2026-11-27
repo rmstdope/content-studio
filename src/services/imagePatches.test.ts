@@ -20,6 +20,7 @@ import {
   type PatchWorkView,
 } from '../core/imagePatches'
 import { syncImageEntries } from './imageAreas'
+import { setImageZoom } from './imageEdits'
 import { createImagePatches } from './imagePatches'
 import { changePatchBoard, patchBoardKey } from './imagePatchGame'
 import type { ImageGenerator, ImageReady, ImageRequest } from './images'
@@ -28,6 +29,7 @@ import { cropPixels, editWindow } from '../core/imagePixels'
 import { decodePng, encodePng, encodeTransparentPng } from './png'
 import { GPU } from './gpu'
 import { createSerial, type Serial } from './serial'
+import { refreshDialog } from './refresh'
 import { openProject } from './workspace'
 
 const images = {
@@ -1829,16 +1831,69 @@ describe('a patch the game asks for on top of another', () => {
       expect(listed(root)).toEqual(['door', 'sign'])
     })
 
-    it('answers a clip that cannot be written in the sync’s own words', async () => {
+    it('answers a patch picture that cannot be written with the reason and that file', async () => {
       const { root, file } = await stackedAndChosen()
       const opened = await openProject(file)
       if (!opened.ok) throw new Error('project')
       const clip = join(root, 'web/images/inn.door.png')
       rmSync(clip)
       mkdirSync(clip)
-      const result = await syncImageEntries(file, opened.project, ['inn'])
-      expect(result.ok).toBe(false)
-      if (!result.ok) expect(result.reason).toBe('write')
+      expect(await quietly(() => syncImageEntries(file, opened.project, ['inn']))).toEqual({
+        ok: false,
+        reason: 'write',
+        file: 'web/images/inn.door.png',
+        message: 'a file or folder is in the way',
+      })
+    })
+
+    /** The chosen patches' project, with a folder where the door's picture goes in the game. */
+    async function doorInTheWay() {
+      const made = await stackedAndChosen()
+      const clip = join(made.root, 'web/images/inn.door.png')
+      rmSync(clip)
+      mkdirSync(clip)
+      return made
+    }
+
+    /** Runs `run` with the refusal's server log kept out of the test's output. */
+    async function quietly<T>(run: () => Promise<T>): Promise<T> {
+      const logged = spyOn(console, 'error').mockImplementation(() => {})
+      try {
+        return await run()
+      } finally {
+        logged.mockRestore()
+      }
+    }
+
+    it('says on Refresh which patch picture could not be written, not the manifest', async () => {
+      const { root, file } = await doorInTheWay()
+      writeFileSync(
+        file,
+        JSON.stringify(projectJson({ images, refresh: { part: 'true # {part}' } })),
+      )
+      writeFileSync(join(root, 'tts/act1/script.json'), '[]')
+      expect(await quietly(() => refreshDialog(file, 'act1'))).toMatchObject({
+        ok: false,
+        reason: 'areas',
+        detail:
+          'web/images/inn.door.png could not be written (a file or folder is in the way). Fix it, then Refresh from the game again.',
+      })
+    })
+
+    it('answers a save whose patch picture cannot be written as a problem at that picture', async () => {
+      const { file } = await doorInTheWay()
+      expect(
+        await quietly(() => setImageZoom(file, 'inn', { on: true, seconds: 20, percent: 5 })),
+      ).toEqual({
+        ok: false,
+        problems: [
+          {
+            file: 'web/images/inn.door.png',
+            path: '',
+            message: 'a file or folder is in the way',
+          },
+        ],
+      })
     })
 
     it('drops the patch on top when the patch underneath is un-chosen', async () => {

@@ -243,10 +243,12 @@ async function passAreasToGame(
   const ids = summary?.acts.find((act) => act.id === partId)?.rows.map((row) => row.id) ?? []
   const sync = await syncImageEntries(projectFile, project, ids)
   if (sync.ok) return sync
+  // A refused write may be of a patch picture: the manifest is named only when it is the file.
+  const file = sync.file === project.images.manifest ? 'The images manifest' : sync.file
   const what =
     sync.reason === 'read'
       ? 'The images manifest could not be read.'
-      : `The images manifest could not be written (${sync.message}).`
+      : `${file} could not be written (${sync.message}).`
   return {
     ok: false,
     reason: 'areas',

@@ -1581,7 +1581,9 @@ image has no entry, the whole save fails and the edits are put back byte for byt
 for want of an entry). Choosing a take, bringing to a look and Bring all keep the areas (`publish`),
 un-choosing takes the entry with them. Refresh from the game on an act (`passAreasToGame`) brings every
 image of the act up to date, which is also how boxes marked earlier arrive; the manifest is written
-only when something changed, and a failure is the result `reason: 'areas'`. The manifest is one more
+only when something changed, and a failure is the result `reason: 'areas'`. A refused write, of the
+manifest or of a patch picture, is reported with its reason at the file that was refused, on a save and
+on Refresh alike (as-bt75). The manifest is one more
 file of the Changes page's Images section.
 The act's list names under an image's status, in amber, each thing still missing ("1 patch not chosen, 2 areas not placed", `missingText`; the chip reads "incomplete" and the image is not finished, as-2964.2). Areas
 are no part of what a picture is made from, so changing them never makes an image out of date, and

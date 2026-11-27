@@ -11,14 +11,22 @@ import {
 } from '../core/images'
 import { ImageManifestSchema } from '../core/imageTakes'
 import type { Problem, Project } from '../core/project'
-import { readResource, WriteRefused, writeOrRefuse, refusalFailed } from './files'
+import { readResource, writeOrRefuse, refusalFailed } from './files'
 import { readImages } from './imageLists'
 import { patchesInGame, setAsideOn } from './imagePatchGame'
 import { choices, sorted } from './musicClips'
 
-/** What passing the placed areas to the game answered: done, or why the manifest could not take them. */
+/**
+ * What passing the placed areas to the game answered: done, or why the game could not take them,
+ * with the file that says so: the manifest, or a patch picture that could not be written.
+ */
 export type AreaSyncResult =
-  { ok: true } | { ok: false; reason: 'read' | 'write' | 'entry'; message: string }
+  { ok: true } | { ok: false; reason: 'read' | 'write' | 'entry'; file: string; message: string }
+
+/** A refused write, as `refusalFailed` answers it, as what the sync answers. */
+function notWritten({ file, message }: { file: string; message: string }): AreaSyncResult {
+  return { ok: false, reason: 'write', file, message }
+}
 
 /**
  * Brings the `areas` and `effects` of the images manifest entries of `ids` up to date with the
@@ -52,7 +60,12 @@ async function syncNow(
   const problems: Problem[] = []
   const read = await readResource(root, config.manifest, ImageManifestSchema, problems)
   if (read === 'invalid') {
-    return { ok: false, reason: 'read', message: 'the images manifest could not be read' }
+    return {
+      ok: false,
+      reason: 'read',
+      file: config.manifest,
+      message: 'the images manifest could not be read',
+    }
   }
   const manifest = read === 'missing' ? {} : read
   const summary = await readImages(root, project, [])
@@ -67,20 +80,22 @@ async function syncNow(
         return {
           ok: false,
           reason: 'entry',
+          file: config.manifest,
           message: 'the image has no entry in the images manifest',
         }
       }
       continue
     }
-    let patched: typeof entry
-    try {
-      patched = await withPatches(root, config.clips, entry, row)
-    } catch (error) {
-      if (!(error instanceof WriteRefused)) throw error
-      return { ok: false, reason: 'write', message: error.message }
-    }
+    const patched = await withPatches(root, config.clips, entry, row).then(
+      (entry) => ({ ok: true as const, entry }),
+      refusalFailed('saving a patch picture failed'),
+    )
+    if (!patched.ok) return notWritten(patched)
     const next = withZoom(
-      withEffects(withAreas(patched, areaFractions(row.areas, row)), effectsForGame(row.effects)),
+      withEffects(
+        withAreas(patched.entry, areaFractions(row.areas, row)),
+        effectsForGame(row.effects),
+      ),
       zoomForGame(row.zoom),
     )
     if (JSON.stringify(next) !== JSON.stringify(entry)) {
@@ -94,7 +109,7 @@ async function syncNow(
     config.manifest,
     `${JSON.stringify(sorted(manifest), null, 2)}\n`,
   ).then(() => null, refusalFailed('saving the images manifest failed'))
-  return refused ? { ok: false, reason: 'write', message: refused.message } : { ok: true }
+  return refused ? notWritten(refused) : { ok: true }
 }
 
 /**

@@ -89,6 +89,22 @@ function edit<T>(
   })
 }
 
+/**
+ * Passes an image's edits to the game (`syncImageEntries`): no problems, or the one that says why,
+ * at the file the game could not take them in. The path `images.<id>` is the manifest's alone.
+ */
+async function passToGame(
+  projectFile: string,
+  project: Project,
+  id: string,
+  options?: { requireEntry?: boolean },
+): Promise<Problem[]> {
+  const sync = await syncImageEntries(projectFile, project, [id], options)
+  if (sync.ok) return []
+  const path = sync.file === project.images!.manifest ? `images.${id}` : ''
+  return [{ file: sync.file, path, message: sync.message }]
+}
+
 /** A file's text, null when there is none. */
 async function readText(root: string, path: string): Promise<string | null> {
   const file = Bun.file(resolveInRoot(root, path))
@@ -149,14 +165,7 @@ export function setImageAreaBox(
         : applyAreaBox(edits, id, area, box, size.take)
     },
     // The game gets the box in the same save; a clear never fails for want of an entry.
-    async (project) => {
-      const sync = await syncImageEntries(projectFile, project, [id], {
-        requireEntry: box !== null,
-      })
-      return sync.ok
-        ? []
-        : [{ file: project.images!.manifest, path: `images.${id}`, message: sync.message }]
-    },
+    (project) => passToGame(projectFile, project, id, { requireEntry: box !== null }),
   )
 }
 
@@ -174,12 +183,7 @@ export function setImageEffects(
     (summary) => (summary.acts.flatMap((act) => act.rows).some((r) => r.id === id) ? true : null),
     (edits) => applyEffects(edits, id, effects),
     // An image with no manifest entry yet gets its effects when a take is chosen.
-    async (project) => {
-      const sync = await syncImageEntries(projectFile, project, [id])
-      return sync.ok
-        ? []
-        : [{ file: project.images!.manifest, path: `images.${id}`, message: sync.message }]
-    },
+    (project) => passToGame(projectFile, project, id),
   )
 }
 
@@ -197,12 +201,7 @@ export function setImageZoom(
     (summary) => (summary.acts.flatMap((act) => act.rows).some((r) => r.id === id) ? true : null),
     (edits) => applyZoom(edits, id, zoom),
     // An image with no manifest entry yet gets its zoom when a take is chosen.
-    async (project) => {
-      const sync = await syncImageEntries(projectFile, project, [id])
-      return sync.ok
-        ? []
-        : [{ file: project.images!.manifest, path: `images.${id}`, message: sync.message }]
-    },
+    (project) => passToGame(projectFile, project, id),
   )
 }
 

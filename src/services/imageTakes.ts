@@ -53,7 +53,7 @@ import {
 } from '../core/images'
 import { resolveInRoot } from '../core/paths'
 import { IMAGES_LOCK_FILE, type Problem } from '../core/project'
-import { readResource, refusalAnswer, WriteRefused, writeOrRefuse, writeTogether } from './files'
+import { readResource, refusalAnswer, writeOrRefuse, writeTogether } from './files'
 import { freeGpu, gpuQueue } from './gpu'
 import { IMAGE_BOARD_DIR, IMAGE_TAKES_DIR, readImages, readStyleLook } from './imageLists'
 import { adoptImageAreas } from './imageEdits'
@@ -1022,12 +1022,10 @@ export function createImageTakes({
           },
         ]
         return { ok: true as const, n }
-      }).catch((error: unknown) => {
+      }).catch(
         // A file or board that cannot be written is refused with its name (as-90la), nothing is added.
-        if (error instanceof WriteRefused)
-          return { ok: false as const, message: `${error.message}.` }
-        throw error
-      })
+        refusalAnswer('copying the picture failed', (sentence) => `${sentence}.`),
+      )
       if ('n' in added) {
         bringing.add(mark(added.n))
         await bringTake(found, added.n)
