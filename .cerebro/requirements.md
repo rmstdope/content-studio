@@ -152,7 +152,7 @@ RFR-1  Refresh dialog on a part's page runs the game's own command to rewrite th
 RFR-2  Refresh from the game on an act's Music, Images and Scenes pages, and on the Stingers and
        Sound effects pages, runs the game's own command to rewrite its lists; each page reports
        only its own list's changes. The studio runs nothing else of the game's.
-       Proven by: nothing yet
+       Proven by: test/system/RFR-2.test.ts
 
 ## Working with an AI agent (AGT)
 
