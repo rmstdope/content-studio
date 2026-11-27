@@ -6210,20 +6210,254 @@ textarea[aria-disabled='true'][data-why] {
 /*
  * One section per feature, below everything above. New rules go at the end of their feature's
  * section, never at the end of the file, so two features' changes do not meet in the same place.
+ * Nothing follows the line that ends the sections; styles.test.ts refuses it.
  * Rules shared by several features go above, with the shell and the common components.
  */
 
 /* ===== Narration ===== */
 
+/* The Voice panel's clean-up: the switch and hearing what it does (as-bifl.1) */
+.clean-up {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  margin: 14px 0;
+}
+.clean-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.clean-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.clean-track {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex: none;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  background: var(--raised-hover);
+}
+.clean-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-soft);
+}
+.clean-switch input:checked + .clean-track {
+  background: var(--ok);
+}
+.clean-switch input:checked + .clean-track::after {
+  left: 18px;
+  background: var(--white);
+}
+.clean-switch input:focus-visible + .clean-track {
+  outline: 2px solid var(--info);
+  outline-offset: 2px;
+}
+.clean-hint {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.clean-hear {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 14px;
+}
+.clean-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 280px;
+  min-width: min(100%, 280px);
+}
+.clean-menu select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--inset);
+  color: var(--text);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+}
+.clean-play {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+}
+.clean-ab {
+  display: inline-flex;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.clean-ab button {
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-soft);
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--edge);
+  cursor: pointer;
+}
+.clean-ab button:last-child {
+  border-right: 0;
+}
+.clean-ab button.on {
+  background: var(--accent-soft-bg);
+  color: var(--accent-soft-ink);
+}
+.clean-ab.dim {
+  opacity: 0.5;
+}
+.clean-ab.dim button {
+  cursor: default;
+}
+.clean-time {
+  font-size: 13px;
+}
+
+/* The Voice panel's lines already in the game: the count, the questions, the progress (as-bifl.2) */
+.clean-count {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+.clean-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+.clean-ask {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: var(--raised);
+}
+.clean-ask h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+.clean-ask ul {
+  margin: 6px 0 10px;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+}
+.clean-ask-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* The Voice panel's level: a slider to try, then set (as-ohm7) */
+.level {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.level-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 14px;
+}
+.level-slider {
+  position: relative;
+  flex: 1 1 220px;
+}
+.level-slider input[type='range'] {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.level-tick {
+  position: absolute;
+  top: 2px;
+  width: 2px;
+  height: 14px;
+  background: var(--faint);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.level-scale {
+  position: relative;
+  height: 16px;
+  font-size: 11px;
+  color: var(--faint);
+}
+.level-scale span {
+  position: absolute;
+}
+.level-scale span:nth-child(2) {
+  transform: translateX(-50%);
+}
+.level-pct {
+  min-width: 52px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.level-buttons {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.level .adopt-error,
+.level .clean-hint {
+  overflow-wrap: anywhere;
+}
+@container panel (max-width: 520px) {
+  /* The value stays beside the label; the slider takes the row under them. */
+  .level-row .label {
+    order: 1;
+  }
+  .level-pct {
+    order: 2;
+    margin-left: auto;
+  }
+  .level-slider {
+    order: 3;
+    flex-basis: 100%;
+  }
+  .level-unset .level-buttons {
+    flex-basis: 100%;
+  }
+}
+
 /* ===== Music ===== */
 
 /* ===== Images ===== */
-
-/* ===== Sound effects ===== */
-
-/* ===== Scenes ===== */
-
-/* ===== Setup ===== */
 
 /* The Movement tab: the picture drawn by the project's motion renderer, and its switches */
 .movement {
@@ -6759,273 +6993,6 @@ textarea[aria-disabled='true'][data-why] {
   color: var(--warn);
 }
 
-/* The Voice panel's clean-up: the switch and hearing what it does (as-bifl.1) */
-.clean-up {
-  border-top: 1px solid var(--line);
-  padding-top: 14px;
-  margin: 14px 0;
-}
-.clean-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-}
-.clean-switch input {
-  position: absolute;
-  opacity: 0;
-  width: 1px;
-  height: 1px;
-}
-.clean-track {
-  position: relative;
-  width: 38px;
-  height: 22px;
-  flex: none;
-  border-radius: 999px;
-  border: 1px solid var(--edge);
-  background: var(--raised-hover);
-}
-.clean-track::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--text-soft);
-}
-.clean-switch input:checked + .clean-track {
-  background: var(--ok);
-}
-.clean-switch input:checked + .clean-track::after {
-  left: 18px;
-  background: var(--white);
-}
-.clean-switch input:focus-visible + .clean-track {
-  outline: 2px solid var(--info);
-  outline-offset: 2px;
-}
-.clean-hint {
-  margin: 8px 0 0;
-  font-size: 13px;
-  color: var(--muted);
-}
-.clean-hear {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px;
-  margin-top: 14px;
-}
-.clean-menu {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex: 1 1 280px;
-  min-width: min(100%, 280px);
-}
-.clean-menu select {
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  background: var(--inset);
-  color: var(--text);
-  border: 1px solid var(--edge);
-  border-radius: 8px;
-  padding: 6px 8px;
-  font: inherit;
-  font-size: 13px;
-}
-.clean-play {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  max-width: 100%;
-}
-.clean-ab {
-  display: inline-flex;
-  border: 1px solid var(--edge);
-  border-radius: 10px;
-  overflow: hidden;
-}
-.clean-ab button {
-  padding: 6px 12px;
-  font: inherit;
-  font-size: 13px;
-  color: var(--text-soft);
-  background: transparent;
-  border: 0;
-  border-right: 1px solid var(--edge);
-  cursor: pointer;
-}
-.clean-ab button:last-child {
-  border-right: 0;
-}
-.clean-ab button.on {
-  background: var(--accent-soft-bg);
-  color: var(--accent-soft-ink);
-}
-.clean-ab.dim {
-  opacity: 0.5;
-}
-.clean-ab.dim button {
-  cursor: default;
-}
-.clean-time {
-  font-size: 13px;
-}
-
-/* The Voice panel's lines already in the game: the count, the questions, the progress (as-bifl.2) */
-.clean-count {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  margin-top: 10px;
-  font-size: 13px;
-  color: var(--text-soft);
-}
-.clean-progress {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 10px;
-  font-size: 13px;
-  color: var(--text-soft);
-}
-.clean-ask {
-  margin-top: 12px;
-  padding: 14px 16px;
-  border: 1px solid var(--edge);
-  border-radius: 12px;
-  background: var(--raised);
-}
-.clean-ask h3 {
-  margin: 0 0 6px;
-  font-size: 14px;
-}
-.clean-ask ul {
-  margin: 6px 0 10px;
-  padding-left: 18px;
-  font-size: 13px;
-  color: var(--text-soft);
-  overflow-wrap: anywhere;
-}
-.clean-ask-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-}
-/* Sound effects: a take's level slider, on its own row under the waveform */
-.effect-level {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.effect-level-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-.effect-level-unit {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1 1 220px;
-}
-.effect-level-unit input {
-  flex: 1 1 auto;
-  min-width: 100px;
-}
-.effect-level-unit input[aria-disabled='true'] {
-  opacity: 0.55;
-}
-.wave i.over {
-  background: var(--danger-ink);
-}
-
-/* The Voice panel's level: a slider to try, then set (as-ohm7) */
-.level {
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
-}
-.level-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 8px 14px;
-}
-.level-slider {
-  position: relative;
-  flex: 1 1 220px;
-}
-.level-slider input[type='range'] {
-  width: 100%;
-  margin: 0;
-  accent-color: var(--accent);
-}
-.level-tick {
-  position: absolute;
-  top: 2px;
-  width: 2px;
-  height: 14px;
-  background: var(--faint);
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-.level-scale {
-  position: relative;
-  height: 16px;
-  font-size: 11px;
-  color: var(--faint);
-}
-.level-scale span {
-  position: absolute;
-}
-.level-scale span:nth-child(2) {
-  transform: translateX(-50%);
-}
-.level-pct {
-  min-width: 52px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-.level-buttons {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.level .adopt-error,
-.level .clean-hint {
-  overflow-wrap: anywhere;
-}
-@container panel (max-width: 520px) {
-  /* The value stays beside the label; the slider takes the row under them. */
-  .level-row .label {
-    order: 1;
-  }
-  .level-pct {
-    order: 2;
-    margin-left: auto;
-  }
-  .level-slider {
-    order: 3;
-    flex-basis: 100%;
-  }
-  .level-unset .level-buttons {
-    flex-basis: 100%;
-  }
-}
-
 /* Copy another image (as-x25u): the entry under Make takes, the window of pictures, and the lines under the band. */
 .takes-copy {
   display: flex;
@@ -7109,3 +7076,40 @@ textarea[aria-disabled='true'][data-why] {
 .modal-back:has(.copy-modal) {
   padding: 16px;
 }
+
+/* ===== Sound effects ===== */
+
+/* Sound effects: a take's level slider, on its own row under the waveform */
+.effect-level {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.effect-level-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.effect-level-unit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 220px;
+}
+.effect-level-unit input {
+  flex: 1 1 auto;
+  min-width: 100px;
+}
+.effect-level-unit input[aria-disabled='true'] {
+  opacity: 0.55;
+}
+.wave i.over {
+  background: var(--danger-ink);
+}
+
+/* ===== Scenes ===== */
+
+/* ===== Setup ===== */
+
+/* ===== End of the sections ===== */
