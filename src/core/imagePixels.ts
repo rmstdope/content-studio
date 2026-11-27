@@ -1,5 +1,11 @@
 import type { Look, LookSize, Rgb } from './imageLook'
 
+/**
+ * `Math`, looked up once. Reached through the global object, the loops over every pixel run dozens
+ * of times slower under `bun test` once a UI test has registered and removed happy-dom's globals.
+ */
+const math = Math
+
 /** A picture as opaque RGBA bytes, row by row. */
 export interface Pixels {
   width: number
@@ -41,13 +47,13 @@ export function cropWindow(
   let width = src.width
   let height = src.height
   if (src.width * size.height > src.height * size.width) {
-    width = Math.max(1, Math.floor((src.height * size.width) / size.height))
+    width = math.max(1, math.floor((src.height * size.width) / size.height))
   } else {
-    height = Math.max(1, Math.floor((src.width * size.height) / size.width))
+    height = math.max(1, math.floor((src.width * size.height) / size.width))
   }
   return {
-    x: Math.floor((src.width - width) / 2),
-    y: Math.floor((src.height - height) / 2),
+    x: math.floor((src.width - width) / 2),
+    y: math.floor((src.height - height) / 2),
     width,
     height,
   }
@@ -71,13 +77,13 @@ const EDIT_CONTEXT = 96
  */
 export function editWindow(area: Window, size: LookSize): Window {
   const side = (start: number, length: number, whole: number) => {
-    const pad = Math.max(EDIT_CONTEXT, Math.ceil(length / 2))
-    const from = Math.max(0, start - pad)
-    const to = Math.min(whole, start + length + pad)
-    const wanted = Math.ceil((to - from) / 16) * 16
+    const pad = math.max(EDIT_CONTEXT, math.ceil(length / 2))
+    const from = math.max(0, start - pad)
+    const to = math.min(whole, start + length + pad)
+    const wanted = math.ceil((to - from) / 16) * 16
     if (wanted >= whole) return { at: 0, length: whole }
     // Grow towards whichever edge has room, so the area stays inside.
-    const at = Math.max(0, Math.min(from, whole - wanted))
+    const at = math.max(0, math.min(from, whole - wanted))
     return { at, length: wanted }
   }
   const h = side(area.x, area.width, size.width)
@@ -114,7 +120,7 @@ export function layOver(base: Pixels, part: Pixels): Pixels {
   for (let i = 0; i < data.length; i += 4) {
     const a = part.data[i + 3]! / 255
     for (let c = 0; c < 3; c++) {
-      data[i + c] = Math.round(part.data[i + c]! * a + base.data[i + c]! * (1 - a))
+      data[i + c] = math.round(part.data[i + c]! * a + base.data[i + c]! * (1 - a))
     }
     data[i + 3] = 255
   }
@@ -138,10 +144,10 @@ export function fitToSize(src: Pixels, size: LookSize): Pixels {
       let g = 0
       let b = 0
       let weight = 0
-      for (let sy = Math.floor(sy0); sy < Math.ceil(sy1); sy++) {
-        const wy = Math.min(sy + 1, sy1) - Math.max(sy, sy0)
-        for (let sx = Math.floor(sx0); sx < Math.ceil(sx1); sx++) {
-          const w = wy * (Math.min(sx + 1, sx1) - Math.max(sx, sx0))
+      for (let sy = math.floor(sy0); sy < math.ceil(sy1); sy++) {
+        const wy = math.min(sy + 1, sy1) - math.max(sy, sy0)
+        for (let sx = math.floor(sx0); sx < math.ceil(sx1); sx++) {
+          const w = wy * (math.min(sx + 1, sx1) - math.max(sx, sx0))
           const i = (sy * src.width + sx) * 4
           r += src.data[i]! * w
           g += src.data[i + 1]! * w
@@ -150,9 +156,9 @@ export function fitToSize(src: Pixels, size: LookSize): Pixels {
         }
       }
       const o = (y * size.width + x) * 4
-      out[o] = Math.round(r / weight)
-      out[o + 1] = Math.round(g / weight)
-      out[o + 2] = Math.round(b / weight)
+      out[o] = math.round(r / weight)
+      out[o + 1] = math.round(g / weight)
+      out[o + 2] = math.round(b / weight)
       out[o + 3] = 255
     }
   }
@@ -166,8 +172,8 @@ function levelsOf(bits: 8 | 16): [number, number, number] {
 
 /** The channel value nearest to `v` among `n` evenly spread levels. */
 function snap(v: number, n: number): number {
-  const level = Math.min(n - 1, Math.max(0, Math.round((v * (n - 1)) / 255)))
-  return Math.round((level * 255) / (n - 1))
+  const level = math.min(n - 1, math.max(0, math.round((v * (n - 1)) / 255)))
+  return math.round((level * 255) / (n - 1))
 }
 
 /** The palette colour nearest to (r, g, b); the lower index wins a tie. */
@@ -194,7 +200,7 @@ function reduce(pixels: Pixels, look: Look): void {
   const spread = levels
     ? levels.map((n) => 255 / (n - 1))
     : new Array<number>(3).fill(
-        255 / Math.cbrt(colours.kind === 'palette' ? colours.palette.length : 1),
+        255 / math.cbrt(colours.kind === 'palette' ? colours.palette.length : 1),
       )
   const match = (r: number, g: number, b: number): Rgb =>
     levels
