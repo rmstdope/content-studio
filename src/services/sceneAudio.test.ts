@@ -52,8 +52,8 @@ describe.skipIf(!hasFfmpeg)('ffmpegSceneAudio', () => {
   it('measures a looped clip, and a level of half is 6 dB quieter', async () => {
     const root = tempRepo({})
     const file = tone(root, 'a.wav', 3, 0.2)
-    const full = await audio.loudness([part(file)], 60)
-    const half = await audio.loudness([part(file, { level: 0.5 })], 60)
+    const full = await audio.loudness([part(file)], 10)
+    const half = await audio.loudness([part(file, { level: 0.5 })], 10)
     expect(full).toBeLessThan(0)
     expect(full! - half!).toBeCloseTo(6.02, 0)
   })
@@ -61,9 +61,9 @@ describe.skipIf(!hasFfmpeg)('ffmpegSceneAudio', () => {
   it('makes a second sound louder, and a level above 1 raises a clip', async () => {
     const dir = tempRepo({})
     const file = tone(dir, 'a.wav', 3, 0.1)
-    const one = await audio.loudness([part(file)], 60)
-    const two = await audio.loudness([part(file), part(file)], 60)
-    const triple = await audio.loudness([part(file, { level: 2 })], 60)
+    const one = await audio.loudness([part(file)], 10)
+    const two = await audio.loudness([part(file), part(file)], 10)
+    const triple = await audio.loudness([part(file, { level: 2 })], 10)
     expect(two! - one!).toBeCloseTo(6.02, 0)
     expect(triple! - one!).toBeCloseTo(6.02, 0)
   })
@@ -71,8 +71,8 @@ describe.skipIf(!hasFfmpeg)('ffmpegSceneAudio', () => {
   it('places one-shot starts inside the window', async () => {
     const root = tempRepo({})
     const file = tone(root, 'a.wav', 2, 0.2)
-    const lufs = await audio.loudness([part(file, { loop: false, starts: [5, 30, 55] })], 60)
-    const looped = await audio.loudness([part(file)], 60)
+    const lufs = await audio.loudness([part(file, { loop: false, starts: [1, 4.5, 8] })], 10)
+    const looped = await audio.loudness([part(file)], 10)
     // Silence between the clips is gated out of an integrated loudness, as it is for the game.
     expect(Math.abs(lufs! - looped!)).toBeLessThan(1)
   })
@@ -80,7 +80,7 @@ describe.skipIf(!hasFfmpeg)('ffmpegSceneAudio', () => {
   it('gives null for silence', async () => {
     const root = tempRepo({})
     const file = tone(root, 'a.wav', 2, 0.2)
-    expect(await audio.loudness([part(file, { level: 0 })], 60)).toBeNull()
+    expect(await audio.loudness([part(file, { level: 0 })], 10)).toBeNull()
   })
 
   it('names an unreadable clip by its path from the project root, never the absolute one', async () => {
@@ -90,7 +90,7 @@ describe.skipIf(!hasFfmpeg)('ffmpegSceneAudio', () => {
     const one = await audio.seconds(bad).catch((e: Error) => e.message)
     expect(one).toContain('ffprobe could not read audio/effects/wind-howl.mp3: Invalid data')
     expect(one).not.toContain(root)
-    const mix = await audio.loudness([part(bad)], 60).catch((e: Error) => e.message)
+    const mix = await audio.loudness([part(bad)], 10).catch((e: Error) => e.message)
     expect(mix).toContain('ffmpeg could not read audio/effects/wind-howl.mp3')
     expect(mix).not.toContain(root)
   })
@@ -114,7 +114,7 @@ describe.skipIf(!hasFfmpeg)('ffmpegSceneAudio', () => {
     const b = join(root, 'b.mp3')
     writeFileSync(a, 'x')
     writeFileSync(b, 'x')
-    const mix = await audio.loudness([part(a), part(b)], 60).catch((e: Error) => e.message)
+    const mix = await audio.loudness([part(a), part(b)], 10).catch((e: Error) => e.message)
     expect(mix).toContain('could not read content-studio/cache/effect-takes/a.mp3, b.mp3:')
     expect(mix).not.toContain(root)
   })
