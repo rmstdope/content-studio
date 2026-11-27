@@ -291,7 +291,7 @@ describe('GamePatchesPanel', () => {
   describe('where the list of a portrait image’s patches sits (as-fuaz)', () => {
     const two = () => [patch('bread-taken'), patch('door-ajar')]
     const portrait = { width: 600, height: 800 }
-    // A window 900 px high holds a 4:5 picture 662.4 px wide once its take's pixels are known.
+    // A take far larger than a window 900 px high shows it: the window decides the picture's room.
     const taken = {
       chosen: chosenOf(true, { n: 2, width: 816, height: 1020, cropped: false }),
       game: portrait,

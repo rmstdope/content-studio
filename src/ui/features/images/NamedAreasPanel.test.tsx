@@ -1277,13 +1277,23 @@ describe('the pinned bar and the full-width picture (as-uucl.4)', () => {
   })
 
   it('keeps the same shape for the empty box and the row of areas', async () => {
+    const size = { width: 160, height: 200 }
     const { host } = await render([area('a')], {
-      size: { width: 160, height: 200 },
+      size,
       answer: () => new Promise<Response>(() => {}),
     })
     const empty = host.querySelector<HTMLElement>('.named-area-empty')!
-    expect(empty.style.maxWidth).toBe('160px')
     expect(empty.style.aspectRatio).toBe('160 / 200')
+    // Until there is a take, as wide as one of the image's own size, whatever the rule makes of it.
+    const own = await render([area('a')], {
+      size,
+      answer: view({ take: { n: 2, ...size, cropped: false } }),
+    })
+    const width = (box: HTMLElement) => [
+      box.style.getPropertyValue('--picture-ratio'),
+      box.style.maxWidth,
+    ]
+    expect(width(empty)).toEqual(width(own.stage!))
     expect(rows(host)).toHaveLength(1)
   })
 
