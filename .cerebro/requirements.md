@@ -48,7 +48,7 @@ SET-2  The person chooses the models for narration (audition, draft, final), mus
 
 CST-1  Each character has one page with its cast voice, its lines per part, its delivery (style
        and speed) and the audition in progress, if there is one.
-       Proven by: nothing yet
+       Proven by: test/system/CST-1.test.ts
 CST-2  The person auditions voices for a character (found by keywords in Fish Audio's or
        ElevenLabs' library, their own voices, a cloned voice or a designed one) by hearing each
        say the audition phrase, shortlisting some and ruling others out, and casts one.
