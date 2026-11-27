@@ -291,7 +291,7 @@ describe('GamePatchesPanel', () => {
   describe('where the list of a portrait image’s patches sits (as-fuaz)', () => {
     const two = () => [patch('bread-taken'), patch('door-ajar')]
     const portrait = { width: 600, height: 800 }
-    // A window 900 px high holds a 4:5 picture 662.4 px wide once its take's pixels are known.
+    // A take far larger than a window 900 px high shows it: the window decides the picture's room.
     const taken = {
       chosen: chosenOf(true, { n: 2, width: 816, height: 1020, cropped: false }),
       game: portrait,
@@ -310,21 +310,16 @@ describe('GamePatchesPanel', () => {
       ])
     })
 
-    it('is beside when there is room for both', async () => {
-      panelWidth(900)
-      const { host } = await render(two(), undefined, taken, portrait)
-      expect(beside(host)).toBe(true)
-      expect(host.querySelector('.patches-side h3')).not.toBeNull()
-    })
-
-    it('asks only for the room of the pixels a small take has', async () => {
-      panelWidth(640)
+    it('is beside when there is room for both, judged from the chosen take’s pixels', async () => {
+      // Room only for a take this small: from the image's shape alone the list would be above.
+      panelWidth(500)
       const small = {
-        chosen: chosenOf(true, { n: 2, width: 400, height: 500, cropped: false }),
+        chosen: chosenOf(true, { n: 2, width: 200, height: 250, cropped: false }),
         game: portrait,
       }
       const { host } = await render(two(), undefined, small, portrait)
       expect(beside(host)).toBe(true)
+      expect(host.querySelector('.patches-side h3')).not.toBeNull()
     })
 
     it('moves as the window is resized, keeping the open patch, its words and the focus', async () => {

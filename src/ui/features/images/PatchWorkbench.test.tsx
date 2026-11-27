@@ -3,7 +3,6 @@ import { chosenAmong, type Marked } from '../../../../test/chosen'
 import { chosenOf } from '../../../core/lockRead'
 import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
-import { cropWindow } from '../../../core/imagePixels'
 import type { ImagePatchesView, PatchWorkView } from '../../../core/imagePatches'
 import type { ImageRow, PatchRow } from '../../../core/images'
 import { cssLength, valuesInEveryWindow } from '../../../../test/stylesheet'
@@ -1945,7 +1944,7 @@ describe('the three parts of an open patch', () => {
     ['a portrait picture', { width: 816, height: 1024 }],
     ['a landscape picture', { width: 1024, height: 640 }],
   ] as const) {
-    it(`gives ${what} the panel's width up to the take's own size, with no measured frame (as-uucl.3)`, async () => {
+    it(`shows ${what} in the game’s shape, with no measured frame (as-uucl.3)`, async () => {
       const { host } = await render([patchRow('a')], () =>
         view([work('a', { takes: [takeOf(1), takeOf(2, { chosen: true })] })], {
           take: { n: 3, ...size, cropped: false },
@@ -1954,52 +1953,12 @@ describe('the three parts of an open patch', () => {
       )
       const box = host.querySelector<HTMLElement>('.patch-picture')!
       expect(box.querySelector('.patch-stage')).not.toBeNull()
-      // The game keeps the middle of the take in its own shape, at the take's own scale.
-      const kept = cropWindow(size, { width: 320, height: 200 })
-      expect(box.style.maxWidth).toBe(`${kept.width}px`)
       expect(box.style.aspectRatio).toBe('320 / 200')
-      // Held by the narrower of the two shapes, as Fine-tune holds the whole take (as-fuaz).
-      expect(box.style.getPropertyValue('--picture-ratio')).toBe(
-        String(Math.min(size.width / size.height, 320 / 200)),
-      )
       expect(host.querySelector('.fit-shape, .fit-picture')).toBeNull()
     })
   }
 
-  it('keeps the picture as large as the take once ticking What the game gets changes its shape (as-uucl.3)', async () => {
-    const { host } = await render([patchRow('a')], () =>
-      view([work('a', { takes: [takeOf(1)] })], {
-        take: { n: 3, width: 1024, height: 640, cropped: false },
-        game: { width: 320, height: 200 },
-      }),
-    )
-    await open(host)
-    const box = () => host.querySelector<HTMLElement>('.patch-picture')!
-    expect(box().style.maxWidth).toBe('1024px')
-    await act(async () =>
-      host.querySelector<HTMLInputElement>('.patch-takes input[type=checkbox]')!.click(),
-    )
-    expect(box().style.maxWidth).toBe('1024px')
-    expect(box().style.getPropertyValue('--picture-ratio')).toBe(String(1024 / 640))
-  })
-
-  it('draws a cropped take as wide in both views, never past the pixels the game keeps (as-fuaz)', async () => {
-    const { host } = await render([patchRow('a')], () =>
-      view([work('a', { takes: [takeOf(1)] })], {
-        take: { n: 3, width: 1024, height: 512, cropped: true },
-        game: { width: 320, height: 200 },
-      }),
-    )
-    await open(host)
-    // The game keeps the middle 819 × 512 of the take, shown at one screen pixel per take pixel.
-    expect(host.querySelector<HTMLElement>('.patch-picture')!.style.maxWidth).toBe('819px')
-    await act(async () =>
-      host.querySelector<HTMLInputElement>('.patch-takes input[type=checkbox]')!.click(),
-    )
-    expect(host.querySelector<HTMLElement>('.patch-picture')!.style.maxWidth).toBe('819px')
-  })
-
-  it('is as wide as Fine-tune draws the take, ticked or not, whatever the game cuts off (as-fuaz)', async () => {
+  it('shows the game’s shape, or the take’s once What the game gets is unticked, as wide either way (as-fuaz)', async () => {
     const { host } = await render([patchRow('a')], () =>
       view([work('a', { takes: [takeOf(1)] })], {
         take: { n: 3, width: 816, height: 1024, cropped: true },
@@ -2008,14 +1967,15 @@ describe('the three parts of an open patch', () => {
     )
     await open(host)
     const box = () => host.querySelector<HTMLElement>('.patch-picture')!
-    const fit = () => [box().style.getPropertyValue('--picture-ratio'), box().style.maxWidth]
-    expect(fit()).toEqual([String(816 / 1024), '816px'])
+    // How wide the box is drawn, whatever the rule makes of it.
+    const width = () => [box().style.getPropertyValue('--picture-ratio'), box().style.maxWidth]
+    const ticked = width()
     expect(box().style.aspectRatio).toBe('160 / 200')
     await act(async () =>
       host.querySelector<HTMLInputElement>('.patch-takes input[type=checkbox]')!.click(),
     )
-    expect(fit()).toEqual([String(816 / 1024), '816px'])
     expect(box().style.aspectRatio).toBe('816 / 1024')
+    expect(width()).toEqual(ticked)
   })
 
   it('gives the placeholder the box the picture will take (as-uucl.3)', async () => {
@@ -2027,7 +1987,8 @@ describe('the three parts of an open patch', () => {
     )
     await open(host)
     const box = host.querySelector<HTMLElement>('.patch-picture')!
-    expect(box.style.maxWidth).toBe('1024px')
+    expect(box.classList.contains('whole-in-view')).toBe(true)
+    expect(box.style.aspectRatio).toBe('320 / 200')
     expect(box.querySelector('.look-empty')).not.toBeNull()
   })
 
