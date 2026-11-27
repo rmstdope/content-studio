@@ -553,6 +553,9 @@ export function narrationRoutes(c: RouteContext) {
     },
     '/api/spending': {
       GET: guard(async () => {
+        // The running recordings before the record: one that ends while the record is read is
+        // then in one list or both (a running row already saved is shown once), never in neither.
+        const running = spendLog.running()
         const [project, saved] = await Promise.all([
           loadProject(projectFile),
           readSpending(projectFile),
@@ -568,13 +571,7 @@ export function narrationRoutes(c: RouteContext) {
           : []
         return Response.json({
           ok: true,
-          ...summariseSpending(
-            saved.recordings,
-            spendLog.running(),
-            parts,
-            saved.music,
-            saved.tries,
-          ),
+          ...summariseSpending(saved.recordings, running, parts, saved.music, saved.tries),
           languages: project.ok ? project.summary.languages.length : 1,
         })
       }),
