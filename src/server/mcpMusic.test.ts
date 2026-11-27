@@ -157,7 +157,7 @@ describe('an agent doing the Music and Stingers steps', () => {
   it('drops an unchosen take', async () => {
     await change('POST', '/api/music/tracks/hall/takes', { count: 1, model: 'quick' })
     const view = await takes()
-    const spare = view.takes.find((t: { chosen: boolean }) => !t.chosen)
+    const spare = view.takes.find((t: { n: number }) => t.n !== view.chosen.take)
     expect(spare).toBeDefined()
     const path = `/api/music/tracks/hall/takes/${spare.file}`
     expect((await change('DELETE', path)).isError).toBeUndefined()

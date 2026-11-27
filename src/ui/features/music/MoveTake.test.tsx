@@ -2,6 +2,8 @@ import { afterAll, afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { MusicListSummary, TrackRow } from '../../../core/music'
 import type { MusicTakesView, TakeView } from '../../../core/musicTake'
+import { chosenAmong, type Marked } from '../../../../test/chosen'
+import { NOT_KNOWN } from '../../../core/lockRead'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -63,7 +65,7 @@ const lists = [
   list('stingers', 'stingers', 'Stingers', [row('win', 'Victory'), row('lose', 'Game over')]),
 ]
 
-const take = (n: number, over: Partial<TakeView> = {}): TakeView => ({
+const take = (n: number, over: Partial<Marked<TakeView>> = {}): Marked<TakeView> => ({
   n,
   file: `aaaaaaaaaaaaaaaa.${n}.wav`,
   seconds: 30,
@@ -83,7 +85,7 @@ const view = (takes: TakeView[], over: Partial<MusicTakesView> = {}): MusicTakes
   takes,
   making: [],
   failed: [],
-  lockUnread: false,
+  chosen: chosenAmong(takes),
   ...over,
 })
 
@@ -174,7 +176,7 @@ describe('Move… on a take card', () => {
   })
 
   it('waits with Choose and Drop while the music lock cannot be read', () => {
-    const page = render(village, view([take(1)], { lockUnread: true }))
+    const page = render(village, view([take(1)], { chosen: NOT_KNOWN }))
     expect(isOff(page.buttons('Move…')[0]!)).toBe(true)
     expect(document.body.textContent).toContain(
       'Choosing, dropping, moving, trimming and fading wait until the music lock can be read. You can still listen and make more takes.',

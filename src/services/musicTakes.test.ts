@@ -130,7 +130,7 @@ describe('makeAll, stopAll and modelState', () => {
     expect(cellar.takes).toHaveLength(4)
     expect(requests).toHaveLength(4)
     const hall = await settled('hall')
-    expect(hall).toMatchObject({ takes: [{ n: 1, chosen: true }] })
+    expect(hall).toMatchObject({ takes: [{ n: 1 }], chosen: { known: true, take: 1 } })
   })
 
   it('leaves out a track already making takes', async () => {
@@ -1156,20 +1156,20 @@ describe('choosing a take', () => {
     expect(lockOf(root).hall).not.toHaveProperty('seed')
     const after = await takes.view(file, 'hall')
     if (!after || !('ok' in after) || !after.ok) throw new Error('expected a view')
-    expect(after.takes.map((t) => t.chosen)).toEqual([true])
+    expect(after.chosen).toEqual({ known: true, take: 1 })
   })
 
   it('writes the take as the track’s music, and the view marks it chosen', async () => {
     const { root, file, takes, settled } = await twoTakes()
     const view = await settled('hall')
     if (!view || !('ok' in view) || !view.ok) throw new Error('expected a view')
-    expect(view.takes.map((t) => t.chosen)).toEqual([false, false])
+    expect(view.chosen).toEqual({ known: true, take: null })
     expect(await takes.choose(file, 'hall', view.takes[1]!.file)).toEqual({ ok: true })
     expect(readFileSync(join(root, 'audio/music/hall.mp3'), 'utf8')).toBe('mp3 1')
     expect(lockOf(root).hall).toMatchObject({ take: 2, seed: 101, list: 'act1' })
     const after = await takes.view(file, 'hall')
     if (!after || !('ok' in after) || !after.ok) throw new Error('expected a view')
-    expect(after.takes.map((t) => t.chosen)).toEqual([false, true])
+    expect(after.chosen).toEqual({ known: true, take: 2 })
   })
 
   it('makes the track chosen in the project summary, a stinger’s list written shared', async () => {
@@ -1199,10 +1199,8 @@ describe('choosing a take', () => {
     expect(lockOf(root).hall.take).toBe(2)
     const after = await takes.view(file, 'hall')
     if (!after || !('ok' in after) || !after.ok) throw new Error('expected a view')
-    expect(after.takes.map((t) => [t.n, t.chosen])).toEqual([
-      [1, false],
-      [2, true],
-    ])
+    expect(after.takes.map((t) => t.n)).toEqual([1, 2])
+    expect(after.chosen).toEqual({ known: true, take: 2 })
   })
 
   it('refuses a take that is not on the board, and an unknown track', async () => {
@@ -1233,10 +1231,8 @@ describe('choosing a take', () => {
     expect(lockOf(root).hall).toBeUndefined()
     const after = await takes.view(file, 'hall')
     if (!after || !('ok' in after) || !after.ok) throw new Error('expected a view')
-    expect(after.takes.map((t) => [t.n, t.chosen])).toEqual([
-      [1, false],
-      [2, false],
-    ])
+    expect(after.takes.map((t) => t.n)).toEqual([1, 2])
+    expect(after.chosen).toEqual({ known: true, take: null })
     expect(await takes.drop(file, 'hall', one!.file)).toEqual({ ok: true })
     expect(await takes.choose(file, 'hall', two!.file)).toEqual({ ok: true })
   })
@@ -1276,7 +1272,7 @@ describe('choosing a take', () => {
       ? lockOf(root).hall
       : undefined
     // Either the take was chosen and stays, or it was dropped and nothing names it.
-    if (lock) expect(after.takes.some((t) => t.chosen)).toBe(true)
+    if (lock) expect(after.chosen).toEqual({ known: true, take: 1 })
     else expect(after.takes.some((t) => t.n === 1)).toBe(false)
     const succeeded = (answer: unknown) =>
       Boolean(answer && typeof answer === 'object' && 'ok' in answer && answer.ok === true)
@@ -1296,12 +1292,11 @@ describe('choosing a take', () => {
     const bad = await twoTakes({ 'content-studio/music/lock.json': '{ nope' })
     const unread = await bad.settled('hall')
     if (!unread || !('ok' in unread) || !unread.ok) throw new Error('expected a view')
-    expect(unread.lockUnread).toBe(true)
-    expect(unread.takes.map((t) => t.chosen)).toEqual([false, false])
+    expect(unread.chosen).toEqual({ known: false })
     const good = await twoTakes()
     const read = await good.settled('hall')
     if (!read || !('ok' in read) || !read.ok) throw new Error('expected a view')
-    expect(read.lockUnread).toBe(false)
+    expect(read.chosen).toEqual({ known: true, take: null })
   })
 })
 
@@ -1348,7 +1343,6 @@ describe('moving a take', () => {
       seed: two!.seed,
       peaks: two!.peaks,
       earlier: false,
-      chosen: false,
       movedFrom: { title: 'Hall', n: 2 },
     })
     expect(existsSync(join(m.root, 'content-studio/cache/music-takes/hut', moved.file))).toBe(true)
@@ -1576,7 +1570,10 @@ describe('fading a stinger take', () => {
     expect(firstAndLast(made.spy.wavs[1]!)).toEqual([0, 0])
     expect(made.spy.wavs[1]).not.toEqual(made.spy.wavs[0]!)
     expect(readFileSync(join(made.root, 'content-studio/music/lock.json'), 'utf8')).toBe(lock)
-    expect(await takeOf(made)).toMatchObject({ chosen: true, fades })
+    expect(await takeOf(made)).toMatchObject({ fades })
+    expect(await made.takes.view(made.file, 'victory')).toMatchObject({
+      chosen: { known: true, take: 1 },
+    })
   })
 
   it('chooses a take that has fades with the faded sound', async () => {
@@ -1964,12 +1961,13 @@ describe('trimming a stinger take', () => {
     expect(await m.takes.trim(m.file, 'victory', one!.file, false)).toEqual({ ok: true })
     expect(wavSeconds(readWav(m.encoded[1]!))).toBeCloseTo(4.1, 3)
     expect(manifestOf(m.root).victory.duration).toBeCloseTo(4.1, 1)
-    expect((await viewOf(m)).takes[0]).toMatchObject({ chosen: true })
+    expect((await viewOf(m)).chosen).toEqual({ known: true, take: 1 })
     expect(lockOf(m.root).victory).toMatchObject({ take: 1 })
     expect(await m.takes.trim(m.file, 'victory', one!.file, true)).toEqual({ ok: true })
     expect(wavSeconds(readWav(m.encoded[2]!))).toBeCloseTo(6, 3)
     expect(manifestOf(m.root).victory.duration).toBe(6)
-    expect((await viewOf(m)).takes[0]).toMatchObject({ chosen: true, trimmable: 'cut' })
+    expect((await viewOf(m)).takes[0]).toMatchObject({ trimmable: 'cut' })
+    expect((await viewOf(m)).chosen).toEqual({ known: true, take: 1 })
   })
 
   it('changes neither the take nor the game’s file when the game’s file cannot be written', async () => {

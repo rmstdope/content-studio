@@ -10,6 +10,7 @@ import {
 import { FadesSchema, type Fades } from './fades'
 import { TrimSchema } from './musicTrim'
 import { readWav, writeWav, type Wav } from './wav'
+import type { Chosen } from './lockRead'
 
 /** What a take made before models were chosen records, and what the take fingerprint begins with. */
 export const MUSIC_MODEL = musicModel('balanced').recipe
@@ -168,8 +169,6 @@ export interface TakeView {
   peaks: number[]
   /** Made from a brief, length, tempo or key the track no longer has. */
   earlier: boolean
-  /** The take the game plays. */
-  chosen: boolean
   /** The music model that made it, as a line: "Balanced · XL turbo · 4B". */
   model: string
   /** The track it was moved from and its number there; absent on a take made for this track. */
@@ -222,8 +221,11 @@ export interface MusicTakesView {
   takes: TakeView[]
   making: MakingView[]
   failed: FailedView[]
-  /** The music lock cannot be read, so which take is chosen is not known and none can be chosen or dropped. */
-  lockUnread: boolean
+  /**
+   * The number of the take in the game, or none; not known while the music lock cannot be read,
+   * when none can be chosen or dropped.
+   */
+  chosen: Chosen
 }
 
 /** What a take was made from: the track's inputs at the time. */
