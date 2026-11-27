@@ -1,0 +1,627 @@
+<!doctype html>
+<!--
+  The house frame of a detailed drawing (cb-buko; the agreed look is docs/ui/cb-buko-tabs.html and
+  cb-buko-states.html). scripts/ux-sheet fills the two marker lines below; nothing else writes here.
+  Every class starts with `ux-' and only `body' is styled by element, so what is drawn inside a tab
+  keeps the product's own look.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>
+      Where does a failed take say it failed? · A failed image take shown in the Takes row
+    </title>
+    <style>
+      body {
+        margin: 0;
+        padding: 1px 8px;
+        background: #f4f4f5;
+      }
+      .ux-page {
+        max-width: 980px;
+        margin: 14px auto 30px;
+        background: #fff;
+        border: 1px solid #e4e4e7;
+        border-radius: 10px;
+      }
+      .ux-head,
+      .ux-tabs,
+      .ux-intro {
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        line-height: normal;
+        text-align: left;
+        color: #18181b;
+      }
+      .ux-head {
+        padding: 14px 16px 0;
+      }
+      .ux-work {
+        font-size: 12px;
+        color: #71717a;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .ux-heading {
+        margin: 2px 0 10px;
+        font-size: 19px;
+      }
+      .ux-tabrow {
+        position: relative;
+      }
+      .ux-tabrow::before,
+      .ux-tabrow::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 1px;
+        width: 44px;
+        pointer-events: none;
+        opacity: 0;
+      }
+      .ux-tabrow::before {
+        left: 0;
+        background: linear-gradient(to left, rgba(255, 255, 255, 0), #fff);
+      }
+      .ux-tabrow::after {
+        right: 0;
+        background: linear-gradient(to right, rgba(255, 255, 255, 0), #fff);
+      }
+      .ux-tabrow.ux-more-left::before,
+      .ux-tabrow.ux-more-right::after {
+        opacity: 1;
+      }
+      .ux-tabs {
+        display: flex;
+        gap: 4px;
+        border-bottom: 1px solid #e4e4e7;
+        padding: 0 16px;
+        overflow-x: auto;
+      }
+      .ux-tab {
+        flex: none;
+        border: 0;
+        border-radius: 0;
+        background: none;
+        margin: 0;
+        font: inherit;
+        font-size: 14px;
+        padding: 8px 12px;
+        color: #52525b;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .ux-tab[aria-selected='true'] {
+        color: #18181b;
+        border-bottom-color: #7c3aed;
+        font-weight: 600;
+      }
+      .ux-tag {
+        display: inline-block;
+        font-size: 11px;
+        border-radius: 999px;
+        padding: 1px 7px;
+        margin-left: 6px;
+        font-weight: 600;
+      }
+      .ux-rec {
+        background: #ede9fe;
+        color: #5b21b6;
+      }
+      .ux-agreed {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .ux-panel[hidden] {
+        display: none !important;
+      }
+      .ux-intro {
+        padding: 12px 16px 4px;
+      }
+      .ux-name {
+        margin: 0;
+        font-size: 16px;
+      }
+      .ux-cost {
+        margin: 3px 0 0;
+        font-size: 13px;
+        color: #52525b;
+      }
+      .ux-why {
+        margin: 3px 0 0;
+        font-size: 13px;
+        color: #5b21b6;
+      }
+      .ux-draw {
+        padding: 12px 16px 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <style>
+      .pg {
+        background: #06070c;
+        color: #eceef3;
+        font:
+          13px/1.4 system-ui,
+          sans-serif;
+        padding: 16px;
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .panel {
+        background: #10121a;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 12px;
+      }
+      .h2 {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 0 0 8px;
+      }
+      .errbox {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        border-radius: 12px;
+        background: #2e1720;
+        border: 1px solid #ff94a8;
+      }
+      .errbox .t {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        color: #ff94a8;
+      }
+      .small {
+        font-size: 12px;
+      }
+      .muted {
+        color: #a9b0bd;
+      }
+      .faint {
+        color: #8a91a0;
+      }
+      .btn {
+        font: inherit;
+        font-size: 12px;
+        color: #eceef3;
+        background: #191c24;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        border-radius: 8px;
+        padding: 5px 10px;
+        white-space: nowrap;
+      }
+      .btn-s {
+        padding: 3px 8px;
+        font-size: 11px;
+      }
+      .stage {
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #8a91a0;
+        border: 1px dashed rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+      }
+      .row {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+      }
+      .th {
+        width: 140px;
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 4px;
+        font-size: 12px;
+        color: #c7ccd6;
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 8px;
+      }
+      .pic {
+        aspect-ratio: 4/3;
+        border-radius: 4px;
+        background: linear-gradient(135deg, #3a2a20, #1d2433);
+      }
+      .empty {
+        aspect-ratio: 4/3;
+        border-radius: 4px;
+        background: #0d0f14;
+      }
+      .mk {
+        border-style: dashed;
+      }
+      .bar {
+        height: 4px;
+        background: rgba(255, 255, 255, 0.07);
+        border-radius: 2px;
+      }
+      .bar i {
+        display: block;
+        height: 4px;
+        width: 40%;
+        background: #ff6b2c;
+        border-radius: 2px;
+      }
+      .fail {
+        border: 1px dashed #ff94a8;
+        background: #2e1720;
+      }
+      .fail .empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ff94a8;
+        font-size: 22px;
+        font-weight: 700;
+        background: #1f1016;
+      }
+      .fail .what {
+        color: #ff94a8;
+        font-weight: 600;
+      }
+      .fail .why {
+        color: #a9b0bd;
+        font-size: 11px;
+        overflow-wrap: anywhere;
+      }
+      .chosen {
+        border-color: #3ddc97;
+        box-shadow: 0 0 0 1px #3ddc97;
+      }
+      .note {
+        color: #8a91a0;
+        font-size: 11px;
+        font-style: italic;
+      }
+    </style>
+    <div class="ux-page">
+      <header class="ux-head">
+        <div class="ux-work">A failed image take shown in the Takes row</div>
+        <h1 class="ux-heading">Where does a failed take say it failed?</h1>
+      </header>
+      <div class="ux-tabrow">
+        <div class="ux-tabs" role="tablist">
+          <button
+            type="button"
+            class="ux-tab"
+            role="tab"
+            data-ux-tab="A"
+            id="ux-tab-A"
+            aria-controls="ux-panel-A"
+            aria-selected="true"
+            tabindex="0"
+          >
+            A — Only in the row<span class="ux-tag ux-rec">Recommended</span
+            ><span class="ux-tag ux-agreed">Agreed</span>
+          </button>
+          <button
+            type="button"
+            class="ux-tab"
+            role="tab"
+            data-ux-tab="B"
+            id="ux-tab-B"
+            aria-controls="ux-panel-B"
+            aria-selected="false"
+            tabindex="-1"
+          >
+            B — In the row and at the top
+          </button>
+          <button
+            type="button"
+            class="ux-tab"
+            role="tab"
+            data-ux-tab="C"
+            id="ux-tab-C"
+            aria-controls="ux-panel-C"
+            aria-selected="false"
+            tabindex="-1"
+          >
+            C — In the row, one line at the top
+          </button>
+        </div>
+      </div>
+      <section class="ux-panel" role="tabpanel" id="ux-panel-A" aria-labelledby="ux-tab-A">
+        <div class="ux-intro">
+          <h2 class="ux-name">
+            A — Only in the row<span class="ux-tag ux-rec">Recommended</span
+            ><span class="ux-tag ux-agreed">Agreed</span>
+          </h2>
+          <p class="ux-cost">
+            Nothing at the top of the page: someone looking at the picture sees no alert until they
+            look at the row.
+          </p>
+          <p class="ux-why">
+            Recommended: One place, where the take was: the usual pattern for a list of things being
+            made (uploads, exports).
+          </p>
+        </div>
+        <div class="ux-draw">
+          <div class="pg">
+            <div class="panel">
+              <div class="stage">
+                Cellar door — chosen take on the left, the take you are looking at on the right
+              </div>
+            </div>
+            <div class="panel">
+              <div class="h2">Takes · 4</div>
+              <div class="row">
+                <div class="th chosen">
+                  <div class="pic"></div>
+                  <span>Take 1</span>
+                </div>
+                <div class="th">
+                  <div class="pic"></div>
+                  <span>Take 2</span>
+                </div>
+                <div class="th">
+                  <div class="pic"></div>
+                  <span>Take 3</span>
+                </div>
+                <div class="th">
+                  <div class="pic"></div>
+                  <span>Take 4</span>
+                </div>
+                <div class="th fail">
+                  <div class="empty">!</div>
+                  <span>Take 5</span><span class="what">Could not be made</span
+                  ><span class="why"
+                    >content-studio/cache/image-takes/cellar-door/5.png could not be written:
+                    permission denied.</span
+                  ><button class="btn btn-s">Try again</button>
+                </div>
+                <div class="th fail">
+                  <div class="empty">!</div>
+                  <span>Take 6</span><span class="what">Could not be made</span
+                  ><span class="why"
+                    >content-studio/cache/image-takes/cellar-door/6.png could not be written:
+                    permission denied.</span
+                  ><button class="btn btn-s">Try again</button>
+                </div>
+                <div class="th mk">
+                  <div class="empty"></div>
+                  <span>Take 7</span><span class="faint small">about 1 minute left</span>
+                  <div class="bar"><i></i></div>
+                </div>
+              </div>
+            </div>
+            <div class="note">
+              The red boxes at the top of the page are gone; each failed take says why and offers
+              Try again in its own tile.
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="ux-panel" role="tabpanel" id="ux-panel-B" aria-labelledby="ux-tab-B" hidden>
+        <div class="ux-intro">
+          <h2 class="ux-name">B — In the row and at the top</h2>
+          <p class="ux-cost">
+            Every failure is told twice, and the top grows one box per failed take, as today.
+          </p>
+        </div>
+        <div class="ux-draw">
+          <div class="pg">
+            <div class="errbox">
+              <div class="t">
+                <strong>Take 5 could not be made.</strong
+                ><span class="muted small"
+                  >content-studio/cache/image-takes/cellar-door/5.png could not be written:
+                  permission denied. Your other takes are kept.</span
+                >
+              </div>
+              <button class="btn">Try again</button>
+            </div>
+            <div class="errbox">
+              <div class="t">
+                <strong>Take 6 could not be made.</strong
+                ><span class="muted small"
+                  >content-studio/cache/image-takes/cellar-door/6.png could not be written:
+                  permission denied. Your other takes are kept.</span
+                >
+              </div>
+              <button class="btn">Try again</button>
+            </div>
+            <div class="panel">
+              <div class="stage">
+                Cellar door — chosen take on the left, the take you are looking at on the right
+              </div>
+            </div>
+            <div class="panel">
+              <div class="h2">Takes · 4</div>
+              <div class="row">
+                <div class="th chosen">
+                  <div class="pic"></div>
+                  <span>Take 1</span>
+                </div>
+                <div class="th">
+                  <div class="pic"></div>
+                  <span>Take 2</span>
+                </div>
+                <div class="th">
+                  <div class="pic"></div>
+                  <span>Take 3</span>
+                </div>
+                <div class="th">
+                  <div class="pic"></div>
+                  <span>Take 4</span>
+                </div>
+                <div class="th fail">
+                  <div class="empty">!</div>
+                  <span>Take 5</span><span class="what">Could not be made</span
+                  ><span class="why"
+                    >content-studio/cache/image-takes/cellar-door/5.png could not be written:
+                    permission denied.</span
+                  ><button class="btn btn-s">Try again</button>
+                </div>
+                <div class="th fail">
+                  <div class="empty">!</div>
+                  <span>Take 6</span><span class="what">Could not be made</span
+                  ><span class="why"
+                    >content-studio/cache/image-takes/cellar-door/6.png could not be written:
+                    permission denied.</span
+                  ><button class="btn btn-s">Try again</button>
+                </div>
+                <div class="th mk">
+                  <div class="empty"></div>
+                  <span>Take 7</span><span class="faint small">about 1 minute left</span>
+                  <div class="bar"><i></i></div>
+                </div>
+              </div>
+            </div>
+            <div class="note">
+              Today's boxes stay at the top; the tile in the row now says the same.
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="ux-panel" role="tabpanel" id="ux-panel-C" aria-labelledby="ux-tab-C" hidden>
+        <div class="ux-intro">
+          <h2 class="ux-name">C — In the row, one line at the top</h2>
+          <p class="ux-cost">
+            Two places, but the top stays one box however many takes fail; Try again only in the
+            row.
+          </p>
+        </div>
+        <div class="ux-draw">
+          <div class="pg">
+            <div class="errbox">
+              <div class="t">
+                <strong>2 takes could not be made.</strong
+                ><span class="muted small"
+                  >Each one says why in the Takes row below, with Try again.</span
+                >
+              </div>
+            </div>
+            <div class="panel">
+              <div class="stage">
+                Cellar door — chosen take on the left, the take you are looking at on the right
+              </div>
+            </div>
+            <div class="panel">
+              <div class="h2">Takes · 4</div>
+              <div class="row">
+                <div class="th chosen">
+                  <div class="pic"></div>
+                  <span>Take 1</span>
+                </div>
+                <div class="th">
+                  <div class="pic"></div>
+                  <span>Take 2</span>
+                </div>
+                <div class="th">
+                  <div class="pic"></div>
+                  <span>Take 3</span>
+                </div>
+                <div class="th">
+                  <div class="pic"></div>
+                  <span>Take 4</span>
+                </div>
+                <div class="th fail">
+                  <div class="empty">!</div>
+                  <span>Take 5</span><span class="what">Could not be made</span
+                  ><span class="why"
+                    >content-studio/cache/image-takes/cellar-door/5.png could not be written:
+                    permission denied.</span
+                  ><button class="btn btn-s">Try again</button>
+                </div>
+                <div class="th fail">
+                  <div class="empty">!</div>
+                  <span>Take 6</span><span class="what">Could not be made</span
+                  ><span class="why"
+                    >content-studio/cache/image-takes/cellar-door/6.png could not be written:
+                    permission denied.</span
+                  ><button class="btn btn-s">Try again</button>
+                </div>
+                <div class="th mk">
+                  <div class="empty"></div>
+                  <span>Take 7</span><span class="faint small">about 1 minute left</span>
+                  <div class="bar"><i></i></div>
+                </div>
+              </div>
+            </div>
+            <div class="note">
+              One short box at the top points down to the row; the reasons and Try again live in the
+              tiles.
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+    <script>
+      // Tabs: one panel on screen, the left and right arrow keys move between them, nothing persists.
+      ;(function () {
+        var tabs = Array.prototype.slice.call(document.querySelectorAll('.ux-tabs > .ux-tab'))
+        if (!tabs.length) return
+        var row = tabs[0].parentNode,
+          wrap = row.parentNode
+        function selected() {
+          return tabs.findIndex(function (t) {
+            return t.getAttribute('aria-selected') === 'true'
+          })
+        }
+        // A faded edge on whichever side has tabs out of view.
+        function fade() {
+          wrap.classList.toggle('ux-more-left', row.scrollLeft > 1)
+          wrap.classList.toggle(
+            'ux-more-right',
+            row.scrollLeft + row.clientWidth < row.scrollWidth - 1,
+          )
+        }
+        // Scrolls the row alone: scrollIntoView would move the page too.
+        function reveal(tab) {
+          var t = tab.getBoundingClientRect(),
+            r = row.getBoundingClientRect()
+          if (t.left < r.left) row.scrollLeft -= r.left - t.left + 16
+          else if (t.right > r.right) row.scrollLeft += t.right - r.right + 16
+          fade()
+        }
+        function select(i) {
+          tabs.forEach(function (t, n) {
+            t.setAttribute('aria-selected', n === i ? 'true' : 'false')
+            t.tabIndex = n === i ? 0 : -1
+            document.getElementById(t.getAttribute('aria-controls')).hidden = n !== i
+          })
+          reveal(tabs[i])
+        }
+        tabs.forEach(function (t, i) {
+          t.addEventListener('click', function () {
+            select(i)
+          })
+        })
+        document.addEventListener('keydown', function (e) {
+          var step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
+          if (!step || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey)
+            return
+          // A control a drawing carries (a field, a button, a slider) keeps its own arrows.
+          if (e.target.closest && e.target.closest('.ux-draw')) return
+          e.preventDefault()
+          var focused = tabs.indexOf(document.activeElement) >= 0
+          var i = (selected() + step + tabs.length) % tabs.length
+          select(i)
+          if (focused) tabs[i].focus({ preventScroll: true })
+        })
+        row.addEventListener('scroll', fade)
+        window.addEventListener('resize', fade)
+        window.addEventListener('load', function () {
+          reveal(tabs[selected()])
+        })
+        reveal(tabs[selected()])
+      })()
+    </script>
+  </body>
+</html>
