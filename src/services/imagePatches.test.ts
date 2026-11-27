@@ -128,11 +128,16 @@ function setup({
   })
   /** The view, once nothing of the patch is waiting or being made. */
   async function settled(patch = 'door'): Promise<ImagePatchesView> {
+    // Two such views in a row: one that read the board just before a take was brought to the look
+    // can still call it old, with nothing left bringing it.
+    let quiet = 0
     for (let i = 0; i < 400; i++) {
       const view = await patches.view(file, 'inn')
       if (!view || !('patches' in view)) throw new Error('no view')
       const mine = view.patches.find((p) => p.id === patch)
-      if (!mine?.making.length && !mine?.takes.some((t) => t.look === 'bringing')) return view
+      const idle = !mine?.making.length && !mine?.takes.some((t) => t.look === 'bringing')
+      quiet = idle ? quiet + 1 : 0
+      if (quiet === 2) return view
       await new Promise((resolve) => setTimeout(resolve, 5))
     }
     throw new Error('the takes never finished')
