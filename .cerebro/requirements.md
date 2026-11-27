@@ -28,7 +28,7 @@ SAF-3  No clip is deleted unless the person confirms it first.
 
 OVW-1  A part's overview shows what is missing or out of date for that part, so the person knows
        what is left to do.
-       Proven by: nothing yet
+       Proven by: test/system/OVW-1.test.ts
 OVW-2  The Changes page lists what git sees of the files the studio wrote, so the person knows
        what to commit.
        Proven by: nothing yet
