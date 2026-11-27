@@ -20,7 +20,7 @@ SAF-1  The studio writes only the files the project file names and its own files
        Proven by: test/system/SAF-1.test.ts
 SAF-2  Only the studio's own page can change anything: a change asked for by another web page or
        address is refused.
-       Proven by: nothing yet
+       Proven by: test/system/SAF-2.test.ts
 SAF-3  No clip is deleted unless the person confirms it first.
        Proven by: nothing yet
 
@@ -69,7 +69,7 @@ NAR-1  The person records the narration of one character or of a whole part, in 
        Proven by: nothing yet
 NAR-2  Each take is checked with Whisper and made again until enough of its words are heard. The
        manifest the game reads keeps its format and gets real word timings.
-       Proven by: nothing yet
+       Proven by: test/system/NAR-2.test.ts
 NAR-3  The person can set a line's delivery cue, a character's style and speed, pronunciations
        and the words that sound the same; the lines these change then show as out of date.
        Proven by: nothing yet

@@ -70,7 +70,8 @@ function agentOf(url: URL) {
  * one where the studio uses it to measure a sound an agent fetches; without it that answer says
  * so and the sound is still handed over. `fakes` replaces any of the fakes. `folder` is where the
  * game's project file is in the temporary repository, for a game that has neighbours there. The
- * server stops when the test file is done.
+ * server stops when the test file is done. `url` and `options` are where it listens and what it
+ * was started with.
  */
 export function startStudio(
   files: Record<string, unknown>,
@@ -78,7 +79,7 @@ export function startStudio(
   folder = '.',
 ) {
   const root = tempRepo(files)
-  const server = startServer({
+  const options: ServerOptions = {
     projectFile: join(root, folder, 'content-studio.json'),
     port: 0,
     fish,
@@ -90,9 +91,11 @@ export function startStudio(
     images: createFakeImages(0),
     sceneRender: async () => silence,
     ...fakes,
-  })
+  }
+  const server = startServer(options)
   afterAll(() => server.stop(true))
-  return { root, page: pageOf(server.url), agent: agentOf(server.url) }
+  const url = server.url
+  return { root, options, url, page: pageOf(url), agent: agentOf(url) }
 }
 
 /** The fake ElevenLabs account. */
