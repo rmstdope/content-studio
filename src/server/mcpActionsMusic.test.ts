@@ -29,8 +29,8 @@ describe('the Music and Stingers steps an agent may do', () => {
     for (const path of ['/api/music/tracks/hall/choose', '/api/music/tracks/hall/move']) {
       expect(matchAction('POST', path)?.confirm).toBeUndefined()
     }
-    expect(matchAction('POST', '/api/music/tracks/hall/takes')?.spends).toBe('takes')
-    expect(matchAction('POST', '/api/music/lists/act1/make-all')?.spends).toBe('make-all')
+    expect(matchAction('POST', '/api/music/tracks/hall/takes')?.spends).toBe(true)
+    expect(matchAction('POST', '/api/music/lists/act1/make-all')?.spends).toBe(true)
     expect(matchAction('PUT', '/api/music/model')?.spends).toBeUndefined()
   })
 })
@@ -56,8 +56,17 @@ describe('the Music and Stingers steps, against the server', () => {
     )
     .sort()
 
+  // The cost check of a spending step changes nothing: studio_act asks it before the step.
+  const costs = MUSIC_ACTIONS.filter((a) => a.spends).map((a) => `${a.method} ${a.path}/cost`)
+
+  it('gives every spending step a cost route', () => {
+    expect(costs.length).toBe(2)
+    for (const cost of costs) expect(changes).toContain(cost)
+  })
+
   it('lists every change route of those pages, and only those', () => {
-    expect(MUSIC_ACTIONS.map((a) => `${a.method} ${a.path}`).sort()).toEqual(changes)
+    const listed = MUSIC_ACTIONS.map((a) => `${a.method} ${a.path}`)
+    expect([...listed, ...costs].sort()).toEqual(changes)
   })
 })
 

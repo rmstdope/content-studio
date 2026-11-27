@@ -1,4 +1,5 @@
 import type { ZodType } from 'zod'
+import type { SpendCheck } from '../core/spendCheck'
 import type { RouteContext } from './context'
 import { badBody, notFound, takeResponse, type RouteRequest } from './shared'
 
@@ -15,6 +16,11 @@ export type TakeListService<Make> = {
   unchoose(projectFile: string, id: string): Promise<Answer>
   accept(projectFile: string, id: string): Promise<Answer>
   stop(projectFile: string, id: string): Promise<object | null>
+  /**
+   * What `make` would cost, or the refusal it would give; only a medium whose takes can spend
+   * credit offers it, which adds the cost route.
+   */
+  cost?(projectFile: string, id: string, request: Make): Promise<SpendCheck | Answer>
 }
 
 /**
@@ -55,6 +61,12 @@ function resultResponse(result: Answer): Response {
   })
 }
 
+/** A cost route's answer: the step's own, but for an id that is not there, which is named. */
+export function costResponse(result: Answer, noun: string, id: string): Response {
+  if (!result) return Response.json({ error: `There is no ${noun} ${id}.` }, { status: 404 })
+  return resultResponse(result)
+}
+
 /** The routes that go by id alone (list, make, un-choose, accept, stop), for any medium with takes. */
 export function takeListRoutes<Make>(
   c: Pick<RouteContext, 'fromOwnPage' | 'guard' | 'projectFile'>,
@@ -62,21 +74,40 @@ export function takeListRoutes<Make>(
     base,
     service,
     bodies,
-  }: { base: string; service: TakeListService<Make>; bodies: { make: ZodType<Make> } },
+    noun = 'track',
+  }: {
+    base: string
+    service: TakeListService<Make>
+    bodies: { make: ZodType<Make> }
+    /** What an id names, for the cost route's answer to one that is not there. */
+    noun?: string
+  },
 ) {
   const { fromOwnPage, guard, projectFile } = c
   const json = async (request: Request) => request.json().catch(() => null)
+  /** A POST that reads the body of a request for takes, as making them and asking their cost do. */
+  const withRequest = (answer: (request: RouteRequest, body: Make) => Promise<Response>) =>
+    fromOwnPage(async (request: RouteRequest) => {
+      const body = bodies.make.safeParse(await json(request))
+      return body.success ? answer(request, body.data) : badBody(bodies.make, body.error)
+    })
+  const cost = service.cost?.bind(service)
   return {
+    ...(cost && {
+      [`${base}/:id/takes/cost`]: {
+        POST: withRequest(async (request, body) =>
+          costResponse(await cost(projectFile, request.params.id, body), noun, request.params.id),
+        ),
+      },
+    }),
     [`${base}/:id/takes`]: {
       GET: guard(async (request: RouteRequest) => {
         const view = await service.view(projectFile, request.params.id)
         return view ? Response.json(view) : notFound()
       }),
-      POST: fromOwnPage(async (request: RouteRequest) => {
-        const body = bodies.make.safeParse(await json(request))
-        if (!body.success) return badBody(bodies.make, body.error)
-        return resultResponse(await service.make(projectFile, request.params.id, body.data))
-      }),
+      POST: withRequest(async (request, body) =>
+        resultResponse(await service.make(projectFile, request.params.id, body)),
+      ),
     },
     [`${base}/:id/unchoose`]: {
       POST: fromOwnPage(async (request: RouteRequest) =>

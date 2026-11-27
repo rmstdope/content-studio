@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 import { chmodSync, existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { tempRepo } from '../../test/helpers'
+import { canRefuseWrites, refusingWrites, tempRepo } from '../../test/helpers'
 import {
   formatEntriesPerLine,
   isWriteFailure,
   listFiles,
   readJson,
+  refuseUnwritable,
   refusalAnswer,
   refusalFailed,
   refusalProblems,
@@ -16,6 +17,26 @@ import {
   writeTogether,
   refusalSentence,
 } from './files'
+
+describe('refuseUnwritable', () => {
+  it('lets a file in a writable folder be, or in one still to be made, and writes nothing', async () => {
+    const root = tempRepo({ 'studio/a.json': '{}' })
+    await refuseUnwritable(root, 'studio/a.json')
+    await refuseUnwritable(root, 'studio/new/b.json')
+    expect(readdirSync(join(root, 'studio'))).toEqual(['a.json'])
+  })
+
+  it.skipIf(!canRefuseWrites)('refuses as the write would, in a read-only folder', async () => {
+    const root = tempRepo({ 'studio/a.json': '{}' })
+    for (const path of ['studio/a.json', 'studio/new/b.json']) {
+      const { answer } = await refusingWrites(join(root, 'studio'), () =>
+        refuseUnwritable(root, path).catch((error: unknown) => error),
+      )
+      expect(answer).toBeInstanceOf(WriteRefused)
+      expect(answer).toMatchObject({ file: path, reason: 'permission denied' })
+    }
+  })
+})
 
 describe('formatEntriesPerLine', () => {
   it('writes one sorted entry per line, as valid JSON', () => {

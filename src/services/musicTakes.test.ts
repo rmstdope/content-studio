@@ -112,6 +112,50 @@ function setup(
   return { root, file, takes, requests, settled, spy }
 }
 
+describe('what a call that may spend would cost', () => {
+  const eleven = {
+    'content-studio.json': projectJson({ music: { ...music, model: 'eleven' } }),
+  }
+  const price = { ok: true, price: '$0.15 a minute' } as const
+
+  it('answers the paid model’s price a minute, and queues and writes nothing', async () => {
+    const { root, file, takes, requests } = setup(undefined, eleven)
+    const before = readdirSync(root, { recursive: true }).sort()
+    expect(await takes.cost(file, 'hall', { count: 2 })).toEqual(price)
+    expect(await takes.makeAllCost(file, 'act1')).toEqual(price)
+    expect(await takes.making(file)).toEqual({})
+    expect(requests).toEqual([])
+    expect(readdirSync(root, { recursive: true }).sort()).toEqual(before)
+  })
+
+  it('answers no price for a free model, the body’s over the project’s', async () => {
+    const { file, takes } = setup(undefined, eleven)
+    expect(await takes.cost(file, 'hall', { count: 1, model: 'quick' })).toEqual({
+      ok: true,
+      price: null,
+    })
+  })
+
+  it('answers what Make all would answer when it would make nothing', async () => {
+    const { file, takes, requests, settled } = setup(undefined, eleven)
+    await takes.make(file, 'hall', { count: 1, model: 'quick' })
+    const view = await settled('hall')
+    if (!view || !('ok' in view) || !view.ok) throw new Error('expected a view')
+    await takes.choose(file, 'hall', view.takes[0]!.file)
+    requests.length = 0
+    expect(await takes.makeAllCost(file, 'act1')).toEqual({
+      ok: true,
+      unchanged: { ok: true, tracks: 0, takes: 0 },
+    })
+  })
+
+  it('knows no track or list that is not there', async () => {
+    const { file, takes } = setup(undefined, eleven)
+    expect(await takes.cost(file, 'nobody', { count: 1 })).toBeNull()
+    expect(await takes.makeAllCost(file, 'nobody')).toBeNull()
+  })
+})
+
 describe('makeAll, stopAll and modelState', () => {
   const two = {
     'tts/act1/music.json': [

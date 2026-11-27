@@ -1,6 +1,8 @@
 import type { ZodType } from 'zod'
+import type { SpendCheck } from '../core/spendCheck'
 import type { RouteContext } from './context'
 import { badBody, notFound, type RouteRequest } from './shared'
+import { costResponse } from './takeRoutes'
 
 /** What a service answers: nothing when the thing is not there, else a result that may refuse. */
 type Answer = { ok?: boolean } | null | undefined
@@ -14,6 +16,11 @@ export type MakeAllService<Body = undefined> = {
   batch(projectFile: string, request: RouteRequest): Promise<unknown>
   closeBatch(projectFile: string, request: RouteRequest): Promise<unknown>
   stopAll(projectFile: string, request: RouteRequest): Promise<Answer>
+  /**
+   * What `makeAll` would cost, or the refusal it would give; only a medium whose takes can spend
+   * credit offers it, which adds the cost route (with the list's id in its address).
+   */
+  cost?(projectFile: string, request: RouteRequest, body: Body): Promise<SpendCheck | Answer>
 }
 
 /** One medium's Make all routes: where they live, its service and the body Make all accepts. */
@@ -44,19 +51,32 @@ export function makeAllRoutes<Body = undefined>(
   { base, stop, service, body, stopRefuses = false }: MakeAllRoutesMedium<Body>,
 ) {
   const { fromOwnPage, guard, projectFile } = c
-  return {
-    [`${base}/make-all`]: {
-      POST: fromOwnPage(async (request: RouteRequest) => {
-        let parsed: Body = undefined as Body
-        if (body) {
-          const result = body.safeParse(await request.json().catch(() => null))
-          if (!result.success) {
-            return badBody(body, result.error)
-          }
-          parsed = result.data
+  /** A POST that reads Make all's body, as making and asking its cost do. */
+  const withBody = (answer: (request: RouteRequest, body: Body) => Promise<Response>) =>
+    fromOwnPage(async (request: RouteRequest) => {
+      let parsed: Body = undefined as Body
+      if (body) {
+        const result = body.safeParse(await request.json().catch(() => null))
+        if (!result.success) {
+          return badBody(body, result.error)
         }
-        return answerOf(await service.makeAll(projectFile, request, parsed))
-      }),
+        parsed = result.data
+      }
+      return answer(request, parsed)
+    })
+  const cost = service.cost?.bind(service)
+  return {
+    ...(cost && {
+      [`${base}/make-all/cost`]: {
+        POST: withBody(async (request, parsed) =>
+          costResponse(await cost(projectFile, request, parsed), 'list', request.params.id),
+        ),
+      },
+    }),
+    [`${base}/make-all`]: {
+      POST: withBody(async (request, parsed) =>
+        answerOf(await service.makeAll(projectFile, request, parsed)),
+      ),
     },
     [`${base}/batch`]: {
       GET: guard(async (request: RouteRequest) =>
