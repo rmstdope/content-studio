@@ -129,7 +129,7 @@ SFX-1  Each sound effect the game lists can be made as takes with a local model,
        effect loops without a seam.
        Proven by: test/system/SFX-1.test.ts
 SFX-2  A take can be trimmed and faded, and an effect's level set, before it goes to the game.
-       Proven by: nothing yet
+       Proven by: test/system/SFX-2.test.ts
 SFX-3  Make all makes takes for every effect that has none, and can be stopped.
        Proven by: test/system/SFX-3.test.ts
 
