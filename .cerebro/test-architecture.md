@@ -25,6 +25,6 @@ Agreed with the navigator 2026-11-27.
   Enough is:       each state of a control once, each thing a person can do on the page once
 
 ## System           test/system/<ID>.test.ts
-  Belongs here:    one requirement each, named by its ID: the studio started for real on a temporary game, with the providers and models faked, and driven as a person or an agent drives it (its pages' requests, or MCP)
+  Belongs here:    one requirement each, named by its ID: the studio started for real on a temporary game, with the providers and models faked, and driven as a person or an agent drives it (its pages' requests, the real page rendered in happy-dom, or MCP)
   Not here:        the branches of a rule, a page's layout, a live provider
   Enough is:       every requirement once
