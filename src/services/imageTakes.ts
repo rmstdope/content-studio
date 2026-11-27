@@ -47,6 +47,7 @@ import {
   type ImageLock,
   type ImageReason,
   type ImageRow,
+  type ManifestPatch,
 } from '../core/images'
 import { resolveInRoot } from '../core/paths'
 import { IMAGES_LOCK_FILE, type Problem } from '../core/project'
@@ -58,7 +59,6 @@ import { createImageHealth, type ImageHealthStore } from './imageHealth'
 import { downloadOf, ImageToolError, makeImageTake, type ImageGenerator } from './images'
 import {
   patchesInGame,
-  type ManifestPatch,
   changePatchBoard,
   patchPictureOf,
   patchGameOf,

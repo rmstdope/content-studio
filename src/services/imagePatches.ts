@@ -27,7 +27,7 @@ import {
   choiceOn,
   stackOf,
 } from '../core/imagePatches'
-import type { PatchRow } from '../core/images'
+import type { ManifestPatch, PatchRow } from '../core/images'
 import { resolveInRoot } from '../core/paths'
 import { IMAGES_LOCK_FILE } from '../core/project'
 import { readResource, writeOrRefuse } from './files'
@@ -905,7 +905,11 @@ export function createImagePatches({
             const file = patchClipName(id, patch)
             await writeOrRefuse(found.root, join(found.config.clips, file), png)
             const listed = { ...(entry.patches as Record<string, unknown> | undefined) }
-            listed[patch] = { file, width: found.row.width, height: found.row.height }
+            listed[patch] = {
+              file,
+              width: found.row.width,
+              height: found.row.height,
+            } satisfies ManifestPatch
             // What lies on top of it leaves, or comes back with the take it was painted on.
             const on = await restack({ ...found, clips: found.config.clips }, take.base, patch, {
               ...board,
