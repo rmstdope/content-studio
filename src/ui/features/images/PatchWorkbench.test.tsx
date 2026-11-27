@@ -1918,7 +1918,9 @@ describe('the three parts of an open patch', () => {
           game: { width: width / 2, height: height / 2 },
         }),
       )
-      expect(drawnSize(host.querySelector<HTMLElement>('.patch-picture')!)).toEqual([...drawn])
+      const box = host.querySelector<HTMLElement>('.patch-picture')!
+      expect(box.classList.contains('whole-in-view')).toBe(true)
+      expect(drawnSize(box)).toEqual([...drawn])
     })
   }
 
