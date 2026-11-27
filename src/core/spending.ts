@@ -176,7 +176,8 @@ export interface SpendingSummary {
 
 /**
  * The recordings, the running ones and the music takes as the page shows them: running first,
- * then the rest newest first; the totals count them all, dollars and credits apart, and the takes
+ * then the rest newest first, a recording both saved and running (its end being saved) once, as
+ * saved; the totals count them all, dollars and credits apart, and the takes
  * and tries with ElevenLabs voices too, which have no rows.
  */
 export function summariseSpending(
@@ -220,7 +221,12 @@ export function summariseSpending(
   })
   const newestFirst = (a: SpendingRow, b: SpendingRow) =>
     a.at === b.at ? (a.id < b.id ? 1 : -1) : a.at < b.at ? 1 : -1
-  const live = running.map((r) => rowOf(r, 'running')).sort(newestFirst)
+  // A recording whose end is being saved is in the record and still running: listed once, saved.
+  const saved = new Set(recordings.map((r) => r.id))
+  const live = running
+    .filter((r) => !saved.has(r.id))
+    .map((r) => rowOf(r, 'running'))
+    .sort(newestFirst)
   const done = [...recordings.map((r) => rowOf(r, r.outcome)), ...music.map(takeRow)].sort(
     newestFirst,
   )
