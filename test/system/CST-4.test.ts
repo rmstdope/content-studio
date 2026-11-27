@@ -6,7 +6,8 @@
 // studio's server sees a confirmation as an agent's call marked `confirmed`: the agent is the one
 // refused here. A level tried and not set is heard in the browser alone, so it is not proven here.
 import { describe, expect, it, setDefaultTimeout } from 'bun:test'
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { quietestStretch } from '../../src/core/cleanup'
 import { readWav, writeWav } from '../../src/core/wav'
@@ -150,8 +151,9 @@ describe.skipIf(Bun.which('ffmpeg') === null)(
       const copy = (await made.json()) as { ok: boolean; name: string }
       expect(copy.ok).toBe(true)
       // The two sides the page plays: the line as the game has it, and the cleaned copy.
+      const folder = mkdtempSync(join(tmpdir(), 'content-studio-heard-'))
       const heard = async (path: string, name: string) => {
-        const file = join(root, name)
+        const file = join(folder, name)
         writeFileSync(file, await (await page.get(path)).bytes())
         return pauses(file)
       }
@@ -201,9 +203,11 @@ describe.skipIf(Bun.which('ffmpeg') === null)(
       expect(cleaned['manifest.json']).toBe(before['manifest.json']!)
       expect(await inGame()).toMatchObject({ total: 3, cleaned: 3 })
 
-      // Switching the clean-up off puts the lines back, which is asked about too.
+      // Switching the clean-up off, then putting the lines back, which is asked about too.
       await refused('/api/characters/narrator/cleaned-lines/put-back')
-      await page.send('PATCH', '/api/characters/narrator', { clean: false })
+      const off = await page.send('PATCH', '/api/characters/narrator', { clean: false })
+      expect(off.status).toBe(200)
+      expect(narrator().clean).toBeUndefined()
       const back = await page.send('POST', '/api/characters/narrator/cleaned-lines/put-back')
       expect(back.status).toBe(200)
       await over('job')
