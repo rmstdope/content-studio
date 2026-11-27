@@ -1,3 +1,4 @@
+import { chosenOf } from '../core/lockRead'
 import { createHash } from 'node:crypto'
 import { rm, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -566,6 +567,7 @@ export function createEffectTakes({
       const chosenEffects = await readEffectChosen(root, found.effects, [])
       const chosen = chosenEffects.read ? chosenEffects.entries[id]?.lock : undefined
       const takes: EffectTakeView[] = []
+      let inGame: number | null = null
       for (const take of board.takes) {
         const path = join(root, folder, fileOf(take))
         if (!(await Bun.file(path).exists())) continue
@@ -574,12 +576,12 @@ export function createEffectTakes({
           !take.trim && effectTrimOffered({ loops }, Boolean(found.inputs.loops))
             ? await scan(path)
             : null
+        if (chosen?.take === take.n && chosen.fp === take.hash) inGame = take.n
         takes.push({
           n: take.n,
           file: fileOf(take),
           seconds: take.seconds,
           peaks: take.peaks,
-          chosen: chosen?.take === take.n && chosen.fp === take.hash,
           model: modelName(take.model),
           loops,
           quietAt: take.quietAt ?? null,
@@ -618,7 +620,7 @@ export function createEffectTakes({
         takes,
         making,
         failed,
-        lockUnread: !chosenEffects.read,
+        chosen: chosenOf(chosenEffects.read, inGame),
       }
     },
 

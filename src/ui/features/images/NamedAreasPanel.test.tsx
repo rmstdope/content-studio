@@ -1,9 +1,13 @@
+import type { PatchedTake } from '../../../core/imagePatches'
+import { chosenAmong } from '../../../../test/chosen'
+import { chosenOf } from '../../../core/lockRead'
 import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { AreaBox, AreaRow, ImageRow } from '../../../core/images'
 import type { ImagePatchesView } from '../../../core/imagePatches'
 import { valuesInEveryWindow } from '../../../../test/stylesheet'
 import { mountPager } from '../../../../test/besidePager'
+import { drawnSize, SAME_SIZE } from '../../../../test/pictureSize'
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register({ url: 'http://localhost/' })
 const isOff = (element: Element) => element.getAttribute('aria-disabled') === 'true'
@@ -36,13 +40,19 @@ const area = (id: string, over: Partial<AreaRow> = {}): AreaRow => ({
 const placedAt = (id: string, box: AreaBox, over: Partial<AreaRow> = {}) =>
   area(id, { placed: true, box, ...over })
 
-const view = (over: Partial<ImagePatchesView> = {}): ImagePatchesView => ({
+const view = ({
+  take = { n: 2, width: 1024, height: 640, cropped: false },
+  lockUnread = false,
+  ...over
+}: Partial<Omit<ImagePatchesView, 'chosen'>> & {
+  take?: PatchedTake | null
+  lockUnread?: boolean
+} = {}): ImagePatchesView => ({
   ok: true,
-  take: { n: 2, width: 1024, height: 640, cropped: false },
+  chosen: chosenOf(!lockUnread, take),
   game: { width: 640, height: 400 },
   lookError: null,
   lookKey: 'k',
-  lockUnread: false,
   pictureGone: false,
   remake: { earlier: {}, press: null, failedModels: [] },
   maker: { ok: true },
@@ -61,9 +71,9 @@ interface ListedPatch {
 /** A patch's view, its takes with every field the page reads. */
 const patchView = (patch: ListedPatch): ImagePatchesView['patches'][number] => ({
   id: patch.id,
-  takes: patch.takes.map(({ n, chosen }) => ({
+  chosen: chosenAmong(patch.takes),
+  takes: patch.takes.map(({ n }) => ({
     n,
-    chosen,
     area: { x: 0, y: 0, width: 10, height: 10 },
     earlier: false,
     isNew: false,
@@ -114,7 +124,7 @@ async function render(areas: AreaRow[], options: Options = {}) {
       width: options.size?.width ?? 320,
       height: options.size?.height ?? 200,
       areas: now,
-      chosenTake,
+      chosen: chosenOf(true, chosenTake),
       patches: (options.patches ?? []).map((p) => ({ id: p.id, title: p.title })),
     } as ImageRow
     await act(async () => {
@@ -1181,7 +1191,7 @@ describe('the pinned bar and the full-width picture (as-uucl.4)', () => {
     expect(order).toEqual(['named-areas-head', 'named-areas-bar', 'named-areas-picture'])
     const picture = host.querySelector('.named-areas-picture')!
     expect([...picture.children].map((c) => c.className)).toEqual([
-      'named-area-stage',
+      'named-area-stage whole-in-view',
       'muted named-area-line',
     ])
   })
@@ -1258,6 +1268,35 @@ describe('the pinned bar and the full-width picture (as-uucl.4)', () => {
     bar.getBoundingClientRect = () => ({ top: 0, bottom: 112, height: 112 }) as DOMRect
     await act(async () => window.dispatchEvent(new Event('resize')))
     expect(stage!.style.getPropertyValue('--bar-height')).toBe('112px')
+  })
+
+  for (const { what, width, height, drawn } of SAME_SIZE) {
+    it(`draws ${what} at the size Fine-tune and Patches draw it, with no bar to clear (as-5068)`, async () => {
+      const { stage } = await render([area('a')], {
+        size: { width, height },
+        answer: view({ take: { n: 2, width, height, cropped: false } }),
+      })
+      expect(drawnSize(stage!)).toEqual([...drawn])
+    })
+  }
+
+  it('draws a portrait picture shorter by the pinned bar’s height (as-zkky)', async () => {
+    const { host, stage } = await render([area('a')], {
+      size: { width: 816, height: 1024 },
+      answer: view({ take: { n: 2, width: 816, height: 1024, cropped: false } }),
+    })
+    const bar = host.querySelector<HTMLElement>('.named-areas-bar')!
+    bar.getBoundingClientRect = () => ({ top: 0, bottom: 100, height: 100 }) as DOMRect
+    await act(async () => window.dispatchEvent(new Event('resize')))
+    expect(drawnSize(stage!)).toEqual([580, 728])
+  })
+
+  it('holds the box in the picture’s place to the same width rule (as-zkky)', async () => {
+    const { host } = await render([area('a')], {
+      size: { width: 816, height: 1024 },
+      answer: () => new Promise<Response>(() => {}),
+    })
+    expect(drawnSize(host.querySelector<HTMLElement>('.named-area-empty')!)).toEqual([660, 828])
   })
 
   it('keeps the same shape for the empty box and the row of areas', async () => {

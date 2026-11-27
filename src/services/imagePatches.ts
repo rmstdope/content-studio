@@ -1,3 +1,4 @@
+import { chosenOf } from '../core/lockRead'
 import { rm } from 'node:fs/promises'
 import { figuresOf, timeKeyOfEdit } from '../core/takeTimes'
 import { readTakeTimes, recordTakeTime } from './takeTimes'
@@ -10,8 +11,6 @@ import {
   type ImageDownload,
 } from '../core/imageModels'
 import { isCropped, type Pixels } from '../core/imagePixels'
-import { ImageLockSchema } from '../core/images'
-import { smallMark, smallMarkText } from '../core/imageSmallMark'
 import { createKeptReader } from './keptRead'
 import { ImageManifestSchema, type ImageManifest } from '../core/imageTakes'
 import {
@@ -30,7 +29,6 @@ import {
 } from '../core/imagePatches'
 import type { PatchRow } from '../core/images'
 import { resolveInRoot } from '../core/paths'
-import { IMAGES_LOCK_FILE } from '../core/project'
 import { readResource, writeOrRefuse } from './files'
 import { freeGpu, gpuQueue } from './gpu'
 import { IMAGE_TAKES_DIR, readImages, readStyleLook } from './imageLists'
@@ -47,7 +45,7 @@ import {
   restack,
 } from './imagePatchGame'
 import { downloadOf, type ImageGenerator } from './images'
-import { editStep } from './imageEditStep'
+import { editStep, queuedAnswer } from './imageEditStep'
 import { takeOut } from './takeOut'
 import { choices, sorted } from './musicClips'
 import { boardQueue, isSafeId } from './musicTakes'
@@ -207,7 +205,8 @@ export function createImagePatches({
       root,
       id,
       row,
-      chosen: row.chosenTake,
+      // The take of the image to work on: none when none is chosen, or while that is not known.
+      base: row.chosen.known ? row.chosen.take : null,
       look: style.look,
       config: opened.project.images,
     }
@@ -327,7 +326,7 @@ export function createImagePatches({
       const board = await readPatchBoard(found.root, found.id, p.id)
       if (!('ok' in board)) boards[p.id] = board
     }
-    const below = choiceOn(found.row.patches, boards, over, found.chosen!)
+    const below = choiceOn(found.row.patches, boards, over, found.base!)
     const title = found.patch.overTitle ?? over
     if (!below?.valid) {
       return {
@@ -428,20 +427,20 @@ export function createImagePatches({
         message: `Take ${request.retry} did not fail, so it is not made again.`,
       }
     }
-    if (found.chosen === null) {
+    if (found.base === null) {
       return {
         ok: false,
         message:
           'Choose a take of the image first. Patches are painted onto the take the game shows.',
       }
     }
-    if (failed && failed.base !== found.chosen) {
+    if (failed && failed.base !== found.base) {
       return {
         ok: false,
         message: `Take ${failed.n} was made on another take of the image, so it is not made again here.`,
       }
     }
-    const picture = await takePicture(found, found.chosen)
+    const picture = await takePicture(found, found.base)
     if (!picture) {
       return {
         ok: false,
@@ -464,14 +463,14 @@ export function createImagePatches({
     // Read once for all the takes, before any is queued.
     let around: Pixels
     try {
-      around = await laidPicture(found.root, found.id, found.chosen, under.under)
+      around = await laidPicture(found.root, found.id, found.base, under.under)
     } catch {
       return {
         ok: false,
         message: "The chosen take's picture is missing or cannot be read, so it cannot be patched.",
       }
     }
-    const base = found.chosen
+    const base = found.base
     let queued: Entry[] = []
     if ('retry' in request) {
       const again = engine.retry(found.projectFile, found.engineId, request.retry, '')
@@ -509,8 +508,7 @@ export function createImagePatches({
     }
     // No await from here until every take is in line, so the takes of one press are made in number order.
     for (const entry of queued) void run(found, entry, around)
-    const small = 'count' in request ? smallMark(request.area, picture) : null
-    return small ? { ok: true, warning: smallMarkText(small) } : { ok: true }
+    return queuedAnswer(request, picture)
   }
 
   /** Each patch's takes on the chosen take, and the area of its earlier choice; a failure when a board cannot be read. */
@@ -524,9 +522,7 @@ export function createImagePatches({
         const found = patchOf(image, patch)
         return [
           patch.id,
-          engine
-            .entriesOf(found.projectFile, found.engineId)
-            .filter((e) => e.base === image.chosen),
+          engine.entriesOf(found.projectFile, found.engineId).filter((e) => e.base === image.base),
         ] as const
       }),
     )
@@ -544,23 +540,22 @@ export function createImagePatches({
       // The take chosen on the newest other take of the image that is still on the board.
       const was = Object.keys(board.chosen)
         .map(Number)
-        .filter((base) => base !== image.chosen)
+        .filter((base) => base !== image.base)
         .sort((a, b) => b - a)
         .map((base) => board.takes.find((t) => t.n === board.chosen[String(base)]))
         .find((t) => t !== undefined)
       if (was) earlier[patch.id] = was.area
       const choice =
-        image.chosen === null ? null : choiceOn(image.row.patches, boards, patch.id, image.chosen)
+        image.base === null ? null : choiceOn(image.row.patches, boards, patch.id, image.base)
       const chosen = choice?.valid ? choice.n : undefined
       const stack = stackOf(image.row.patches, patch.id)
       const key = image.row.look.key
       const takes: PatchWorkView['takes'] = []
-      for (const t of board.takes.filter((t) => t.base === image.chosen)) {
+      for (const t of board.takes.filter((t) => t.base === image.base)) {
         takes.push({
           n: t.n,
           area: t.area,
           earlier: t.words !== patch.words,
-          chosen: t.n === chosen,
           isNew: !t.seen,
           model: t.model ?? BEFORE_CHOICE,
           ...(t.under && { under: t.under }),
@@ -576,10 +571,14 @@ export function createImagePatches({
                 : 'old',
         })
       }
-      const inGame = image.chosen === null ? undefined : board.inGame[String(image.chosen)]
+      const inGame = image.base === null ? undefined : board.inGame[String(image.base)]
       patches.push({
         id: patch.id,
         takes,
+        chosen: chosenOf(
+          image.row.chosen.known,
+          takes.some((t) => t.n === chosen) ? chosen! : null,
+        ),
         oldLook:
           key !== null &&
           inGame !== undefined &&
@@ -604,10 +603,10 @@ export function createImagePatches({
             under: stack.under.map((u) => ({
               id: u.id,
               n:
-                image.chosen === null
+                image.base === null
                   ? null
                   : ((c) => (c?.valid ? c.n : null))(
-                      choiceOn(image.row.patches, boards, u.id, image.chosen),
+                      choiceOn(image.row.patches, boards, u.id, image.base),
                     ),
             })),
           }),
@@ -669,7 +668,7 @@ export function createImagePatches({
       if (fresh && !(await pressOf(image).then((p) => !!p && 'running' in p && p.running))) {
         presses.delete(`${projectFile}\0${id}`)
       }
-      const picture = image.chosen === null ? null : await takePicture(image, image.chosen)
+      const picture = image.base === null ? null : await takePicture(image, image.base)
       const got = await workOf(image)
       if ('ok' in got) return got
       const press = await pressOf(image)
@@ -680,20 +679,21 @@ export function createImagePatches({
           EDIT_MODEL_IDS.map(async (id) => [id, await downloadOf(generator, id)] as const),
         ),
       ) as Record<EditModelId, ImageDownload>
-      const lock = await readResource(image.root, IMAGES_LOCK_FILE, ImageLockSchema, [])
       return {
         ok: true,
-        take: picture && {
-          n: image.chosen!,
-          width: picture.width,
-          height: picture.height,
-          cropped: isCropped(picture, image.row),
-        },
+        chosen: chosenOf(
+          image.row.chosen.known,
+          picture && {
+            n: image.base!,
+            width: picture.width,
+            height: picture.height,
+            cropped: isCropped(picture, image.row),
+          },
+        ),
         game: { width: image.row.width, height: image.row.height },
         lookError: image.row.look.error,
         lookKey: image.row.look.key,
-        lockUnread: lock === 'invalid',
-        pictureGone: image.chosen !== null && picture === null,
+        pictureGone: image.base !== null && picture === null,
         maker: problem === null ? { ok: true } : { ok: false, message: problem },
         models: downloads,
         patches: got.work,
@@ -716,7 +716,7 @@ export function createImagePatches({
       if (covered.length === 0) {
         return { ok: false, message: 'No patch needs making again on this take.' }
       }
-      const picture = image.chosen === null ? null : await takePicture(image, image.chosen)
+      const picture = image.base === null ? null : await takePicture(image, image.base)
       if (!picture) {
         return {
           ok: false,
@@ -738,7 +738,7 @@ export function createImagePatches({
       if (plan.make.length === 0) {
         return { ok: false, message: 'None of the patches has an area to make it from.' }
       }
-      const base = image.chosen!
+      const base = image.base!
       const model = request.model ?? DEFAULT_EDIT_MODEL
       const takes = new Map<string, number[]>()
       const undo = () => {
@@ -815,7 +815,7 @@ export function createImagePatches({
       const guard = 'count' in request ? found.key : `${found.key}\0${request.retry}`
       const busy = engine
         .entriesOf(projectFile, found.engineId)
-        .some((e) => e.state !== 'failed' && e.base === found.chosen)
+        .some((e) => e.state !== 'failed' && e.base === found.base)
       if (starting.has(guard) || ('count' in request && busy)) {
         return {
           ok: false,
@@ -842,7 +842,7 @@ export function createImagePatches({
       return changeBoard(found, async (board): Promise<ImagePatchAnswer> => {
         const take = board.takes.find((t) => t.n === n)
         if (!take) return { ok: false, message: 'That take is not on the board.' }
-        if (take.base !== found.chosen) {
+        if (take.base !== found.base) {
           return { ok: false, message: 'That take was made on another take of the image.' }
         }
         const under = await underneath(found)
@@ -932,8 +932,8 @@ export function createImagePatches({
     async unchoose(projectFile, id, patch) {
       const found = await resolvePatch(projectFile, id, patch)
       if (!found || 'ok' in found) return found
-      if (found.chosen === null) return { ok: false, message: 'No take of the image is chosen.' }
-      const base = String(found.chosen)
+      if (found.base === null) return { ok: false, message: 'No take of the image is chosen.' }
+      const base = String(found.base)
       return changeBoard(found, async (board): Promise<ImagePatchAnswer> => {
         if (!(base in board.chosen))
           return { ok: false, message: 'No take of this patch is chosen.' }
@@ -947,7 +947,7 @@ export function createImagePatches({
             const listed = entry?.patches as Record<string, unknown> | undefined
             const { gone: above } = await restack(
               { ...found, clips: found.config.clips },
-              found.chosen!,
+              found.base!,
               patch,
               {
                 ...board,

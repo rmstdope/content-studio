@@ -443,7 +443,7 @@ describe('server, choosing a take', () => {
     const row = summary.summary.music.lists[0].tracks[0]
     expect(row.status).toBe('chosen')
     const after = await (await fetch(at('/api/music/tracks/hall/takes'))).json()
-    expect(after.takes.map((t: { chosen: boolean }) => t.chosen)).toEqual([true, false])
+    expect(after.chosen).toEqual({ known: true, take: 1 })
     // The chosen take cannot be dropped.
     const drop = await fetch(at(`/api/music/tracks/hall/takes/${file}`), {
       method: 'DELETE',

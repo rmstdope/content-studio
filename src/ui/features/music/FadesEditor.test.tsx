@@ -25,7 +25,6 @@ const take: TakeView = {
   seconds: 4.2,
   peaks: Array.from({ length: 40 }, () => 0.5),
   earlier: false,
-  chosen: false,
   model: 'Balanced',
 }
 
@@ -107,7 +106,7 @@ describe('the fades editor', () => {
   })
 
   it('shows the chosen take’s hint', () => {
-    const e = open({ chosen: true }, true)
+    const e = open({}, true)
     expect(e.container.textContent).toContain('Saving puts the faded sound in the game at once.')
   })
 
@@ -177,7 +176,7 @@ describe('the fades editor', () => {
 
   it('says the game still plays the take as before when a save fails on the chosen take', async () => {
     answer = Response.json({ ok: false, message: 'The disk is full.' }, { status: 409 })
-    const e = open({ chosen: true }, true)
+    const e = open({}, true)
     e.type(e.box('Fade in'), '0.3')
     await act(async () => e.button('Save fades')!.click())
     await act(async () => {
@@ -190,7 +189,7 @@ describe('the fades editor', () => {
 
   it('says the game keeps its fades when a remove fails on the chosen take', async () => {
     answer = Response.json({ ok: false, message: 'The disk is full.' }, { status: 409 })
-    const e = open({ chosen: true, fades: { in: 0.3, out: 0, shape: 'smooth' } }, true)
+    const e = open({ fades: { in: 0.3, out: 0, shape: 'smooth' } }, true)
     await act(async () => e.button('Remove fades')!.click())
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 10))
@@ -206,7 +205,7 @@ describe('the fades editor', () => {
       { ok: false, message: 'The disk is full.', gameChanged: true },
       { status: 409 },
     )
-    const e = open({ chosen: true }, true)
+    const e = open({}, true)
     e.type(e.box('Fade in'), '0.3')
     await act(async () => e.button('Save fades')!.click())
     await act(async () => {
@@ -235,7 +234,7 @@ describe('the fades editor', () => {
   ] as const) {
     it(`puts the failure line above the hint when ${action} fails on a take that is${chosen ? '' : ' not'} chosen`, async () => {
       answer = Response.json({ ok: false, message: 'The disk is full.' }, { status: 409 })
-      const e = open({ chosen, fades: { in: 0.3, out: 0, shape: 'smooth' } }, chosen)
+      const e = open({ fades: { in: 0.3, out: 0, shape: 'smooth' } }, chosen)
       e.type(e.box('Fade in'), '0.4')
       await act(async () => e.button(action)!.click())
       await act(async () => {
@@ -255,7 +254,7 @@ describe('the fades editor', () => {
 
   it('claims nothing about the game when the answer never came', async () => {
     answer = Response.json({}, { status: 500 })
-    const e = open({ chosen: true }, true)
+    const e = open({}, true)
     e.type(e.box('Fade in'), '0.3')
     await act(async () => e.button('Save fades')!.click())
     await act(async () => {

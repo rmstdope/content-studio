@@ -131,8 +131,10 @@ export function EffectTakesPanel({
           ? 'partial'
           : 'failed'
   // The chosen take is shown above, in the game's block; the cards are the others.
-  const chosen = view.takes.find((take) => take.chosen)
-  const others = view.takes.filter((take) => !take.chosen)
+  // While the lock cannot be read no take is known to be in the game: every take is a card.
+  const inGame = view.chosen.known ? view.chosen.take : null
+  const chosen = view.takes.find((take) => take.n === inGame)
+  const others = view.takes.filter((take) => take.n !== inGame)
   const none = !others.length && !view.making.length
   const busy = view.making.length > 0
   const canMake = view.canMake
@@ -280,7 +282,7 @@ export function EffectTakesPanel({
             {effectSwitchedLine(view.projectModel, fallback, switchedReason)}
           </span>
         )}
-        {view.lockUnread && (
+        {!view.chosen.known && (
           <span className="takes-missing small">
             Choosing, dropping, fading and setting levels wait until the sound effects lock can be
             read. You can still listen and make more takes.
@@ -311,7 +313,7 @@ export function EffectTakesPanel({
                 effectLoops={row.loops}
                 take={take}
                 player={player}
-                locked={view.lockUnread}
+                locked={!view.chosen.known}
                 canCompare={Boolean(chosen)}
                 comparing={comparing === take.n}
                 onCompare={() => compare(take)}

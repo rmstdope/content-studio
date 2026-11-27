@@ -9,12 +9,6 @@ const rule = (selector: string, from = css) => {
   return at < 0 ? '' : from.slice(at, from.indexOf('}', at))
 }
 
-/**
- * A picture's width on Fine-tune and Patches: the panel's, but never so wide that the picture, at
- * its shape, is taller than most of the window, so the whole of it can be in view and marked.
- */
-const WHOLE_IN_VIEW = /width:\s*min\(100%, calc\(92dvh \* var\(--picture-ratio, 1\)\)\);/
-
 describe('the images list in a narrow window', () => {
   it('drops the table’s minimum width, or each card is wider than the window and its status is off the edge', () => {
     const narrow = css.slice(css.indexOf('@container panel (max-width: 700px) {\n  .images-cmp'))
@@ -68,10 +62,8 @@ describe('the Patches workbench frame (as-uucl.3)', () => {
     expect(rule('.patch-band')).toMatch(/grid-template-columns:\s*minmax\(0, 1fr\) auto/)
   })
 
-  it('holds the picture to its width, narrower when the window’s height would not hold it whole (as-bt1m.1)', () => {
-    const box = rule('.patch-picture')
-    expect(box).toMatch(WHOLE_IN_VIEW)
-    expect(box).not.toMatch(/cqh|height:/)
+  it('gives the picture’s box no height of its own and no measured frame', () => {
+    expect(rule('.patch-picture')).not.toMatch(/cqh|height:|width:/)
     expect(css).not.toMatch(/\.patch-bench[^{]*\{[^}]*--fill-height/)
   })
 
@@ -117,16 +109,6 @@ describe('the named areas bar and picture (as-uucl.4)', () => {
     expect(css).not.toMatch(/fit-shape|fit-picture|--fill-height/)
     expect(rule('.named-areas-picture')).not.toMatch(/vh|cqh|height:/)
   })
-
-  it('holds the picture wholly within the window’s height under the pinned bar (as-zkky)', () => {
-    // One rule for the picture and the box in its place, named stage first.
-    expect(css).toMatch(
-      /\.named-areas-picture > \.named-area-stage,\n\.named-areas-picture > \.named-area-empty \{/,
-    )
-    expect(rule('.named-areas-picture > .named-area-empty')).toMatch(
-      /width:\s*min\(100%, calc\(\(92dvh - var\(--bar-height, 0px\)\) \* var\(--picture-ratio, 1\)\)\);/,
-    )
-  })
 })
 
 describe('the patch list beside a portrait image (as-sgou)', () => {
@@ -137,6 +119,15 @@ describe('the patch list beside a portrait image (as-sgou)', () => {
 })
 
 describe('fitting a picture to the window (as-5wln)', () => {
+  it('has one width rule for every picture marked on, taking a pinned bar off the window’s height (as-5068)', () => {
+    const rules = css.replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(rules.match(/var\(--picture-ratio/g)).toHaveLength(1)
+    expect(rules.match(/92d?vh/g)).toHaveLength(1)
+    expect(rule('.whole-in-view')).toMatch(
+      /width:\s*min\(100%, calc\(\(92dvh - var\(--bar-height, 0px\)\) \* var\(--picture-ratio, 1\)\)\);/,
+    )
+  })
+
   it('names no pixels of what else is on the page: no image rule subtracts a length from the window’s height', () => {
     // Every rule but the Scenes list's, which is no picture.
     const images = css.replace(/\.scene-list \{[^}]*\}/, '')
@@ -148,9 +139,6 @@ describe('the Fine-tune tab’s layout (as-uucl.2)', () => {
   it('is a column of the band, the bar, the picture and the strip, with no fitted frame', () => {
     expect(rule('.fine-job')).toMatch(/flex-direction:\s*column/)
     expect(css).not.toMatch(/\.fine-job\s*\{[^}]*--fill-height/)
-    // The picture is as wide as the panel, or narrower so it is wholly in view in the window
-    // (as-bt1m.1); its own pixel size is the max-width the page sets.
-    expect(rule('.fine-picture')).toMatch(WHOLE_IN_VIEW)
     expect(rule('.fine-picture')).toMatch(/margin-inline:\s*auto/)
   })
 

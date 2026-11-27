@@ -1,9 +1,11 @@
+import { chosenOf } from '../../../core/lockRead'
 import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { FineTunesView } from '../../../core/imageFineTunes'
 import type { ImageRow } from '../../../core/images'
 import type { ProjectFailure } from '../../../services/workspace'
 
+import { drawnSize, SAME_SIZE } from '../../../../test/pictureSize'
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
 // The key cap and the key follow the computer: these tests are a Mac's unless they say otherwise.
@@ -210,6 +212,13 @@ describe('the states of the panel', () => {
     expect(host.querySelectorAll('select.takes-count option')).toHaveLength(10)
   })
 
+  for (const { what, width, height, drawn } of SAME_SIZE) {
+    it(`draws ${what} at the size Patches and Named areas draw it (as-5068)`, async () => {
+      const { host } = await render(() => view({ picture: { kind: 'take', n: 3, width, height } }))
+      expect(drawnSize(host.querySelector<HTMLElement>('.patch-stage')!)).toEqual([...drawn])
+    })
+  }
+
   for (const [what, picture] of [
     ['a portrait picture', { kind: 'take', n: 3, width: 160, height: 200 }],
     ['a landscape picture', { kind: 'take', n: 3, width: 320, height: 200 }],
@@ -227,7 +236,12 @@ describe('the states of the panel', () => {
       expect(stage.closest('.fit-picture')).toBeNull()
       // Top to bottom: the band, the bar, the picture, the strip; nothing beside the picture.
       const order = [...host.querySelector('.fine-job')!.children].map((c) => c.className)
-      expect(order).toEqual(['fine-band', 'fine-bar', 'patch-stage fine-picture', 'fine-strip'])
+      expect(order).toEqual([
+        'fine-band',
+        'fine-bar',
+        'patch-stage fine-picture whole-in-view',
+        'fine-strip',
+      ])
     })
   }
 
@@ -857,15 +871,15 @@ describe('a late click meant for Stop', () => {
 const takesView = (
   chosen: number | null,
   chain: [number, number | null | undefined, string?][],
-  over: Record<string, unknown> = {},
+  { lockUnread, ...over }: Record<string, unknown> = {},
 ) => ({
   ok: true,
+  chosen: chosenOf(!lockUnread, chosen),
   generator: { ok: true },
   projectModel: 'klein',
   models: [],
   making: [],
   failed: [],
-  lockUnread: false,
   lookError: null,
   takes: chain.map(([n, from, words]) => ({
     n,
@@ -873,7 +887,6 @@ const takesView = (
     height: 576,
     model: 'klein',
     earlier: false,
-    chosen: n === chosen,
     isNew: false,
     look: 'ready',
     cropped: false,

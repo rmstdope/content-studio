@@ -492,11 +492,10 @@ describe('using a fine-tune', () => {
     expect(answer).toMatchObject({ ok: true, take: 4, from: 3, carried: { areas: 1, patches: 1 } })
     const taken = await takes.view(file, 'inn')
     if (!taken || !('takes' in taken)) throw new Error('no view')
+    expect(taken.chosen).toEqual({ known: true, take: 4 })
     expect(taken.takes.find((t) => t.n === 4)).toMatchObject({
-      chosen: true,
       fineTunedFrom: { take: 3, words: 'Add a cat' },
     })
-    expect(taken.takes.find((t) => t.n === 3)).toMatchObject({ chosen: false })
     expect(JSON.parse(read(LOCK)).inn.take).toBe(4)
     expect(
       decodePng(
@@ -518,7 +517,7 @@ describe('using a fine-tune', () => {
       true,
     )
     const door = ((await patches.view(file, 'inn')) as ImagePatchesView).patches[0]!
-    expect(door.takes).toMatchObject([{ n: 2, chosen: true }])
+    expect(door).toMatchObject({ takes: [{ n: 2 }], chosen: { known: true, take: 2 } })
     expect(JSON.parse(read(MANIFEST)).inn.patches.door).toBeDefined()
     // The others are gone, with their files.
     const after = (await tunes.view(file, 'inn')) as FineTunesView
@@ -712,9 +711,8 @@ describe('using a fine-tune', () => {
     })
     const view = await takes.view(file, 'inn')
     if (!view || !('takes' in view)) throw new Error('no view')
-    expect(view.takes).toMatchObject([
-      { n: 1, chosen: true, fineTunedFrom: { take: null, words: 'Add a cat' } },
-    ])
+    expect(view.chosen).toEqual({ known: true, take: 1 })
+    expect(view.takes).toMatchObject([{ n: 1, fineTunedFrom: { take: null, words: 'Add a cat' } }])
     expect(readFileSync(join(root, 'web/images/inn-own.png'))).toEqual(own)
   })
 

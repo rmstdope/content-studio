@@ -137,9 +137,10 @@ export function setImageAreaBox(
     projectFile,
     (summary) => {
       const row = summary.acts.flatMap((act) => act.rows).find((r) => r.id === id)
-      return row?.areas.some((a) => a.id === area)
-        ? { width: row.width, height: row.height, take: row.chosenTake }
-        : null
+      if (!row?.areas.some((a) => a.id === area)) return null
+      // A box is of the take in the game; of no take when none is chosen, or that is not known.
+      const take = row.chosen.known ? row.chosen.take : null
+      return { width: row.width, height: row.height, take }
     },
     (edits, size) => {
       const why = box && checkAreaBox(box, size)

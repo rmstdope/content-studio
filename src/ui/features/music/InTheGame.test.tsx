@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { TrackRow } from '../../../core/music'
 import type { MusicTakesView, TakeView } from '../../../core/musicTake'
+import { chosenAmong, type Marked } from '../../../../test/chosen'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -39,7 +40,7 @@ const row = (over: Partial<TrackRow> = {}): TrackRow => ({
   ...over,
 })
 
-const take = (n: number, over: Partial<TakeView> = {}): TakeView => ({
+const take = (n: number, over: Partial<Marked<TakeView>> = {}): Marked<TakeView> => ({
   n,
   file: `aaaaaaaaaaaaaaaa.${n}.wav`,
   seconds: 30,
@@ -60,7 +61,7 @@ const view = (takes: TakeView[]): MusicTakesView => ({
   takes,
   making: [],
   failed: [],
-  lockUnread: false,
+  chosen: chosenAmong(takes),
 })
 
 let answer: unknown

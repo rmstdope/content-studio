@@ -167,7 +167,7 @@ const noTakes: ImageTakesView = {
   takes: [],
   making: [],
   failed: [],
-  lockUnread: false,
+  chosen: { known: true, take: null },
   lookError: null,
 }
 
@@ -177,12 +177,19 @@ function render(
   making: Record<string, { takes: number; left: number; failed?: number; stopped?: number }> = {},
   run: unknown = null,
   modelState = false,
-  takes?: Partial<ImageTakesView>,
+  takes?: Partial<ImageTakesView> & { lockUnread?: boolean },
   seed?: (client: InstanceType<typeof QueryClient>) => void,
 ) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, enabled: false } } })
   client.setQueryData(['image-making'], making)
-  if (takes) client.setQueryData(['image-takes', 'inn'], { ...noTakes, ...takes })
+  if (takes) {
+    const { lockUnread, ...over } = takes
+    client.setQueryData(['image-takes', 'inn'], {
+      ...noTakes,
+      ...(lockUnread && { chosen: { known: false } }),
+      ...over,
+    })
+  }
   client.setQueryData(['look-run'], run)
   seed?.(client)
   if (modelState) {
@@ -409,11 +416,10 @@ describe('an image’s page', () => {
     const page = render(route, shown, {}, null, false, { lockUnread: false }, (client) =>
       client.setQueryData(['image-patches', 'inn'], {
         ok: true,
-        take: null,
+        chosen: { known: false },
         game: { width: 320, height: 200 },
         lookError: null,
         lookKey: null,
-        lockUnread: true,
         pictureGone: false,
         maker: { ok: true },
         models: { 'qwen-edit': 'whole', klein: 'whole' },
@@ -1324,9 +1330,8 @@ describe('the patches the game asks for', () => {
     const loaded = (client: InstanceType<typeof QueryClient>) =>
       client.setQueryData(['image-patches', 'inn'], {
         ok: true,
-        take: 4,
+        chosen: { known: true, take: { n: 4 } },
         pictureGone: false,
-        lockUnread: false,
         remake: { earlier: {}, press: null, failedModels: [] },
         maker: { ok: true },
         models: { klein: 'whole' },
@@ -1568,11 +1573,10 @@ describe('the jobs of an image’s page', () => {
     const page = render(image, shown, {}, null, false, { lockUnread: false }, (client) =>
       client.setQueryData(['image-patches', 'inn'], {
         ok: true,
-        take: null,
+        chosen: { known: false },
         game: { width: 320, height: 200 },
         lookError: null,
         lookKey: null,
-        lockUnread: true,
         pictureGone: false,
         maker: { ok: true },
         models: { 'qwen-edit': 'whole', klein: 'whole' },

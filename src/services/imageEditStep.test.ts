@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { tempRepo } from '../../test/helpers'
-import { editStep } from './imageEditStep'
+import { editStep, queuedAnswer } from './imageEditStep'
 import type { ImageGenerator } from './images'
 import { fakePng } from './imagesFake'
 import { decodePng } from './png'
@@ -44,5 +44,30 @@ describe('editStep', () => {
     expect(turns).toHaveLength(2)
     await Promise.all([first, second])
     expect(made).toEqual([1, 2])
+  })
+})
+
+describe('queuedAnswer', () => {
+  const picture = { width: 1024, height: 576 }
+
+  it('warns about a mark too small for the model', () => {
+    const area = { x: 0, y: 0, width: 36, height: 30 }
+    expect(queuedAnswer({ count: 2, area }, picture)).toEqual({
+      ok: true,
+      warning: 'Too small: 36 × 30. Make it at least 50 × 50, or the model may change nothing.',
+    })
+  })
+
+  it('has no warning for a big enough mark, no mark, or one over the whole picture', () => {
+    const big = { x: 0, y: 0, width: 50, height: 50 }
+    expect(queuedAnswer({ count: 1, area: big }, picture)).toEqual({ ok: true })
+    expect(queuedAnswer({ count: 1, area: null }, picture)).toEqual({ ok: true })
+    const narrow = { width: 40, height: 600 }
+    const whole = { x: 0, y: 0, ...narrow }
+    expect(queuedAnswer({ count: 1, area: whole }, narrow)).toEqual({ ok: true })
+  })
+
+  it('has no warning for a retry, which carries no mark', () => {
+    expect(queuedAnswer({ retry: 3 }, picture)).toEqual({ ok: true })
   })
 })

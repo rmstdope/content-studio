@@ -24,7 +24,6 @@ const summary = (extra: Partial<EffectsSummary> = {}): EffectsSummary => ({
     status: 'none-yet' as const,
     current: { kind: 'nothing' as const },
     changed: [],
-    chosen: false,
   })),
   dropped: [],
   unreadable: 0,
@@ -41,7 +40,7 @@ describe('effectsSubtitle', () => {
   it('counts an out-of-date effect as chosen, and names missing clips', () => {
     const rows = summary().rows.map((row, i) => ({
       ...row,
-      chosen: i < 4,
+      current: i < 4 ? ({ kind: 'take', take: 1, exists: i > 0 } as const) : row.current,
       status: i === 0 ? ('missing' as const) : i === 1 ? ('changed' as const) : row.status,
     }))
     expect(effectsSubtitle(summary({ rows }))).toBe(

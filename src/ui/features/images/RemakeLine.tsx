@@ -130,8 +130,11 @@ export function RemakeLine({
   }
 
   const covered: PatchRow[] = remakeCovered(row, view.patches)
-  if (covered.length === 0) return null
-  const plan = view.take
+  // Nothing is covered without a known take in the game.
+  const inGame = row.chosen.known ? row.chosen.take : null
+  if (covered.length === 0 || inGame === null) return null
+  const picture = view.chosen.known ? view.chosen.take : null
+  const plan = picture
     ? planRemake(
         covered.map((patch) => ({
           id: patch.id,
@@ -141,7 +144,7 @@ export function RemakeLine({
           earlier: view.remake.earlier[patch.id] ?? null,
         })),
         row,
-        view.take,
+        picture,
       )
     : { make: covered.map((p) => ({ id: p.id, title: p.title })), leftOut: [] }
   const modelHere = view.models[model] === 'whole'
@@ -171,7 +174,7 @@ export function RemakeLine({
   return (
     <div className="remake">
       <div className="remake-line">
-        <span className="remake-grow">{remakeSentence(plan.make.length, row.chosenTake!)}</span>
+        <span className="remake-grow">{remakeSentence(plan.make.length, inGame)}</span>
         <EditModelMenu
           value={model}
           onChange={onModel}

@@ -1,25 +1,16 @@
-import { fieldOwnsKeys, typesText, useDocumentKeys, usePendingFocus } from './useWorkbenchKeys'
-import { onWholeMarkLink, WholeMarkLink } from './WholeMarkLink'
-import { isWholeKey, wholeKeyText } from '../../wholeMark'
+import { fieldOwnsKeys, useDocumentKeys, usePendingFocus } from './useWorkbenchKeys'
+import { WholeMarkLink } from './WholeMarkLink'
+import { useWorkbenchMark } from './useWorkbenchMark'
+import { wholeKeyText } from '../../wholeMark'
 import { useAfterSaved } from '../../useAfterSaved'
 import { useJobOpen } from './ImageJobTabs'
 import { cropWindow } from '../../../core/imagePixels'
-import { pictureShape } from './FitPicture'
-import { ChangeBadge, ChangeNote, MarkTag } from './MarkTag'
-import { smallMark, smallMarkText } from '../../../core/imageSmallMark'
-import {
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type PointerEvent,
-  type ReactNode,
-} from 'react'
+import { FitPicture } from './FitPicture'
+import { ChangeBadge, ChangeNote } from './MarkTag'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   checkPatchArea,
-  isWholeArea,
   markFromArea,
-  wholeArea,
   onTopQuestion,
   type ImagePatchesView,
   type PatchTie,
@@ -44,12 +35,11 @@ import {
 import { Confirm } from '../../components/Confirm'
 import { useFocusWhenClosed } from '../../components/useFocusWhenClosed'
 import { off } from '../../off'
-import { areaFromDrag, sameArea } from '../../imagePatchArea'
+import { sameArea } from '../../imagePatchArea'
 import {
   areaNoPlaceText,
   backToAreaText,
   BRINGING_WHY,
-  IMAGES_LOCK_WHY,
   makeTakesText,
   STYLE_BROKEN_WHY,
   IMAGE_TAKE_UNKNOWN,
@@ -82,20 +72,6 @@ import { scrollWithin } from '../../scrollWithin'
 
 /** How many takes one press can make. */
 const MAX_AT_ONCE = 4
-
-/** Where an area lies on a picture of this size, in the percentages the page draws with. */
-function placed(area: PatchArea, take: { width: number; height: number }): CSSProperties {
-  // A mark can reach past the part the game's version shows; it is drawn up to that picture's edge.
-  const within = (at: number, size: number) => Math.min(Math.max(at, 0), size) / size
-  const left = within(area.x, take.width)
-  const top = within(area.y, take.height)
-  return {
-    left: `${left * 100}%`,
-    top: `${top * 100}%`,
-    width: `${(within(area.x + area.width, take.width) - left) * 100}%`,
-    height: `${(within(area.y + area.height, take.height) - top) * 100}%`,
-  }
-}
 
 /** The keys a patch hears when focus is inside it. */
 const PATCH_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'c', 'd', 's'])
@@ -241,7 +217,7 @@ export function PatchWorkbench({
   /** What the patch lies on top of; null for a patch straight on the image. */
   stack: PatchStack | null
   /** The image's takes and patches, for the question on a patch others lie on. */
-  imageRow: Pick<ImageRow, 'chosenTake' | 'patches'>
+  imageRow: Pick<ImageRow, 'chosen' | 'patches'>
   /** The title of a patch of the image by id. */
   titleOf: (id: string) => string
   view: ImagePatchesView
@@ -274,8 +250,6 @@ export function PatchWorkbench({
   const jobOpen = useJobOpen()
   const [looking, setLooking] = useState<number | null>(null)
   const [showing, setShowing] = useState(true)
-  // What a screen reader is told when a drag ends on a mark too small to change anything.
-  const [announced, setAnnounced] = useState('')
   const [count, setCount] = useState(2)
   const [asking, setAsking] = useState(false)
   // The question on a patch that others lie on top of, before it changes its chosen take.
@@ -293,7 +267,6 @@ export function PatchWorkbench({
   const { waiting: waitingForWords, afterSaved: afterWordsSaved } = useAfterSaved(saveWords)
   // Focus goes to Make once a stopped press has left it free again.
   const [landOnMake, setLandOnMake] = useState(false)
-  const start = useRef<{ x: number; y: number } | null>(null)
   const asked = useRef(new Set<number>())
   // A choice or drop asked for by a key and not yet settled: a second press waits for it.
   const changing = useRef(false)
@@ -301,15 +274,20 @@ export function PatchWorkbench({
   const unchooseButton = useRef<HTMLButtonElement>(null)
   const makeButton = useRef<HTMLButtonElement>(null)
   const backButton = useRef<HTMLButtonElement>(null)
+  const markOn = useWorkbenchMark()
   // ⌘A is heard anywhere on the page, but only while this tab is the open one.
   const markKeys = useDocumentKeys(jobOpen)
   const thumbs = useRef(new Map<number, HTMLButtonElement>())
   const refocusUnchoose = useFocusWhenClosed(asking, unchooseButton)
 
-  const { take, lookError, lockUnread } = view
+  const { lookError } = view
+  const take = view.chosen.known ? view.chosen.take : null
   const { takes, making, failed } = work
+  // The patch's chosen take on the take in the game; the workbench below is drawn only while that
+  // take is known.
+  const chosenN = work.chosen.known ? work.chosen.take : null
   const strip = takes.map((t) => t.n)
-  const fallback = (takes.find((t) => t.chosen) ?? takes.at(-1))?.n ?? null
+  const fallback = (takes.find((t) => t.n === chosenN) ?? takes.at(-1))?.n ?? null
   const lookingAt = looking !== null && strip.includes(looking) ? looking : fallback
   const shown = takes.find((t) => t.n === lookingAt) ?? null
 
@@ -346,7 +324,7 @@ export function PatchWorkbench({
         <span className="muted small">
           {view.pictureGone
             ? "The chosen take's picture is missing or cannot be read, so it cannot be patched."
-            : view.lockUnread
+            : !view.chosen.known
               ? IMAGE_TAKE_UNKNOWN
               : 'Choose a take of the image first. Patches are painted onto the take the game shows.'}
         </span>
@@ -404,17 +382,25 @@ export function PatchWorkbench({
     savingWords: waitingForWords,
   })
   const stackWhy = stack && stack.kind !== 'on' ? stack.text : false
-  const canChange = !lockUnread && !choose.isPending && !drop.isPending
-  const changeWhy = lockUnread ? IMAGES_LOCK_WHY : WAIT_FOR_CHANGE
+  const canChange = !choose.isPending && !drop.isPending
+  const changeWhy = WAIT_FOR_CHANGE
   const canChoose = canChange && lookError === null && shown !== null && shown.look !== 'bringing'
   const chooseWhy = !canChange ? changeWhy : lookError !== null ? STYLE_BROKEN_WHY : BRINGING_WHY
   const overlaid = showing ? shown : null
-  const small = smallMark(marked, take)
-  const showMark = marked !== null && !(overlaid && sameArea(marked, overlaid.area))
+  const marking = markOn({
+    take,
+    mark: marked,
+    onMark,
+    shown: space,
+    covered: marked !== null && overlaid !== null && sameArea(marked, overlaid.area),
+    // The link goes once the whole picture is marked: focus moves to the next control.
+    onLinkGone: () => focusOn('marked', true),
+  })
   const problem = refusal(make.data) ?? refusal(choose.data) ?? refusal(drop.data)
   const error = make.error ?? choose.error ?? drop.error ?? stop.error
   // Un-choose answers beside its own button, and only while the chosen take is the one shown.
-  const unchooseProblem = shown?.chosen
+  const shownChosen = !!shown && shown.n === chosenN
+  const unchooseProblem = shownChosen
     ? (refusal(unchoose.data) ?? unchoose.error?.message)
     : undefined
   const beforeChange = () => {
@@ -422,9 +408,8 @@ export function PatchWorkbench({
   }
 
   // Others lie on top of this patch: what changing its take sets aside, asked first.
-  const chosenN = takes.find((t) => t.chosen)?.n ?? null
   const askOnTop = (ask: SetAsideAsk) => {
-    if (lockUnread || !onTopQuestion(imageRow, patchId, ask, chosenN)) return false
+    if (!onTopQuestion(imageRow, patchId, ask, chosenN)) return false
     beforeChange()
     setOnTop(ask)
     return true
@@ -456,32 +441,10 @@ export function PatchWorkbench({
     setLooking(t.n)
     onMark(t.area)
   }
-  const dragTo = (event: PointerEvent<HTMLDivElement>) => {
-    if (!start.current) return
-    const dragged = areaFromDrag(
-      start.current,
-      { x: event.clientX, y: event.clientY },
-      event.currentTarget.getBoundingClientRect(),
-      space,
-      space.unplace,
-      take,
-    )
-    // A click, or a drag too small to patch, changes nothing.
-    if (dragged) onMark(dragged)
-    return dragged
-  }
-  /** Marks the whole picture; focus on the link, which then goes, moves to the next control. */
-  const markWhole = (fromLink = onWholeMarkLink()) => {
-    onMark(wholeArea(take))
-    setAnnounced('')
-    if (fromLink) focusOn('marked', true)
-  }
   markKeys.current = (event) => {
     // With no picture shown there is nothing to mark.
     if (stack && stack.kind !== 'on') return
-    if (!isWholeKey(event) || typesText(event.target)) return
-    event.preventDefault()
-    markWhole()
+    marking.wholeKey(event)
   }
   const onKeyDown = (event: React.KeyboardEvent) => {
     const target = event.target
@@ -506,10 +469,10 @@ export function PatchWorkbench({
     }
     // Held down, C and D would choose back and forth, or drop take after take.
     if (!shown || event.repeat || changing.current || !canChange) return
-    if (key === 'c' && !shown.chosen && canChoose) {
+    if (key === 'c' && !shownChosen && canChoose) {
       if (!askOnTop({ kind: 'choose', n: shown.n })) onChoose(shown.n)
     }
-    if (key === 'd' && !shown.chosen) {
+    if (key === 'd' && !shownChosen) {
       if (!askOnTop({ kind: 'drop', n: shown.n })) onDrop(shown.n)
     }
   }
@@ -596,8 +559,8 @@ export function PatchWorkbench({
                   : editModel(shown.model).short}
               </span>
               {shown.changed && <ChangeNote change={shown.changed} />}
-              {shown.chosen && <span className="chip chip-ok">Chosen</span>}
-              {shown.chosen && work.oldLook && <span className="chip chip-warn">Old look</span>}
+              {shownChosen && <span className="chip chip-ok">Chosen</span>}
+              {shownChosen && work.oldLook && <span className="chip chip-warn">Old look</span>}
             </>
           ) : (
             <span className="lbl" ref={heading} tabIndex={-1}>
@@ -610,7 +573,7 @@ export function PatchWorkbench({
             <button type="button" className="btn" onClick={() => setShowing((on) => !on)}>
               {showing ? 'Patch off' : 'Patch on'} <kbd>S</kbd>
             </button>
-            {shown.chosen ? (
+            {shownChosen ? (
               <button
                 type="button"
                 className="btn"
@@ -654,10 +617,7 @@ export function PatchWorkbench({
 
   const picture = (
     <>
-      <div
-        className="patch-picture"
-        style={{ ...pictureShape(space.width, space.height), maxWidth: pictureWidth }}
-      >
+      <FitPicture className="patch-picture" shape={space} drawnWidth={pictureWidth}>
         {game && (lookError !== null || shown?.look === 'bringing' || shown?.look === 'missing') ? (
           <div
             className={`look-empty${lookError !== null ? ' look-empty-err' : ''}`}
@@ -673,25 +633,7 @@ export function PatchWorkbench({
           <div
             className="patch-stage"
             style={game ? ({ imageRendering: 'pixelated' } as CSSProperties) : undefined}
-            onPointerDown={(event) => {
-              if (event.button !== 0 || event.ctrlKey) return
-              event.preventDefault()
-              event.currentTarget.setPointerCapture(event.pointerId)
-              start.current = { x: event.clientX, y: event.clientY }
-              setAnnounced('')
-            }}
-            onPointerMove={dragTo}
-            onPointerUp={(event) => {
-              const dragged = dragTo(event)
-              if (dragged) {
-                const small = smallMark(dragged, take)
-                setAnnounced(small ? smallMarkText(small) : '')
-              }
-              start.current = null
-            }}
-            onPointerCancel={() => {
-              start.current = null
-            }}
+            {...marking.stage}
           >
             <img
               className="patch-take"
@@ -710,21 +652,10 @@ export function PatchWorkbench({
                 draggable={false}
               />
             )}
-            {showMark && marked && (
-              <div
-                className={`patch-mark${small ? ' patch-mark-small' : ''}`}
-                style={placed(space.place(marked), space)}
-              />
-            )}
-            {showMark && marked && small && (
-              <MarkTag placed={space.place(marked)} picture={space} size={small} />
-            )}
-            <span className="sr-only" aria-live="polite">
-              {small ? announced : ''}
-            </span>
+            {marking.drawn}
           </div>
         )}
-      </div>
+      </FitPicture>
       <span className="faint small">
         {game
           ? `${view.game.width} × ${view.game.height}`
@@ -749,9 +680,8 @@ export function PatchWorkbench({
   // The line under the words: how the picture is marked, and the other ways to mark it. A patch
   // whose picture is not shown has no link.
   const link = blocked === null
-  const whole = isWholeArea(marked, take)
   const wholeLink = (label: string, after?: string) => (
-    <WholeMarkLink label={label} after={after} onPress={() => markWhole(true)} />
+    <WholeMarkLink label={label} after={after} onPress={() => marking.markWhole(true)} />
   )
   const backToArea = tie && (
     <button
@@ -780,8 +710,8 @@ export function PatchWorkbench({
   } else if (tie && fromArea) {
     markLine = (
       <>
-        {link && whole && `${TIED_WHOLE} `}
-        {backToArea} {link && !whole && wholeLink(MARK_WHOLE_ALONE)}
+        {link && marking.whole && `${TIED_WHOLE} `}
+        {backToArea} {link && !marking.whole && wholeLink(MARK_WHOLE_ALONE)}
       </>
     )
   } else if (!marked) {
@@ -795,7 +725,7 @@ export function PatchWorkbench({
       )
     }
   } else if (link && (tie || view.maker.ok)) {
-    markLine = whole ? PATCH_WHOLE : wholeLink(MARK_WHOLE_ALONE)
+    markLine = marking.whole ? PATCH_WHOLE : wholeLink(MARK_WHOLE_ALONE)
   }
 
   return (
@@ -910,12 +840,6 @@ export function PatchWorkbench({
             What the game gets
           </label>
         </div>
-        {lockUnread && takes.length > 0 && (
-          <span className="takes-missing small">
-            Choosing, dropping and un-choosing wait until the images lock can be read. You can still
-            look and make more takes.
-          </span>
-        )}
         {items.length === 0 ? (
           <div className="takes-empty">
             No takes yet. Each take is a new try at this change, painted with the part of the
@@ -948,7 +872,7 @@ export function PatchWorkbench({
                     {t.changed && <ChangeBadge change={t.changed} />}
                     <span className="patch-thumb-label">
                       <span className="grow">Take {n}</span>
-                      {t.chosen && <span className="chip chip-ok">Chosen</span>}
+                      {t.n === chosenN && <span className="chip chip-ok">Chosen</span>}
                       {t.isNew && <span className="chip chip-new">new</span>}
                       {t.earlier && <span className="faint small">earlier words</span>}
                     </span>

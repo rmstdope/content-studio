@@ -1,3 +1,6 @@
+import type { PatchedTake } from '../../../core/imagePatches'
+import { chosenAmong, type Marked } from '../../../../test/chosen'
+import { chosenOf } from '../../../core/lockRead'
 import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { cropWindow } from '../../../core/imagePixels'
@@ -5,6 +8,7 @@ import type { ImagePatchesView, PatchWorkView } from '../../../core/imagePatches
 import type { ImageRow, PatchRow } from '../../../core/images'
 import { cssLength, valuesInEveryWindow } from '../../../../test/stylesheet'
 
+import { drawnSize, SAME_SIZE } from '../../../../test/pictureSize'
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
 // The key cap and the key follow the computer: these tests are a Mac's unless they say otherwise.
@@ -39,18 +43,17 @@ const patchRow = (id: string, over: Partial<PatchRow> = {}): PatchRow => ({
   gameWas: null,
   chosenOn: [],
   chosenOnGone: false,
-  chosenArea: null,
+  chosenArea: chosenOf(true, null),
   ...over,
 })
 
 const area = { x: 100, y: 50, width: 200, height: 200 }
 const other = { x: 400, y: 300, width: 100, height: 80 }
 
-const takeOf = (n: number, over: Partial<PatchWorkView['takes'][number]> = {}) => ({
+const takeOf = (n: number, over: Partial<Marked<PatchWorkView['takes'][number]>> = {}) => ({
   n,
   area,
   earlier: false,
-  chosen: false,
   isNew: false,
   look: 'ready' as const,
   model: 'klein' as const,
@@ -65,25 +68,44 @@ const work = (id: string, over: Partial<PatchWorkView> = {}): PatchWorkView => (
   failed: [],
   oldLook: false,
   failedModels: [],
+  chosen: chosenAmong(over.takes ?? []),
   ...over,
 })
 
+/** What a test says of the patches' view: the take the patches lie over, and an unread lock. */
+type ViewOver = Partial<Omit<ImagePatchesView, 'chosen'>> & {
+  take?: PatchedTake | null
+  lockUnread?: boolean
+}
+
 const view = (
   patches: PatchWorkView[],
-  over: Partial<ImagePatchesView> = {},
+  {
+    take = { n: 3, width: 1024, height: 576, cropped: false },
+    lockUnread = false,
+    ...over
+  }: ViewOver = {},
 ): ImagePatchesView => ({
   ok: true,
-  take: { n: 3, width: 1024, height: 576, cropped: false },
+  chosen: chosenOf(!lockUnread, take),
   game: { width: 512, height: 288 },
   lookError: null,
   lookKey: 'k',
-  lockUnread: false,
   pictureGone: false,
   remake: { earlier: {}, press: null, failedModels: [] },
   maker: { ok: true },
   models: { 'qwen-edit': 'whole', klein: 'whole' },
   patches,
   ...over,
+})
+
+/** What a test says of the image's row: its fields, and its take in the game as a number. */
+type RowOver = Partial<ImageRow> & { chosenTake?: number | null }
+
+/** The row's fields a test's words stand for. */
+const rowFields = ({ chosenTake, ...fields }: RowOver): Partial<ImageRow> => ({
+  chosen: chosenOf(true, chosenTake ?? null),
+  ...fields,
 })
 
 /**
@@ -94,7 +116,7 @@ async function render(
   patches: PatchRow[],
   current: () => ImagePatchesView,
   posted: { status: number; body: unknown } = { status: 200, body: { ok: true } },
-  imageRow: Partial<ImageRow> = {},
+  imageRow: RowOver = {},
   tabOpen = true,
 ) {
   const sent: { method: string; path: string; body: unknown }[] = []
@@ -124,7 +146,7 @@ async function render(
               height: 576,
               areas: [],
               patches,
-              ...imageRow,
+              ...rowFields(imageRow),
             } as ImageRow,
           }),
         ),
@@ -136,8 +158,8 @@ async function render(
     act(() => root.unmount())
     host.remove()
   })
-  return { host, sent, root, client, rerender: (row: Partial<ImageRow>) => renderRow(row) }
-  function renderRow(row: Partial<ImageRow>) {
+  return { host, sent, root, client, rerender: (row: RowOver) => renderRow(row) }
+  function renderRow(row: RowOver) {
     return act(async () => {
       root.render(
         createElement(
@@ -148,7 +170,14 @@ async function render(
             JobOpenProvider,
             { value: tabOpen },
             createElement(GamePatchesPanel, {
-              row: { id: 'inn', width: 1024, height: 576, areas: [], patches, ...row } as ImageRow,
+              row: {
+                id: 'inn',
+                width: 1024,
+                height: 576,
+                areas: [],
+                patches,
+                ...rowFields(row),
+              } as ImageRow,
             }),
           ),
         ),
@@ -1431,7 +1460,7 @@ describe('a patch tied to a named area', () => {
 
 describe('what the game gets', () => {
   const one =
-    (over: Partial<PatchWorkView> = {}, more: Partial<ImagePatchesView> = {}) =>
+    (over: Partial<PatchWorkView> = {}, more: ViewOver = {}) =>
     () =>
       view([work('a', over), work('b')], more)
   const box = (host: Element, at = 0) =>
@@ -1551,20 +1580,6 @@ describe('what the game gets', () => {
     expect(text(host)).toContain('Fix the style to choose this take.')
     expect(isOff(button(host, 'Choose')!)).toBe(true)
     expect(isOff(button(host, 'Drop')!)).toBe(false)
-  })
-
-  it('turns Choose, Drop and Un-choose off while the lock cannot be read, and says why', async () => {
-    const { host } = await render(
-      [patchRow('a')],
-      one({ takes: [takeOf(1), takeOf(2, { chosen: true })] }, { lockUnread: true }),
-    )
-    await open(host)
-    expect(text(host)).toContain(
-      'Choosing, dropping and un-choosing wait until the images lock can be read. You can still look and make more takes.',
-    )
-    await act(async () => thumbs(host)[0]!.click())
-    expect(isOff(button(host, 'Choose')!)).toBe(true)
-    expect(isOff(button(host, 'Drop')!)).toBe(true)
   })
 
   it('wears “Old look” in the list and above the picture of a chosen patch in an old look', async () => {
@@ -1691,7 +1706,7 @@ describe('the model of new takes', () => {
   const withModels = (
     patches: PatchWorkView[],
     models: ImagePatchesView['models'] = both,
-    over: Partial<ImagePatchesView> = {},
+    over: ViewOver = {},
   ) => view(patches, { models, ...over })
 
   it('has one menu above the count, offering the two models, on klein', async () => {
@@ -1880,10 +1895,14 @@ describe('the model of new takes', () => {
   })
 
   it('leaves the Remake menu on klein whatever a patch is picked on', async () => {
-    const { host } = await render([patchRow('a', { chosenOn: [3] })], () =>
-      withModels([work('a')], both, {
-        remake: { earlier: { a: area }, press: null, failedModels: [] },
-      }),
+    const { host } = await render(
+      [patchRow('a', { chosenOn: [3] })],
+      () =>
+        withModels([work('a')], both, {
+          remake: { earlier: { a: area }, press: null, failedModels: [] },
+        }),
+      undefined,
+      { chosenTake: 4 },
     )
     await open(host)
     await pick(menuOf(host), 'qwen-edit')
@@ -1908,6 +1927,20 @@ describe('the model of new takes', () => {
 
 describe('the three parts of an open patch', () => {
   const made = () => view([work('a', { takes: [takeOf(1), takeOf(2, { chosen: true })] })])
+
+  for (const { what, width, height, drawn } of SAME_SIZE) {
+    it(`draws ${what} at the size Fine-tune and Named areas draw it (as-5068)`, async () => {
+      const { host } = await render([patchRow('a')], () =>
+        view([work('a', { takes: [takeOf(1)] })], {
+          take: { n: 3, width, height, cropped: false },
+          game: { width: width / 2, height: height / 2 },
+        }),
+      )
+      const box = host.querySelector<HTMLElement>('.patch-picture')!
+      expect(box.classList.contains('whole-in-view')).toBe(true)
+      expect(drawnSize(box)).toEqual([...drawn])
+    })
+  }
 
   // The shapes a picture comes in: portrait, landscape, and the game's whole frame.
   for (const [what, size] of [

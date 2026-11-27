@@ -1,3 +1,5 @@
+import { chosenAmong } from '../../../../test/chosen'
+import { chosenOf } from '../../../core/lockRead'
 import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { ImageRow, PatchRow } from '../../../core/images'
@@ -29,9 +31,15 @@ const patch = (id: string, over: Partial<PatchRow> = {}): PatchRow => ({
   gameWas: null,
   chosenOn: [],
   chosenOnGone: false,
-  chosenArea: null,
+  chosenArea: chosenOf(true, null),
   ...over,
 })
+
+/** What a test says of the patches' view. */
+interface ViewOver {
+  lockUnread?: boolean
+  patches?: { id: string; takes: { n: number; chosen?: boolean }[] }[]
+}
 
 /** Renders the panel for an image with these patches; `answer` is what saving answers. */
 async function render(
@@ -51,15 +59,16 @@ async function render(
     if (path.split('?')[0] === '/api/images/inn/patches') {
       // null: the patches never finish loading
       if (view === null) return new Promise<Response>(() => {})
+      const { lockUnread = false, patches: works = [], ...rest } = view as ViewOver
       return Response.json({
         ok: true,
-        take: null,
+        chosen: chosenOf(!lockUnread, null),
         pictureGone: false,
         remake: { earlier: {}, press: null, failedModels: [] },
         maker: { ok: true },
         models: { 'qwen-edit': 'whole', klein: 'whole' },
-        patches: [],
-        ...view,
+        patches: works.map((work) => ({ ...work, chosen: chosenAmong(work.takes) })),
+        ...rest,
       })
     }
     sent.push({
@@ -79,7 +88,12 @@ async function render(
         QueryClientProvider,
         { client },
         createElement(GamePatchesPanel, {
-          row: { id: 'inn', patches, chosenTake: null, ...shape } as ImageRow,
+          row: {
+            id: 'inn',
+            patches,
+            ...shape,
+            chosen: chosenOf(shape.status !== 'unknown', shape.chosenTake ?? null),
+          } as ImageRow,
         }),
       ),
     )
@@ -368,9 +382,9 @@ describe('GamePatchesPanel', () => {
   describe('overlapping chosen patches', () => {
     const at = (x: number) => ({ x, y: 0, width: 10, height: 10 })
     const three = () => [
-      patch('bread-taken', { title: 'Bread taken', chosenArea: at(0) }),
-      patch('door-ajar', { title: 'Door ajar', chosenArea: at(5) }),
-      patch('fire-out', { title: 'Fire out', chosenArea: at(8) }),
+      patch('bread-taken', { title: 'Bread taken', chosenArea: chosenOf(true, at(0)) }),
+      patch('door-ajar', { title: 'Door ajar', chosenArea: chosenOf(true, at(5)) }),
+      patch('fire-out', { title: 'Fire out', chosenArea: chosenOf(true, at(8)) }),
     ]
     const warning = (host: Element) =>
       host.querySelector('section[aria-label="Overlapping patches"]')
@@ -399,7 +413,10 @@ describe('GamePatchesPanel', () => {
       ])
     })
     it('says nothing when no pair overlaps, or the patches are not loaded, the chosen picture is gone or the lock cannot be read', async () => {
-      const apart = [patch('a', { chosenArea: at(0) }), patch('b', { chosenArea: at(10) })]
+      const apart = [
+        patch('a', { chosenArea: chosenOf(true, at(0)) }),
+        patch('b', { chosenArea: chosenOf(true, at(10)) }),
+      ]
       expect(warning((await render(apart)).host)).toBeNull()
       expect(warning((await render(three(), undefined, { pictureGone: true })).host)).toBeNull()
       expect(warning((await render(three(), undefined, { lockUnread: true })).host)).toBeNull()
@@ -418,7 +435,10 @@ describe('GamePatchesPanel', () => {
       ).not.toBeNull()
     })
     it('puts no line in an open patch that overlaps nothing', async () => {
-      const { host } = await render([...three().slice(0, 2), patch('far', { chosenArea: at(500) })])
+      const { host } = await render([
+        ...three().slice(0, 2),
+        patch('far', { chosenArea: chosenOf(true, at(500)) }),
+      ])
       await act(async () => pickButtons(host)[2]!.click())
       expect(host.querySelector('.line-warn')).toBeNull()
     })

@@ -3,6 +3,8 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { EffectRow } from '../../../core/effects'
 import type { EffectTakesView, EffectTakeView } from '../../../core/effectTakes'
 import { installFakeWebAudio, started } from '../../../../test/fakeWebAudio'
+import { chosenAmong, type Marked } from '../../../../test/chosen'
+import { NOT_KNOWN } from '../../../core/lockRead'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -25,7 +27,7 @@ afterEach(() => {
 afterAll(() => GlobalRegistrator.unregister())
 
 const MODEL = 'Stable Audio 3 Small SFX'
-const take = (n: number, over: Partial<EffectTakeView> = {}): EffectTakeView => ({
+const take = (n: number, over: Partial<Marked<EffectTakeView>> = {}): Marked<EffectTakeView> => ({
   n,
   file: `0123456789abcdef.${n}.wav`,
   seconds: 1.4,
@@ -50,7 +52,7 @@ const view = (over: Partial<EffectTakesView> = {}): EffectTakesView => ({
   takes: [],
   making: [],
   failed: [],
-  lockUnread: false,
+  chosen: chosenAmong(over.takes ?? []),
   ...over,
 })
 const row = (over: Partial<EffectRow> = {}): EffectRow => ({
@@ -65,13 +67,11 @@ const row = (over: Partial<EffectRow> = {}): EffectRow => ({
   status: 'none-yet',
   current: { kind: 'nothing' },
   changed: [],
-  chosen: false,
   ...over,
 })
 const chosenRow = (over: Partial<EffectRow> = {}) =>
   row({
     status: 'chosen',
-    chosen: true,
     current: { kind: 'take', take: 2, exists: true },
     ...over,
   })
@@ -491,7 +491,7 @@ describe('the chosen clip is gone', () => {
 })
 
 describe('the lock cannot be read', () => {
-  const data = view({ takes: [take(1), take(2)], lockUnread: true })
+  const data = view({ takes: [take(1), take(2)], chosen: NOT_KNOWN })
 
   it('says which take plays is not known, and Choose and Drop wait', () => {
     const { container, text, buttons } = render(
@@ -513,7 +513,7 @@ describe('the lock cannot be read', () => {
 describe('an effect that loops', () => {
   const looping = (over: Partial<EffectRow> = {}) =>
     row({ id: 'rain', name: 'Rain', seconds: 10, loops: true, ...over })
-  const loopTake = (n: number, over: Partial<EffectTakeView> = {}) =>
+  const loopTake = (n: number, over: Partial<Marked<EffectTakeView>> = {}) =>
     take(n, { seconds: 10, loops: true, ...over })
 
   it('gives each looping take its seam mark, the game’s length and Hear the seam', () => {
@@ -553,7 +553,7 @@ describe('an effect that loops', () => {
 
   it('has Hear the seam in the In the game block too', () => {
     const { container } = render(
-      looping({ status: 'chosen', chosen: true, current: { kind: 'take', take: 2, exists: true } }),
+      looping({ status: 'chosen', current: { kind: 'take', take: 2, exists: true } }),
       view({ takes: [loopTake(1), loopTake(2, { chosen: true })] }),
     )
     const block = container.querySelector('[aria-label="In the game"]')!
@@ -563,7 +563,7 @@ describe('an effect that loops', () => {
 
   it('shades the quiet part and says where the loop goes quiet, on the card and in the block', () => {
     const { container } = render(
-      looping({ status: 'chosen', chosen: true, current: { kind: 'take', take: 2, exists: true } }),
+      looping({ status: 'chosen', current: { kind: 'take', take: 2, exists: true } }),
       view({ takes: [loopTake(1, { quietAt: 6.2 }), loopTake(2, { chosen: true, quietAt: 8.1 })] }),
     )
     const card = container.querySelector('.takes .take')!
@@ -598,7 +598,7 @@ describe('an effect that loops', () => {
   it('compares with the same button, the chosen loop round first, reading ■ Stop while it plays', async () => {
     cleanups.push(installFakeWebAudio())
     const { buttons, click } = render(
-      looping({ status: 'chosen', chosen: true, current: { kind: 'take', take: 2, exists: true } }),
+      looping({ status: 'chosen', current: { kind: 'take', take: 2, exists: true } }),
       view({ takes: [loopTake(1), loopTake(2, { chosen: true })] }),
     )
     await click(buttons('▶ The chosen, then this')[0]!)
@@ -830,7 +830,7 @@ describe('the model for new takes', () => {
 
 describe('Trim silence', () => {
   const cut = { start: 0.22, end: 0.14, seconds: 1.04 }
-  const trimmable = (n: number, over: Partial<EffectTakeView> = {}) =>
+  const trimmable = (n: number, over: Partial<Marked<EffectTakeView>> = {}) =>
     take(n, { trimmable: 'cut', ...over })
   const bottomRow = (card: Element) =>
     [...card.querySelectorAll('.take-row')].find((r) =>
@@ -932,7 +932,7 @@ describe('Trim silence', () => {
   it('waits, with no new line, when the lock cannot be read', () => {
     const { text, buttons } = render(
       row({ status: 'unknown', current: { kind: 'unknown' } }),
-      view({ takes: [trimmable(1), take(2, { trim: cut })], lockUnread: true }),
+      view({ takes: [trimmable(1), take(2, { trim: cut })], chosen: NOT_KNOWN }),
     )
     expect(isOff(buttons('Trim silence')[0]!)).toBe(true)
     expect(isOff(buttons('Undo trim')[0]!)).toBe(true)

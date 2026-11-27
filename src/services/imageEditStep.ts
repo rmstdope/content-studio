@@ -8,6 +8,7 @@ import {
   openSides,
   type PatchArea,
 } from '../core/imagePatches'
+import { smallMark, smallMarkText } from '../core/imageSmallMark'
 import { resolveInRoot } from '../core/paths'
 import { writeOrRefuse } from './files'
 import { makeImageTake, type ImageGenerator } from './images'
@@ -91,4 +92,16 @@ export async function editStep(
   } finally {
     await rm(resolveInRoot(step.root, step.cropFile), { force: true })
   }
+}
+
+/**
+ * The answer to a make request whose edits are queued: with a warning when its mark is too small for
+ * the model on this picture. A retry carries no mark of its own and gets none.
+ */
+export function queuedAnswer(
+  request: { count: number; area: PatchArea | null } | { retry: number },
+  picture: { width: number; height: number },
+): { ok: true; warning?: string } {
+  const small = 'count' in request ? smallMark(request.area, picture) : null
+  return small ? { ok: true, warning: smallMarkText(small) } : { ok: true }
 }
