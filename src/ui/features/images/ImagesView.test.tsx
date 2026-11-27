@@ -895,6 +895,37 @@ describe('the game’s look', () => {
     expect(sent.find((c) => c.path === '/api/images/bring-all')).toMatchObject({ method: 'POST' })
   })
 
+  it('reads the project, the takes and the patches again once a run that brought every image is gone (as-t9b2)', async () => {
+    let client!: InstanceType<typeof QueryClient>
+    const running = { running: true, total: 2, done: 1, failed: [] }
+    render(
+      { view: 'images', page: 'image', image: 'inn' },
+      stale(),
+      {},
+      running,
+      false,
+      {},
+      (c) => {
+        client = c
+      },
+    )
+    const stillRead = () =>
+      [['project'], ['image-takes', 'inn'], ['image-patches', 'inn']].filter(
+        (key) => !client.getQueryState(key)?.isInvalidated,
+      )
+    // what the page reads while the run goes, fresh
+    for (const key of [['project'], ['image-takes', 'inn'], ['image-patches', 'inn']]) {
+      act_(() => client.setQueryData(key, {}))
+    }
+    expect(stillRead()).toHaveLength(3)
+    // the studio forgets a run that brought every image, so the next poll reads null
+    await act_(async () => {
+      client.setQueryData(['look-run'], null)
+      await new Promise((done) => setTimeout(done, 0))
+    })
+    expect(stillRead()).toEqual([])
+  })
+
   it('puts a failure away once nothing is left with an old look', () => {
     const failed = [{ id: 'i', reason: 'missing' }]
     const first = summary().images!.acts[0]!.rows
