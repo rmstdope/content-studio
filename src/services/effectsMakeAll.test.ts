@@ -264,7 +264,7 @@ describe('a press that is stopped, or cannot start one effect', () => {
       expect(await takes.makeAll(file, ['door-creak'])).toEqual({
         ok: false,
         message:
-          'No takes were made: content-studio/cache/effect-boards/door-creak.json could not be written.',
+          'No takes were made: content-studio/cache/effect-boards/door-creak.json could not be written: permission denied.',
       })
     } finally {
       console.error = quietLog

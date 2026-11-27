@@ -6,6 +6,7 @@ import { basename, dirname, join } from 'node:path'
 import { pyFixed } from '../core/pyformat'
 import { cleanupFilter, CLEANUP, noiseFirstFile, quietestStretch } from '../core/cleanup'
 import { readWav } from '../core/wav'
+import { writeFailure } from './files'
 
 /** How clips are encoded (the project's `output`). */
 export interface EncodeOptions {
@@ -24,10 +25,13 @@ export type Encoder = (wav: Uint8Array, file: string, options: EncodeOptions) =>
 
 /**
  * An encoder could not write the file it was asked for (a folder it may not write in), said plainly
- * so the caller can name whose file it was rather than show ffmpeg's log.
+ * so the caller can name whose file it was, and why, rather than show ffmpeg's log.
  */
 export class FileNotWritten extends Error {
-  constructor() {
+  constructor(
+    /** Why, as `writeFailure` words it ("permission denied"). */
+    readonly reason: string,
+  ) {
     super('The file could not be written.')
   }
 }
@@ -44,8 +48,8 @@ export function createFfmpegEncoder({ timeoutMs }: { timeoutMs: number }): Encod
     try {
       await mkdir(dirname(file), { recursive: true })
       await access(dirname(file), constants.W_OK)
-    } catch {
-      throw new FileNotWritten()
+    } catch (error) {
+      throw new FileNotWritten(writeFailure(error))
     }
     if (clean) wav = await cleanWav(wav, { timeoutMs })
     let child

@@ -75,7 +75,7 @@ describe.skipIf(!canRefuseWrites)('server, a save nothing answers', () => {
     })
     expect(answer).toEqual([
       500,
-      { error: 'content-studio/narration/act1.lock.json could not be written' },
+      { error: 'content-studio/narration/act1.lock.json could not be written: permission denied' },
     ])
   })
 })

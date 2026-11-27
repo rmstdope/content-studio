@@ -535,7 +535,9 @@ describe.skipIf(!canRefuseWrites)('a take that cannot be kept', () => {
     const before = readdirSync(folder)
     const { answer } = await refusingWrites(folder, () => take(root, fish))
     expect(answer).toMatchObject({ ok: false, reason: 'write' })
-    expect((answer as { message: string }).message).toEndWith('.wav could not be written.')
+    expect((answer as { message: string }).message).toEndWith(
+      '.wav could not be written: permission denied.',
+    )
     expect(readdirSync(folder)).toEqual(before)
   })
 })

@@ -392,7 +392,7 @@ describe('the take engine', () => {
             stop: new AbortController().signal,
             change: (board) => void board.next++,
           }),
-        ).rejects.toThrow('takes/1.wav could not be written')
+        ).rejects.toThrow('takes/1.wav could not be written: permission denied')
       } finally {
         chmodSync(join(root, 'takes'), 0o755)
       }
@@ -486,7 +486,7 @@ describe('the take engine', () => {
         console.error = quiet
       }
       expect(take!.state).toBe('failed')
-      expect(take!.message).toBe('takes/1.wav could not be written.')
+      expect(take!.message).toBe('takes/1.wav could not be written: permission denied.')
       expect(blamed).toBe(0)
       // A model's own failure still reaches it.
       const [other] = (await engine.reserve('p', 'x', access, 1, entry)) as TakeEntry[]

@@ -811,7 +811,7 @@ describe('measureLine', () => {
       expect(answer).toEqual({
         ok: false,
         reason: 'write',
-        message: 'content-studio/narration/act1.lock.json could not be written.',
+        message: 'content-studio/narration/act1.lock.json could not be written: permission denied.',
       })
       expect(logged[0]![1]).toMatchObject({ reason: 'permission denied' })
     },

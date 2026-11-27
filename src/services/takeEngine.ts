@@ -146,7 +146,7 @@ export function createTakeEngine<E extends TakeEntry, B extends TakeBoard>({
      * Reserves `count` numbers on the board at once, so none is used twice, even by a take that
      * fails or is stopped, and registers a waiting entry for each, made by `make` and returned in
      * number order. When the board cannot be saved nothing is reserved and the answer is a failure
-     * naming the board ("No <noun> were made: <file> could not be written."), so no caller words it.
+     * naming the board ("No <noun> were made: <file> could not be written: <reason>."), so no caller words it.
      */
     async reserve(
       projectFile: string,

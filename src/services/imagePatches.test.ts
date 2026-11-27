@@ -177,7 +177,10 @@ describe.skipIf(process.getuid?.() === 0)(
         await patches.make(file, 'inn', 'door', { count: 1, area })
         const view = await work()
         expect(view.failed).toMatchObject([{ n: 1 }])
-        expect(view.failed[0]!.message).toBe(`${FOLDER}/1.png could not be written.`)
+        // The reason is the system's own for a folder in the way.
+        expect(view.failed[0]!.message).toStartWith(
+          `${FOLDER}/1.png could not be written: EISDIR: `,
+        )
         expect(view.failedModels).toEqual([])
       } finally {
         console.error = quiet
@@ -655,7 +658,7 @@ describe('takes of a declared patch', () => {
       try {
         expect(await patches.make(file, 'inn', 'door', { count: 2, area })).toEqual({
           ok: false,
-          message: `No takes were made: ${BOARD} could not be written.`,
+          message: `No takes were made: ${BOARD} could not be written: permission denied.`,
         })
       } finally {
         console.error = quiet
@@ -1307,7 +1310,7 @@ describe('a chosen take of a patch reaches the game', () => {
       try {
         expect(await patches.unchoose(file, 'inn', 'door')).toMatchObject({
           ok: false,
-          message: `${GAME_PATCH} could not be written.`,
+          message: `${GAME_PATCH} could not be written: permission denied.`,
         })
       } finally {
         chmodSync(clips, 0o755)

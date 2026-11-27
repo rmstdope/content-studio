@@ -140,7 +140,7 @@ describe.skipIf(process.getuid?.() === 0)('a board that cannot be written', () =
       const error = await takes.drop(file, 'inn', 1).catch((e: unknown) => e)
       expect(error).toBeInstanceOf(WriteRefused)
       expect((error as WriteRefused).message).toBe(
-        'content-studio/cache/images/inn.json could not be written',
+        'content-studio/cache/images/inn.json could not be written: permission denied',
       )
     } finally {
       chmodSync(folder, 0o755)
@@ -177,7 +177,7 @@ describe.skipIf(process.getuid?.() === 0)(
         held.release()
         const view = await held.failedOf()
         expect(view.failed.map((f) => f.message)).toEqual([
-          'content-studio/cache/images/inn.json could not be written.',
+          'content-studio/cache/images/inn.json could not be written: permission denied.',
         ])
         expect(view.models.every((m) => !m.failed)).toBe(true)
       } finally {
@@ -223,7 +223,8 @@ describe('making takes', () => {
       try {
         expect(await takes.make(file, 'inn', { count: 2 })).toEqual({
           ok: false,
-          message: 'No takes were made: content-studio/cache/images/inn.json could not be written.',
+          message:
+            'No takes were made: content-studio/cache/images/inn.json could not be written: permission denied.',
         })
       } finally {
         console.error = quiet
@@ -567,7 +568,7 @@ describe('choosing', () => {
       try {
         expect(await takes.unchoose(file, 'inn')).toMatchObject({
           ok: false,
-          message: 'content-studio/images/lock.json could not be written.',
+          message: 'content-studio/images/lock.json could not be written: permission denied.',
         })
       } finally {
         chmodSync(studio, 0o755)
@@ -592,7 +593,7 @@ describe('choosing', () => {
       try {
         expect(await takes.unchoose(file, 'inn')).toMatchObject({
           ok: false,
-          message: 'web/images/inn.png could not be written.',
+          message: 'web/images/inn.png could not be written: permission denied.',
         })
       } finally {
         chmodSync(clips, 0o755)
@@ -794,7 +795,10 @@ describe('choosing', () => {
       const { takes, file, root, read } = await made()
       await takes.choose(file, 'inn', 1)
       await setImageWords(file, 'inn', 'a high inn')
-      const refused = { ok: false as const, message: `${LOCK} could not be written.` }
+      const refused = {
+        ok: false as const,
+        message: `${LOCK} could not be written: permission denied.`,
+      }
       const folder = join(root, 'content-studio/images')
       const chosen = read(LOCK)
       chmodSync(folder, 0o555)
@@ -827,7 +831,7 @@ describe('choosing', () => {
       try {
         expect(await takes.choose(file, 'inn', 2)).toEqual({
           ok: false,
-          message: `${LOCK} could not be written.`,
+          message: `${LOCK} could not be written: permission denied.`,
         })
       } finally {
         chmodSync(folder, 0o755)
@@ -1885,7 +1889,10 @@ describe('going back to an accepted take', () => {
       const { takes, file, root, read } = await acceptedOne()
       const lock = read(LOCK)
       const picture = read('web/images/inn.png')
-      const refused = { ok: false as const, message: `${BOARD} could not be written.` }
+      const refused = {
+        ok: false as const,
+        message: `${BOARD} could not be written: permission denied.`,
+      }
       const folder = join(root, 'content-studio/cache/images')
       chmodSync(folder, 0o555)
       try {
@@ -2029,7 +2036,7 @@ describe('copying another image', () => {
         const answer = await takes.copyFrom(file, 'inn', 'hall')
         expect(answer).toMatchObject({ ok: false })
         expect((answer as { message: string }).message).toContain(
-          'content-studio/cache/image-takes/inn/1.png could not be written',
+          'content-studio/cache/image-takes/inn/1.png could not be written: permission denied',
         )
       } finally {
         chmodSync(join(root, 'content-studio/cache/image-takes/inn'), 0o755)
