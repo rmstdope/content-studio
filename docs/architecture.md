@@ -1688,9 +1688,9 @@ the image whenever it is chosen. What a take counts as made from is answered in 
 `countedFrom(take, entry)`: the take's own size, with the words and style of the lock's entry when
 it is of that take (its number, and the seed, model and size the entry records; a copy's size is not
 compared), else the board's `accepted`, else its own. Choosing a take, a fine-tune of it and the
-"earlier words" label ask it; only Undo accept reads the take's own (`madeBeforeAccept`), as do the
-comparisons that mean what the picture was really made from. So what changed since the accept, and a
-changed size, are all a chosen take is out of date for. The board is written before the game: when an accept cannot be saved on it, the choose or Un-choose is refused (409, naming the board) with nothing changed; a board that cannot be read does not stop Un-choose. The memory
+"earlier words" label ask it. Undo accept, and the comparisons that mean what the picture was really
+made from, read the take's own (`madeBeforeAccept`). So what changed since the accept, and a changed
+size, are all a chosen take is out of date for. The board is written before the game: when an accept cannot be saved on it, the choose or Un-choose is refused (409, naming the board) with nothing changed; a board that cannot be read does not stop Un-choose. The memory
 is local like the takes, and goes with a dropped take. An agent's `POST …/choose` answers
 `{ ok: true, behind }`, the reasons the take in the game is out of date for now (left out if the
 image cannot be read again). A take's "earlier words" label follows the accept (as-nodk,

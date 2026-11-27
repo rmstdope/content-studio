@@ -1940,6 +1940,27 @@ describe('copying another image', () => {
     expect(existsSync(join(root, 'web/images/inn.png'))).toBe(true)
   })
 
+  it('chosen and then fine-tuned, passes on the words the game counts it from, at its own size', async () => {
+    const { takes, file, settled, read, root } = await withHallChosen()
+    await takes.copyFrom(file, 'inn', 'hall')
+    await settled('inn')
+    const own = boardOf(read, 'inn').takes[0].madeFrom
+    await setImageWords(file, 'inn', 'a different inn')
+    // The game resizes the image, so the entry records another size than the copy's own.
+    writeFileSync(
+      join(root, 'tts/act1/images.json'),
+      JSON.stringify([
+        { ...inn, width: 160 },
+        { ...inn, id: 'hall', title: 'Hall' },
+      ]),
+    )
+    expect(await takes.choose(file, 'inn', 1)).toEqual({ ok: true })
+    expect(JSON.parse(read(LOCK)).inn.inputs.width).toBe(160)
+    const made = { png: fakePng(1024, 640, 9), model: 'm', seed: 9, words: 'Add a cat' }
+    expect(await takes.addTake(file, 'inn', { ...made, from: 1 })).toEqual({ ok: true, n: 2 })
+    expect(boardOf(read, 'inn').takes[1].madeFrom).toEqual({ ...own, words: 'a different inn' })
+  })
+
   it('refuses an unknown image, the image itself, and one with no chosen take, adding nothing', async () => {
     const { takes, file, read } = await withHallChosen()
     expect(await takes.copyFrom(file, 'nowhere', 'hall')).toBeNull()
