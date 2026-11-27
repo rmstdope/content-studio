@@ -79,7 +79,7 @@ describe.skipIf(!hasFfmpeg)('server, a scene’s mix as a sound', () => {
     ])
   })
 
-  it('renders the saved mix as a minute of WAV, which studio_fetch hands over with its facts', async () => {
+  it('asks for a minute of the saved mix as WAV, which studio_fetch hands over with its facts', async () => {
     await send('POST', '/api/effects/wind/takes', { count: 1 })
     let file = ''
     for (let i = 0; i < 300 && !file; i++) {
