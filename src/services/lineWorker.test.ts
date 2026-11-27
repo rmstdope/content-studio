@@ -47,6 +47,19 @@ describe('createLineWorker', () => {
     told.close()
   })
 
+  it('says why it stopped, not the broken pipe, when a request is written to a worker that is going', async () => {
+    // The worker answers its first request and closes its input, then the system kills it: the
+    // second request is written to a pipe nobody reads (EPIPE), which must not be what it says.
+    const script = `require('node:fs').closeSync(0); console.log(JSON.stringify({ id: '1' })); setTimeout(() => process.kill(process.pid, 'SIGKILL'), 300)`
+    const worker = make({
+      command: [process.execPath, '-e', script],
+      killed: 'The system stopped it.',
+    })
+    expect(await worker.request({})).toEqual({})
+    await expect(worker.request({})).rejects.toThrow(/^The system stopped it\.$/)
+    worker.close()
+  })
+
   it('names the worker when it takes too long', async () => {
     const worker = make({ timeoutMs: 300 })
     await expect(worker.request({ path: '/c/hang.wav' })).rejects.toThrow(
