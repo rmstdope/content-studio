@@ -111,9 +111,21 @@ describe('writeFailure', () => {
     expect(writeFailure(failed('EDQUOT'))).toBe('the disk quota is used up')
   })
 
-  it('gives an unknown error’s own message', () => {
-    expect(writeFailure(failed('EIO'))).toBe("EIO: open 'x.tmp'")
-    expect(writeFailure(failed('toString'))).toBe("toString: open 'x.tmp'")
+  it('says a file or folder is in the way, without the call or the path that met it', () => {
+    for (const code of ['EISDIR', 'ENOTDIR', 'EEXIST'])
+      expect(writeFailure(failed(code))).toBe('a file or folder is in the way')
+  })
+
+  it('names an unknown system error by its code alone, never its message with a path', () => {
+    expect(writeFailure(failed('EIO'))).toBe('the system refused it (EIO)')
+    expect(writeFailure(failed('toString'))).toBe('the system refused it (toString)')
+    expect(writeFailure(null)).toBe('the system refused it')
+  })
+
+  it('gives the studio’s own error, which has no code, its message', () => {
+    expect(writeFailure(new Error('a.json is outside the project root'))).toBe(
+      'a.json is outside the project root',
+    )
   })
 })
 
@@ -138,7 +150,9 @@ describe('writeOrRefuse', () => {
     expect(error).toBeInstanceOf(WriteRefused)
     expect(error.file).toBe('blocked/board.json')
     expect(error.reason).toBeString()
-    expect(refusalSentence(error)).toBe(`blocked/board.json could not be written: ${error.reason}`)
+    expect(refusalSentence(error)).toBe(
+      'blocked/board.json could not be written: a file or folder is in the way',
+    )
   })
 
   it('writes the file when nothing is wrong', async () => {
@@ -163,7 +177,7 @@ describe('writeTogether', () => {
       ]),
     ).toEqual({
       ok: false,
-      message: expect.stringMatching(/^blocked\/c\.txt could not be written: ENOTDIR: .+\.$/),
+      message: 'blocked/c.txt could not be written: a file or folder is in the way.',
     })
     expect(readFileSync(join(root, 'a.txt'), 'utf8')).toBe('old')
     expect(existsSync(join(root, 'b.txt'))).toBe(false)
@@ -186,9 +200,8 @@ describe('writeTogether', () => {
       ),
     ).toEqual({
       ok: false,
-      message: expect.stringMatching(
-        /^blocked\/c\.txt could not be written: ENOTDIR: .+, and the game's files could not be put back\.$/,
-      ),
+      message:
+        "blocked/c.txt could not be written: a file or folder is in the way, and the game's files could not be put back.",
     })
   })
 

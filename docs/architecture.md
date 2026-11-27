@@ -97,8 +97,9 @@ retroquest/                      ← user runs `content-studio` here
    A write that fails is one typed refusal, `WriteRefused` (`services/files.ts`): `writeOrRefuse`,
    the only write the module exports, raises it naming the file's path in the project and the reason,
    so no save can meet the system's own error. `refusalSentence` words it in one place ("<file> could
-   not be written: <reason>", the reason as `writeFailure` gives it, "permission denied" or "the disk
-   is full", so a refused save says what to fix; as-a7m6), and each shape of answer has one adapter over it: `refusalAnswer` (a message),
+   not be written: <reason>", the reason as `writeFailure` gives it, "permission denied", "the disk
+   is full" or "a file or folder is in the way", and for any other system error only its code, never
+   the system's message or a temporary path, so a refused save says what to fix; as-a7m6), and each shape of answer has one adapter over it: `refusalAnswer` (a message),
    `refusalProblems` (the reason as a problem at the file) and `refusalFailed` (`failed`, with the
    reason). A refusal no caller answers reaches the server's catch-all as the sentence.
 5. The API answers only requests addressed to `127.0.0.1` or `localhost` on its port (against DNS

@@ -81,14 +81,20 @@ const WRITE_FAILURES: Record<string, string> = {
   EDQUOT: 'the disk quota is used up',
 }
 
+/** Codes that say a file stands where a folder should, or a folder where the file should. */
+const IN_THE_WAY = new Set(['EISDIR', 'ENOTDIR', 'EEXIST'])
+
 /**
- * Why a write failed, as a reason a user can act on ("permission denied"), not the system call
- * and temporary file that met it; an error without a known code gives its own message.
+ * Why a write failed, as a reason a user can act on ("permission denied"), never the system call
+ * and temporary file that met it: a system error with no known code is named by its code alone,
+ * and the studio's own error (no code, such as a path outside the root) gives its message.
  */
 export function writeFailure(error: unknown): string {
   const code = (error as NodeJS.ErrnoException | null)?.code
   if (code && Object.hasOwn(WRITE_FAILURES, code)) return WRITE_FAILURES[code]!
-  return error instanceof Error ? error.message : String(error)
+  if (code && IN_THE_WAY.has(code)) return 'a file or folder is in the way'
+  if (code) return `the system refused it (${code})`
+  return error instanceof Error ? error.message : 'the system refused it'
 }
 
 /** Whether a write was refused for a reason `writeFailure` names (no permission, a full disk, …). */

@@ -177,9 +177,8 @@ describe.skipIf(process.getuid?.() === 0)(
         await patches.make(file, 'inn', 'door', { count: 1, area })
         const view = await work()
         expect(view.failed).toMatchObject([{ n: 1 }])
-        // The reason is the system's own for a folder in the way.
-        expect(view.failed[0]!.message).toStartWith(
-          `${FOLDER}/1.png could not be written: EISDIR: `,
+        expect(view.failed[0]!.message).toBe(
+          `${FOLDER}/1.png could not be written: a file or folder is in the way.`,
         )
         expect(view.failedModels).toEqual([])
       } finally {

@@ -163,8 +163,9 @@ describe('a fine-tune the model made but the studio cannot save', () => {
     try {
       await tunes.make(file, 'inn', { count: 1, words: 'Add a cat', area })
       const view = await settled()
-      // The reason is the system's own for a folder in the way.
-      expect(view.failed[0]!.message).toStartWith(`${FOLDER}/1.png could not be written: EISDIR: `)
+      expect(view.failed[0]!.message).toBe(
+        `${FOLDER}/1.png could not be written: a file or folder is in the way.`,
+      )
       expect(view.failedModels).toEqual([])
     } finally {
       console.error = quiet
