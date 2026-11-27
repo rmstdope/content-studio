@@ -1,25 +1,16 @@
-import { fieldOwnsKeys, typesText, useDocumentKeys, usePendingFocus } from './useWorkbenchKeys'
-import { onWholeMarkLink, WholeMarkLink } from './WholeMarkLink'
-import { isWholeKey, wholeKeyText } from '../../wholeMark'
+import { fieldOwnsKeys, useDocumentKeys, usePendingFocus } from './useWorkbenchKeys'
+import { WholeMarkLink } from './WholeMarkLink'
+import { useWorkbenchMark } from './useWorkbenchMark'
+import { wholeKeyText } from '../../wholeMark'
 import { useAfterSaved } from '../../useAfterSaved'
 import { useJobOpen } from './ImageJobTabs'
 import { cropWindow } from '../../../core/imagePixels'
 import { pictureShape } from './FitPicture'
-import { ChangeBadge, ChangeNote, MarkTag } from './MarkTag'
-import { smallMark, smallMarkText } from '../../../core/imageSmallMark'
-import {
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type PointerEvent,
-  type ReactNode,
-} from 'react'
+import { ChangeBadge, ChangeNote } from './MarkTag'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   checkPatchArea,
-  isWholeArea,
   markFromArea,
-  wholeArea,
   onTopQuestion,
   type ImagePatchesView,
   type PatchTie,
@@ -44,7 +35,7 @@ import {
 import { Confirm } from '../../components/Confirm'
 import { useFocusWhenClosed } from '../../components/useFocusWhenClosed'
 import { off } from '../../off'
-import { areaFromDrag, sameArea } from '../../imagePatchArea'
+import { sameArea } from '../../imagePatchArea'
 import {
   areaNoPlaceText,
   backToAreaText,
@@ -82,20 +73,6 @@ import { scrollWithin } from '../../scrollWithin'
 
 /** How many takes one press can make. */
 const MAX_AT_ONCE = 4
-
-/** Where an area lies on a picture of this size, in the percentages the page draws with. */
-function placed(area: PatchArea, take: { width: number; height: number }): CSSProperties {
-  // A mark can reach past the part the game's version shows; it is drawn up to that picture's edge.
-  const within = (at: number, size: number) => Math.min(Math.max(at, 0), size) / size
-  const left = within(area.x, take.width)
-  const top = within(area.y, take.height)
-  return {
-    left: `${left * 100}%`,
-    top: `${top * 100}%`,
-    width: `${(within(area.x + area.width, take.width) - left) * 100}%`,
-    height: `${(within(area.y + area.height, take.height) - top) * 100}%`,
-  }
-}
 
 /** The keys a patch hears when focus is inside it. */
 const PATCH_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'c', 'd', 's'])
@@ -274,8 +251,6 @@ export function PatchWorkbench({
   const jobOpen = useJobOpen()
   const [looking, setLooking] = useState<number | null>(null)
   const [showing, setShowing] = useState(true)
-  // What a screen reader is told when a drag ends on a mark too small to change anything.
-  const [announced, setAnnounced] = useState('')
   const [count, setCount] = useState(2)
   const [asking, setAsking] = useState(false)
   // The question on a patch that others lie on top of, before it changes its chosen take.
@@ -293,7 +268,6 @@ export function PatchWorkbench({
   const { waiting: waitingForWords, afterSaved: afterWordsSaved } = useAfterSaved(saveWords)
   // Focus goes to Make once a stopped press has left it free again.
   const [landOnMake, setLandOnMake] = useState(false)
-  const start = useRef<{ x: number; y: number } | null>(null)
   const asked = useRef(new Set<number>())
   // A choice or drop asked for by a key and not yet settled: a second press waits for it.
   const changing = useRef(false)
@@ -301,6 +275,7 @@ export function PatchWorkbench({
   const unchooseButton = useRef<HTMLButtonElement>(null)
   const makeButton = useRef<HTMLButtonElement>(null)
   const backButton = useRef<HTMLButtonElement>(null)
+  const markOn = useWorkbenchMark()
   // ⌘A is heard anywhere on the page, but only while this tab is the open one.
   const markKeys = useDocumentKeys(jobOpen)
   const thumbs = useRef(new Map<number, HTMLButtonElement>())
@@ -409,8 +384,15 @@ export function PatchWorkbench({
   const canChoose = canChange && lookError === null && shown !== null && shown.look !== 'bringing'
   const chooseWhy = !canChange ? changeWhy : lookError !== null ? STYLE_BROKEN_WHY : BRINGING_WHY
   const overlaid = showing ? shown : null
-  const small = smallMark(marked, take)
-  const showMark = marked !== null && !(overlaid && sameArea(marked, overlaid.area))
+  const marking = markOn({
+    take,
+    mark: marked,
+    onMark,
+    shown: space,
+    covered: marked !== null && overlaid !== null && sameArea(marked, overlaid.area),
+    // The link goes once the whole picture is marked: focus moves to the next control.
+    onLinkGone: () => focusOn('marked', true),
+  })
   const problem = refusal(make.data) ?? refusal(choose.data) ?? refusal(drop.data)
   const error = make.error ?? choose.error ?? drop.error ?? stop.error
   // Un-choose answers beside its own button, and only while the chosen take is the one shown.
@@ -456,32 +438,10 @@ export function PatchWorkbench({
     setLooking(t.n)
     onMark(t.area)
   }
-  const dragTo = (event: PointerEvent<HTMLDivElement>) => {
-    if (!start.current) return
-    const dragged = areaFromDrag(
-      start.current,
-      { x: event.clientX, y: event.clientY },
-      event.currentTarget.getBoundingClientRect(),
-      space,
-      space.unplace,
-      take,
-    )
-    // A click, or a drag too small to patch, changes nothing.
-    if (dragged) onMark(dragged)
-    return dragged
-  }
-  /** Marks the whole picture; focus on the link, which then goes, moves to the next control. */
-  const markWhole = (fromLink = onWholeMarkLink()) => {
-    onMark(wholeArea(take))
-    setAnnounced('')
-    if (fromLink) focusOn('marked', true)
-  }
   markKeys.current = (event) => {
     // With no picture shown there is nothing to mark.
     if (stack && stack.kind !== 'on') return
-    if (!isWholeKey(event) || typesText(event.target)) return
-    event.preventDefault()
-    markWhole()
+    marking.wholeKey(event)
   }
   const onKeyDown = (event: React.KeyboardEvent) => {
     const target = event.target
@@ -673,25 +633,7 @@ export function PatchWorkbench({
           <div
             className="patch-stage"
             style={game ? ({ imageRendering: 'pixelated' } as CSSProperties) : undefined}
-            onPointerDown={(event) => {
-              if (event.button !== 0 || event.ctrlKey) return
-              event.preventDefault()
-              event.currentTarget.setPointerCapture(event.pointerId)
-              start.current = { x: event.clientX, y: event.clientY }
-              setAnnounced('')
-            }}
-            onPointerMove={dragTo}
-            onPointerUp={(event) => {
-              const dragged = dragTo(event)
-              if (dragged) {
-                const small = smallMark(dragged, take)
-                setAnnounced(small ? smallMarkText(small) : '')
-              }
-              start.current = null
-            }}
-            onPointerCancel={() => {
-              start.current = null
-            }}
+            {...marking.stage}
           >
             <img
               className="patch-take"
@@ -710,18 +652,7 @@ export function PatchWorkbench({
                 draggable={false}
               />
             )}
-            {showMark && marked && (
-              <div
-                className={`patch-mark${small ? ' patch-mark-small' : ''}`}
-                style={placed(space.place(marked), space)}
-              />
-            )}
-            {showMark && marked && small && (
-              <MarkTag placed={space.place(marked)} picture={space} size={small} />
-            )}
-            <span className="sr-only" aria-live="polite">
-              {small ? announced : ''}
-            </span>
+            {marking.drawn}
           </div>
         )}
       </div>
@@ -749,9 +680,8 @@ export function PatchWorkbench({
   // The line under the words: how the picture is marked, and the other ways to mark it. A patch
   // whose picture is not shown has no link.
   const link = blocked === null
-  const whole = isWholeArea(marked, take)
   const wholeLink = (label: string, after?: string) => (
-    <WholeMarkLink label={label} after={after} onPress={() => markWhole(true)} />
+    <WholeMarkLink label={label} after={after} onPress={() => marking.markWhole(true)} />
   )
   const backToArea = tie && (
     <button
@@ -780,8 +710,8 @@ export function PatchWorkbench({
   } else if (tie && fromArea) {
     markLine = (
       <>
-        {link && whole && `${TIED_WHOLE} `}
-        {backToArea} {link && !whole && wholeLink(MARK_WHOLE_ALONE)}
+        {link && marking.whole && `${TIED_WHOLE} `}
+        {backToArea} {link && !marking.whole && wholeLink(MARK_WHOLE_ALONE)}
       </>
     )
   } else if (!marked) {
@@ -795,7 +725,7 @@ export function PatchWorkbench({
       )
     }
   } else if (link && (tie || view.maker.ok)) {
-    markLine = whole ? PATCH_WHOLE : wholeLink(MARK_WHOLE_ALONE)
+    markLine = marking.whole ? PATCH_WHOLE : wholeLink(MARK_WHOLE_ALONE)
   }
 
   return (
