@@ -6,6 +6,7 @@ import { type EffectGenerator } from '../services/effects'
 import { type ImageGenerator } from '../services/images'
 import { type Transcriber } from '../services/transcriber'
 import { type SceneRender } from '../services/sceneAudio'
+import { type SpendLog } from '../services/spending'
 import index from '../ui/index.html'
 import { allowedHosts, notFound } from './shared'
 import { createContext, type RouteContext } from './context'
@@ -16,7 +17,6 @@ import { musicRoutes } from './routes/music'
 import { narrationRoutes } from './routes/narration'
 import { scenesRoutes } from './routes/scenes'
 import { setupRoutes } from './routes/setup'
-import type { SpendLog } from '../services/spending'
 
 /** How to start the studio's server. */
 export interface ServerOptions {
