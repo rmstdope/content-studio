@@ -49,7 +49,10 @@ export function tempRepo(files: Record<string, unknown>): string {
 /** The entries the take engine keeps in `slot` for the takes of the project at `projectFile`. */
 function takeEntries(slot: string, projectFile: string): { state: string }[] {
   type Slots = Record<string, Map<string, Map<number, { state: string }>> | undefined>
-  return [...((globalThis as unknown as Slots)[slot] ?? [])]
+  const engine = (globalThis as unknown as Slots)[slot]
+  // A renamed slot would read as no takes at all, and every wait on it would pass at once.
+  if (!engine) throw new Error(`no take engine keeps its entries in ${slot}`)
+  return [...engine]
     .filter(([key]) => key.startsWith(`${projectFile}\0`))
     .flatMap(([, entries]) => [...entries.values()])
 }
