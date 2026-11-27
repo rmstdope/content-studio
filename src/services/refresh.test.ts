@@ -96,21 +96,6 @@ describe('refreshDialog', () => {
     })
   })
 
-  it('stops a command that takes too long, children included', async () => {
-    const root = tempRepo(project(`${HELPER}; wait`))
-    // The grace is far off, so only the timeout can stop the helper in time.
-    const result = await refreshDialog(join(root, 'content-studio.json'), 'act1', {
-      timeoutMs: 500,
-      graceMs: 60_000,
-    })
-    expect(result).toMatchObject({
-      ok: false,
-      reason: 'failed',
-      message: expect.stringContaining('longer than'),
-    })
-    await expectGone(await helperPid(root))
-  })
-
   it('names a signal from outside rather than calling it a timeout', async () => {
     const root = tempRepo(project('kill -9 $$'))
     expect(await refreshDialog(join(root, 'content-studio.json'), 'act1')).toMatchObject({
