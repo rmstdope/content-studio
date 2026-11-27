@@ -93,6 +93,14 @@ describe('containerKeys', () => {
     expect(document.activeElement).toBe(box.q('.last'))
   })
 
+  it('wraps past a disabled control, which Tab does not stop at', () => {
+    const box = show({ modal: true })
+    box.q<HTMLButtonElement>('.last').disabled = true
+    box.q('.middle').focus()
+    expect(box.key(box.q('.middle'), 'Tab').defaultPrevented).toBe(true)
+    expect(document.activeElement).toBe(box.q('input'))
+  })
+
   it('leaves Tab between the edges to the browser', () => {
     const box = show({ modal: true })
     box.q('.middle').focus()

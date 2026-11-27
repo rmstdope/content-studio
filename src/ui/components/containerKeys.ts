@@ -2,7 +2,7 @@ import type { KeyboardEvent, MouseEvent } from 'react'
 
 /** What Tab stops at inside a window. */
 const TAB_STOPS = ['a[href]', 'button', 'input', 'select', 'textarea', '[tabindex]']
-  .map((stop) => `${stop}:not([tabindex="-1"])`)
+  .map((stop) => `${stop}:not([tabindex="-1"], :disabled)`)
   .join(', ')
 
 /** Wraps Tab and Shift+Tab at the edges of a modal, so the keyboard never leaves it for the page. */

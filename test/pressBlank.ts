@@ -1,7 +1,8 @@
 /**
  * A press on `spot`, as far as focus goes: a browser moves focus to the nearest focusable ancestor
  * of what was pressed, and to the page's body when there is none. happy-dom does not, so this does
- * it by hand. Returns what has focus afterwards, where the next key arrives.
+ * it by hand. Returns what has focus afterwards, where the next key arrives. Its list is what a
+ * press focuses, not what Tab stops at (`containerKeys`): a `tabindex="-1"` element is in it.
  */
 export function pressBlank(spot: Element): Element {
   const focusable = spot.closest<HTMLElement>(
