@@ -317,8 +317,8 @@ describe('server, sound effect takes', () => {
 
   it('refuses to drop the chosen take (409), drops another, and un-chooses', async () => {
     const v = await view('coins')
-    const chosen = v.takes.find((t: { chosen: boolean }) => t.chosen)
-    const other = v.takes.find((t: { chosen: boolean }) => !t.chosen)
+    const chosen = v.takes.find((t: { n: number }) => t.n === v.chosen.take)
+    const other = v.takes.find((t: { n: number }) => t.n !== v.chosen.take)
     const refused = await send('DELETE', `/api/effects/coins/takes/${chosen.file}`)
     expect(refused.status).toBe(409)
     expect((await send('DELETE', `/api/effects/coins/takes/${other.file}`)).status).toBe(200)

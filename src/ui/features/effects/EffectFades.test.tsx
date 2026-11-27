@@ -4,6 +4,8 @@ import type { EffectRow } from '../../../core/effects'
 import type { EffectTakesView, EffectTakeView } from '../../../core/effectTakes'
 import { installFakeWebAudio } from '../../../../test/fakeWebAudio'
 import { mountPager } from '../../../../test/besidePager'
+import { chosenAmong, type Marked } from '../../../../test/chosen'
+import { NOT_KNOWN } from '../../../core/lockRead'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -26,7 +28,7 @@ afterEach(() => {
 afterAll(() => GlobalRegistrator.unregister())
 
 const MODEL = 'Stable Audio 3 Small SFX'
-const take = (n: number, over: Partial<EffectTakeView> = {}): EffectTakeView => ({
+const take = (n: number, over: Partial<Marked<EffectTakeView>> = {}): Marked<EffectTakeView> => ({
   n,
   file: `0123456789abcdef.${n}.wav`,
   seconds: 1.4,
@@ -51,7 +53,7 @@ const view = (over: Partial<EffectTakesView> = {}): EffectTakesView => ({
   takes: [],
   making: [],
   failed: [],
-  lockUnread: false,
+  chosen: chosenAmong(over.takes ?? []),
   ...over,
 })
 const row = (over: Partial<EffectRow> = {}): EffectRow => ({
@@ -66,13 +68,11 @@ const row = (over: Partial<EffectRow> = {}): EffectRow => ({
   status: 'none-yet',
   current: { kind: 'nothing' },
   changed: [],
-  chosen: false,
   ...over,
 })
 const chosenRow = (over: Partial<EffectRow> = {}) =>
   row({
     status: 'chosen',
-    chosen: true,
     current: { kind: 'take', take: 2, exists: true },
     ...over,
   })
@@ -381,7 +381,7 @@ describe('Fades… on a sound effect take', () => {
   it('greys Fades… with Choose and Drop while the lock cannot be read, and says fading too', () => {
     const { buttons, text } = render(
       chosenRow(),
-      view({ takes: [take(1), take(3)], lockUnread: true }),
+      view({ takes: [take(1), take(3)], chosen: NOT_KNOWN }),
     )
     expect(buttons('Fades…').every(isOff)).toBe(true)
     expect(text()).toContain(

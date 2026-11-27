@@ -55,7 +55,8 @@ export function EffectInTheGame({
   fadesOpener: (n: number) => (button: HTMLButtonElement | null) => void
 }) {
   const state = effectInTheGame(row.current)
-  const take = view.takes.find((t) => t.chosen)
+  const { chosen } = view
+  const take = chosen.known ? view.takes.find((t) => t.n === chosen.take) : undefined
   const unchoose = useUnchooseEffect(row.id)
   const choose = useChooseEffectTake(row.id)
   const actions = useTrackActions()
@@ -63,7 +64,7 @@ export function EffectInTheGame({
     effect: row.id,
     take,
     inGame: true,
-    locked: view.lockUnread,
+    locked: !chosen.known,
     onPress: () => {
       if (take && player.playing === takePlayId(row.id, take.n)) player.stop()
     },
@@ -72,7 +73,7 @@ export function EffectInTheGame({
     effect: row.id,
     take,
     inGame: true,
-    locked: view.lockUnread,
+    locked: !chosen.known,
     player,
   })
   const [asking, setAsking] = useState(false)
@@ -236,7 +237,7 @@ export function EffectInTheGame({
               className="btn btn-small"
               ref={fadesOpener(take.n)}
               {...off(
-                view.lockUnread && EFFECTS_LOCK_UNREAD,
+                !chosen.known && EFFECTS_LOCK_UNREAD,
                 fading !== null && effectFadesOpenWhy(fading),
               )}
               onClick={() => {

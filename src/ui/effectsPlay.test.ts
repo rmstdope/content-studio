@@ -7,7 +7,6 @@ const take = (n: number, loops: boolean): EffectTakeView => ({
   file: `0123456789abcdef.${n}.wav`,
   seconds: 10,
   peaks: [],
-  chosen: false,
   model: 'm',
   loops,
   quietAt: null,

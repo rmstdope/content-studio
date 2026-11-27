@@ -145,9 +145,10 @@ describe('createEffectTakes', () => {
       ['A slow wooden door creaks open', 3, 100],
       ['A slow wooden door creaks open', 3, 101],
     ])
-    expect(view.takes.map((t) => [t.n, t.seconds, t.chosen, t.model])).toEqual([
-      [1, 1.4, false, 'Stable Audio 3 Small SFX'],
-      [2, 1.4, false, 'Stable Audio 3 Small SFX'],
+    expect(view.chosen).toEqual({ known: true, take: null })
+    expect(view.takes.map((t) => [t.n, t.seconds, t.model])).toEqual([
+      [1, 1.4, 'Stable Audio 3 Small SFX'],
+      [2, 1.4, 'Stable Audio 3 Small SFX'],
     ])
     expect(view.takes[0]!.peaks.length).toBeGreaterThan(10)
     expect(view.canMake).toBe(true)
@@ -488,16 +489,11 @@ describe('createEffectTakes', () => {
       'door-creak': { file: 'door-creak.mp3', duration: 1.4 },
     })
     const after = await settled('door-creak')
-    expect(after.takes.map((t) => [t.n, t.chosen])).toEqual([
-      [1, false],
-      [2, true],
-    ])
+    expect(after.takes.map((t) => t.n)).toEqual([1, 2])
+    expect(after.chosen).toEqual({ known: true, take: 2 })
     // Choosing another puts the first back among the takes.
     await takes.choose(file, 'door-creak', after.takes[0]!.file)
-    expect((await settled('door-creak')).takes.map((t) => [t.n, t.chosen])).toEqual([
-      [1, true],
-      [2, false],
-    ])
+    expect((await settled('door-creak')).chosen).toEqual({ known: true, take: 1 })
   })
 
   it('refuses to choose a take that is not on the board', async () => {
@@ -533,7 +529,7 @@ describe('createEffectTakes', () => {
     })
     await takes.make(file, 'coins', { count: 1 })
     const view = await settled('coins')
-    expect(view.lockUnread).toBe(true)
+    expect(view.chosen).toEqual({ known: false })
     expect(await takes.drop(file, 'coins', view.takes[0]!.file)).toEqual({
       ok: false,
       message: 'The sound effects lock could not be read.',
@@ -547,7 +543,8 @@ describe('createEffectTakes', () => {
     await takes.choose(file, 'coins', view.takes[0]!.file)
     expect(await takes.unchoose(file, 'coins')).toEqual({ ok: true })
     expect(existsSync(join(root, 'audio/effects/coins.mp3'))).toBe(false)
-    expect((await settled('coins')).takes.map((t) => [t.n, t.chosen])).toEqual([[1, false]])
+    expect(await settled('coins')).toMatchObject({ chosen: { known: true, take: null } })
+    expect((await settled('coins')).takes.map((t) => t.n)).toEqual([1])
     expect(await takes.unchoose(file, 'coins')).toEqual({
       ok: false,
       message: 'No take is chosen for this effect.',
@@ -1540,7 +1537,7 @@ describe('Trim silence on an effect take', () => {
     expect(await ctx.takes.choose(ctx.file, 'door-creak', take.file)).toEqual({ ok: true })
     expect(wavSeconds(readWav(ctx.encoded.at(-1)!))).toBeCloseTo(1.27, 2)
     expect(manifest(ctx.root)['door-creak'].duration).toBeCloseTo(1.27, 1)
-    expect((await ctx.settled('door-creak')).takes[0]).toMatchObject({ chosen: true })
+    expect((await ctx.settled('door-creak')).chosen).toEqual({ known: true, take: 1 })
   })
 
   it('rewrites the game’s file at once on the take in the game, keeping the lock’s time and words', async () => {
@@ -1553,8 +1550,8 @@ describe('Trim silence on an effect take', () => {
     expect(wavSeconds(readWav(ctx.encoded.at(-1)!))).toBeCloseTo(1.27, 2)
     expect(manifest(ctx.root)['door-creak'].duration).toBeCloseTo(1.27, 1)
     expect(lock(ctx.root)['door-creak']).toEqual(was)
+    expect((await ctx.settled('door-creak')).chosen).toEqual({ known: true, take: 1 })
     const view = (await ctx.settled('door-creak')).takes[0]!
-    expect(view).toMatchObject({ chosen: true })
     expect(view.trim).toBeDefined()
     // And back.
     expect(await ctx.takes.trim(ctx.file, 'door-creak', take.file, true)).toEqual({ ok: true })
