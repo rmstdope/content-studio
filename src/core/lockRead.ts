@@ -18,3 +18,18 @@ export function lockEntry<T>(lock: LockRead<T>, id: string): LockStanding<T> {
   const entry = lock.entries[id]
   return entry === undefined ? { standing: 'not-chosen' } : { standing: 'chosen', entry }
 }
+
+/**
+ * What is chosen, as a view carries it: the choice (null when nothing is chosen), or not known
+ * because the lock cannot be read. There is no `take` to read until `known` has been asked, so a
+ * page cannot say "nothing chosen" of a lock it could not read.
+ */
+export type Chosen<T = number> = { known: true; take: T | null } | { known: false }
+
+/** Not known: the lock that would say what is chosen could not be read. */
+export const NOT_KNOWN: Chosen<never> = { known: false }
+
+/** What is chosen, given whether the lock was read and, if so, what it says. */
+export function chosenOf<T = number>(read: boolean, take: T | null): Chosen<T> {
+  return read ? { known: true, take } : NOT_KNOWN
+}

@@ -25,42 +25,45 @@ function row(id: string, over: Partial<EffectRow> = {}): EffectRow {
     status: 'none-yet',
     current: { kind: 'nothing' },
     changed: [],
-    chosen: false,
     ...over,
   }
 }
 
 const chosen = (id: string, status: EffectRow['status'] = 'chosen') =>
   row(id, {
-    chosen: true,
     status,
     current: { kind: 'take', take: 1, exists: status !== 'missing' },
   })
 
+/** The plan, which a test expects to know what is chosen. */
+function planned(...args: Parameters<typeof planMakeAll>) {
+  const plan = planMakeAll(...args)
+  if (!plan.known) throw new Error('expected a known plan')
+  return plan
+}
+
 describe('planMakeAll', () => {
   it('starts effects with no chosen take, with or without takes', () => {
-    const plan = planMakeAll(
+    const plan = planned(
       [row('a'), row('b', { status: 'not-chosen' }), chosen('c'), chosen('d', 'changed')],
       {},
     )
     expect(plan.startable.map((r) => r.id)).toEqual(['a', 'b'])
     expect(plan.chosen.map((r) => r.id)).toEqual(['c', 'd'])
     expect(plan.busy).toEqual([])
-    expect(plan.lockUnread).toBe(false)
   })
   it('leaves out a chosen effect whose clip is missing', () => {
-    expect(planMakeAll([chosen('c', 'missing')], {}).chosen.map((r) => r.id)).toEqual(['c'])
+    expect(planned([chosen('c', 'missing')], {}).chosen.map((r) => r.id)).toEqual(['c'])
   })
   it('leaves out an effect already making takes, chosen or not', () => {
-    const plan = planMakeAll([row('a'), row('b'), chosen('c')], { a: { takes: 2, left: 4 } })
+    const plan = planned([row('a'), row('b'), chosen('c')], { a: { takes: 2, left: 4 } })
     expect(plan.startable.map((r) => r.id)).toEqual(['b'])
     expect(plan.busy.map((r) => r.id)).toEqual(['a'])
     expect(plan.chosen.map((r) => r.id)).toEqual(['c'])
   })
   it('knows nothing when the lock cannot be read', () => {
     const plan = planMakeAll([row('a', { status: 'unknown', current: { kind: 'unknown' } })], {})
-    expect(plan.lockUnread).toBe(true)
-    expect(plan.startable).toEqual([])
+    expect(plan).toEqual({ known: false })
   })
 })
 

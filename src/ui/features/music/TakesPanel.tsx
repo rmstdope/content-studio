@@ -149,7 +149,9 @@ export function TakesPanel({
     return <Problems title="The takes could not be listed" problems={view.problems} />
   const { generator } = view
   // The chosen take is shown above, in the game's block; the cards are the others.
-  const others = view.takes.filter((take) => !take.chosen)
+  // While the lock cannot be read no take is known to be in the game: every take is a card.
+  const inGame = view.chosen.known ? view.chosen.take : null
+  const others = view.takes.filter((take) => take.n !== inGame)
   const hasChosen = others.length < view.takes.length
   const none = !others.length && !view.making.length
   const model = picked ?? view.defaultModel
@@ -393,7 +395,7 @@ export function TakesPanel({
             </button>
           </div>
         )}
-        {!none && view.lockUnread && (
+        {!none && !view.chosen.known && (
           <span className="takes-missing small">
             Choosing, dropping, moving, trimming and fading wait until the music lock can be read.
             You can still listen and make more takes.
@@ -433,7 +435,7 @@ export function TakesPanel({
                 kind={view.kind}
                 take={take}
                 player={player}
-                locked={view.lockUnread}
+                locked={!view.chosen.known}
                 nowhere={nowhere}
                 fading={fading}
                 onFades={setFading}

@@ -5,7 +5,7 @@ import { formatMusicLock } from '../core/musicChoose'
 import { resolveInRoot } from '../core/paths'
 import { pythonJson } from '../core/pyjson'
 import { MUSIC_EDITS_FILE, MUSIC_LOCK_FILE, type Problem } from '../core/project'
-import { writeAtomic } from './files'
+import { writeOrRefuse } from './files'
 import { forgetBriefs } from './briefs'
 import { choices, lockNow, manifestNow, sorted, type CommitResult } from './musicClips'
 import { readMusic } from './musicLists'
@@ -47,12 +47,12 @@ export async function removeOrphan(projectFile: string, id: string): Promise<Rem
         try {
           if (id in manifest) {
             delete manifest[id]
-            await writeAtomic(root, music.manifest, `${pythonJson(sorted(manifest))}\n`)
+            await writeOrRefuse(root, music.manifest, `${pythonJson(sorted(manifest))}\n`)
           }
           await rm(resolveInRoot(root, `${music.clips}/${id}.mp3`), { force: true })
           await deleteBoard(root, id)
           delete lock[id]
-          await writeAtomic(root, MUSIC_LOCK_FILE, formatMusicLock(lock))
+          await writeOrRefuse(root, MUSIC_LOCK_FILE, formatMusicLock(lock))
           return { ok: true }
         } catch (error) {
           return { ok: false, message: error instanceof Error ? error.message : String(error) }

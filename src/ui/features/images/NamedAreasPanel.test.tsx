@@ -1,3 +1,6 @@
+import type { PatchedTake } from '../../../core/imagePatches'
+import { chosenAmong } from '../../../../test/chosen'
+import { chosenOf } from '../../../core/lockRead'
 import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { AreaBox, AreaRow, ImageRow } from '../../../core/images'
@@ -37,13 +40,19 @@ const area = (id: string, over: Partial<AreaRow> = {}): AreaRow => ({
 const placedAt = (id: string, box: AreaBox, over: Partial<AreaRow> = {}) =>
   area(id, { placed: true, box, ...over })
 
-const view = (over: Partial<ImagePatchesView> = {}): ImagePatchesView => ({
+const view = ({
+  take = { n: 2, width: 1024, height: 640, cropped: false },
+  lockUnread = false,
+  ...over
+}: Partial<Omit<ImagePatchesView, 'chosen'>> & {
+  take?: PatchedTake | null
+  lockUnread?: boolean
+} = {}): ImagePatchesView => ({
   ok: true,
-  take: { n: 2, width: 1024, height: 640, cropped: false },
+  chosen: chosenOf(!lockUnread, take),
   game: { width: 640, height: 400 },
   lookError: null,
   lookKey: 'k',
-  lockUnread: false,
   pictureGone: false,
   remake: { earlier: {}, press: null, failedModels: [] },
   maker: { ok: true },
@@ -62,9 +71,9 @@ interface ListedPatch {
 /** A patch's view, its takes with every field the page reads. */
 const patchView = (patch: ListedPatch): ImagePatchesView['patches'][number] => ({
   id: patch.id,
-  takes: patch.takes.map(({ n, chosen }) => ({
+  chosen: chosenAmong(patch.takes),
+  takes: patch.takes.map(({ n }) => ({
     n,
-    chosen,
     area: { x: 0, y: 0, width: 10, height: 10 },
     earlier: false,
     isNew: false,
@@ -115,7 +124,7 @@ async function render(areas: AreaRow[], options: Options = {}) {
       width: options.size?.width ?? 320,
       height: options.size?.height ?? 200,
       areas: now,
-      chosenTake,
+      chosen: chosenOf(true, chosenTake),
       patches: (options.patches ?? []).map((p) => ({ id: p.id, title: p.title })),
     } as ImageRow
     await act(async () => {

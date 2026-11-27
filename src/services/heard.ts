@@ -2,7 +2,7 @@ import { rm } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { HeardSchema, emptyHeard, withHeard, type Heard, type HeardLine } from '../core/heard'
 import { resolveInRoot } from '../core/paths'
-import { characterFile, readCached, writeAtomic } from './files'
+import { characterFile, readCached, writeOrRefuse } from './files'
 import { inPartTurn } from './partFiles'
 import { readPart, type ProjectFailure } from './workspace'
 import { CACHE_DIR } from '../core/project'
@@ -31,7 +31,7 @@ export async function keepHeard(
   // Any part id makes a safe file name this way, as any character id does.
   const file = characterFile(HEARD_DIR, name)
   if (Object.keys(next.lines).length) {
-    await writeAtomic(root, file, `${JSON.stringify(next, null, 1)}\n`)
+    await writeOrRefuse(root, file, `${JSON.stringify(next, null, 1)}\n`)
   } else {
     await rm(resolveInRoot(root, file), { force: true })
   }

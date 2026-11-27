@@ -1,3 +1,4 @@
+import { NOT_KNOWN, type Chosen } from './lockRead'
 import type { TakeChange } from './imageSmallMark'
 import { z } from 'zod'
 import { EDIT_MODEL_IDS, type EditModelId, type ImageDownload } from './imageModels'
@@ -90,7 +91,6 @@ export interface PatchTakeView {
   area: PatchArea
   /** Made from words that have since changed. */
   earlier: boolean
-  chosen: boolean
   /** Not yet laid over the picture. */
   isNew: boolean
   /**
@@ -146,21 +146,35 @@ export interface PatchWorkView {
    * image and while the ask cannot be followed.
    */
   under?: { id: string; n: number | null }[] | undefined
+  /**
+   * The take of the patch chosen on the image's take in the game, or none; not known while the
+   * images lock cannot be read.
+   */
+  chosen: Chosen
+}
+
+/** The image's take the patches lie over. */
+export interface PatchedTake {
+  n: number
+  width: number
+  height: number
+  cropped: boolean
 }
 
 /** The patches of an image as the page shows them: those made on the take the game shows. */
 export interface ImagePatchesView {
   ok: true
-  /** The chosen take the patches lie over and its size, or null when there is no picture of one to patch. */
-  take: { n: number; width: number; height: number; cropped: boolean } | null
+  /**
+   * The chosen take the patches lie over and its size, none when there is no picture of one to
+   * patch; not known while the images lock cannot be read.
+   */
+  chosen: Chosen<PatchedTake>
   /** The size the game shows the image at. */
   game: { width: number; height: number }
   /** Why the takes cannot be brought to the game's look (the style); null when they can. */
   lookError: string | null
   /** What the game's versions are brought to now (`lookKey`); null when the style cannot be used. */
   lookKey: string | null
-  /** The images lock cannot be read, so which take of the image is chosen is not known. */
-  lockUnread: boolean
   /** Whether a take is chosen but its picture is missing or cannot be read. */
   pictureGone: boolean
   /** Whether takes of patches can be made on this computer, and why not if they cannot. */
@@ -213,22 +227,6 @@ export const RemakePatchesBody = z.strictObject({
 export function tieOf(row: Pick<ImageRow, 'areas'>, patch: PatchRow): PatchTie | null {
   const area = patch.area === undefined ? undefined : row.areas.find((a) => a.id === patch.area)
   return area ? { title: area.title, box: area.box } : null
-}
-
-/**
- * What a closed patch row says of how far the patch has come: "no takes yet", "2 takes, none
- * chosen", or "3 takes" with the chip naming the chosen take.
- */
-export function patchSummary(takes: readonly { n: number; chosen: boolean }[]): {
-  text: string
-  chip: string | null
-} {
-  if (takes.length === 0) return { text: 'no takes yet', chip: null }
-  const count = `${takes.length} ${takes.length === 1 ? 'take' : 'takes'}`
-  const chosen = takes.find((t) => t.chosen)
-  return chosen
-    ? { text: count, chip: `Take ${chosen.n} chosen` }
-    : { text: `${count}, none chosen`, chip: null }
 }
 
 /** The mark over the whole of a picture of this size. */
@@ -845,36 +843,34 @@ export interface SetAsideQuestion {
   returningAreas: number
 }
 
+/** What an image's view says of its choice, or an answer that is not a view. */
+type ChoiceAnswer = { chosen: Chosen<unknown> } | { ok: false } | null | undefined
+
 /**
- * Whether the images lock cannot be read for an image, so no take is known to be chosen: the list
- * row says its status is unknown, or any of the image's own views (takes, patches; each may be
- * unloaded, or an error without the field) found the lock unreadable. The list can be older than
- * the views, so either says it. The one answer every page asks before saying what is chosen.
+ * What is chosen for an image: the list row's answer, not known when the row does not know or when
+ * any of the image's own views (takes, patches; each may be unloaded, or an error) found the lock
+ * unreadable. The list can be older than the views, so either says it. The one answer every page
+ * asks before saying what is chosen.
  */
-export function imageLockUnread(
-  row: Pick<ImageRow, 'status'>,
-  ...views: readonly (object | null | undefined)[]
-): boolean {
-  return (
-    row.status === 'unknown' ||
-    views.some((view) => !!view && 'lockUnread' in view && view.lockUnread === true)
-  )
+export function imageChosen(
+  row: Pick<ImageRow, 'chosen'>,
+  ...views: readonly ChoiceAnswer[]
+): Chosen {
+  const unread = views.some((view) => !!view && 'chosen' in view && !view.chosen.known)
+  return unread ? NOT_KNOWN : row.chosen
 }
 
 /**
  * The patches the game still asks for that need making again: one with a take chosen on a take of
  * the image other than the one in the game, and none on that one, in the game's order. Nothing
- * while the lock cannot be read (`imageLockUnread`): no take is known to be chosen then, which is
- * not the same as none being chosen.
+ * while what is chosen is not known: that is not the same as none being chosen.
  */
-export function makeAgainOf(
-  row: Pick<ImageRow, 'chosenTake' | 'patches'>,
-  lockUnread: boolean,
-): PatchRow[] {
-  if (lockUnread) return []
+export function makeAgainOf(row: Pick<ImageRow, 'chosen' | 'patches'>): PatchRow[] {
+  if (!row.chosen.known) return []
+  const { take } = row.chosen
   return row.patches.filter(
     (patch) =>
-      !(row.chosenTake !== null && patch.chosenOn.includes(row.chosenTake)) &&
+      !(take !== null && patch.chosenOn.includes(take)) &&
       (patch.chosenOn.length > 0 || patch.chosenOnGone || patch.stale !== undefined),
   )
 }
@@ -891,8 +887,10 @@ export function patchBoxesOverlap(a: PatchArea, b: PatchArea): boolean {
  */
 export function overlappingPatches(patches: readonly PatchRow[]): [PatchRow, PatchRow][] {
   const pairs: [PatchRow, PatchRow][] = []
+  const areaOf = (patch: PatchRow) => (patch.chosenArea.known ? patch.chosenArea.take : null)
   patches.forEach((first, i) => {
-    if (!first.chosenArea) return
+    const firstArea = areaOf(first)
+    if (!firstArea) return
     for (const second of patches.slice(i + 1)) {
       // A patch on top of another is meant to lie over it.
       const stacked = (a: PatchRow, b: PatchRow) => {
@@ -900,7 +898,8 @@ export function overlappingPatches(patches: readonly PatchRow[]): [PatchRow, Pat
         return stack.ok && stack.under.some((p) => p.id === b.id)
       }
       if (stacked(first, second) || stacked(second, first)) continue
-      if (second.chosenArea && patchBoxesOverlap(first.chosenArea, second.chosenArea)) {
+      const area = areaOf(second)
+      if (area && patchBoxesOverlap(firstArea, area)) {
         pairs.push([first, second])
       }
     }
@@ -915,25 +914,24 @@ export function overlappingPatches(patches: readonly PatchRow[]): [PatchRow, Pat
  * longer be brought back.
  */
 export function setAsideQuestion(
-  row: Pick<ImageRow, 'chosenTake' | 'patches' | 'areas'>,
+  row: Pick<ImageRow, 'chosen' | 'patches' | 'areas'>,
   ask: SetAsideAsk,
 ): SetAsideQuestion | null {
-  const from = ask.kind === 'drop' ? ask.n : row.chosenTake
+  // While it is not known no take is known to be in the game; nothing can be chosen then.
+  const inGame = row.chosen.known ? row.chosen.take : null
+  const from = ask.kind === 'drop' ? ask.n : inGame
   if (from === null) return null
   const to = ask.kind === 'choose' ? ask.n : null
   const back = (patch: PatchRow) => to !== null && patch.chosenOn.includes(to)
   const backArea = (area: AreaRow) => to !== null && area.boxes[to] !== undefined
   // Dropping a take sets nothing aside for what the game still has through its own take.
-  const dropShown = (has: boolean) => ask.kind === 'drop' && row.chosenTake !== null && has
+  const dropShown = (has: boolean) => ask.kind === 'drop' && inGame !== null && has
   const leaving = row.patches.filter(
-    (p) =>
-      p.chosenOn.includes(from) && !back(p) && !dropShown(p.chosenOn.includes(row.chosenTake!)),
+    (p) => p.chosenOn.includes(from) && !back(p) && !dropShown(p.chosenOn.includes(inGame!)),
   )
   const leavingAreas = row.areas.filter(
     (a) =>
-      a.boxes[from] !== undefined &&
-      !backArea(a) &&
-      !dropShown(a.boxes[row.chosenTake!] !== undefined),
+      a.boxes[from] !== undefined && !backArea(a) && !dropShown(a.boxes[inGame!] !== undefined),
   )
   if (leaving.length === 0 && leavingAreas.length === 0) return null
   return {
@@ -952,12 +950,12 @@ export function setAsideQuestion(
  * waiting, being made or failed.
  */
 export function remakeCovered(
-  row: Pick<ImageRow, 'chosenTake' | 'patches'>,
+  row: Pick<ImageRow, 'chosen' | 'patches'>,
   work: readonly Pick<PatchWorkView, 'id' | 'takes' | 'making' | 'failed'>[],
 ): PatchRow[] {
-  if (row.chosenTake === null) return []
-  // A take is chosen, so the lock was read.
-  return makeAgainOf(row, false).filter((patch) => {
+  // No take in the game, or not known: there is nothing to make again on.
+  if (!row.chosen.known || row.chosen.take === null) return []
+  return makeAgainOf(row).filter((patch) => {
     const w = work.find((p) => p.id === patch.id)
     return !w || (w.takes.length === 0 && w.making.length === 0 && w.failed.length === 0)
   })
@@ -1212,7 +1210,7 @@ export interface OnTopQuestion {
  * `chosen` is the take of that patch chosen on the image's take in the game.
  */
 export function onTopQuestion(
-  row: Pick<ImageRow, 'chosenTake' | 'patches'>,
+  row: Pick<ImageRow, 'chosen' | 'patches'>,
   patchId: string,
   ask: SetAsideAsk,
   chosen: number | null,
@@ -1220,10 +1218,10 @@ export function onTopQuestion(
   const patch = row.patches.find((p) => p.id === patchId)
   const from = ask.kind === 'drop' ? ask.n : chosen
   if (!patch || from === null || (ask.kind === 'choose' && ask.n === from)) return null
+  const inGame = row.chosen.known ? row.chosen.take : null
   const shown = (id: string) =>
     ask.kind === 'drop' ||
-    (row.chosenTake !== null &&
-      !!row.patches.find((p) => p.id === id)?.chosenOn.includes(row.chosenTake))
+    (inGame !== null && !!row.patches.find((p) => p.id === id)?.chosenOn.includes(inGame))
   const leaving = (patch.carries?.[from] ?? []).filter(shown)
   if (leaving.length === 0) return null
   return {

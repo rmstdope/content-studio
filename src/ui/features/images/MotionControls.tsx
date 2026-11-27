@@ -1,3 +1,4 @@
+import type { Chosen } from '../../../core/lockRead'
 import { type Ref, useId, useRef } from 'react'
 import type { SavedEffects, SavedZoom } from '../../../core/images'
 import type { EffectSetting, EffectType, SpotView } from '../../../core/motion'
@@ -60,7 +61,7 @@ export interface MovementPatch {
 /** What the Patches and Effects groups show and change, the same in the side column and in full screen. */
 export interface MotionControlsProps {
   /** The images lock cannot be read: nothing is said of which takes are chosen, and nothing can be changed. */
-  lockUnread: boolean
+  chosen: Chosen
   /** The patches in the game's order; null while the patches are not known, which leaves the group out. */
   patches: MovementPatch[] | null
   patchesOn: ReadonlySet<string>
@@ -456,7 +457,7 @@ export function MotionControls(props: MotionControlsProps) {
           <ul className="movement-list">
             {patches.map((patch) => (
               <li key={patch.id}>
-                {props.lockUnread ? (
+                {!props.chosen.known ? (
                   <Switch
                     label={patchNotKnown(patch.title)}
                     checked={false}
@@ -512,7 +513,7 @@ function ZoomGroup(props: MotionControlsProps) {
   const heading = (
     <div className="movement-group-head">
       <h3>{ZOOM_WORDS.heading}</h3>
-      {!props.lockUnread && chip && (
+      {props.chosen.known && chip && (
         <span className="movement-save muted" role="status">
           {chip}
         </span>
@@ -520,7 +521,7 @@ function ZoomGroup(props: MotionControlsProps) {
     </div>
   )
   // The images lock cannot be read: what is saved, read-only; nothing can be changed or saved.
-  if (props.lockUnread) {
+  if (!props.chosen.known) {
     const own = zoom ?? { on: true, ...GAME_ZOOM }
     return (
       <section className="movement-group" aria-label={ZOOM_WORDS.heading}>
@@ -611,7 +612,7 @@ function EffectsGroup(props: MotionControlsProps) {
     .filter((type) => effects[type]!.on)
     .map(nameOf)
   // The lock cannot be read: the heading and what is saved, read-only; nothing can be changed or saved.
-  if (props.lockUnread) {
+  if (!props.chosen.known) {
     return (
       <section className="movement-group" aria-label={MOVEMENT_WORDS.effects}>
         <div className="movement-group-head">

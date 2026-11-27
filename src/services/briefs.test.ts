@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { projectJson, tempRepo } from '../../test/helpers'
-import { keepMyBrief, setTrackBrief } from './briefs'
+import { projectJson, tempRepo, canRefuseWrites, refusingWrites } from '../../test/helpers'
+import { forgetBriefs, keepMyBrief, setTrackBrief } from './briefs'
 
 const music = {
   from: { part: 'tts/{part}/music.json', shared: 'tts/stingers.json' },
@@ -185,5 +185,38 @@ describe('setTrackBrief and tracks the game dropped', () => {
     expect(await setTrackBrief(file, 'hall', { bpm: 70 })).toEqual({ ok: true })
     expect(JSON.parse(briefs())).toHaveProperty('gone')
     expect(existsSync(join(root, 'content-studio/cache/music/gone.json'))).toBe(true)
+  })
+})
+
+describe.skipIf(!canRefuseWrites)('music edits that cannot be written', () => {
+  const refused = {
+    ok: false as const,
+    problems: [{ file: 'content-studio/music/edits.json', path: '', message: 'permission denied' }],
+  }
+  /** A brief of the studio's over a game brief that has changed since. */
+  const stale = () =>
+    repo({ 'content-studio/music/edits.json': { hall: { text: 'ours', gameWas: 'old lute' } } })
+  const readOnly = (root: string) => join(root, 'content-studio/music')
+
+  it('answers a brief change with the file and the reason', async () => {
+    const { root, file } = stale()
+    const { answer } = await refusingWrites(readOnly(root), () =>
+      setTrackBrief(file, 'hall', { seconds: 60 }),
+    )
+    expect(answer).toEqual(refused)
+  })
+
+  it('answers Keep mine with the file and the reason', async () => {
+    const { root, file } = stale()
+    const { answer } = await refusingWrites(readOnly(root), () => keepMyBrief(file, 'hall'))
+    expect(answer).toEqual(refused)
+  })
+
+  it('answers forgetting briefs with the file and the reason', async () => {
+    const { root, file } = stale()
+    const { answer } = await refusingWrites(readOnly(root), () =>
+      forgetBriefs(file, root, 'content-studio/music/edits.json', ['hall']),
+    )
+    expect(answer).toEqual(refused)
   })
 })

@@ -1,7 +1,7 @@
 import { dirname } from 'node:path'
 import { applyDescription, keepMine, type EffectOverrides } from '../core/effects'
 import { EFFECTS_EDITS_FILE, type Problem } from '../core/project'
-import { formatEntriesPerLine, writeAtomic, writeFailure } from './files'
+import { formatEntriesPerLine, writeOrRefuse, refusalProblems } from './files'
 import { readEffectOverrides, readEffects } from './effectsLists'
 import { createSerial } from './serial'
 import { openProject, type ProjectFailure } from './workspace'
@@ -34,19 +34,11 @@ function edit(
     const problems: Problem[] = []
     const overrides = await readEffectOverrides(root, problems)
     if (overrides === 'invalid') return { ok: false, problems }
-    try {
-      await writeAtomic(
-        root,
-        EFFECTS_EDITS_FILE,
-        formatEntriesPerLine(change(overrides, gameWords)),
-      )
-    } catch (error) {
-      return {
-        ok: false,
-        problems: [{ file: EFFECTS_EDITS_FILE, path: '', message: writeFailure(error) }],
-      }
-    }
-    return { ok: true }
+    return writeOrRefuse(
+      root,
+      EFFECTS_EDITS_FILE,
+      formatEntriesPerLine(change(overrides, gameWords)),
+    ).then(() => ({ ok: true as const }), refusalProblems('saving the effect’s words failed'))
   })
 }
 

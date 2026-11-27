@@ -164,7 +164,7 @@ describe('an agent doing the Images steps through the MCP', () => {
         })
       ).isError,
     ).toBeUndefined()
-    expect((await read('/api/images/inn/takes')).takes[0].chosen).toBe(true)
+    expect((await read('/api/images/inn/takes')).chosen).toEqual({ known: true, take: 1 })
     const refused = await act({
       method: 'DELETE',
       path: '/api/images/inn/takes/1',

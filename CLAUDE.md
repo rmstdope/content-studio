@@ -78,7 +78,7 @@ bundle breaks.
   studio's own and never a game file, and lock in `content-studio/images/`, sound effects' edits
   and lock in `content-studio/effects/`, and the scenes' locks, one per part with the loudness each
   scene was last measured at, in `content-studio/scenes/`), through
-  `resolveInRoot` and `writeAtomic`; nothing outside the project root. Clips are the one exception to `writeAtomic` (and, when the user confirms cleaning a voice's lines in the game or putting them back, or setting the voice's level, a clip is replaced the same way, through a hidden temporary file in the clips folder and a rename): the encoder
+  `resolveInRoot` and `writeOrRefuse`; nothing outside the project root. Clips are the one exception to `writeOrRefuse` (and, when the user confirms cleaning a voice's lines in the game or putting them back, or setting the voice's level, a clip is replaced the same way, through a hidden temporary file in the clips folder and a rename): the encoder
   writes a hidden temporary file in the clips folder (through `resolveInRoot`), renamed into place
   only together with the manifest and lock update.
 - Another exception, to reading and writing only the named files: the project's own

@@ -1,3 +1,5 @@
+import { chosenAmong, type Marked } from '../../../../test/chosen'
+import { chosenOf } from '../../../core/lockRead'
 import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
@@ -50,7 +52,7 @@ const row: ImageRow = {
   actStyle: null,
   sharedWith: [],
   actStyleChange: null,
-  chosenTake: null,
+  chosen: chosenOf(true, null),
   gameFile: null,
   madeFrom: { words: 'a low inn', style: '', width: 320, height: 200 },
   missing: { patches: 0, areas: 0 },
@@ -64,20 +66,22 @@ const row: ImageRow = {
   looksOld: false,
 }
 
-const take = (n: number, over: Partial<ImageTakeView> = {}): ImageTakeView => ({
+const take = (n: number, over: Partial<Marked<ImageTakeView>> = {}): Marked<ImageTakeView> => ({
   n,
   width: 1024,
   height: 640,
   model: 'klein',
   earlier: false,
-  chosen: false,
   isNew: false,
   look: 'ready',
   cropped: false,
   ...over,
 })
 
-const view = (over: Partial<ImageTakesView> = {}): ImageTakesView => ({
+const view = ({
+  lockUnread = false,
+  ...over
+}: Partial<ImageTakesView> & { lockUnread?: boolean } = {}): ImageTakesView => ({
   ok: true,
   generator: { ok: true },
   projectModel: 'klein',
@@ -89,15 +93,24 @@ const view = (over: Partial<ImageTakesView> = {}): ImageTakesView => ({
   takes: [],
   making: [],
   failed: [],
-  lockUnread: false,
+  chosen: chosenAmong(over.takes ?? [], lockUnread),
   lookError: null,
   ...over,
+})
+
+/** What a test says of the image's row: its fields, and its take in the game as a number. */
+type RowOver = Partial<ImageRow> & { chosenTake?: number | null }
+
+/** The row's fields a test's words stand for. */
+const rowFields = ({ chosenTake, ...fields }: RowOver): Partial<ImageRow> => ({
+  ...(chosenTake !== undefined && { chosen: chosenOf(true, chosenTake) }),
+  ...fields,
 })
 
 /** Shows the section with this view, and records what the page asks the server. */
 async function show(
   data: ImageTakesView,
-  over: Partial<ImageRow> = {},
+  over: RowOver = {},
   prompt?: ReturnType<typeof createElement>,
   answer: unknown = { ok: true },
   copyGroups: CopyGroup[] = [],
@@ -120,14 +133,14 @@ async function show(
     act(() => root.unmount())
     container.remove()
   })
-  const draw = (now: Partial<ImageRow>, active = true) =>
+  const draw = (now: RowOver, active = true) =>
     act(() =>
       root.render(
         createElement(
           QueryClientProvider,
           { client },
           createElement(TakesSection, {
-            row: { ...row, ...over, ...now },
+            row: { ...row, ...rowFields({ ...over, ...now }) },
             prompt,
             active,
             copyGroups,
@@ -156,7 +169,7 @@ async function show(
   /** The take on the right, from the heading of its side. */
   const right = () => container.querySelector('[data-side="right"] b')?.textContent
   const left = () => container.querySelector('[data-side="left"] b')?.textContent
-  const rerender = (now: Partial<ImageRow>) => draw(now)
+  const rerender = (now: RowOver) => draw(now)
   const setActive = (active: boolean) => draw({}, active)
   return {
     setActive,
@@ -523,7 +536,7 @@ describe('patches set aside', () => {
     gameWas: null,
     chosenOn,
     chosenOnGone,
-    chosenArea: null,
+    chosenArea: chosenOf(true, null),
   })
   const three = [patch('Bread taken', [2]), patch('Door open', [2]), patch('Lamp lit', [2])]
   /** Take 2 is in the game with these patches chosen on it; takes 1 and 4 are others. */
@@ -743,7 +756,7 @@ describe('named areas set aside', () => {
     gameWas: null,
     chosenOn,
     chosenOnGone: false,
-    chosenArea: null,
+    chosenArea: chosenOf(true, null),
   })
   const five = ['Bucket', 'Well', 'Cottage door', 'Old oak', 'Path north'].map((t) => area(t, 2))
   const inGame = (

@@ -89,31 +89,8 @@ export function isWriteFailure(error: unknown): boolean {
 }
 
 /**
- * Writes `text` (or bytes) to `path` (relative to `root`) through a temporary file and a rename, so a crash
- * never leaves a half-written file. Each write has its own temporary file, so two writes at once
- * cannot mix. Creates the folder if needed.
- */
-export async function writeAtomic(
-  root: string,
-  path: string,
-  text: string | Uint8Array,
-): Promise<void> {
-  const file = resolveInRoot(root, path)
-  await mkdir(dirname(file), { recursive: true })
-  const temporary = `${file}.${randomUUID()}.tmp`
-  try {
-    await writeFile(temporary, text)
-    await rename(temporary, file)
-  } catch (error) {
-    // Report the write's error, not a failure to clean up after it.
-    await rm(temporary, { force: true }).catch(() => {})
-    throw error
-  }
-}
-
-/**
  * A file the studio could not write, with its path in the project and the reason a user can act
- * on. The one refusal for a failed write: raised by `writeOrRefuse`, worded by `refusalSentence`.
+ * on. The one refusal for a failed write: raised by `writeOrRefuse` (and `refuseWrite`), worded by `refusalSentence`.
  */
 export class WriteRefused extends Error {
   constructor(
@@ -134,26 +111,54 @@ export function refuseWrite(path: string): (error: unknown) => never {
   }
 }
 
-/** `writeAtomic`, but a failed write is a `WriteRefused` naming `path`. */
+/**
+ * The one way a service writes a file: `text` (or bytes) to `path` (relative to `root`) through a
+ * temporary file and a rename, so a crash never leaves a half-written file. Each write has its own
+ * temporary file, so two writes at once cannot mix. Creates the folder if needed. A failed write is
+ * a `WriteRefused` naming `path`, never the system's own error: answer it with `refusalAnswer`,
+ * `refusalProblems` or `refusalFailed`, or let it go on to a caller that does.
+ */
 export async function writeOrRefuse(
   root: string,
   path: string,
   text: string | Uint8Array,
 ): Promise<void> {
-  await writeAtomic(root, path, text).catch(refuseWrite(path))
+  await replaceFile(root, path, text).catch(refuseWrite(path))
+}
+
+/** `writeOrRefuse`'s write, with the system's own error; private, so no service can meet it. */
+async function replaceFile(root: string, path: string, text: string | Uint8Array): Promise<void> {
+  const file = resolveInRoot(root, path)
+  await mkdir(dirname(file), { recursive: true })
+  const temporary = `${file}.${randomUUID()}.tmp`
+  try {
+    await writeFile(temporary, text)
+    await rename(temporary, file)
+  } catch (error) {
+    // Report the write's error, not a failure to clean up after it.
+    await rm(temporary, { force: true }).catch(() => {})
+    throw error
+  }
 }
 
 /**
  * Writes the files in order, each with `write` (`writeOrRefuse`), so that a game file goes into
  * place only together with the rest (a picture with its manifest and lock): when one is refused,
  * those already written are put back as they were, or removed when they were not there, and the
- * answer names the refused file. A file there that cannot be read is refused before it is written,
+ * answer names the refused file. `files` is what the sentence calls them when they cannot be put
+ * back. A file there that cannot be read is refused before it is written,
  * so a put back never removes it. Any other error goes on.
  */
 export async function writeTogether(
   root: string,
   writes: readonly (readonly [string, string | Uint8Array])[],
-  write: (root: string, path: string, text: string | Uint8Array) => Promise<void> = writeOrRefuse,
+  {
+    write = writeOrRefuse,
+    files = "the game's files",
+  }: {
+    write?: (root: string, path: string, text: string | Uint8Array) => Promise<void>
+    files?: string
+  } = {},
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const putBack: (() => Promise<unknown>)[] = []
   try {
@@ -178,7 +183,7 @@ export async function writeTogether(
       for (const step of putBack.reverse()) await step()
     } catch (stuck) {
       console.error('putting the files back failed', stuck)
-      return { ok: false, message: `${sentence}, and the game's files could not be put back.` }
+      return { ok: false, message: `${sentence}, and ${files} could not be put back.` }
     }
     return { ok: false, message: `${sentence}.` }
   }
@@ -186,17 +191,41 @@ export async function writeTogether(
 }
 
 /**
- * A `.catch` handler turning a refused write into a failed answer worded by `say` (given the one
- * sentence, "<file> could not be written"), the error kept with its stack in the server log under
- * `what`; any other error goes on.
+ * A `.catch` handler giving a refused write the answer `answer` makes of it, the refusal kept with
+ * its stack in the server log under `what`; any other error goes on.
+ */
+function onRefusal<T>(what: string, answer: (refused: WriteRefused) => T) {
+  return (error: unknown): T => {
+    if (!(error instanceof WriteRefused)) throw error
+    console.error(what, error)
+    return answer(error)
+  }
+}
+
+/**
+ * Answers a refused write (`onRefusal`) as a failed result with a message, worded by `say` (given
+ * the one sentence, "<file> could not be written").
  */
 export function refusalAnswer(what: string, say: (sentence: string) => string) {
-  return (error: unknown): { ok: false; message: string } => {
-    const sentence = refusalSentence(error)
-    if (sentence === null) throw error
-    console.error(what, error)
-    return { ok: false, message: say(sentence) }
-  }
+  return onRefusal(what, (refused) => ({ ok: false as const, message: say(refused.message) }))
+}
+
+/** Answers a refused write (`onRefusal`) as problems: the reason at the file, at `path` in it. */
+export function refusalProblems(what: string, path = '') {
+  return onRefusal(what, (refused) => ({
+    ok: false as const,
+    problems: [{ file: refused.file, path, message: refused.reason }] satisfies Problem[],
+  }))
+}
+
+/** Answers a refused write (`onRefusal`) as a `failed` result: the reason, with the file. */
+export function refusalFailed(what: string) {
+  return onRefusal(what, (refused) => ({
+    ok: false as const,
+    kind: 'failed' as const,
+    file: refused.file,
+    message: refused.reason,
+  }))
 }
 
 /** The one sentence for a refused write ("<file> could not be written"); null for any other error. */

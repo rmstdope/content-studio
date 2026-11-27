@@ -1,3 +1,4 @@
+import type { Chosen } from './lockRead'
 import { z } from 'zod'
 import { FadesSchema, hasFades, type Fades } from './fades'
 import { EFFECT_MODEL_IDS, type EffectModelId } from './effectModels'
@@ -290,8 +291,6 @@ export interface EffectTakeView {
   seconds: number
   /** The waveform's bars, 0 to 1. */
   peaks: number[]
-  /** The take the game plays. */
-  chosen: boolean
   /** The model that made it: "Stable Audio 3 Small SFX". */
   model: string
   /** It was made to loop (seamless, the length the game asked) rather than to play once. */
@@ -369,8 +368,13 @@ export interface EffectTakesView extends EffectModelsView {
   takes: EffectTakeView[]
   making: EffectMakingView[]
   failed: EffectFailedView[]
-  /** The effects lock cannot be read: nothing can be chosen, dropped or un-chosen. */
-  lockUnread: boolean
+  /**
+   * The number of the chosen take among those listed here (its file is there and its fingerprint
+   * matches); not known while the effects lock cannot be read, when nothing can be chosen, dropped
+   * or un-chosen. A null take is not by itself "none chosen": the lock may name a take that is not
+   * listed.
+   */
+  chosen: Chosen
 }
 
 /** What is being made for an effect: how many takes wait or are made, and about how many seconds are left. */

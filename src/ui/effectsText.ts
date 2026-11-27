@@ -6,7 +6,7 @@ export function effectsSubtitle(effects: EffectsSummary): string {
   if (effects.status !== 'ok' || effects.rows.length === 0) return lead
   // Which are chosen is not known while the lock cannot be read: no count to give.
   if (effects.rows.every((row) => row.status === 'unknown')) return lead
-  const chosen = effects.rows.filter((row) => row.chosen).length
+  const chosen = effects.rows.filter((row) => row.current.kind === 'take').length
   const missing = effects.rows.filter((row) => row.status === 'missing').length
   const parts = [
     `${chosen} of ${effects.rows.length} chosen`,

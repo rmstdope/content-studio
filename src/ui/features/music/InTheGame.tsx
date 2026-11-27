@@ -137,7 +137,8 @@ export function InTheGame({
   fadesOpener: (n: number) => (button: HTMLButtonElement | null) => void
 }) {
   const state = inTheGame(track)
-  const take = view.takes.find((t) => t.chosen)
+  const { chosen } = view
+  const take = chosen.known ? view.takes.find((t) => t.n === chosen.take) : undefined
   const unchoose = useUnchooseTake(track.id)
   const choose = useChooseTake(track.id)
   const actions = useTrackActions()
@@ -145,7 +146,7 @@ export function InTheGame({
     trackId: track.id,
     take,
     inGame: true,
-    locked: view.lockUnread,
+    locked: !chosen.known,
     onPress: () => {
       if (take && player.playing === `music-take-${track.id}-${take.n}`) player.stop()
     },

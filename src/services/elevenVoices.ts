@@ -9,7 +9,7 @@ import { resolveInRoot } from '../core/paths'
 import type { Voice } from '../core/voiceSearch'
 import { elevenVoice, providerId } from '../core/voices'
 import { ElevenLabsError, NO_ELEVENLABS_KEY, type ElevenLabsClient } from './elevenlabs'
-import { readJson, writeAtomic } from './files'
+import { readJson, writeOrRefuse } from './files'
 import { createSerial } from './serial'
 import { CACHE_DIR } from '../core/project'
 
@@ -125,5 +125,9 @@ export async function freeVoices(
 
 /** Writes the voices the studio added. */
 async function writeAdded(projectFile: string, file: ElevenVoices): Promise<void> {
-  await writeAtomic(dirname(projectFile), ELEVEN_VOICES_FILE, `${JSON.stringify(file, null, 1)}\n`)
+  await writeOrRefuse(
+    dirname(projectFile),
+    ELEVEN_VOICES_FILE,
+    `${JSON.stringify(file, null, 1)}\n`,
+  )
 }

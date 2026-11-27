@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, chmodSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import type { Voice } from '../src/core/voiceSearch'
@@ -93,5 +93,28 @@ export function elevenVoiceOf(id: string, title = 'George'): Voice {
     likes: 0,
     author: '',
     sample: { text: '', audio: `https://example.com/${id}.mp3` },
+  }
+}
+
+/** Whether a read-only folder refuses writes: it does not for root, so those tests are skipped. */
+export const canRefuseWrites = process.getuid?.() !== 0
+
+/**
+ * Runs `run` with `folder` read-only, so every write into it is refused, and with the server log's
+ * errors collected instead of printed; gives what `run` answered and what was logged.
+ */
+export async function refusingWrites<T>(
+  folder: string,
+  run: () => Promise<T>,
+): Promise<{ answer: T; logged: unknown[][] }> {
+  const logged: unknown[][] = []
+  const quiet = console.error
+  console.error = (...args: unknown[]) => void logged.push(args)
+  chmodSync(folder, 0o555)
+  try {
+    return { answer: await run(), logged }
+  } finally {
+    chmodSync(folder, 0o755)
+    console.error = quiet
   }
 }

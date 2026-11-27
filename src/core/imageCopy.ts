@@ -1,3 +1,4 @@
+import type { Chosen } from './lockRead'
 import { z } from 'zod'
 import { isCropped } from './imagePixels'
 
@@ -8,7 +9,7 @@ export const CopyImageBody = z.object({ from: z.string().min(1) }).strict()
 export interface CopySourceRow {
   id: string
   title: string
-  chosenTake: number | null
+  chosen: Chosen
   width: number
   height: number
 }
@@ -49,13 +50,15 @@ export function copySources(
   for (const act of acts) {
     const images: CopySource[] = []
     for (const r of act.rows) {
-      if (r.id === imageId || r.chosenTake === null || seen.has(r.id)) continue
+      // An image whose choice is not known has no picture known to copy.
+      const take = r.chosen.known ? r.chosen.take : null
+      if (r.id === imageId || take === null || seen.has(r.id)) continue
       seen.add(r.id)
       const cropped = isCropped(r, into)
       images.push({
         id: r.id,
         title: r.title,
-        take: r.chosenTake,
+        take,
         size: `${r.width} × ${r.height}`,
         cropped,
         scaled: !cropped && (r.width !== into.width || r.height !== into.height),

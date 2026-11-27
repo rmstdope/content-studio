@@ -1,3 +1,4 @@
+import type { Chosen } from './lockRead'
 import { describe, expect, it } from 'bun:test'
 import { lookKey, lookOf } from './imageLook'
 import { LOCK_UNREAD } from './lockRead'
@@ -311,9 +312,16 @@ function input(over: InputOver = {}): ImagesInput {
 
 describe('summarizeImages', () => {
   it('does not say "none yet" while the lock cannot be read', () => {
-    const { images } = summarizeImages(input({ chosen: LOCK_UNREAD }))
+    const patch = { id: 'bread-taken', title: 'Bread taken', description: 'Remove the bread' }
+    const lists = input().lists.map((l) => ({
+      ...l,
+      state: { status: 'ok' as const, images: [{ ...inn, patches: [patch] }] },
+    }))
+    const { images } = summarizeImages(input({ lists, chosen: LOCK_UNREAD }))
     const act = images.acts[0]!
+    expect(act.rows[0]!.patches[0]!.chosenArea).toEqual({ known: false })
     expect(act.rows[0]!.status).toBe('unknown')
+    expect(act.rows[0]!.chosen).toEqual({ known: false })
     expect(act.chosen).toBeNull()
     expect(imagesDone(act).done).toBe(0)
   })
@@ -339,7 +347,7 @@ describe('summarizeImages', () => {
       state: { status: 'ok' as const, images: [withFile] },
     }))
     const first = summarizeImages(input({ lists })).images.acts[0]!.rows[0]!
-    expect(first.chosenTake).toBeNull()
+    expect(first.chosen).toEqual({ known: true, take: null })
     expect(first.gameFile).toEqual({ file: 'web/inn.png', exists: false })
     const row = summarizeImages(
       input({
@@ -348,7 +356,7 @@ describe('summarizeImages', () => {
         chosen: { [inn.id]: { ...first.madeFrom, take: 3 } },
       }),
     ).images.acts[0]!.rows[0]!
-    expect(row.chosenTake).toBe(3)
+    expect(row.chosen).toEqual({ known: true, take: 3 })
     expect(row.gameFile).toEqual({ file: 'web/inn.png', exists: true })
     expect(summarizeImages(input()).images.acts[0]!.rows[0]!.gameFile).toBeNull()
   })
@@ -620,7 +628,9 @@ describe('an image the game lists in several acts', () => {
     const first = shared().images.acts[0]!.rows[0]!
     const { images } = shared({ chosen: { [inn.id]: { ...first.madeFrom, take: 2 } } })
     expect(images.acts.map((a) => a.rows[0]!.status)).toEqual(['chosen', 'chosen', 'chosen'])
-    expect(images.acts.map((a) => a.rows[0]!.chosenTake)).toEqual([2, 2, 2])
+    expect(images.acts.map((a) => a.rows[0]!.chosen)).toEqual(
+      Array(3).fill({ known: true, take: 2 }),
+    )
   })
   it('counts once in the look notice', () => {
     const first = shared().images.acts[0]!.rows[0]!
@@ -967,7 +977,7 @@ describe('the patches the game asks for', () => {
           gameWas: null,
           chosenOn: [],
           chosenOnGone: false,
-          chosenArea: null,
+          chosenArea: { known: true, take: null },
         },
         {
           ...lamp,
@@ -977,7 +987,7 @@ describe('the patches the game asks for', () => {
           gameWas: null,
           chosenOn: [],
           chosenOnGone: false,
-          chosenArea: null,
+          chosenArea: { known: true, take: null },
         },
       ])
       expect(rowOf({}, inn).patches).toEqual([])
@@ -1063,7 +1073,10 @@ describe('the patches the game asks for', () => {
           [inn.id]: { 'bread-taken': { 1: there, 2: here }, 'lamp-lit': { 1: there } },
         },
       })
-      expect(row.patches.map((p) => p.chosenArea)).toEqual([here, null])
+      expect(row.patches.map((p) => p.chosenArea)).toEqual([
+        { known: true, take: here },
+        { known: true, take: null },
+      ])
     })
     it('takes the image’s takes as unknown, and marks nothing dropped, when its board was not read', () => {
       const row = rowOf({ patchChoices: { [inn.id]: { 'bread-taken': [3] } } })
@@ -1946,7 +1959,7 @@ describe('actImageReport', () => {
     title: id.toUpperCase(),
     status,
     reasons: [],
-    chosenTake: 1,
+    chosen: { known: true, take: 1 } as Chosen,
     patches: [],
     areas: [],
     ...over,
@@ -1976,7 +1989,10 @@ describe('actImageReport', () => {
           ],
         }),
         row('old', 'out of date', { reasons: ['the style', 'the act style'] }),
-        row('new', 'none yet', { chosenTake: null, patches: [{ id: 'lamp', chosenOn: [] }] }),
+        row('new', 'none yet', {
+          chosen: { known: true, take: null },
+          patches: [{ id: 'lamp', chosenOn: [] }],
+        }),
       ]),
     )
     expect(report).toEqual({
@@ -2019,7 +2035,10 @@ describe('actImageReport', () => {
   it('counts every patch as missing on a take from before takes were numbered', () => {
     const report = actImageReport(
       act([
-        row('old', 'incomplete', { chosenTake: null, patches: [{ id: 'lamp', chosenOn: [] }] }),
+        row('old', 'incomplete', {
+          chosen: { known: true, take: null },
+          patches: [{ id: 'lamp', chosenOn: [] }],
+        }),
       ]),
     )
     expect(report.images[0]!.missing.patches).toEqual(['lamp'])

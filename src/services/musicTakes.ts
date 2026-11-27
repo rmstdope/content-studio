@@ -16,6 +16,7 @@ import {
   type MusicTakesView,
   type TakeView,
 } from '../core/musicTake'
+import { chosenOf } from '../core/lockRead'
 import {
   DEFAULT_MUSIC_MODEL,
   MUSIC_MODELS,
@@ -44,7 +45,7 @@ import {
 import { readWav, writeWav } from '../core/wav'
 import { ffmpegEncoder, type Encoder } from './audio'
 import { createTakeEngine, type BoardAccess, type TakeEntry } from './takeEngine'
-import { readResource, refusalAnswer, refusalSentence, writeAtomic, writeOrRefuse } from './files'
+import { readResource, refusalAnswer, refusalSentence, writeOrRefuse, writeTogether } from './files'
 import { gpuQueue, holdGpu, GPU } from './gpu'
 import type { MusicGenerator } from './music'
 import {
@@ -511,11 +512,13 @@ export function createMusicTakes({
       if ('ok' in board) return board
       const chosenTracks = await readChosen(root, found.music, [])
       const chosen = chosenTracks.read ? chosenTracks.entries[id]?.lock : undefined
+      let inGame: number | null = null
       const takes: TakeView[] = []
       for (const take of board.takes) {
         const path = join(root, folder, fileOf(take))
         if (!(await Bun.file(path).exists())) continue
         const trimmable = inputs.kind === 'stinger' && !take.trim ? await scan(path) : null
+        if (chosen?.take === take.n && chosen.fp === take.hash) inGame = take.n
         takes.push({
           n: take.n,
           file: fileOf(take),
@@ -523,7 +526,6 @@ export function createMusicTakes({
           ...(take.seed !== undefined && { seed: take.seed }),
           peaks: take.peaks,
           earlier: take.hash !== hash,
-          chosen: chosen?.take === take.n && chosen.fp === take.hash,
           model: modelLine(take.model),
           ...(take.movedFrom && { movedFrom: take.movedFrom }),
           ...(take.trim && {
@@ -566,7 +568,7 @@ export function createMusicTakes({
         takes,
         making,
         failed,
-        lockUnread: !chosenTracks.read,
+        chosen: chosenOf(chosenTracks.read, inGame),
       }
     },
 
@@ -836,7 +838,7 @@ export function createMusicTakes({
               .bytes()
               .catch(() => null)
             putBack = async () => {
-              if (was) await writeAtomic(found.root, game, was)
+              if (was) await writeOrRefuse(found.root, game, was)
               else await rm(resolveInRoot(found.root, game), { force: true })
             }
             // Only the sound changes: the manifest and the lock (an accepted change too) stay as they are.
@@ -1098,14 +1100,22 @@ export function createMusicTakes({
             inputs: to.inputs,
             from: from.title,
           })
-          // The sound first, then the destination's board, then the source's: a failure part-way
-          // leaves the take on both boards, never on neither.
-          await writeAtomic(to.root, `${to.folder}/${fileOf(moved)}`, wav)
           target.next = n + 1
           target.takes = [...target.takes, moved].sort((a, b) => a.n - b.n)
-          await writeAtomic(to.root, to.board, `${JSON.stringify(target, null, 2)}\n`)
           source.takes = source.takes.filter((t) => t !== take)
-          await writeAtomic(from.root, from.board, `${JSON.stringify(source, null, 2)}\n`)
+          // The sound first, then the destination's board, then the source's: a crash part-way
+          // leaves the take on both boards, never on neither, and a refused write moves nothing.
+          // Both tracks are of this project, so one root holds all three.
+          const written = await writeTogether(
+            from.root,
+            [
+              [`${to.folder}/${fileOf(moved)}`, wav],
+              [to.board, `${JSON.stringify(target, null, 2)}\n`],
+              [from.board, `${JSON.stringify(source, null, 2)}\n`],
+            ],
+            { files: 'the take boards' },
+          )
+          if (!written.ok) return written
           await rm(resolveInRoot(from.root, `${from.folder}/${name}`), { force: true })
           return { ok: true, n }
         }),

@@ -1,3 +1,4 @@
+import { chosenOf } from '../core/lockRead'
 import { createHash } from 'node:crypto'
 import { rm, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -50,7 +51,7 @@ import type { EffectGenerator } from './effects'
 import type { EffectHealthStore } from './effectHealth'
 import { gpuInUse, gpuQueue, GPU, holdGpu } from './gpu'
 import { createTakeEngine, type BoardAccess, type TakeEntry } from './takeEngine'
-import { refusalAnswer, refusalSentence, writeAtomic, writeOrRefuse } from './files'
+import { refusalAnswer, refusalSentence, writeOrRefuse } from './files'
 import type { CommitResult } from './musicClips'
 import { createSerial, type Serial } from './serial'
 import { MAKE_ALL_TAKES, type EffectBatch } from '../core/effectsMakeAll'
@@ -504,7 +505,7 @@ export function createEffectTakes({
             .bytes()
             .catch(() => null)
           putBack = async () => {
-            if (was) await writeAtomic(found.root, game, was)
+            if (was) await writeOrRefuse(found.root, game, was)
             else await rm(resolveInRoot(found.root, game), { force: true })
           }
           // Only the sound changes: the manifest and the lock (an accepted change too) stay as they are.
@@ -566,6 +567,7 @@ export function createEffectTakes({
       const chosenEffects = await readEffectChosen(root, found.effects, [])
       const chosen = chosenEffects.read ? chosenEffects.entries[id]?.lock : undefined
       const takes: EffectTakeView[] = []
+      let inGame: number | null = null
       for (const take of board.takes) {
         const path = join(root, folder, fileOf(take))
         if (!(await Bun.file(path).exists())) continue
@@ -574,12 +576,12 @@ export function createEffectTakes({
           !take.trim && effectTrimOffered({ loops }, Boolean(found.inputs.loops))
             ? await scan(path)
             : null
+        if (chosen?.take === take.n && chosen.fp === take.hash) inGame = take.n
         takes.push({
           n: take.n,
           file: fileOf(take),
           seconds: take.seconds,
           peaks: take.peaks,
-          chosen: chosen?.take === take.n && chosen.fp === take.hash,
           model: modelName(take.model),
           loops,
           quietAt: take.quietAt ?? null,
@@ -618,7 +620,7 @@ export function createEffectTakes({
         takes,
         making,
         failed,
-        lockUnread: !chosenEffects.read,
+        chosen: chosenOf(chosenEffects.read, inGame),
       }
     },
 

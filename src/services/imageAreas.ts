@@ -1,3 +1,4 @@
+import type { Chosen } from '../core/lockRead'
 import { dirname } from 'node:path'
 import {
   areaFractions,
@@ -10,7 +11,7 @@ import {
 } from '../core/images'
 import { ImageManifestSchema } from '../core/imageTakes'
 import type { Problem, Project } from '../core/project'
-import { readResource, WriteRefused, writeAtomic, writeFailure, writeOrRefuse } from './files'
+import { readResource, WriteRefused, writeOrRefuse, refusalFailed } from './files'
 import { readImages } from './imageLists'
 import { patchesInGame, setAsideOn } from './imagePatchGame'
 import { choices, sorted } from './musicClips'
@@ -88,12 +89,12 @@ async function syncNow(
     }
   }
   if (!changed) return { ok: true }
-  try {
-    await writeAtomic(root, config.manifest, `${JSON.stringify(sorted(manifest), null, 2)}\n`)
-  } catch (error) {
-    return { ok: false, reason: 'write', message: writeFailure(error) }
-  }
-  return { ok: true }
+  const refused = await writeOrRefuse(
+    root,
+    config.manifest,
+    `${JSON.stringify(sorted(manifest), null, 2)}\n`,
+  ).then(() => null, refusalFailed('saving the images manifest failed'))
+  return refused ? { ok: false, reason: 'write', message: refused.message } : { ok: true }
 }
 
 /**
@@ -107,14 +108,16 @@ async function withPatches<E extends Record<string, unknown>>(
   root: string,
   clips: string,
   entry: E,
-  row: Parameters<typeof patchesInGame>[0]['row'] & { chosenTake: number | null },
+  row: Parameters<typeof patchesInGame>[0]['row'] & { chosen: Chosen },
 ): Promise<E> {
-  if (row.chosenTake === null || row.patches.length === 0) return entry
+  // No take in the game, or not known: the entry keeps what it has.
+  const take = row.chosen.known ? row.chosen.take : null
+  if (take === null || row.patches.length === 0) return entry
   const patches = {
     ...((entry.patches ?? {}) as Record<string, ManifestPatch>),
   }
-  for (const id of await setAsideOn({ root, row }, row.chosenTake)) delete patches[id]
-  const inGame = await patchesInGame({ root, clips, row }, row.chosenTake)
+  for (const id of await setAsideOn({ root, row }, take)) delete patches[id]
+  const inGame = await patchesInGame({ root, clips, row }, take)
   for (const [path, png] of inGame.pictures) await writeOrRefuse(root, path, png)
   Object.assign(patches, inGame.entries)
   const { patches: _old, ...others } = entry

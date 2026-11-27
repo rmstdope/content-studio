@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'bun:test'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import type { TrackRow } from '../../../core/music'
 import type { MusicTakesView } from '../../../core/musicTake'
+import { NOT_KNOWN } from '../../../core/lockRead'
 
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
@@ -59,13 +60,12 @@ const view = (over: Partial<MusicTakesView> = {}): MusicTakesView => ({
       seed: 1,
       peaks: [0.5],
       earlier: false,
-      chosen: false,
       model: 'Balanced · XL turbo · 4B',
     },
   ],
   making: [],
   failed: [],
-  lockUnread: false,
+  chosen: { known: true, take: null },
   ...over,
 })
 
@@ -118,7 +118,7 @@ describe('the Takes panel while the music lock cannot be read', () => {
     'Choosing, dropping, moving, trimming and fading wait until the music lock can be read. You can still listen and make more takes.'
 
   it('says why above the cards and greys out Choose and Drop, leaving Make 2 more takes alone', () => {
-    const page = render(view({ lockUnread: true }))
+    const page = render(view({ chosen: NOT_KNOWN }))
     expect(page.container.textContent).toContain(why)
     expect(isOff(page.button('Choose'))).toBe(true)
     expect(isOff(page.button('Drop'))).toBe(true)
@@ -136,13 +136,13 @@ describe('the Takes panel while the music lock cannot be read', () => {
         paid: false,
       },
     ]
-    const page = render(view({ lockUnread: true, takes: [], making }))
+    const page = render(view({ chosen: NOT_KNOWN, takes: [], making }))
     expect(page.container.textContent).toContain(why)
   })
 
   it('says nothing on an empty panel, nor when the lock is readable', () => {
-    expect(render(view({ lockUnread: true, takes: [] })).container.textContent).not.toContain(why)
-    const ok = render(view({ lockUnread: false }))
+    expect(render(view({ chosen: NOT_KNOWN, takes: [] })).container.textContent).not.toContain(why)
+    const ok = render(view())
     expect(ok.container.textContent).not.toContain(why)
     expect(isOff(ok.button('Choose'))).toBe(false)
   })
