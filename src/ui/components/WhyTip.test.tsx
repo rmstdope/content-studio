@@ -9,6 +9,8 @@ const { createRoot } = await import('react-dom/client')
 const { WhyTip } = await import('./WhyTip')
 const { off, tipOnly } = await import('../off')
 const { valuesInEveryWindow } = await import('../../../test/stylesheet')
+const { heldClock } = await import('../../../test/heldClock')
+const { settle } = await import('../../../test/settle')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -16,7 +18,7 @@ const cleanups: (() => void)[] = []
 afterEach(async () => {
   cleanups.splice(0).forEach((c) => c())
   // Let React's scheduler and the observers settle before the DOM goes away.
-  await new Promise<void>((r) => setTimeout(r, 20))
+  await settle()
 })
 afterAll(unregisterDom)
 
@@ -27,13 +29,14 @@ function mount(initial: string | false, clicks: Clicks = { presses: 0, changes: 
   const host = document.createElement('div')
   document.body.append(host)
   const root = createRoot(host)
+  const { clock, pass } = heldClock()
   const draw = (why: string | false) =>
     act(() => {
       root.render(
         createElement(
           'div',
           null,
-          createElement(WhyTip),
+          createElement(WhyTip, { clock }),
           createElement(
             'button',
             { id: 'make', type: 'button', onClick: () => clicks.presses++, ...off(why) },
@@ -53,7 +56,7 @@ function mount(initial: string | false, clicks: Clicks = { presses: 0, changes: 
     act(() => root.unmount())
     host.remove()
   })
-  return { draw, clicks }
+  return { draw, clicks, pass }
 }
 
 const el = (id: string) => document.getElementById(id) as HTMLElement
@@ -75,7 +78,6 @@ const tipAt = (box: { left: number; top: number; width: number; height: number }
   }
   ;(tip() as HTMLElement).getBoundingClientRect = () => ({ ...rect, toJSON: () => rect }) as DOMRect
 }
-const wait = (ms: number) => act(() => new Promise<void>((r) => setTimeout(r, ms)))
 
 describe('the tip on a greyed control', () => {
   it('shows nothing on a control that is on', () => {
@@ -86,31 +88,33 @@ describe('the tip on a greyed control', () => {
   })
 
   it('shows at once with the reason when the pointer arrives, and goes when it leaves', async () => {
-    mount('Wait for the takes.')
+    const { pass } = mount('Wait for the takes.')
     fire(el('make'), 'pointerover')
     expect(tip()?.textContent).toBe('Wait for the takes.')
     fire(document.body, 'pointerover')
-    await wait(250)
+    await pass(149)
+    expect(tip()).not.toBeNull()
+    await pass(1)
     expect(tip()).toBeNull()
   })
 
   it('stays when the pointer moves onto the tip to read it', async () => {
-    mount('Wait for the takes.')
+    const { pass } = mount('Wait for the takes.')
     fire(el('make'), 'pointerover')
     // The tip lets the pointer through, so the browser reports it over what lies under the tip.
     tipAt({ left: 0, top: 0, width: 120, height: 30 })
     fire(el('plain'), 'pointerover', { clientX: 10, clientY: 10 })
-    await wait(250)
+    await pass(250)
     expect(tip()?.textContent).toBe('Wait for the takes.')
   })
 
   it('goes when the pointer moves off the tip, though it stays over the same control', async () => {
-    mount('Wait for the takes.')
+    const { pass } = mount('Wait for the takes.')
     fire(el('make'), 'pointerover')
     tipAt({ left: 0, top: 0, width: 120, height: 30 })
     fire(el('plain'), 'pointerover', { clientX: 10, clientY: 10 })
     fire(el('plain'), 'pointermove', { clientX: 10, clientY: 60 })
-    await wait(250)
+    await pass(250)
     expect(tip()).toBeNull()
   })
 
@@ -124,12 +128,12 @@ describe('the tip on a greyed control', () => {
   })
 
   it('keeps the tip being read when it covers another control with a tip', async () => {
-    mount('Wait for the takes.')
+    const { pass } = mount('Wait for the takes.')
     fire(el('make'), 'pointerover')
     tipAt({ left: 0, top: 0, width: 120, height: 30 })
     // The menu is greyed with its own reason (the same one here); the tip shown stays Make's.
     fire(el('menu'), 'pointerover', { clientX: 10, clientY: 10 })
-    await wait(250)
+    await pass(250)
     expect(el('make').getAttribute('aria-describedby')).toBe('why-tip')
     expect(el('menu').hasAttribute('aria-describedby')).toBe(false)
   })
@@ -144,14 +148,14 @@ describe('the tip on a greyed control', () => {
   })
 
   it('goes a linger after the pointer leaves it, however much the pointer moves after', async () => {
-    mount('Wait for the takes.')
+    const { pass } = mount('Wait for the takes.')
     fire(el('make'), 'pointerover')
     tipAt({ left: 0, top: 0, width: 120, height: 30 })
     fire(el('plain'), 'pointerover', { clientX: 10, clientY: 10 })
     fire(el('plain'), 'pointermove', { clientX: 10, clientY: 60 })
-    await wait(100)
+    await pass(100)
     fire(el('plain'), 'pointermove', { clientX: 10, clientY: 61 })
-    await wait(100)
+    await pass(100)
     fire(el('plain'), 'pointermove', { clientX: 10, clientY: 62 })
     expect(tip()).toBeNull()
   })
@@ -185,31 +189,31 @@ describe('the tip on a greyed control', () => {
   })
 
   it('keeps a tip shown for focus when the page moves under a pointer that did not', async () => {
-    mount('Wait for the takes.')
+    const { pass } = mount('Wait for the takes.')
     el('make').focus()
     fire(el('make'), 'focusin')
     // The page changing under a resting pointer: the browser reports it over whatever is now there.
     fire(document.body, 'pointerover')
-    await wait(250)
+    await pass(250)
     expect(tip()?.textContent).toBe('Wait for the takes.')
   })
 
   it('keeps a tip shown for focus when the pointer passes over the control and off it', async () => {
-    mount('Wait for the takes.')
+    const { pass } = mount('Wait for the takes.')
     el('make').focus()
     fire(el('make'), 'focusin')
     fire(el('make'), 'pointerover')
     fire(document.body, 'pointerover')
-    await wait(250)
+    await pass(250)
     expect(tip()?.textContent).toBe('Wait for the takes.')
   })
 
   it('still lets a tip shown on a click go when the pointer leaves', async () => {
-    mount('Wait for the takes.')
+    const { pass } = mount('Wait for the takes.')
     fire(el('make'), 'focusin')
     fire(el('make'), 'click')
     fire(document.body, 'pointerover')
-    await wait(250)
+    await pass(250)
     expect(tip()).toBeNull()
   })
 
@@ -238,13 +242,13 @@ describe('the tip on a greyed control', () => {
   })
 
   it('updates in place when the reason changes and goes when the control turns on', async () => {
-    const { draw } = mount('Setup first.')
+    const { draw, pass } = mount('Setup first.')
     fire(el('make'), 'pointerover')
     draw('Wait for the takes.')
-    await wait(0)
+    await pass(0)
     expect(tip()?.textContent).toBe('Wait for the takes.')
     draw(false)
-    await wait(0)
+    await pass(0)
     expect(tip()).toBeNull()
   })
 
