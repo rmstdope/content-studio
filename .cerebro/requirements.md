@@ -111,7 +111,7 @@ IMG-3  Fine-tune: the person makes variations of a picture, compares them and ch
        Proven by: test/system/IMG-3.test.ts
 IMG-4  Named areas: the person places a box (and a point, where it has one) for each area the game
        names on the picture, and they are saved for the game with the image.
-       Proven by: nothing yet
+       Proven by: test/system/IMG-4.test.ts
 IMG-5  Movement: the person puts effects and a slow zoom on a picture, with their settings and
        where each plays, and sees them move as the game shows them; each change is saved for the
        game at once.
