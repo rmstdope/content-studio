@@ -667,20 +667,45 @@ export function applyZoom(edits: ImageEdits, id: string, zoom: SavedZoom | null)
 }
 
 /** What the game is told of the zoom: its seconds and percent, null when it is off, nothing when none is saved. */
-export function zoomForGame(
-  zoom: SavedZoom | undefined,
-): { seconds: number; percent: number } | null | undefined {
+export function zoomForGame(zoom: SavedZoom | undefined): ImageManifestEntry['zoom'] {
   if (!zoom) return undefined
   return zoom.on ? { seconds: zoom.seconds, percent: zoom.percent } : null
 }
 
-/** A manifest entry with its `zoom` set, nulled (no zoom) or taken away (none saved); its other fields stay in place. */
-export function withZoom<T extends object>(
+/** One patch of an image as the game's manifest lists it. */
+export interface ManifestPatch {
+  file: string
+  width: number
+  height: number
+}
+
+/**
+ * Every field the studio writes in an image's manifest entry; docs/project-files.md lists each
+ * (projectFiles.test.ts).
+ */
+export interface ImageManifestEntry {
+  file: string
+  width: number
+  height: number
+  patches?: Record<string, ManifestPatch>
+  areas?: Record<string, AreaFractions>
+  effects?: GameEffect[]
+  zoom?: { seconds: number; percent: number } | null
+}
+
+/** A manifest entry with one of the studio's fields set, or taken away when `value` is undefined. */
+function withField<T extends object, K extends keyof ImageManifestEntry>(
   entry: T,
-  zoom: { seconds: number; percent: number } | null | undefined,
+  key: K,
+  value: ImageManifestEntry[K] | undefined,
 ): T {
-  const { zoom: _old, ...rest } = entry as T & { zoom?: unknown }
-  return (zoom === undefined ? rest : { ...rest, zoom }) as T
+  const { [key]: _old, ...rest } = entry as T & Partial<ImageManifestEntry>
+  return (value === undefined ? rest : { ...rest, [key]: value }) as T
+}
+
+/** A manifest entry with its `zoom` set, nulled (no zoom) or taken away (none saved); its other fields stay in place. */
+export function withZoom<T extends object>(entry: T, zoom: ImageManifestEntry['zoom']): T {
+  return withField(entry, 'zoom', zoom)
 }
 
 /** One effect as the game's renderer is asked for it: `setEffects` takes a list of these. */
@@ -717,8 +742,7 @@ export function effectsForGame(effects: SavedEffects): GameEffect[] {
 
 /** A manifest entry with its `effects` set, or taken away when there are none; its other fields stay in place. */
 export function withEffects<T extends object>(entry: T, effects: readonly GameEffect[]): T {
-  const { effects: _old, ...rest } = entry as T & { effects?: unknown }
-  return (effects.length ? { ...rest, effects: [...effects] } : rest) as T
+  return withField(entry, 'effects', effects.length ? [...effects] : undefined)
 }
 
 /** The edits with an image's use of its part's style addition changed: off is `partStyle: null`, ticked again removes it. */
@@ -826,8 +850,7 @@ export function withAreas<T extends object>(
   entry: T,
   areas: Record<string, AreaFractions> | undefined,
 ): T & { areas?: Record<string, AreaFractions> } {
-  const { areas: _old, ...rest } = entry as T & { areas?: unknown }
-  return (areas ? { ...rest, areas } : rest) as T & { areas?: Record<string, AreaFractions> }
+  return withField(entry, 'areas', areas) as T & { areas?: Record<string, AreaFractions> }
 }
 
 /**

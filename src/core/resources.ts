@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { TimedWord } from './align'
 import { LEVEL } from './level'
 
 /** What a line id may hold: it names the line's clip file, so safe file-name characters only. */
@@ -311,6 +312,18 @@ export const ManifestEntrySchema = z.looseObject({
   speaker: z.string().optional(),
   duration: z.number().optional(),
 })
+
+/**
+ * Every field the studio writes of a clip in the game's manifest; docs/project-files.md lists
+ * each (projectFiles.test.ts).
+ */
+export interface WrittenClip {
+  file: string
+  speaker: string
+  duration: number
+  /** The line's words in order, timed in seconds. */
+  words: TimedWord[]
+}
 
 /** The game's clip manifest (RetroQuest: `web/public/audio/narration/<act>/manifest.json`). */
 export const ManifestSchema = z.record(z.string(), ManifestEntrySchema)

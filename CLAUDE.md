@@ -163,7 +163,9 @@ there is no need to run prettier before a commit. Unstaged changes stay unstaged
 ## Before every commit
 
 `bun run check` passes (CI runs the same checks on every pull request and on `main`), new behaviour
-has tests, and `docs/architecture.md` matches what was built. Work on a branch, not on `main`.
+has tests, and `docs/architecture.md` matches what was built. A change to a file's format changes
+`docs/project-files.md` too: `src/core/projectFiles.test.ts` fails when a field of a schema is
+missing from it (a new file needs its own entry there). Work on a branch, not on `main`.
 
 ## Producer review
 

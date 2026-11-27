@@ -322,7 +322,11 @@ section (as-6u9.3), the `music` section (as-6u9.4), the `images` section (as-6u9
 
 The studio defines the format of every file it reads and writes, in
 [docs/project-files.md](project-files.md) (version 2); the game's lists and what the game plays
-follow it. This section says how the studio uses narration's files.
+follow it. This section says how the studio uses narration's files. The reference is held to the
+schemas in `src/core` (`projectFiles.test.ts`): each file's section there must show every field in
+an example the schema reads, and name it in its text. What the studio writes into the loosely read
+narration and images manifests is typed in `core` (`WrittenClip`, `ImageManifestEntry`), and the
+test follows those types.
 
 **Dialog** (`narration.from.part`, read only; one per part and language): `[{ id, speaker, text, scene? }]`. `id` is the game's stable id for
 the line (RetroQuest: a hash of speaker and words, so new wording gets a new id). Inside the studio

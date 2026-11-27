@@ -48,6 +48,8 @@ import {
   type ImageLock,
   type ImageReason,
   type ImageRow,
+  type ImageManifestEntry,
+  type ManifestPatch,
 } from '../core/images'
 import { resolveInRoot } from '../core/paths'
 import { IMAGES_LOCK_FILE, type Problem } from '../core/project'
@@ -59,7 +61,6 @@ import { createImageHealth, type ImageHealthStore } from './imageHealth'
 import { downloadOf, ImageToolError, makeImageTake, type ImageGenerator } from './images'
 import {
   patchesInGame,
-  type ManifestPatch,
   changePatchBoard,
   patchPictureOf,
   patchGameOf,
@@ -453,7 +454,7 @@ export function createImageTakes({
               width: found.row.width,
               height: found.row.height,
               ...(Object.keys(patches).length ? { patches } : {}),
-            },
+            } satisfies ImageManifestEntry,
             take === undefined
               ? areaFractions(row.areas, row)
               : areaFractionsOn(row.areas, take, row),

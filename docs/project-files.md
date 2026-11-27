@@ -107,6 +107,7 @@ walking up from the folder it is started in.
   "images": {
     "from": { "part": "tts/{part}/images.json" },
     "model": "klein",
+    "motion": "web/src/motion.ts",
     "clips": "web/public/images/generated",
     "manifest": "web/public/images/generated/manifest.json"
   },
@@ -258,12 +259,15 @@ Every list is a JSON array of items, in the game's order. All lists share three 
 Fields only one kind has sit beside them. A list that is there and empty means the game asks for
 none; a list that is missing means the game has not written it yet.
 
-**A line** (`narration.from.part`):
+### A line
+
+A line of dialog (`narration.from.part`):
 
 ```json
 [
   {
     "id": "a1",
+    "title": "The lantern",
     "speaker": "narrator",
     "text": "The lantern still burns.",
     "scene": "lantern-hall"
@@ -271,12 +275,14 @@ none; a list that is missing means the game has not written it yet.
 ]
 ```
 
-`speaker` names the character as the cast does. `scene` is the name of the scene the line belongs
+`title` is the game's own, and the studio does not use it. `speaker` names the character as the cast does. `scene` is the name of the scene the line belongs
 to, if any, as the dialog gives it; the scenes' cues are kept under that name, and it need not be a
 declared scene's id.
 Between languages, lines are matched by `id`.
 
-**A track** (`music.from.part`, `music.from.shared`):
+### A track
+
+A music track (`music.from.part`, `music.from.shared`):
 
 ```json
 [
@@ -296,7 +302,9 @@ Between languages, lines are matched by `id`.
 `seconds` is how long a take is. `bpm` and `key` are optional. `plays` says where the game plays it.
 `file` is the music the game plays now, when it is not one the studio made.
 
-**An image** (`images.from.part`):
+### An image
+
+An image (`images.from.part`):
 
 ```json
 [
@@ -306,8 +314,16 @@ Between languages, lines are matched by `id`.
     "text": "A low timber inn at dusk, lantern light in every window, a silver stag on the sign.",
     "width": 320,
     "height": 200,
+    "file": "web/public/images/inn.png",
     "patches": [
-      { "id": "bread-taken", "title": "Bread taken", "text": "Remove the bread from the table" }
+      { "id": "bread-taken", "title": "Bread taken", "text": "Remove the bread from the table" },
+      {
+        "id": "fountain-dry",
+        "title": "Fountain dry",
+        "text": "No water in the fountain",
+        "area": "fountain",
+        "over": "bread-taken"
+      }
     ],
     "areas": [{ "id": "fountain", "title": "Fountain" }]
   }
@@ -319,7 +335,8 @@ Between languages, lines are matched by `id`.
 `patches` is optional (absent or `[]` means the image needs none): the small changes the game lays
 over the image when it needs them, in the game's order. Each has an `id` (a slug, used once in the
 image), a `title` and `text`, the words for the edit, and optionally `area`, the id of one of the
-image's named areas, whose place the patch starts from. The studio shows them on the image's page,
+image's named areas, whose place the patch starts from, and `over`, the id of another patch of the
+image that this one lies on top of. The studio shows them on the image's page,
 lets the user reword them, makes takes of them and puts the chosen one in the game. An image several parts list must list the
 same patches (id, title and words; the order may differ), or the lists disagree.
 
@@ -329,7 +346,9 @@ gives coordinates. The studio shows them on the image's page and in the act's li
 still to place. An image several parts list must list the same areas (id and title; the order may
 differ), or the lists disagree.
 
-**A sound effect** (`effects.from.shared`):
+### A sound effect
+
+A sound effect (`effects.from.shared`):
 
 ```json
 [
@@ -346,7 +365,9 @@ differ), or the lists disagree.
 `seconds` is its length. `loops` is true for an effect that plays round and round; absent, it plays
 once.
 
-**A scene** (`scenes.from.part`):
+### A scene
+
+A scene (`scenes.from.part`):
 
 ```json
 [
@@ -376,6 +397,8 @@ content-studio/
     act1.sv.edits.json    … and in another language
     act1.lock.json        what each of a part's clips was made from
     act1.sv.lock.json
+    act1.cleaned.json     the lines cleaned of noise in the game, and when
+    originals/act1/       the clips as they were before cleaning (act1.sv/ in another language)
   music/
     edits.json            the studio's changes to the tracks
     lock.json             the chosen take of each track
@@ -390,8 +413,8 @@ content-studio/
   cache/                  not committed
 ```
 
-A file of a language besides the source has the language's code before `.edits` or `.lock`; the
-source language's has none, even in a game with one language, so adding a language never renames
+A file of a language besides the source has the language's code before `.edits`, `.lock` or
+`.cleaned`; the source language's has none, even in a game with one language, so adding a language never renames
 a file. There is one lock beside
 each manifest or mix the game reads: per part (and language) for narration and scenes, one for the
 whole game for music, images and effects, whose clips share one folder (and an image or track may be
@@ -412,7 +435,9 @@ it was written over:
 When the game's words change, `gameWas` no longer matches, and the studio shows both so you can
 keep yours or take the game's. Every kind's rewording has this shape.
 
-**`narration/cast.json`**: every speaker, keyed by the name the dialog's `speaker` uses, and how
+#### `narration/cast.json`
+
+Every speaker, keyed by the name the dialog's `speaker` uses, and how
 words are said.
 
 ```json
@@ -423,13 +448,17 @@ words are said.
       "voiceName": "Old man bible storytelling",
       "style": "[warm, gentle storyteller]",
       "speed": 0.9,
+      "clean": true,
+      "level": 80,
       "audition": { "keywords": ["old", "male", "warm"], "phrase": "Sit by the fire." },
       "languages": {
         "sv": {
           "voice": "e48a…",
           "voiceName": "Berättaren",
           "speed": 1,
-          "phrase": "Sitt vid elden."
+          "phrase": "Sitt vid elden.",
+          "clean": false,
+          "level": 120
         }
       }
     }
@@ -440,16 +469,19 @@ words are said.
 }
 ```
 
-| Field               | What it is                                                                               |
-| ------------------- | ---------------------------------------------------------------------------------------- |
-| `voice`             | The voice's id at its provider (`eleven:` before an ElevenLabs id); absent while uncast. |
-| `voiceName`         | The voice's name, shown in the studio.                                                   |
-| `style`             | How the character speaks, as a cue: what each line gets unless it has its own.           |
-| `speed`             | The character's own speaking speed (0.5 to 2), in place of the project's.                |
-| `audition.keywords` | What a voice search for the character looks for.                                         |
-| `audition.phrase`   | The character's own audition phrase, in place of the project's.                          |
-| `languages`         | The casting in a language besides the source: `voice`, `voiceName`, `speed`, `phrase`.   |
-| `pronounce`         | By language: written words → how they are spoken, applied in the order listed.           |
+| Field               | What it is                                                                                               |
+| ------------------- | -------------------------------------------------------------------------------------------------------- |
+| `speakers`          | The characters, by the name the dialog's `speaker` uses.                                                 |
+| `voice`             | The voice's id at its provider (`eleven:` before an ElevenLabs id); absent while uncast.                 |
+| `voiceName`         | The voice's name, shown in the studio.                                                                   |
+| `style`             | How the character speaks, as a cue: what each line gets unless it has its own.                           |
+| `speed`             | The character's own speaking speed (0.5 to 2), in place of the project's.                                |
+| `clean`             | `true`: new recordings of the character are cleaned of background noise.                                 |
+| `level`             | How loud the voice plays, in percent (a whole number, 10 to 200; 100 when absent).                       |
+| `audition.keywords` | What a voice search for the character looks for.                                                         |
+| `audition.phrase`   | The character's own audition phrase, in place of the project's.                                          |
+| `languages`         | The casting in a language besides the source: `voice`, `voiceName`, `speed`, `phrase`, `clean`, `level`. |
+| `pronounce`         | By language: written words → how they are spoken, applied in the order listed.                           |
 
 A speaker's casting in the source language is its own fields, and its casting in another language
 is under `languages`, so a game with one language never sees language codes there. The tables
@@ -459,7 +491,9 @@ project file) are keyed by language, the source included.
 A character is the same in every part. To give one a different voice in a part, the game names the
 speaker differently (`narrator-act2`).
 
-**`narration/<part>.edits.json`**: a part's cues.
+#### `narration/<part>.edits.json`
+
+A part's cues.
 
 ```json
 {
@@ -478,7 +512,9 @@ with cues placed between them. `scenes` gives a scene's lines a cue, for the spe
 `generate.sceneCueSpeakers`; a line's own cue wins. In a language besides the source, a line
 follows the source language's cue until its own file gives it one.
 
-**`music/edits.json`**: the studio's changes to tracks, by track id.
+#### `music/edits.json`
+
+The studio's changes to tracks, by track id.
 
 ```json
 {
@@ -495,7 +531,9 @@ follows the source language's cue until its own file gives it one.
 Each field is optional: `text` and `gameWas` together, `seconds`, `bpm` (30 to 300, `null` for none),
 and `key` (`null` for none).
 
-**`images/edits.json`**: the look of every image, and the studio's changes to images.
+#### `images/edits.json`
+
+The look of every image, and the studio's changes to images.
 
 ```json
 {
@@ -512,6 +550,39 @@ and `key` (`null` for none).
       "text": "A heavy iron-banded door at the foot of a worn stair.",
       "gameWas": "A heavy iron-banded door at the foot of a stair.",
       "partStyle": "act2",
+      "areas": {
+        "door": { "x": 40, "y": 20, "width": 60, "height": 120, "point": { "x": 70, "y": 90 } }
+      },
+      "takeAreas": {
+        "2": {
+          "door": { "x": 42, "y": 22, "width": 60, "height": 118, "point": { "x": 72, "y": 90 } }
+        }
+      },
+      "effects": {
+        "dust": {
+          "title": "Dust",
+          "on": true,
+          "patch": "bread-taken",
+          "patchTitle": "Bread taken",
+          "settings": { "amount": 1.25 },
+          "spot": [
+            [
+              [0.1, 0.5],
+              [0.4, 0.5],
+              [0.25, 0.9]
+            ]
+          ],
+          "mark": [0.8, 0.05]
+        },
+        "smoke": {
+          "on": false,
+          "unlessPatch": "bread-taken",
+          "patchTitle": "Bread taken",
+          "settings": { "amount": 1 },
+          "fixed": true
+        }
+      },
+      "zoom": { "on": true, "seconds": 30, "percent": 8 },
       "patches": {
         "bread-taken": {
           "text": "Take the loaf off the table, leave only crumbs",
@@ -535,6 +606,11 @@ and `key` (`null` for none).
 | `images.<id>.patches.<patch>`         | A rewording of a patch the game asks for: `text` and `gameWas`, as for an image. Kept when the game stops asking.                                                                                                                                                                                                                                                                                                                                                        | none                         |
 | `images.<id>.areas.<area>`            | The box marked for a named area: `{ x, y, width, height }`, whole pixels of the image's own size (at least 4 each way, inside the picture), and optionally `point: { x, y }`, where the game marks the thing, inside the box (absent: the centre). Boxes of no take yet; they go with the take chosen. Kept when the game stops asking.                                                                                                                                  | none                         |
 | `images.<id>.effects.<type>`          | An effect of the game's motion renderer for this image: `{ on, settings }`, `settings` by setting id. `on` puts it in the game; off keeps the values. Optionally `patch` (a patch id of the image) and `patchTitle`: the effect shows only while that patch is laid; or `unlessPatch` (a patch id) with `patchTitle`: it shows only while that patch is not laid (never both); kept when the game stops listing the patch. Kept when the renderer stops having the type. | none                         |
+| `images.<id>.effects.<type>.title`    | What the renderer called the effect when it was saved, to name it when the renderer is not there.                                                                                                                                                                                                                                                                                                                                                                        | none                         |
+| `images.<id>.effects.<type>.spot`     | The shapes drawn in the studio that the effect plays inside, as in the images manifest below.                                                                                                                                                                                                                                                                                                                                                                            | none                         |
+| `images.<id>.effects.<type>.mark`     | With a spot, where the effect's light comes from, when moved from the middle of the shapes.                                                                                                                                                                                                                                                                                                                                                                              | none                         |
+| `images.<id>.effects.<type>.fixed`    | `true` when the renderer said the game cannot place the effect elsewhere: the shape is kept but not passed on.                                                                                                                                                                                                                                                                                                                                                           | none                         |
+| `images.<id>.zoom`                    | The image's slow zoom: `on`, and the `seconds` and `percent` kept for when it is.                                                                                                                                                                                                                                                                                                                                                                                        | none                         |
 | `images.<id>.takeAreas.<take>.<area>` | The same boxes, kept per take (by take number), so each take has its own.                                                                                                                                                                                                                                                                                                                                                                                                | none                         |
 | `images.<id>.partStyle`               | Which part's addition the image uses: a part id, or `null` for none (today's `actStyleFrom` and `actStyleOff`).                                                                                                                                                                                                                                                                                                                                                          | the first part that lists it |
 
@@ -543,7 +619,9 @@ The studio reads the style and each image's edit apart. A bad `images.<id>` (say
 taken as none, and the rewordings are kept. Each is shown as a problem at its path. While any part
 of the file cannot be read, the studio refuses every save to it, so nothing in it is lost.
 
-**`effects/edits.json`**: the studio's changes to effects, by effect id: a rewording.
+#### `effects/edits.json`
+
+The studio's changes to effects, by effect id: a rewording, with its `text` and `gameWas`.
 
 ```json
 { "rain": { "text": "Rain hammering on a tin roof", "gameWas": "Steady rain on a tin roof" } }
@@ -557,15 +635,7 @@ lost.
 
 What each chosen take was made from, so the studio can say when an item has changed since. Every
 lock is an object keyed by item id, written one entry per line in id order, so choosing a take is a
-one-line change in a diff:
-
-<!-- prettier-ignore -->
-```json
-{
- "rain": {"fp":"8c67d33efba8d9af","model":"small-sfx","seed":29507973,"take":2,"inputs":{"text":"Steady rain on a tin roof","seconds":8,"loops":true},"at":"2026-11-04T09:56:41.790Z"},
- "wind-howl": {"fp":"b6b1e1b80690ed14","model":"small-sfx","seed":2067760593,"take":1,"inputs":{"text":"Wind howls through a stone gap","seconds":10},"at":"2026-11-04T10:05:31.480Z"}
-}
-```
+one-line change in a diff.
 
 The locks of music, images and effects share these fields:
 
@@ -578,33 +648,117 @@ The locks of music, images and effects share these fields:
 | `inputs` | What it was made from, in the clear. Accepting a change since (Accept) puts the new values here. |
 | `at`     | When it was made or chosen.                                                                      |
 
-What `inputs` holds is each kind's own:
+What `inputs` holds is each kind's own, and so is what else an entry records.
 
-- **Music**: `text`, `kind` (`loop` or `stinger`), `seconds`, `bpm`, `key`. A music entry also
-  records `list`: the part whose list the track came from, or `shared` for a stinger.
-- **Images**: `text`, `width`, `height`, `style` (`{ look, keepOut, part }`: the words the take was
-  made with, `part` being the part's addition as written, `null` for none; absent for a take made
-  without a style) and `look` (`{ palette, colourDepth, dithering, width, height }`, what the
-  picture was brought to: `palette` when there is one, else `colourDepth`, and `dithering` unless
-  full colour; `width` and `height` only when the picture was brought to another size than the
-  entry's own, as when a take made before the game changed the image's size is chosen after it;
-  absent for a picture never brought to a look). An image entry has no `fp`: the inputs are
-  compared as they are.
-- **Effects**: `text`, `seconds`, `loops`.
+#### The music lock
 
-Two locks record something else, in the same layout:
+`music/lock.json`. `inputs` holds `text`, `kind` (`loop` or `stinger`), `seconds`, `bpm` and `key`
+(`null` for none). An entry also records `list`: the part whose list the track came from, or
+`shared` for a stinger. Beside them are `fp`, `model`, `seed`, `take` and `at`.
 
-- **Narration** keeps short hashes, not the words, which would copy the whole script into the lock.
-  An entry is `fp`, `model`, `voice`, `hashes: { cue, text, said, settings }` and `at`, with `heard`
-  (the share of the words Whisper heard), `takes` (how many were tried), `accepted` (true when a
-  weak clip was accepted as it is) and `adopted` (true for a clip made before the studio). A line
-  has one clip, so it has no `take` or `seed`.
-- **Scenes** record the loudness each scene was measured at, not a take: under `saved` for the mix
-  as saved and `draft` for unsaved changes, each with `measuredAt`, the mix `entry` measured, the
-  `clips` each sound came from, `states` (`{ state, lufs }` each), what was left `without`, an
-  `error` when it could not be measured, and `moved` after a suggested change. While a part's
-  lock cannot be read, its scenes show no figures and the studio refuses to measure that part, so
-  nothing in it is lost.
+<!-- prettier-ignore -->
+```json
+{
+ "village-lane": {"fp":"1f0a6c9be4d27a35","model":"balanced","seed":41,"list":"act1","take":3,"inputs":{"text":"recorder and fiddle, a bright morning walk","kind":"loop","seconds":60,"bpm":90,"key":"G major"},"at":"2026-11-04T09:41:12.004Z"}
+}
+```
+
+#### The images lock
+
+`images/lock.json`. An entry is `model`, `seed`, `take`, `inputs` and `at`; it has no `fp`, since
+the inputs are compared as they are. `inputs` holds:
+
+- `text`, `width` and `height`: the words and the size the take is for.
+- `style`: `look`, `keepOut` and `part`, the words the take was made with, `part` being the part's
+  addition as written, `null` for none. Absent for a take made without a style.
+- `look`: what the picture was brought to: `palette` when there is one, else `colourDepth`, and
+  `dithering` unless full colour; `width` and `height` only when the picture was brought to another
+  size than the entry's own, as when a take made before the game changed the image's size is chosen
+  after it. Absent for a picture never brought to a look.
+
+<!-- prettier-ignore -->
+```json
+{
+ "cellar-door": {"model":"klein","seed":7,"take":2,"inputs":{"text":"A heavy iron-banded door at the foot of a worn stair.","width":320,"height":200,"style":{"look":"Flat 16-colour pixel art","keepOut":"text, letters","part":null},"look":{"palette":["#0d0d1a","#1f1f3d"],"dithering":"patterned"}},"at":"2026-11-04T09:50:03.120Z"},
+ "inn": {"model":"klein","seed":8,"take":1,"inputs":{"text":"A low timber inn at dusk.","width":320,"height":200,"look":{"colourDepth":"16-bit","dithering":"flat","width":640,"height":400}},"at":"2026-11-04T09:52:47.001Z"}
+}
+```
+
+#### The effects lock
+
+`effects/lock.json`. `inputs` holds `text`, `seconds` and `loops` (absent for a take made to play
+once). Beside them are `fp`, `model`, `seed`, `take` and `at`.
+
+<!-- prettier-ignore -->
+```json
+{
+ "rain": {"fp":"8c67d33efba8d9af","model":"small-sfx","seed":29507973,"take":2,"inputs":{"text":"Steady rain on a tin roof","seconds":8,"loops":true},"at":"2026-11-04T09:56:41.790Z"},
+ "wind-howl": {"fp":"b6b1e1b80690ed14","model":"small-sfx","seed":2067760593,"take":1,"inputs":{"text":"Wind howls through a stone gap","seconds":10},"at":"2026-11-04T10:05:31.480Z"}
+}
+```
+
+Two more locks record something else, in the same layout.
+
+#### The narration lock
+
+`narration/<part>[.<language>].lock.json`, by line id. It keeps short hashes, not the words, which
+would copy the whole script into the lock. A line has one clip, so it has no `take` or `seed`.
+
+| Field      | What it is                                                                                 |
+| ---------- | ------------------------------------------------------------------------------------------ |
+| `fp`       | A fingerprint of everything the clip was made from.                                        |
+| `voice`    | The voice that spoke it.                                                                   |
+| `model`    | The model that made it.                                                                    |
+| `hashes`   | Short hashes of its `cue`, its `text`, what was `said` and the voice `settings`.           |
+| `heard`    | The share of the words Whisper heard, 0 to 1; absent for an adopted clip.                  |
+| `takes`    | How many takes were tried.                                                                 |
+| `level`    | The level the clip is at, in percent, as recorded or as set on it since; no key means 100. |
+| `adopted`  | `true` for a clip made before the studio.                                                  |
+| `accepted` | `true` when a weak clip was accepted as it is.                                             |
+| `at`       | When it was recorded.                                                                      |
+
+<!-- prettier-ignore -->
+```json
+{
+ "a1": {"fp":"5d2c1a9e0b7f4c63","voice":"7d805071401d4b738334f332a8c320c2","model":"s2.1-pro-free","hashes":{"cue":"9a0c","text":"41be","said":"77d2","settings":"c013"},"heard":0.82,"takes":3,"level":80,"accepted":true,"at":"2026-11-04T08:12:09.511Z"},
+ "a2": {"fp":"e4b7092c6d1a8f35","voice":"7d805071401d4b738334f332a8c320c2","model":"s2.1-pro-free","hashes":{"cue":"9a0c","text":"d5f1","said":"0b6a","settings":"c013"},"adopted":true,"at":"2026-10-01T12:00:00.000Z"}
+}
+```
+
+#### The scenes locks
+
+`scenes/<part>.lock.json`, by scene id. It records the loudness each scene was measured at, not a
+take: under `saved` for the mix as saved and `draft` for unsaved changes (each `null` when there is
+none), each with `measuredAt`, the mix `entry` measured (as in the part's mix below: its `music`
+with `track` and `level`, and its `effects`, each `id`, `play` with `mode`, `everySeconds`,
+`afterSeconds` or `trigger`, `state` and `level`), the `clips` each sound came from, `states`
+(`state` and `lufs` each), what was left `without`, an `error` when it could not be measured, and
+`moved`, with the `db` it moved by, after a suggested change. While a part's lock cannot be read,
+its scenes show no figures and the studio refuses to measure that part, so nothing in it is lost.
+
+<!-- prettier-ignore -->
+```json
+{
+ "lantern-hall": {"saved":{"measuredAt":"2026-11-04T10:20:00.000Z","entry":{"music":{"track":"lantern-hall","level":0.8},"effects":[{"id":"rain","play":{"mode":"loop"},"state":"rainy","level":0.6},{"id":"drip","play":{"mode":"random","everySeconds":[4,9]},"level":1},{"id":"bell","play":{"mode":"once","afterSeconds":2},"level":1},{"id":"door-creak","play":{"mode":"trigger","trigger":"door-opens"},"level":1}]},"clips":{"rain":"take 2"},"moved":{"db":-1.5},"states":[{"state":"rainy","lufs":-20.4}],"without":["drip, which has no take chosen"],"error":null},"draft":{"measuredAt":"2026-11-04T10:31:00.000Z","entry":{"music":{"track":null,"level":1},"effects":[{"id":"rain","play":{"mode":"loop"},"state":"rainy","level":0.8},{"id":"drip","play":{"mode":"random","everySeconds":[4,9]},"level":1},{"id":"bell","play":{"mode":"once","afterSeconds":2},"level":1},{"id":"door-creak","play":{"mode":"trigger","trigger":"door-opens"},"level":1}]},"clips":{"rain":"take 2"},"moved":{"db":2},"states":[{"state":"rainy","lufs":null}],"without":[],"error":"ffmpeg failed"}}
+}
+```
+
+### `narration/<part>.cleaned.json`
+
+The record of a part's lines cleaned of background noise in the game (a language besides the
+source has its code before `.cleaned`), by line id. `at` is when the clip that was cleaned was
+made (its lock entry's `at`), so a line recorded again no longer counts as cleaned. `original` is
+the name of the file holding the clip as it was, in `narration/originals/<part>[.<language>]/`, kept
+for putting it back. A part with no cleaned lines has no record.
+
+```json
+{
+  "a1": {
+    "at": "2026-11-04T08:12:09.511Z",
+    "original": "a1.mp3"
+  }
+}
+```
 
 ### The cache
 
@@ -624,12 +778,90 @@ studio's own and may change.
 The studio writes the chosen takes into the folders the project file names, with a manifest beside
 them, and writes nothing else there. The game reads the manifests, keyed by item id:
 
-| Manifest  | An entry                                                                       |
-| --------- | ------------------------------------------------------------------------------ |
-| Narration | `{ file, speaker, duration, words: [{ word, start, end }] }`, times in seconds |
-| Music     | `{ file, duration }`                                                           |
-| Images    | `{ file, width, height, areas? }`, see below                                   |
-| Effects   | `{ file, duration }`                                                           |
+| Manifest  | An entry                                                     |
+| --------- | ------------------------------------------------------------ |
+| Narration | `{ file, speaker, duration, words }`                         |
+| Music     | `{ file, duration }`                                         |
+| Images    | `{ file, width, height, patches?, areas?, effects?, zoom? }` |
+| Effects   | `{ file, duration }`                                         |
+
+Durations are in seconds, and `file` is the name of a file in the manifest's own folder.
+
+### The narration manifest
+
+`words` are the line's words in order, each a `word` with the `start` and `end` of when it is said,
+in seconds. `speaker` is the line's.
+
+```json
+{
+  "a1": {
+    "file": "a1.mp3",
+    "speaker": "narrator",
+    "duration": 1.84,
+    "words": [{ "word": "The", "start": 0.08, "end": 0.21 }]
+  }
+}
+```
+
+### The music manifest
+
+Each track's `file` and its `duration`.
+
+```json
+{ "village-lane": { "file": "village-lane.mp3", "duration": 60.02 } }
+```
+
+### The effects manifest
+
+Each effect's `file` and its `duration`.
+
+```json
+{ "rain": { "file": "rain.mp3", "duration": 8 } }
+```
+
+### The images manifest
+
+Each image's `file`, `width` and `height`, and what is below when there is any. `patches` are
+described under `images` in the project file above.
+
+```json
+{
+  "inn": {
+    "file": "inn.png",
+    "width": 320,
+    "height": 200,
+    "patches": {
+      "bread-taken": { "file": "inn.bread-taken.png", "width": 320, "height": 200 }
+    },
+    "areas": {
+      "fountain": {
+        "x": 0.25,
+        "y": 0.25,
+        "width": 0.5,
+        "height": 0.5,
+        "mark": { "x": 0.5, "y": 0.4 }
+      }
+    },
+    "effects": [
+      {
+        "kind": "dust",
+        "settings": { "amount": 1.25 },
+        "patch": "bread-taken",
+        "spot": [
+          [
+            [0.1, 0.5],
+            [0.4, 0.5],
+            [0.25, 0.9]
+          ]
+        ],
+        "mark": [0.8, 0.05]
+      },
+      { "kind": "smoke", "settings": { "amount": 1 }, "unlessPatch": "bread-taken" }
+    ],
+    "zoom": { "seconds": 30, "percent": 8 }
+  }
+}
+```
 
 **An image's named areas.** When the game's list asks for named areas on an image (`areas`) and some
 are placed in the studio, the image's manifest entry gains `areas`, keyed by the area's id, each the box's
@@ -638,20 +870,16 @@ size, and `mark`, `{ x, y }` as fractions too, when the area has a point placed 
 none placed has no `areas` key. The studio writes it when a box is placed, moved, resized or cleared, and on
 Refresh from the game for the act. A game that does not read `areas` is unaffected.
 
-```json
-{
-  "inn": {
-    "file": "inn.png",
-    "width": 320,
-    "height": 200,
-    "areas": { "fountain": { "x": 0.25, "y": 0.25, "width": 0.5, "height": 0.5 } }
-  }
-}
-```
-
 **An image's effects.** The entry of an image with effects switched on in the studio gains `effects`, a list of `{ "kind": "dust", "settings": { "amount": 1.25 } }` in kind order: exactly the `specs` the game's renderer takes in `setEffects`, plus `"patch": "<patch id>"` on an effect tied to a patch: the game shows it only while that patch is laid (a game that does not read `patch` shows it always), or `"unlessPatch": "<patch id>"`: the game shows it only while that patch is not laid (as-9h3w; a game that does not read `unlessPatch` shows it always). The game's renderer should hold each setting to its own range, and its `setEffects` should skip a `kind` it does not have: an effect whose type the renderer dropped stays in the manifest until the user removes it in the studio. An effect with a spot also has `"spot"`, a list of shapes, each a list of at least three `[x, y]` corners as fractions of the picture (0 to 1 across and down, so any size fits): `{ "kind": "dust", "settings": {…}, "spot": [[[0.1, 0.5], [0.4, 0.5], [0.25, 0.9]]] }`. The effect is placed on the shapes (a point in any of them), and the game's renderer decides how far it reaches from them (smoke may drift past them); the studio's preview hands the renderer the same `spot` in `setEffects`. An effect with a spot may also have `"mark": [0.8, 0.05]` (as-9r3a): where its light comes from, as fractions of the picture, anywhere on it; absent, use the middle of the shapes; the preview hands the renderer the same `mark`. An effect with no `spot` plays where the game's renderer places it (its `placement`; over the whole picture where it says nothing). A `spot` in the manifest is always one the user drew in the studio, which overrides the renderer's own placement until the user goes back to the game's; an effect whose renderer says `"fixed"` never has one. The key is absent when none is on. The studio writes it when an effect is switched or tuned, when a take is chosen, and on Refresh from the game.
 
-**A part's mix** (`scenes.mix`) says what plays in each of a part's scenes, by scene id:
+**An image's zoom.** The entry of an image with a slow zoom saved in the studio gains `zoom`:
+`{ seconds, percent }`, how long one drift takes and how much bigger the picture gets, or `null`
+when the zoom is switched off. The key is absent when none is saved. The studio writes it when it
+is changed, when a take is chosen, and on Refresh from the game.
+
+### A part's mix
+
+A part's mix (`scenes.mix`) says what plays in each of a part's `scenes`, by scene id:
 
 ```json
 {
@@ -660,6 +888,8 @@ Refresh from the game for the act. A game that does not read `areas` is unaffect
       "music": { "track": "lantern-hall", "level": 0.8 },
       "effects": [
         { "id": "rain", "play": { "mode": "loop" }, "state": "rainy", "level": 0.6 },
+        { "id": "drip", "play": { "mode": "random", "everySeconds": [4, 9] }, "level": 1 },
+        { "id": "bell", "play": { "mode": "once", "afterSeconds": 2 }, "level": 1 },
         { "id": "door-creak", "play": { "mode": "trigger", "trigger": "door-opens" }, "level": 1 }
       ]
     }
@@ -668,7 +898,7 @@ Refresh from the game for the act. A game that does not read `areas` is unaffect
 ```
 
 `music.track` is a track id, or `null` for silence; absent, the scene plays the track with its own
-id at level 1. A `level` is 0 to 3, 1 being the clip as made. An effect's `play` is one of
+id at level 1. A `level` is 0 to 3, 1 being the clip as made. Each of a scene's `effects` has an `id`, and its `play` is one of
 `{ "mode": "loop" }`, `{ "mode": "random", "everySeconds": [min, max] }`,
 `{ "mode": "once", "afterSeconds": n }` or `{ "mode": "trigger", "trigger": id }`; `state` limits it
 to one of the scene's states.

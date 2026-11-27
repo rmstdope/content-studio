@@ -9,7 +9,7 @@ import {
   type PatchBoard,
 } from '../core/imagePatches'
 import type { Pixels } from '../core/imagePixels'
-import type { ImageRow } from '../core/images'
+import type { ImageRow, ManifestPatch } from '../core/images'
 import { resolveInRoot } from '../core/paths'
 import { CACHE_DIR, type Problem } from '../core/project'
 import { readResource, writeOrRefuse } from './files'
@@ -143,13 +143,6 @@ export async function laidPicture(
     pixels = layerPatch(pixels, laid)
   }
   return pixels
-}
-
-/** One patch of an image as the game's manifest lists it. */
-export interface ManifestPatch {
-  file: string
-  width: number
-  height: number
 }
 
 /**

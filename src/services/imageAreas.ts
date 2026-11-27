@@ -2,6 +2,7 @@ import type { Chosen } from '../core/lockRead'
 import { dirname } from 'node:path'
 import {
   areaFractions,
+  type ManifestPatch,
   effectsForGame,
   withAreas,
   withEffects,
@@ -12,7 +13,7 @@ import { ImageManifestSchema } from '../core/imageTakes'
 import type { Problem, Project } from '../core/project'
 import { readResource, WriteRefused, writeOrRefuse, refusalFailed } from './files'
 import { readImages } from './imageLists'
-import { patchesInGame, setAsideOn, type ManifestPatch } from './imagePatchGame'
+import { patchesInGame, setAsideOn } from './imagePatchGame'
 import { choices, sorted } from './musicClips'
 
 /** What passing the placed areas to the game answered: done, or why the manifest could not take them. */

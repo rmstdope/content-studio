@@ -24,6 +24,7 @@ import {
   ManifestSchema,
   ttsFor,
   type SpokenCast,
+  type WrittenClip,
   type Character,
   type Line,
   type Lock,
@@ -601,7 +602,7 @@ export async function commitClip({
           speaker: line.speaker,
           duration,
           words: take.timed,
-        }
+        } satisfies WrittenClip
         const at = new Date().toISOString()
         lock[key] = {
           fp,
