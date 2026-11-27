@@ -21,7 +21,7 @@ import {
 } from '../core/imagePatches'
 import { syncImageEntries } from './imageAreas'
 import { createImagePatches } from './imagePatches'
-import { changePatchBoard } from './imagePatchGame'
+import { changePatchBoard, patchBoardKey } from './imagePatchGame'
 import type { ImageGenerator, ImageReady, ImageRequest } from './images'
 import { fakePng } from './imagesFake'
 import { cropPixels, editWindow } from '../core/imagePixels'
@@ -455,6 +455,7 @@ describe('takes of a declared patch', () => {
   it('never shows a take as of an old look when it is brought to the look while the page reads', async () => {
     const { root, file, patches, work } = setup()
     const picture = join(root, FOLDER, '1.png')
+    const mark = `${patchBoardKey(file, 'inn', 'door')}\0${1}`
     // The bring reads the take's picture with `bytes`, the page with `arrayBuffer`: each can be held.
     let bringStarted = () => {}
     const bringing = new Promise<void>((resolve) => (bringStarted = resolve))
@@ -492,6 +493,9 @@ describe('takes of a declared patch', () => {
     try {
       await patches.make(file, 'inn', 'door', { count: 1, area })
       await bringing
+      expect(
+        (globalThis as { contentStudioPatchBringing?: Set<string> }).contentStudioPatchBringing,
+      ).toContain(mark)
       // The page has read the board, the take not yet brought; the bring ends before it asks.
       pageRead = async () => {
         releaseBring()
@@ -501,7 +505,7 @@ describe('takes of a declared patch', () => {
           }
           const marks = (globalThis as { contentStudioPatchBringing?: Set<string> })
             .contentStudioPatchBringing
-          if (board.takes[0]?.look && !marks?.size) return
+          if (board.takes[0]?.look && !marks?.has(mark)) return
           await new Promise((resolve) => setTimeout(resolve, 5))
         }
         throw new Error('the take was never brought')
