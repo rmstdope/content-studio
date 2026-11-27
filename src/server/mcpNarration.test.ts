@@ -19,10 +19,10 @@ interface Result {
 
 /** Calls the studio's MCP tools. */
 function client(base: URL, headers: Record<string, string> = {}) {
-  const post = async (message: unknown, extra: Record<string, string> = {}) =>
+  const post = async (message: unknown) =>
     fetch(new URL('/mcp', base), {
       method: 'POST',
-      headers: { 'content-type': 'application/json', ...headers, ...extra },
+      headers: { 'content-type': 'application/json', ...headers },
       body: JSON.stringify(message),
     })
   let id = 0
@@ -35,7 +35,7 @@ function client(base: URL, headers: Record<string, string> = {}) {
     })
     return (await response.json()).result
   }
-  return { post, call }
+  return { call }
 }
 
 /** Every file under a folder with its size and time, to see that nothing was written. */
@@ -192,22 +192,6 @@ describe('an agent acting on Setup and Narration', () => {
       expect(result.isError).toBe(true)
       expect(text(result)).toMatch(/files|must be text/)
     }
-  })
-
-  it('does not reach the studio from a page of another site', async () => {
-    const answer = await client(server.url).post(
-      {
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: {
-          name: 'studio_act',
-          arguments: { method: 'PATCH', path: '/api/take-fade', body: { seconds: 1 } },
-        },
-      },
-      { origin: 'http://evil.test' },
-    )
-    expect(answer.status).toBe(403)
   })
 })
 

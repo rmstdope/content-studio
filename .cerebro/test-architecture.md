@@ -15,7 +15,9 @@ Agreed with the navigator 2026-11-27.
 ## Server           src/server/**/*.test.ts
   Belongs here:    what a route or an MCP step adds of its own: the address and Origin checks, the body it accepts, the status it answers, which service it reaches
   Not here:        the cases of a rule core or a service already proves, asserted again through the route
-  Enough is:       each route once accepted and once refused; each MCP step once
+  Enough is:       each route once accepted, and once refused for each refusal it adds of its
+                   own (the refusal of another page is proven for every route by
+                   test/system/SAF-2.test.ts, never listed again here); each MCP step once
 
 ## Component        src/ui/**/*.test.tsx
   Belongs here:    what a page or panel shows and does on a click or a key, rendered in happy-dom with the server's answers stubbed

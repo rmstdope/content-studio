@@ -367,17 +367,6 @@ describe('server, generating a part', () => {
     for (const word of ['kind', 'record', 'measure', 'check', 'draft', 'final'])
       expect(error).toContain(word)
   })
-
-  it('takes jobs and cancels only from the studio’s own page', async () => {
-    const evil = { origin: 'https://evil.example', 'content-type': 'application/json' }
-    const start = await fetch(at('/api/parts/act1/jobs'), {
-      method: 'POST',
-      headers: evil,
-      body: JSON.stringify({ speaker: null, keys: [], orphans: [] }),
-    })
-    expect(start.status).toBe(403)
-    expect((await fetch(at('/api/jobs/x'), { method: 'DELETE', headers: evil })).status).toBe(403)
-  })
 })
 
 /**
@@ -804,14 +793,6 @@ describe('server, a paid draft model', () => {
     it('answers a body it cannot read with 400', async () => {
       const bad = await fetch(takes(), { method: 'POST', headers: own, body: '{ not json' })
       expect(bad.status).toBe(400)
-    })
-
-    it('refuses a request from another page', async () => {
-      const response = await fetch(takes(), {
-        method: 'POST',
-        headers: { origin: 'https://evil.example' },
-      })
-      expect(response.status).toBe(403)
     })
   })
 
