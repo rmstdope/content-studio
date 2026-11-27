@@ -66,7 +66,7 @@ CST-4  The person can switch on clean-up of a cast voice and set its level, hear
 NAR-1  The person records the narration of one character or of a whole part, in each language the
        game declares. Only lines that are missing or whose inputs changed are recorded; clips
        whose line left the script are removed.
-       Proven by: nothing yet
+       Proven by: test/system/NAR-1.test.ts
 NAR-2  Each take is checked with Whisper and made again until enough of its words are heard. The
        manifest the game reads keeps its format and gets real word timings.
        Proven by: test/system/NAR-2.test.ts
