@@ -5,6 +5,7 @@ import type { ImagePatchesView, PatchWorkView } from '../../../core/imagePatches
 import type { ImageRow, PatchRow } from '../../../core/images'
 import { cssLength, valuesInEveryWindow } from '../../../../test/stylesheet'
 
+import { drawnSize, SAME_SIZE } from '../../../../test/pictureSize'
 // A DOM for this file only: React reads `window` when react-dom loads, so it is imported after.
 GlobalRegistrator.register()
 // The key cap and the key follow the computer: these tests are a Mac's unless they say otherwise.
@@ -1908,6 +1909,20 @@ describe('the model of new takes', () => {
 
 describe('the three parts of an open patch', () => {
   const made = () => view([work('a', { takes: [takeOf(1), takeOf(2, { chosen: true })] })])
+
+  for (const { what, width, height, drawn } of SAME_SIZE) {
+    it(`draws ${what} at the size Fine-tune and Named areas draw it (as-5068)`, async () => {
+      const { host } = await render([patchRow('a')], () =>
+        view([work('a', { takes: [takeOf(1)] })], {
+          take: { n: 3, width, height, cropped: false },
+          game: { width: width / 2, height: height / 2 },
+        }),
+      )
+      const box = host.querySelector<HTMLElement>('.patch-picture')!
+      expect(box.classList.contains('whole-in-view')).toBe(true)
+      expect(drawnSize(box)).toEqual([...drawn])
+    })
+  }
 
   // The shapes a picture comes in: portrait, landscape, and the game's whole frame.
   for (const [what, size] of [

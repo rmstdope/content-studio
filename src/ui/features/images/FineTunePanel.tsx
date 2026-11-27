@@ -2,7 +2,7 @@ import { fieldOwnsKeys, NOT_YET, useDocumentKeys, usePendingFocus } from './useW
 import { WholeMarkLink } from './WholeMarkLink'
 import { useWorkbenchMark } from './useWorkbenchMark'
 import { useJobOpen } from './ImageJobTabs'
-import { pictureShape } from './FitPicture'
+import { FitPicture } from './FitPicture'
 import { ChangeBadge, ChangeNote } from './MarkTag'
 import { HistoryMenu } from './HistoryMenu'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -737,12 +737,10 @@ export function FineTunePanel({
             </button>
           </span>
         </div>
-        <div
+        <FitPicture
           className="patch-stage fine-picture"
-          style={{
-            ...pictureShape(picture.width, picture.height),
-            maxWidth: `${picture.width}px`,
-          }}
+          shape={picture}
+          drawnWidth={picture.width}
           {...marking.stage}
         >
           <img
@@ -760,7 +758,7 @@ export function FineTunePanel({
             />
           )}
           {marking.drawn}
-        </div>
+        </FitPicture>
         <div className="fine-strip">
           <span className="fine-strip-label">Fine-tunes</span>
           {items.length === 0 ? (

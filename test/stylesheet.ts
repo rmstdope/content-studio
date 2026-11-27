@@ -55,7 +55,7 @@ function valuesIn(
 }
 
 /**
- * The pixels a CSS length of numbers, `px`, `vh`, `%`, `calc`, `min`, `max` and
+ * The pixels a CSS length of numbers, `px`, `vh`, `dvh`, `%`, `calc`, `min`, `max` and
  * `var(--picture-ratio, …)` (or another `--…-ratio`) comes to, given what `100%` and `100vh` are and
  * that ratio:
  * enough to check a rule such as the fitted stage's width at a window size without a browser.
@@ -67,7 +67,7 @@ export function cssLength(
   const js = value
     .replace(/var\(--[a-z-]+-ratio, [^)]*\)/g, String(at.ratio))
     .replace(/([\d.]+)%/g, (_, n: string) => String((Number(n) * at.percent) / 100))
-    .replace(/([\d.]+)vh/g, (_, n: string) => String((Number(n) * at.vh) / 100))
+    .replace(/([\d.]+)d?vh/g, (_, n: string) => String((Number(n) * at.vh) / 100))
     .replace(/([\d.]+)px/g, '$1')
     .replace(/calc\(/g, '(')
     .replace(/\b(min|max)\(/g, 'Math.$1(')
