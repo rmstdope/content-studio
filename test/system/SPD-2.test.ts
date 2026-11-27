@@ -61,6 +61,9 @@ describe('SPD-2: the Spending page shows what has been spent, dollars and credit
   const recordingDollars = (NARRATOR.length * 15) / 1_000_000
   const musicDollars = 0.15
 
+  /** The characters of the character take, which are its credits: set by the take's test. */
+  let said = 0
+
   /** What the page is told. */
   async function spending() {
     const answer = (await (await page.get('/api/spending')).json()) as SpendingAnswer
@@ -110,7 +113,7 @@ describe('SPD-2: the Spending page shows what has been spent, dollars and credit
 
     const after = await spending()
     // What the take said is the studio's to pick: its credits are the characters ElevenLabs got.
-    const said = eleven.spoken.at(-1)!.text.length
+    said = eleven.spoken.at(-1)!.text.length
     expect(after.credits).toBe(GUIDE.length + said)
     expect(after.tries).toEqual({ count: 1, credits: said })
     expect(after.total).toBe(before.total)
@@ -131,22 +134,21 @@ describe('SPD-2: the Spending page shows what has been spent, dollars and credit
     expect(after.acts[0]!.total).toBeCloseTo(recordingDollars + musicDollars, 10)
     expect(after.rows.find((row) => row.kind === 'music')).toMatchObject({
       track: 'Hall',
-      cost: musicDollars,
+      cost: expect.closeTo(musicDollars, 10),
       credits: 0,
     })
   })
 
-  it('keeps what it showed in the game’s spending record', () => {
+  it('keeps what it showed in the studio’s spending record', () => {
     const record = JSON.parse(
       readFileSync(join(root, 'content-studio/cache/spending.json'), 'utf8'),
     ) as unknown
-    const said = eleven.spoken.at(-1)!.text.length
     expect(record).toMatchObject({
       recordings: [
         { part: 'act1', cost: expect.closeTo(recordingDollars, 10), credits: GUIDE.length },
       ],
       tries: [{ character: 'guide', credits: said }],
-      music: [{ track: 'hall', cost: musicDollars }],
+      music: [{ track: 'hall', cost: expect.closeTo(musicDollars, 10) }],
     })
   })
 })
