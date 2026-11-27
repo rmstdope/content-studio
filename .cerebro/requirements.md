@@ -83,7 +83,7 @@ SPD-1  Anything paid (a recording, an audition, an ElevenLabs take) first says w
        and is held to the limit the person agreed.
        Proven by: test/system/SPD-1.test.ts
 SPD-2  The Spending page shows what has been spent, dollars and credits apart.
-       Proven by: nothing yet
+       Proven by: test/system/SPD-2.test.ts
 
 ## Music (MUS)
 
