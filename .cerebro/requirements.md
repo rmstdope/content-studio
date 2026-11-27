@@ -94,7 +94,7 @@ MUS-1  Each loop and stinger the game lists can be made as takes, with a local m
 MUS-2  A take can be trimmed and faded before it goes to the game.
        Proven by: test/system/MUS-2.test.ts
 MUS-3  Make all makes takes for every track of an act that has none, and can be stopped.
-       Proven by: nothing yet
+       Proven by: test/system/MUS-3.test.ts
 
 ## Images (IMG)
 
