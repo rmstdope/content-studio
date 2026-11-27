@@ -23,3 +23,16 @@ export function imageMakingStatusText({
 }: Pick<ImageMakingSummary, 'takes' | 'left'>): string {
   return `making ${takes} ${takes === 1 ? 'take' : 'takes'} · about ${timeText(left, 'up')}`
 }
+
+/** What a screen reader hears as take `n` fails. */
+export function takeFailedText(n: number): string {
+  return `Take ${n} could not be made.`
+}
+
+/** What is said of the failed takes not among those `known` before: nothing when none is new. */
+export function newFailuresText(known: ReadonlySet<number>, failed: readonly number[]): string {
+  return failed
+    .filter((n) => !known.has(n))
+    .map(takeFailedText)
+    .join(' ')
+}

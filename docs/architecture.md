@@ -1737,8 +1737,14 @@ a take" (or "about 25 s a take" once timed); then the count menu, 1 to 10 (`MAX_
 server's limit) starting at 4 and keeping its pick while the page is open, Make N takes, Stop while takes are made, and a line
 "1 to 10 at a time · about 1 min for 4 takes" (`forTakesText`)), and at its foot "What the game gets" and a line of the keys.
 The strip, **Takes · N** (every take, the chosen one included): a thumb for each, the chosen one outlined in
-green and not pressable, the compared one in the accent, takes being made among them with their
-progress; it scrolls sideways and keeps the compared take in view. Takes are made from the words on disk, so a press of Make or of a failed take's Try again first sees the prompt saved, as
+green and not pressable, the compared one in the accent, takes being made and failed among them, each at its
+number (`rowOrder`); it scrolls sideways and keeps the compared take in view. The heading counts the takes made
+("Takes" with none). A take that failed is told only here (as-icvi, `docs/ui/as-icvi-states.html`; `PendingThumb`):
+its tile, in place of the progress bar, says "Could not be made" and the studio's reason in full, with its own
+**Try again** and nothing else to press. That turns the same tile back into a take being made, focus staying on
+it and following to the take once it is made. A screen reader hears "Take 5 could not be made." as it fails
+(`useFailedTakeNews`; not for failures already there when the page opens).
+Takes are made from the words on disk, so a press of Make or of a failed take's Try again first sees the prompt saved, as
 a patch's Make does: it waits for a save under way, or saves words a failed save left in the field, with
 both buttons and Make's menus off meanwhile, and asks for no takes if the words could not be saved (as-95q).
 The stage holds the image the game uses beside one other take, always side by side and splitting the page's width in two halves with the same gap at any width. Each half has a caption line above its picture, with the buttons at the line's right end: "In the game · Take 8" with Un-choose, and "Comparing · Take 5" with the chip "new", Drop and Choose, each showing its key. A picture is as wide as its half but never wider than its own pixel size and never enlarged (CSS only, `max-width` set from the picture's size on the `img`; nothing is measured), centred in its half and aligned to its top; its height is whatever that gives, the stage never fits the window's height, and the page scrolls. The size is that of the picture shown: the game's version with "What the game gets" ticked (read from the picture once it loads, so one brought to the look before the image's size changed keeps its own size and shape), the model's picture unticked, each side on its own. A frame with no picture (no take yet, "No picture yet", a take still being brought to the look) is in the image's shape and capped at the image's width. The box "What the game gets" (ticked when the page

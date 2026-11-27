@@ -4491,6 +4491,37 @@ textarea[aria-disabled='true'][data-why] {
   cursor: default;
   border-style: dashed;
 }
+/* A take that failed keeps its place: its reason wraps in full, and only its tile grows. */
+.image-takes .image-thumbs {
+  align-items: flex-start;
+}
+.image-thumb-failed {
+  cursor: default;
+  border: 1px dashed var(--danger-ink);
+  background: var(--danger-bg);
+}
+.image-thumb-failed .btn {
+  align-self: stretch;
+}
+.image-thumb-well {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: var(--well);
+  color: var(--danger-ink);
+  font-size: 22px;
+  font-weight: 700;
+}
+.image-thumb-what {
+  color: var(--danger-ink);
+  font-weight: 600;
+}
+.image-thumb-why {
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
 .image-thumb .image-take-picture {
   border-radius: 4px;
   max-height: 110px;
