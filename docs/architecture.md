@@ -2520,6 +2520,9 @@ Images' and scenes' routes are described with them:
 - Services and the server API are tested against temporary repositories on disk, made with
   `tempRepo` and `projectJson` in `test/helpers.ts`, never against a real consumer.
   `test/fixtures/sample` is the sample project `bun run dev` opens.
+- CI takes ffmpeg and ffprobe from one pinned build, downloaded and checksummed by
+  `scripts/ci-ffmpeg.sh` and kept in the Actions cache under that file's hash; a step before the tests
+  fails when they are not on the path, because the tests that need them would skip.
 - UI: pure helpers (`src/ui/*.ts`) have unit tests, and component tests (`*.test.tsx`) cover every
   workspace's pages and panels (lines, characters, audition, music, images, effects, scenes, setup)
   and shared components (sidebar, pager, tips). There is no browser test.
