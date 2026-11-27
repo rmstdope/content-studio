@@ -37,7 +37,7 @@ export const MUSIC_ACTIONS: readonly Action[] = [
     '/api/music/tracks/:id/takes',
     MakeTakesBody,
     'makes takes (count 1 to the limit), or tries a failed one again; on the paid ElevenLabs model it spends credit, so it asks first',
-    { spends: 'takes' },
+    { spends: true },
   ),
   change('POST', '/api/music/tracks/:id/stop', null, 'stops the takes being made'),
   change(
@@ -87,7 +87,7 @@ export const MUSIC_ACTIONS: readonly Action[] = [
     '/api/music/lists/:id/make-all',
     null,
     "makes takes for a list's tracks; on the paid ElevenLabs model it spends credit, so it asks first",
-    { spends: 'make-all' },
+    { spends: true },
   ),
   change('POST', '/api/music/lists/:id/batch/close', null, "closes a list's finished making"),
   change('POST', '/api/music/lists/:id/stop', null, "stops a list's making"),

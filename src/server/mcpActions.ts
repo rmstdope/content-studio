@@ -27,10 +27,11 @@ export interface Action {
   confirm?: string
   /**
    * Set where the step can spend ElevenLabs credit on the paid music model, which the web UI shows
-   * as a price on its button: `takes` runs on the model the body, a failed take or the project names,
-   * `make-all` on the project's. Such a step needs the confirmation too.
+   * as a price on its button. The route says what a call would cost at `<path>/cost` (a
+   * `SpendCheck`, or the refusal the step would give), which `studio_act` asks before it asks the
+   * person; it holds none of the route's conditions itself.
    */
-  spends?: 'takes' | 'make-all'
+  spends?: true
 }
 
 /**

@@ -48,6 +48,7 @@ export function musicRoutes(c: RouteContext) {
     ...takeRoutes(c, {
       base: '/api/music/tracks',
       service: musicTakes,
+      noun: 'track',
       bodies: {
         make: MakeTakesBody,
         fades: SetFadesBody,
@@ -99,6 +100,7 @@ export function musicRoutes(c: RouteContext) {
       stop: 'stop',
       service: {
         makeAll: (file, request) => musicTakes.makeAll(file, request.params.id),
+        cost: (file, request) => musicTakes.makeAllCost(file, request.params.id),
         batch: (file, request) => musicTakes.batch(file, request.params.id),
         closeBatch: (file, request) => musicTakes.closeBatch(file, request.params.id),
         stopAll: (file, request) => musicTakes.stopAll(file, request.params.id),

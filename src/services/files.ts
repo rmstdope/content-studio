@@ -1,5 +1,14 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import {
+  access,
+  constants,
+  mkdir,
+  readdir,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { z } from 'zod'
 import { resolveInRoot } from '../core/paths'
@@ -124,6 +133,24 @@ export async function writeOrRefuse(
   text: string | Uint8Array,
 ): Promise<void> {
   await replaceFile(root, path, text).catch(refuseWrite(path))
+}
+
+/**
+ * Refuses, as `writeOrRefuse` would, a write to `path` that the folder does not allow (no
+ * permission, a read-only disk), without writing: for saying so before something is spent. Looks at
+ * the nearest folder that is there. What only a write can meet (a full disk) is not foreseen.
+ */
+export async function refuseUnwritable(root: string, path: string): Promise<void> {
+  let folder = dirname(resolveInRoot(root, path))
+  for (;;) {
+    try {
+      return await access(folder, constants.W_OK)
+    } catch (error) {
+      // Not made yet: the write would make it in the folder above.
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') return refuseWrite(path)(error)
+      folder = dirname(folder)
+    }
+  }
 }
 
 /** `writeOrRefuse`'s write, with the system's own error; private, so no service can meet it. */

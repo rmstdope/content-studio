@@ -354,6 +354,33 @@ describe('server, a track’s takes', () => {
     expect(await (await fetch(making)).json()).toEqual({})
   })
 
+  it('answers what takes and Make all would cost to the studio’s own page only', async () => {
+    const post = (path: string, body?: unknown, origin = studio.url.origin) =>
+      fetch(new URL(path, studio.url), {
+        method: 'POST',
+        headers: { origin, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+    for (const [path, body] of [
+      ['/api/music/tracks/hall/takes/cost', { count: 1 }],
+      ['/api/music/lists/act1/make-all/cost', undefined],
+    ] as const) {
+      expect((await post(path, body, 'https://evil.example')).status).toBe(403)
+      const cost = await post(path, body)
+      expect(cost.status).toBe(200)
+      expect(await cost.json()).toMatchObject({ ok: true })
+    }
+    expect((await post('/api/music/tracks/hall/takes/cost', { count: 100 })).status).toBe(400)
+    for (const [path, error] of [
+      ['/api/music/tracks/nobody/takes/cost', 'There is no track nobody.'],
+      ['/api/music/lists/nobody/make-all/cost', 'There is no list nobody.'],
+    ] as const) {
+      const answer = await post(path, { count: 1 })
+      expect(answer.status).toBe(404)
+      expect(await answer.json()).toEqual({ error })
+    }
+  })
+
   it('makes and stops takes for a whole list from the studio’s own page only', async () => {
     const post = (path: string, origin = studio.url.origin) =>
       fetch(new URL(path, studio.url), { method: 'POST', headers: { origin } })

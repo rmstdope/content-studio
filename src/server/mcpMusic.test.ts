@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from 'bun:test'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { projectJson, tempRepo } from '../../test/helpers'
+import { canRefuseWrites, projectJson, refusingWrites, tempRepo } from '../../test/helpers'
 import { writeWav } from '../core/wav'
 import { startServer } from './index'
 import { encode, fish } from './test-support'
@@ -242,6 +242,15 @@ describe('an agent making music on a paid project model', () => {
     fish,
     encode,
     transcriber: null,
+    // A key is there and the model ready, so only the question stands before a take.
+    music: {
+      ready: () => ({ ok: true }),
+      installed: () => true,
+      async generate() {
+        throw new Error('nothing here is confirmed')
+      },
+      close() {},
+    },
   })
   afterAll(() => studio.stop(true))
   const act = async (args: Record<string, unknown>): Promise<Result> => {
@@ -290,7 +299,9 @@ describe('an agent making music on a paid project model', () => {
       body: { retry: 3 },
     })
     expect(answer.isError).toBe(true)
-    expect(answer.content[0]!.text).toBe('There is no failed take 3 to retry on hall.')
+    expect(answer.content[0]!.text).toBe(
+      '409 {"ok":false,"message":"Take 3 did not fail, so it is not made again."}',
+    )
     expect(snapshot(root)).toEqual(before)
   })
 })
@@ -347,7 +358,9 @@ describe.each([
   it('says there is no failed take, and asks nothing, for a take that did not fail', async () => {
     const answer = await retry(9)
     expect(answer.isError).toBe(true)
-    expect(answer.content[0]!.text).toBe('There is no failed take 9 to retry on hall.')
+    expect(answer.content[0]!.text).toBe(
+      '409 {"ok":false,"message":"Take 9 did not fail, so it is not made again."}',
+    )
   })
 
   it('says there is no such track, and asks nothing, for a track the studio does not know', async () => {
@@ -358,7 +371,7 @@ describe.each([
         body,
       })
       expect(answer.isError).toBe(true)
-      expect(answer.content[0]!.text).toBe('There is no track nope.')
+      expect(answer.content[0]!.text).toBe('404 {"error":"There is no track nope."}')
     }
   })
 
@@ -377,7 +390,159 @@ describe.each([
       expect(answer.content[0]!.text).toMatch(/ElevenLabs credit.*confirmed: true/)
     } else {
       expect(answer.content[0]!.text).not.toContain('confirmed: true')
-      expect(answer.content[0]!.text).not.toContain('no failed take')
+      expect(answer.content[0]!.text).not.toContain('did not fail')
+    }
+  })
+})
+
+/**
+ * Every refusal the music routes give before spending: studio_act gives it as the route does,
+ * asking nothing. Each case sets the project up, so the route itself spends nothing here either.
+ */
+describe('an agent met by a refusal on a paid project model', () => {
+  const lists = {
+    'tts/act1/music.json': [{ id: 'hall', title: 'Hall', text: 'warm lute', seconds: 30 }],
+    'content-studio/narration/cast.json': { speakers: {} },
+  }
+  const project = projectJson({
+    music: {
+      model: 'eleven',
+      from: { part: 'tts/{part}/music.json' },
+      clips: 'audio/music',
+      manifest: 'audio/music/manifest.json',
+    },
+  })
+
+  /** A studio on its own copy of the project, with a generator that has or lacks what it is told. */
+  function start(
+    files: Record<string, unknown> = {},
+    { installed = true, ready = true }: { installed?: boolean; ready?: boolean } = {},
+  ) {
+    const root = tempRepo({ 'content-studio.json': project, ...lists, ...files })
+    let generated = 0
+    const studio = startServer({
+      projectFile: join(root, 'content-studio.json'),
+      port: 0,
+      fish,
+      encode,
+      transcriber: null,
+      music: {
+        ready: () => (ready ? { ok: true } : { ok: false, message: 'Not now.', fix: 'wait' }),
+        installed: () => installed,
+        async generate() {
+          generated++
+          throw new Error('nothing here may be made')
+        },
+        close() {},
+      },
+    })
+    const post = async (path: string, body: unknown) => {
+      const response = await fetch(new URL(path, studio.url), {
+        method: 'POST',
+        headers: { origin: studio.url.origin, 'content-type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      })
+      return `${response.status} ${await response.text()}`
+    }
+    const act = async (path: string, body: unknown): Promise<Result> => {
+      const response = await fetch(new URL('/mcp', studio.url), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/call',
+          params: { name: 'studio_act', arguments: { method: 'POST', path, body } },
+        }),
+      })
+      return ((await response.json()) as { result: Result }).result
+    }
+    return { root, studio, post, act, generated: () => generated }
+  }
+
+  const takes = '/api/music/tracks/hall/takes'
+  const makeAll = '/api/music/lists/act1/make-all'
+  const brokenBoard = { 'content-studio/cache/music/hall.json': '{ not json' }
+  const brokenProject = { 'content-studio.json': '{ not json' }
+  const long = {
+    'tts/act1/music.json': [{ id: 'hall', title: 'Hall', text: 'warm lute', seconds: 900 }],
+  }
+  type Case = [string, string, unknown, Parameters<typeof start>]
+  const cases: Case[] = [
+    ['a body that does not fit', takes, { count: 100 }, []],
+    ['a broken project file', takes, { count: 1 }, [brokenProject]],
+    ['a track too long for the model', takes, { count: 1 }, [long]],
+    ['no key', takes, { count: 1 }, [{}, { installed: false }]],
+    ['a model not ready', takes, { count: 1 }, [{}, { ready: false }]],
+    ['a retry of a take that did not fail', takes, { retry: 3 }, []],
+    ['a broken board', takes, { count: 1 }, [brokenBoard]],
+    ['Make all with a broken project file', makeAll, undefined, [brokenProject]],
+    ['Make all with no key', makeAll, undefined, [{}, { installed: false }]],
+    ['Make all with a model not ready', makeAll, undefined, [{}, { ready: false }]],
+    ['Make all with a broken board', makeAll, undefined, [brokenBoard]],
+  ]
+
+  /** The refusal studio_act gave, held to the route's own, with nothing asked, made or written. */
+  async function same(s: ReturnType<typeof start>, path: string, body: unknown) {
+    const before = snapshot(s.root)
+    const asked = await s.act(path, body)
+    expect(snapshot(s.root)).toEqual(before)
+    const refusal = await s.post(path, body)
+    expect(refusal).toMatch(/^4\d\d /)
+    expect(asked.isError).toBe(true)
+    expect(asked.content[0]!.text).toBe(refusal)
+    expect(s.generated()).toBe(0)
+  }
+
+  it.each(cases)('gives the route’s refusal for %s', async (_, path, body, setup) => {
+    const s = start(...setup)
+    try {
+      await same(s, path, body)
+    } finally {
+      s.studio.stop(true)
+    }
+  })
+
+  it.skipIf(!canRefuseWrites).each([
+    ['new takes', takes, { count: 1 }],
+    ['Make all', makeAll, undefined],
+  ])(
+    'gives the route’s refusal for %s on a board that cannot be written',
+    async (_, path, body) => {
+      const s = start({ 'content-studio/cache/music/other.json': '{}' })
+      try {
+        await refusingWrites(join(s.root, 'content-studio/cache/music'), () => same(s, path, body))
+      } finally {
+        s.studio.stop(true)
+      }
+    },
+  )
+
+  it('names a track or list that is not there, and asks nothing', async () => {
+    const s = start()
+    try {
+      for (const [path, body, noun] of [
+        ['/api/music/tracks/nope/takes', { count: 1 }, 'track'],
+        ['/api/music/lists/nope/make-all', undefined, 'list'],
+      ] as const) {
+        expect(await s.post(path, body)).toStartWith('404 ')
+        const asked = await s.act(path, body)
+        expect(asked.content[0]!.text).toBe(`404 {"error":"There is no ${noun} nope."}`)
+      }
+    } finally {
+      s.studio.stop(true)
+    }
+  })
+
+  it('answers a Make all that would make nothing, and asks nothing', async () => {
+    const s = start({ 'tts/act1/music.json': [] })
+    try {
+      const answer = await s.act(makeAll, undefined)
+      expect(answer.isError).toBeUndefined()
+      expect(JSON.parse(answer.content[0]!.text)).toEqual({ ok: true, tracks: 0, takes: 0 })
+      expect(s.generated()).toBe(0)
+    } finally {
+      s.studio.stop(true)
     }
   })
 })

@@ -1,7 +1,7 @@
 import type { RouteContext } from './context'
 import { allowedHosts, forbidden, WITHOUT_HEADER } from './shared'
-import { MUSIC_MODEL_IDS, perMinuteWords } from '../core/musicModels'
-import { ACTIONS, actionBody, matchAction, type Action, type ActionPage } from './mcpActions'
+import { readSpendCheck } from '../core/spendCheck'
+import { ACTIONS, actionBody, matchAction, type ActionPage } from './mcpActions'
 import { READABLE, matchReadable, type ReadablePage } from './mcpReadable'
 import { describeSound, soundFacts, whisperLanguage, type WhisperAsk } from '../services/soundFacts'
 import { openProject } from '../services/workspace'
@@ -200,31 +200,28 @@ export function mcpRoutes(c: RouteContext) {
     }
   }
 
-  /** The failed takes of the track a takes route names: 'unknown' when there is no such track, null when its view cannot be read. */
-  async function failedTakes(
+  /**
+   * What the route of a spending step says a call would cost (`<path>/cost`): the answer to give
+   * instead of calling the step (its refusal, or what it would answer when it would change
+   * nothing), or else what to confirm, if anything. An answer that cannot be told is asked about,
+   * never let through, and a step with no cost route is refused there.
+   */
+  async function spendCheck(
     path: string,
-  ): Promise<{ n: number; modelId: unknown }[] | 'unknown' | null> {
-    const response = await fetch(`${own()}${path}`)
-    if (response.status === 404) return 'unknown'
-    const view = await response.json().catch(() => null)
-    return Array.isArray(view?.failed) ? view.failed : null
-  }
-
-  /** The music model a spending step would run on: the body's for new takes, a failed take's for a retry, else the project's; null when it cannot be told. */
-  async function spendingModel(
-    action: Action,
-    body: unknown,
-    failedOnes: { n: number; modelId: unknown }[] | null,
-  ) {
-    const given = (body as { model?: unknown; retry?: unknown } | null) ?? {}
-    const known = (id: unknown) => MUSIC_MODEL_IDS.find((m) => m === id) ?? null
-    if (action.spends === 'takes' && known(given.model)) return known(given.model)
-    if (action.spends === 'takes' && typeof given.retry === 'number') {
-      return known(failedOnes?.find((f) => f.n === given.retry)?.modelId)
+    init: RequestInit,
+  ): Promise<{ answer: ToolResult } | { spend: string | null }> {
+    const url = new URL(path, own())
+    url.pathname += '/cost'
+    const response = await fetch(url, init)
+    const text = await response.text()
+    if (!response.ok) return { answer: failed(`${response.status} ${text}`) }
+    const check = readSpendCheck(text)
+    if (check && 'unchanged' in check) {
+      return { answer: { content: [{ type: 'text', text: JSON.stringify(check.unchanged) }] } }
     }
-    // Make all takes no body: it always runs on the project's model.
-    const state = await (await fetch(`${own()}/api/music/model-state`)).json().catch(() => null)
-    return known(state?.model)
+    if (check && check.price === null) return { spend: null }
+    const price = check?.price ?? 'the price could not be found'
+    return { spend: `might spend ElevenLabs credit (${price})` }
   }
 
   async function act(args: Record<string, unknown>): Promise<ToolResult> {
@@ -234,31 +231,6 @@ export function mcpRoutes(c: RouteContext) {
     if (!action) {
       return failed(
         `Not something to do: ${String(method)} ${String(path)}. studio_pages lists what is.`,
-      )
-    }
-    let confirm = action.confirm
-    if (action.spends) {
-      const track = String(path).split('?')[0]!
-      const retry = (body as { retry?: unknown } | null | undefined)?.retry
-      const takes = action.spends === 'takes' ? await failedTakes(track) : null
-      const id = decodeURIComponent(track.split('/').at(-2)!)
-      // No such track, or nothing to retry: say so, rather than asking about a spend that cannot happen.
-      if (takes === 'unknown') return failed(`There is no track ${id}.`)
-      const failedOnes = typeof retry === 'number' ? takes : null
-      if (failedOnes && !failedOnes.some((f) => f.n === retry)) {
-        return failed(`There is no failed take ${String(retry)} to retry on ${id}.`)
-      }
-      const model = await spendingModel(action, body, failedOnes)
-      // A model that cannot be told is asked about, never let through.
-      const price = model ? perMinuteWords(model) : 'the model could not be found'
-      if (price) {
-        const spend = `might spend ElevenLabs credit (${price})`
-        confirm = confirm ? `${confirm}; ${spend}` : spend
-      }
-    }
-    if (confirm && confirmed !== true) {
-      return failed(
-        `Needs the user's confirmation first: this ${confirm}. Once the user has agreed, call again with confirmed: true.`,
       )
     }
     // However the path was written, it must reach the route it matched: the URL is not rewritten.
@@ -293,11 +265,20 @@ export function mcpRoutes(c: RouteContext) {
       headers['content-type'] = 'application/json'
       payload = JSON.stringify(body)
     }
-    const response = await fetch(`${own()}${path}`, {
-      method: action.method,
-      headers,
-      body: payload,
-    })
+    const init = { method: action.method, headers, body: payload }
+    let confirm = action.confirm
+    // A confirmed step goes straight to its route, which refuses by itself.
+    if (action.spends && confirmed !== true) {
+      const check = await spendCheck(String(path), init)
+      if ('answer' in check) return check.answer
+      if (check.spend) confirm = confirm ? `${confirm}; ${check.spend}` : check.spend
+    }
+    if (confirm && confirmed !== true) {
+      return failed(
+        `Needs the user's confirmation first: this ${confirm}. Once the user has agreed, call again with confirmed: true.`,
+      )
+    }
+    const response = await fetch(`${own()}${path}`, init)
     const answer = await response.text()
     if (!response.ok) return failed(`${response.status} ${answer}`)
     agentChanges.count++

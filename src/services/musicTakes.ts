@@ -23,11 +23,13 @@ import {
   modelLine,
   musicModel,
   onThisComputer,
+  perMinuteWords,
   takePrice,
   tooLongOnTrack,
   type MusicModelId,
 } from '../core/musicModels'
 import type { MusicSpend } from '../core/spending'
+import type { SpendCheck } from '../core/spendCheck'
 import { trackFor, type TrackRow } from '../core/music'
 import type { Problem } from '../core/project'
 import { resolveInRoot } from '../core/paths'
@@ -44,8 +46,15 @@ import {
 } from '../core/musicTrim'
 import { readWav, writeWav } from '../core/wav'
 import { ffmpegEncoder, type Encoder } from './audio'
-import { createTakeEngine, type BoardAccess, type TakeEntry } from './takeEngine'
-import { readResource, refusalAnswer, refusalSentence, writeOrRefuse, writeTogether } from './files'
+import { createTakeEngine, noneMade, type BoardAccess, type TakeEntry } from './takeEngine'
+import {
+  readResource,
+  refusalAnswer,
+  refusalSentence,
+  refuseUnwritable,
+  writeOrRefuse,
+  writeTogether,
+} from './files'
 import { gpuQueue, holdGpu, GPU } from './gpu'
 import type { MusicGenerator } from './music'
 import {
@@ -89,6 +98,9 @@ export type MakeResult = { ok: true } | { ok: false; message: string } | Project
 /** What making takes for a whole list answered: how many tracks and takes were queued; null for an unknown list. */
 export type MakeAllResult =
   { ok: true; tracks: number; takes: number } | { ok: false; message: string } | ProjectFailure
+
+/** What a call to `make` or `makeAll` would cost, or the refusal it would give. */
+export type MakeCostResult = SpendCheck | Exclude<MakeResult, { ok: true }>
 
 /** The project's music model, and whether takes can be made with it now (`message` says what is missing). */
 export type ModelStateResult =
@@ -205,6 +217,11 @@ export interface MusicTakes {
   view(projectFile: string, id: string): Promise<TakesResult>
   /** Queues takes on the GPU queue and returns at once; they are made one at a time. */
   make(projectFile: string, id: string, request: MakeRequest): Promise<MakeResult>
+  /**
+   * What `make` would cost, or the refusal it would give before any take is made: it runs `make`'s
+   * own checks and those of reserving the take numbers. Queues and writes nothing.
+   */
+  cost(projectFile: string, id: string, request: MakeRequest): Promise<MakeCostResult>
   /** Stops the track's takes: the one being made ends and is discarded, the waiting ones never start. */
   stop(projectFile: string, id: string): Promise<StopResult>
   /**
@@ -214,6 +231,11 @@ export interface MusicTakes {
    * stopped). Null for a list that is not there.
    */
   makeAll(projectFile: string, listId: string): Promise<MakeAllResult | null>
+  /**
+   * What `makeAll` would cost, the refusal it would give, or that it would make nothing, from the
+   * checks `makeAll` and its takes run. Queues and writes nothing. Null for a list that is not there.
+   */
+  makeAllCost(projectFile: string, listId: string): Promise<MakeCostResult>
   /** The latest press on the list, kept until Close, a hand start or a new press; null when none. */
   batch(projectFile: string, listId: string): Promise<MusicBatch | null>
   /** Forgets the list's finished press (Close); one that still runs is not forgotten. */
@@ -500,6 +522,73 @@ export function createMusicTakes({
 
   const { entriesOf } = engine
 
+  const didNotFail = (n: number) => ({
+    ok: false as const,
+    message: `Take ${n} did not fail, so it is not made again.`,
+  })
+
+  /** What `make` finds before it queues anything: the track and the model, or why it refuses. */
+  async function checkMake(projectFile: string, id: string, request: MakeRequest) {
+    const found = await resolve(projectFile, id)
+    if (!found || !('inputs' in found)) return { ok: false as const, refusal: found }
+    const refused = (message: string) => ({
+      ok: false as const,
+      refusal: { ok: false as const, message },
+    })
+    // A retry is made with the model the take was first asked with.
+    const retried = 'retry' in request ? engine.entry(projectFile, id, request.retry) : undefined
+    const model =
+      retried?.model ?? ('retry' in request ? found.model : (request.model ?? found.model))
+    const tooLong = tooLongOnTrack(model, found.inputs.kind, found.inputs.seconds)
+    if (tooLong) return refused(tooLong)
+    if (!(await generator.installed(model))) {
+      const { name } = musicModel(model)
+      return refused(
+        onThisComputer(model)
+          ? `${name} is not on this computer.`
+          : `${name} needs an ElevenLabs key.`,
+      )
+    }
+    const ready = await generator.ready(model)
+    if (!ready.ok) return refused(ready.message)
+    if ('retry' in request && engine.entry(projectFile, id, request.retry)?.state !== 'failed') {
+      return { ok: false as const, refusal: didNotFail(request.retry) }
+    }
+    return { ok: true as const, found, model }
+  }
+
+  /** What one press on a list would do: its list and plan, or why it makes nothing. */
+  async function planPress(projectFile: string, listId: string) {
+    const refused = <R>(refusal: R) => ({ ok: false as const, refusal })
+    const opened = await openProject(projectFile)
+    if (!opened.ok) return refused(opened)
+    const { project } = opened
+    if (!project.music) return refused(null)
+    const lists = (await readMusic(dirname(projectFile), project, []))?.lists ?? []
+    const list = lists.find((l) => l.id === listId)
+    if (!list) return refused(null)
+    const state = await api.modelState(projectFile)
+    if (!state || !state.ok) return refused(state)
+    if (!state.ready) {
+      return refused({ ok: false as const, message: state.message ?? 'Music cannot be made yet.' })
+    }
+    const plan = planMakeAll({
+      kind: list.kind === 'stingers' ? 'stinger' : 'loop',
+      tracks: list.tracks,
+      making: await api.making(projectFile),
+      model: state.model,
+      ready: true,
+    })
+    const ready = plan.kind === 'ready' && plan.tracks.length > 0 ? plan : null
+    return { ok: true as const, list, model: state.model, plan: ready }
+  }
+
+  /** The press's refusal when one of its tracks cannot start. */
+  const notStarted = (made: MakeCostResult | MakeResult) => ({
+    ok: false as const,
+    message: made && 'message' in made ? made.message : 'The takes could not be started.',
+  })
+
   const api: MusicTakes = {
     async view(projectFile, id) {
       const found = await resolve(projectFile, id)
@@ -575,26 +664,10 @@ export function createMusicTakes({
     async make(projectFile, id, request) {
       // Read before anything is awaited: Make all sets it only around its own synchronous call.
       const press = pressing
-      const found = await resolve(projectFile, id)
-      if (!found || !('inputs' in found)) return found
+      const checked = await checkMake(projectFile, id, request)
+      if (!checked.ok) return checked.refusal
+      const { found, model } = checked
       const { inputs, hash } = found
-      // A retry is made with the model the take was first asked with.
-      const retried = 'retry' in request ? engine.entry(projectFile, id, request.retry) : undefined
-      const model =
-        retried?.model ?? ('retry' in request ? found.model : (request.model ?? found.model))
-      const tooLong = tooLongOnTrack(model, inputs.kind, inputs.seconds)
-      if (tooLong) return { ok: false, message: tooLong }
-      if (!(await generator.installed(model))) {
-        const { name } = musicModel(model)
-        return {
-          ok: false,
-          message: onThisComputer(model)
-            ? `${name} is not on this computer.`
-            : `${name} needs an ElevenLabs key.`,
-        }
-      }
-      const ready = await generator.ready(model)
-      if (!ready.ok) return { ok: false, message: ready.message }
       // Takes started by hand end the summary of a finished press (read before they are added);
       // one still running goes on.
       const ended = press
@@ -611,12 +684,8 @@ export function createMusicTakes({
       if ('retry' in request) {
         // The brief may have changed since it failed: it is made from it, so it is filed under it.
         const failed = engine.retry(projectFile, id, request.retry, hash)
-        if (!failed) {
-          return {
-            ok: false,
-            message: `Take ${request.retry} did not fail, so it is not made again.`,
-          }
-        }
+        // Another call may have taken it since the check.
+        if (!failed) return didNotFail(request.retry)
         queued = [failed]
       } else {
         const reserved = await engine.reserve(
@@ -648,26 +717,42 @@ export function createMusicTakes({
       return { ok: true }
     },
 
+    async cost(projectFile, id, request) {
+      const checked = await checkMake(projectFile, id, request)
+      if (!checked.ok) return checked.refusal
+      const { found, model } = checked
+      // New takes reserve their numbers on the board before anything is spent; a retry has its own.
+      if (!('retry' in request)) {
+        const board = await readBoard(found.root, found.board)
+        if ('ok' in board) return board
+        // Nothing was tried, so nothing is logged: the step logs it if it is made anyway.
+        try {
+          await refuseUnwritable(found.root, found.board)
+        } catch (error) {
+          const sentence = refusalSentence(error)
+          if (sentence === null) throw error
+          return { ok: false, message: noneMade('takes', sentence) }
+        }
+      }
+      return { ok: true, price: perMinuteWords(model) }
+    },
+
+    async makeAllCost(projectFile, listId) {
+      const press = await planPress(projectFile, listId)
+      if (!press.ok) return press.refusal
+      if (!press.plan) return { ok: true, unchanged: { ok: true, tracks: 0, takes: 0 } }
+      for (const track of press.plan.tracks) {
+        const cost = await api.cost(projectFile, track.id, { count: TAKES_EACH })
+        if (!cost || !cost.ok) return notStarted(cost)
+      }
+      return { ok: true, price: perMinuteWords(press.model) }
+    },
+
     async makeAll(projectFile, listId) {
-      const opened = await openProject(projectFile)
-      if (!opened.ok) return opened
-      const { project } = opened
-      if (!project.music) return null
-      const lists = (await readMusic(dirname(projectFile), project, []))?.lists ?? []
-      const list = lists.find((l) => l.id === listId)
-      if (!list) return null
-      const state = await api.modelState(projectFile)
-      if (!state || !state.ok) return state
-      if (!state.ready) return { ok: false, message: state.message ?? 'Music cannot be made yet.' }
-      const plan = planMakeAll({
-        kind: list.kind === 'stingers' ? 'stinger' : 'loop',
-        tracks: list.tracks,
-        making: await api.making(projectFile),
-        model: state.model,
-        ready: true,
-      })
-      if (plan.kind !== 'ready' || plan.tracks.length === 0)
-        return { ok: true, tracks: 0, takes: 0 }
+      const planned = await planPress(projectFile, listId)
+      if (!planned.ok) return planned.refusal
+      const { list, plan } = planned
+      if (!plan) return { ok: true, tracks: 0, takes: 0 }
       const started: string[] = []
       const before = await api.making(projectFile)
       // Its takes point at it from the start; it is kept only once they have all been started.
@@ -686,9 +771,7 @@ export function createMusicTakes({
         const made = await making
         if (!made || !made.ok) {
           for (const id of started) await api.stop(projectFile, id)
-          const message =
-            made && 'message' in made ? made.message : 'The takes could not be started.'
-          return { ok: false, message }
+          return notStarted(made)
         }
         started.push(track.id)
       }
