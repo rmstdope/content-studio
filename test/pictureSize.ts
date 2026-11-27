@@ -1,8 +1,9 @@
 import { cssLength, valuesInEveryWindow } from './stylesheet'
 
 /**
- * The pictures Fine-tune, Patches and Named areas are all held to the same size with (as-5068), and
- * the size each is drawn at in a panel 1200 px wide, in a window 900 px high.
+ * The pictures Fine-tune, Patches and Named areas are all held to the same width with (as-5068), and
+ * the size each is drawn at in a panel 1200 px wide, in a window 900 px high: `drawn` the whole take
+ * (Fine-tune), `cut` the image's cut of it (Named areas, and Patches' game view).
  */
 export const SAME_SIZE = [
   // 92% of the window's height holds it: 828 high.
@@ -12,6 +13,7 @@ export const SAME_SIZE = [
     height: 1024,
     game: { width: 408, height: 512 },
     drawn: [660, 828],
+    cut: [660, 828],
   },
   // Its own pixels hold it.
   {
@@ -20,6 +22,7 @@ export const SAME_SIZE = [
     height: 640,
     game: { width: 512, height: 320 },
     drawn: [1024, 640],
+    cut: [1024, 640],
   },
   // A model's take a few rows taller than the image: the whole take is what holds all three (as-fuaz).
   {
@@ -28,13 +31,15 @@ export const SAME_SIZE = [
     height: 1024,
     game: { width: 160, height: 200 },
     drawn: [660, 828],
+    cut: [660, 825],
   },
 ] as const
 
 /**
  * The width and height, in whole px, that the stylesheet and the inline style give a picture's box
  * in a panel 1200 px wide, in a window 900 px high: happy-dom lays nothing out, so the one width
- * rule is worked out here, with the box's own ratio, pinned bar and widest size.
+ * rule is worked out here, with the box's own ratio, pinned bar and widest size, and its height from
+ * the shape the box has.
  */
 export function drawnSize(box: HTMLElement): [number, number] {
   const widths = valuesInEveryWindow(box, 'width')
@@ -46,5 +51,6 @@ export function drawnSize(box: HTMLElement): [number, number] {
     cssLength(rule, { percent: 1200, vh: 900, ratio }),
     parseFloat(box.style.maxWidth),
   )
-  return [Math.round(width), Math.round(width / ratio)]
+  const [across, down] = box.style.aspectRatio.split('/').map(Number)
+  return [Math.round(width), Math.round((width * down!) / across!)]
 }

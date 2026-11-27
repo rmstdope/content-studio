@@ -1269,13 +1269,13 @@ describe('the pinned bar and the full-width picture (as-uucl.4)', () => {
     expect(stage!.style.getPropertyValue('--bar-height')).toBe('112px')
   })
 
-  for (const { what, width, height, game, drawn } of SAME_SIZE) {
+  for (const { what, width, height, game, cut } of SAME_SIZE) {
     it(`draws ${what} at the size Fine-tune and Patches draw it, with no bar to clear (as-5068)`, async () => {
       const { stage } = await render([area('a')], {
         size: game,
         answer: view({ take: { n: 2, width, height, cropped: false } }),
       })
-      expect(drawnSize(stage!)).toEqual([...drawn])
+      expect(drawnSize(stage!)).toEqual([...cut])
     })
   }
 

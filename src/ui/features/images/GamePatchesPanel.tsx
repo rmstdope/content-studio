@@ -234,9 +234,9 @@ function stackOfPatch(
 
 /**
  * The patches the game asks for on an image, laid out by the image's shape: a list beside a
- * portrait image while there is room for it and the whole picture, a row of chips above otherwise. One patch is open at a time, the first whose
- * game words changed under the user's, else the first. Nothing on the page when the game asks for
- * none.
+ * portrait image while there is room for it and the whole picture, a row of chips above otherwise.
+ * One patch is open at a time, the first whose game words changed under the user's, else the first.
+ * Nothing on the page when the game asks for none.
  */
 export function GamePatchesPanel({ row }: { row: ImageRow }) {
   const [saved, setSaved] = useState(false)

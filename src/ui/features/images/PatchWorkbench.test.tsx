@@ -1926,7 +1926,7 @@ describe('the model of new takes', () => {
 describe('the three parts of an open patch', () => {
   const made = () => view([work('a', { takes: [takeOf(1), takeOf(2, { chosen: true })] })])
 
-  for (const { what, width, height, game, drawn } of SAME_SIZE) {
+  for (const { what, width, height, game, cut } of SAME_SIZE) {
     it(`draws ${what} at the size Fine-tune and Named areas draw it (as-5068)`, async () => {
       const { host } = await render([patchRow('a')], () =>
         view([work('a', { takes: [takeOf(1)] })], {
@@ -1936,7 +1936,7 @@ describe('the three parts of an open patch', () => {
       )
       const box = host.querySelector<HTMLElement>('.patch-picture')!
       expect(box.classList.contains('whole-in-view')).toBe(true)
-      expect(drawnSize(box)).toEqual([...drawn])
+      expect(drawnSize(box)).toEqual([...cut])
     })
   }
 

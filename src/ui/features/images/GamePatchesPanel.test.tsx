@@ -11,6 +11,7 @@ const { act, createElement } = await import('react')
 const { createRoot } = await import('react-dom/client')
 const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query')
 const { GamePatchesPanel } = await import('./GamePatchesPanel')
+const { JobOpenProvider } = await import('./ImageJobTabs')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -83,29 +84,37 @@ async function render(
   document.body.append(host)
   const root = createRoot(host)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  await act(async () => {
-    root.render(
-      createElement(
-        QueryClientProvider,
-        { client },
-        createElement(GamePatchesPanel, {
-          row: {
-            id: 'inn',
-            patches,
-            ...shape,
-            chosen: chosenOf(shape.status !== 'unknown', shape.chosenTake ?? null),
-          } as ImageRow,
-        }),
-      ),
-    )
-  })
+  /** Draws the page with the Patches tab open or not. */
+  const draw = async (open: boolean) => {
+    await act(async () => {
+      root.render(
+        createElement(
+          QueryClientProvider,
+          { client },
+          createElement(
+            JobOpenProvider,
+            { value: open },
+            createElement(GamePatchesPanel, {
+              row: {
+                id: 'inn',
+                patches,
+                ...shape,
+                chosen: chosenOf(shape.status !== 'unknown', shape.chosenTake ?? null),
+              } as ImageRow,
+            }),
+          ),
+        ),
+      )
+    })
+  }
+  await draw(true)
   // The patches' view is loaded after the first render.
   for (let i = 0; i < 3; i++) await act(async () => await new Promise((r) => setTimeout(r, 5)))
   cleanups.push(() => {
     act(() => root.unmount())
     host.remove()
   })
-  return { host, sent }
+  return { host, sent, draw }
 }
 
 /**
@@ -125,6 +134,8 @@ function panelWidth(first: number) {
     Object.assign(window, { innerHeight: height })
   })
   return {
+    /** Changes the width without the page hearing of it. */
+    set: (next: number) => void (width = next),
     to: async (next: number) => {
       width = next
       await act(async () => void window.dispatchEvent(new Event('resize')))
@@ -342,6 +353,15 @@ describe('GamePatchesPanel', () => {
       const panel = panelWidth(600)
       const { host } = await render(two(), undefined, taken, portrait)
       await panel.to(0)
+      expect(beside(host)).toBe(false)
+    })
+
+    it('is measured as the tab opens, before the observer says anything', async () => {
+      const panel = panelWidth(0)
+      const { host, draw } = await render(two(), undefined, taken, portrait)
+      await draw(false)
+      panel.set(600)
+      await draw(true)
       expect(beside(host)).toBe(false)
     })
 
