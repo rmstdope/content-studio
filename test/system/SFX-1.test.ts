@@ -19,12 +19,13 @@ const RATE = 44_100
 const LOUD = 8000
 
 /**
- * A steady tone. At 100.125 Hz it is half a cycle out after the 4 seconds the game loops, so a
- * take merely cut there jumps from one end of its swing to the other when it goes round.
+ * A steady tone. At 100.0625 Hz it is a quarter of a cycle out after the 4 seconds the game loops,
+ * so a take merely cut there jumps when it goes round (from this phase, across most of its swing),
+ * while the crossfade, whose two sides are then a quarter cycle apart, stays as loud throughout.
  */
 function tone(seconds: number) {
   const samples = Int16Array.from({ length: Math.round(seconds * RATE) }, (_, i) =>
-    Math.round(LOUD * Math.cos((2 * Math.PI * 100.125 * i) / RATE)),
+    Math.round(LOUD * Math.cos((2 * Math.PI * 100.0625 * i) / RATE + Math.PI / 4)),
   )
   const format = { channels: 1, sampleRate: RATE, bitsPerSample: 16 }
   return writeWav({ format, data: new Uint8Array(samples.buffer) })
@@ -178,14 +179,16 @@ describe.skipIf(Bun.which('ffmpeg') === null)('SFX-1: a sound effect is made and
     // The end and the start as they are heard one after the other, 20 ms of each.
     const edge = RATE / 50
     const round = [...clip.slice(-edge), ...clip.slice(0, edge)]
-    // Both sides sound: no silence covers the join.
-    for (const side of [round.slice(0, edge), round.slice(edge)]) {
-      expect(Math.max(...side.map(Math.abs))).toBeGreaterThan(LOUD / 2)
-    }
-    // And no jump: merely cut, the clip steps about 10 000 here. The tone moves about 115 from one sample
-    // to the next, and the MP3, which encodes each end without the other, is out by up to 1500.
+    // No jump between them. Encoded, this tone moves about 80 from one sample to the next and a
+    // take merely cut steps about 7000; the MP3, which encodes each end without the other, is out
+    // by about 1000.
     const steps = round.slice(1).map((sample, i) => Math.abs(sample - round[i]!))
-    expect(Math.max(...steps)).toBeLessThan(4000)
+    expect(Math.max(...steps)).toBeLessThan(3000)
+    // And no silence or dip covers it: every 20 ms of the whole loop sounds.
+    const loudness = Array.from({ length: clip.length / edge }, (_, i) =>
+      clip.subarray(i * edge, (i + 1) * edge).reduce((max, v) => Math.max(max, Math.abs(v)), 0),
+    )
+    expect(Math.min(...loudness)).toBeGreaterThan(LOUD / 2)
   })
 
   it('changes only the effects’ clips and manifest and the studio’s own files', () => {
