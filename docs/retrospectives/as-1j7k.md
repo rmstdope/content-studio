@@ -15,3 +15,18 @@ a slow gate until `ps` showed no test process.
 **Prevent by.** `.claude/skills/produce-bead/SKILL.md`, _Building_: run the gate in its own call,
 with `</dev/null` and its output in a file, so a stalled step before it cannot pass for a slow gate.
 **Seen before.** none found
+
+## The music spending test failed in CI on a change that only touched the stylesheet
+
+**What happened.** CI on head 03fc4a3e failed `server, what music takes cost > lists a paid take on
+the Spending page, in its act, and a free one not` (`src/server/music.test.ts:201`, `takes: 0` for
+an expected 1). The file passed locally, and 30 repeats of the test too. With a temporary
+`Bun.sleep(100)` at the top of `settled` in `src/services/musicTakes.ts` it failed the same way
+every time.
+**Why.** A take stops showing as being made once the board lists it (`split` in
+`src/services/takeEngine.ts`), but its spend is saved later, in `settled`. The test waits for
+`making` to empty, sleeps 20 ms and reads the Spending page, which under load is too early.
+**Cost.** About ten minutes and CI run again.
+**Prevent by.** A bug bead: have the test wait for the spending row instead of 20 ms, or save the
+spend before the take stops showing as being made.
+**Seen before.** as-evwv, as-kw3x.1
