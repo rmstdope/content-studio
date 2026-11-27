@@ -382,11 +382,16 @@ describe('server, generating a part', () => {
 
 /**
  * A `refresh.part` command that runs until the test ends it: it says it has started with the file
- * `refresh-started` and then waits for `refresh-end`.
+ * `refresh-started` and then waits for `refresh-end`. It gives up after 500 rounds (five seconds
+ * or more), so a killed test run leaves no shell looping.
  */
-const heldRefresh = 'touch refresh-started; until [ -e refresh-end ]; do sleep 0.01; done # {part}'
+const heldRefresh =
+  ': > refresh-started; n=0; until [ -e refresh-end ] || [ $n -ge 500 ]; do sleep 0.01; n=$((n+1)); done # {part}'
 
-/** The test's end of `heldRefresh` in a repository: wait until it runs, and let it finish. */
+/**
+ * The test's end of `heldRefresh` in a repository: wait until it runs, and let it finish. One hold
+ * per repository, since both files stay behind.
+ */
 function holdOf(root: string) {
   return {
     running: () => until(() => existsSync(join(root, 'refresh-started'))),
