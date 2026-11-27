@@ -222,8 +222,9 @@ export interface MusicTakesView {
   making: MakingView[]
   failed: FailedView[]
   /**
-   * The number of the take in the game, or none; not known while the music lock cannot be read,
-   * when none can be chosen or dropped.
+   * The number of the chosen take among those listed here (its file is there and its fingerprint
+   * matches); not known while the music lock cannot be read, when none can be chosen or dropped.
+   * A null take is not by itself "none chosen": the lock may name a take that is not listed.
    */
   chosen: Chosen
 }

@@ -1,4 +1,4 @@
-import { type Chosen } from '../../../core/lockRead'
+import type { Chosen } from '../../../core/lockRead'
 import { type Ref, useId, useRef } from 'react'
 import type { SavedEffects, SavedZoom } from '../../../core/images'
 import type { EffectSetting, EffectType, SpotView } from '../../../core/motion'

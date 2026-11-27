@@ -312,8 +312,14 @@ function input(over: InputOver = {}): ImagesInput {
 
 describe('summarizeImages', () => {
   it('does not say "none yet" while the lock cannot be read', () => {
-    const { images } = summarizeImages(input({ chosen: LOCK_UNREAD }))
+    const patch = { id: 'bread-taken', title: 'Bread taken', description: 'Remove the bread' }
+    const lists = input().lists.map((l) => ({
+      ...l,
+      state: { status: 'ok' as const, images: [{ ...inn, patches: [patch] }] },
+    }))
+    const { images } = summarizeImages(input({ lists, chosen: LOCK_UNREAD }))
     const act = images.acts[0]!
+    expect(act.rows[0]!.patches[0]!.chosenArea).toEqual({ known: false })
     expect(act.rows[0]!.status).toBe('unknown')
     expect(act.rows[0]!.chosen).toEqual({ known: false })
     expect(act.chosen).toBeNull()

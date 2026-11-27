@@ -369,8 +369,10 @@ export interface EffectTakesView extends EffectModelsView {
   making: EffectMakingView[]
   failed: EffectFailedView[]
   /**
-   * The number of the take in the game, or none; not known while the effects lock cannot be read,
-   * when nothing can be chosen, dropped or un-chosen.
+   * The number of the chosen take among those listed here (its file is there and its fingerprint
+   * matches); not known while the effects lock cannot be read, when nothing can be chosen, dropped
+   * or un-chosen. A null take is not by itself "none chosen": the lock may name a take that is not
+   * listed.
    */
   chosen: Chosen
 }

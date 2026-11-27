@@ -11,7 +11,6 @@ import {
   type ImageDownload,
 } from '../core/imageModels'
 import { isCropped, type Pixels } from '../core/imagePixels'
-import { ImageLockSchema } from '../core/images'
 import { createKeptReader } from './keptRead'
 import { ImageManifestSchema, type ImageManifest } from '../core/imageTakes'
 import {
@@ -30,7 +29,6 @@ import {
 } from '../core/imagePatches'
 import type { PatchRow } from '../core/images'
 import { resolveInRoot } from '../core/paths'
-import { IMAGES_LOCK_FILE } from '../core/project'
 import { readResource, writeOrRefuse } from './files'
 import { freeGpu, gpuQueue } from './gpu'
 import { IMAGE_TAKES_DIR, readImages, readStyleLook } from './imageLists'
@@ -681,11 +679,10 @@ export function createImagePatches({
           EDIT_MODEL_IDS.map(async (id) => [id, await downloadOf(generator, id)] as const),
         ),
       ) as Record<EditModelId, ImageDownload>
-      const lock = await readResource(image.root, IMAGES_LOCK_FILE, ImageLockSchema, [])
       return {
         ok: true,
         chosen: chosenOf(
-          image.row.chosen.known && lock !== 'invalid',
+          image.row.chosen.known,
           picture && {
             n: image.base!,
             width: picture.width,

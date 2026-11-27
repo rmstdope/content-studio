@@ -222,7 +222,9 @@ export interface ImageTakesView {
   /** Why the takes cannot be brought to the game's look (the style); null when they can. */
   lookError: string | null
   /**
-   * The number of the take in the game, or none; not known while the images lock cannot be read.
+   * The number of the chosen take among those listed here (its picture is there); not known while
+   * the images lock cannot be read. A null take is not by itself "none chosen": the lock may name
+   * a take that is not listed.
    */
   chosen: Chosen
 }

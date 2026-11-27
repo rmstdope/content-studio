@@ -1,4 +1,4 @@
-import { type Chosen } from '../../../core/lockRead'
+import type { Chosen } from '../../../core/lockRead'
 import {
   useCallback,
   useEffect,
