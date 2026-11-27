@@ -44,8 +44,8 @@ lists it compared held `content-studio-eleven-*.mp3` files. Reproduced locally b
 while another process made and removed files of that name in the temporary folder.
 **Why.** The test lists every `content-studio-eleven-*` file in the shared temporary folder before
 and after, so a test file decoding a take at the same time changes the list.
-**Cost.** One more CI run and a local reproduction.
-**Prevent by.** `src/services/elevenMusic.test.ts`: check only the file this decode made (give
-`createElevenMusic` its temporary folder, or watch the name it hands the decoder), so the file
-shares no global with another, as `CLAUDE.md` asks.
+**Cost.** Two red CI runs (the second on a docs-only commit) and a local reproduction.
+**Prevent by.** Fixed in #743: the test decodes into a temporary folder of its own. The new test file
+moved the parallel schedule, which is the likely reason it failed twice in a row here (not
+established). A check against tests reading the whole temporary folder would stop the next one.
 **Seen before.** None found naming this test.

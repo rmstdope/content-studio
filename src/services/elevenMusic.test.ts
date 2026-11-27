@@ -108,16 +108,24 @@ describe.skipIf(Bun.which('ffmpeg') === null)('createElevenMusic, decoding with 
     const mp3File = join(tempRepo({}), 'piece.mp3')
     await ffmpegEncoder(second, mp3File, { bitrate: '128k', channels: 2 })
     const mp3 = new Uint8Array(readFileSync(mp3File))
-    const leftover = () =>
-      readdirSync(tmpdir()).filter((f) => f.startsWith('content-studio-eleven-'))
-    const before = leftover()
-    const take = await createElevenMusic({
-      apiKey: async () => 'k',
-      client: () => ({ ...fakeClient().client, music: async () => mp3 }),
-    }).generate(request)
-    const { format } = readWav(take.wav)
-    expect(format.bitsPerSample).toBe(16)
-    expect(wavSeconds(readWav(take.wav))).toBeCloseTo(1, 1)
-    expect(leftover()).toEqual(before)
+    // A temporary folder of this test's own: test files run side by side, and another one
+    // decoding a take would be seen in the shared folder.
+    const own = tempRepo({})
+    const shared = process.env.TMPDIR
+    process.env.TMPDIR = own
+    try {
+      expect(tmpdir()).toBe(own)
+      const take = await createElevenMusic({
+        apiKey: async () => 'k',
+        client: () => ({ ...fakeClient().client, music: async () => mp3 }),
+      }).generate(request)
+      const { format } = readWav(take.wav)
+      expect(format.bitsPerSample).toBe(16)
+      expect(wavSeconds(readWav(take.wav))).toBeCloseTo(1, 1)
+      expect(readdirSync(own)).toEqual([])
+    } finally {
+      if (shared === undefined) delete process.env.TMPDIR
+      else process.env.TMPDIR = shared
+    }
   })
 })
