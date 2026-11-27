@@ -31,7 +31,7 @@ OVW-1  A part's overview shows what is missing or out of date for that part, so 
        Proven by: nothing yet
 OVW-2  The Changes page lists what git sees of the files the studio wrote, so the person knows
        what to commit.
-       Proven by: nothing yet
+       Proven by: test/system/OVW-2.test.ts
 OVW-3  A greyed control says why it is off, on hover, focus or tap, and stays reachable with Tab.
        Proven by: test/system/OVW-3.test.ts
 
