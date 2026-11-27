@@ -32,3 +32,17 @@ not captured. The other runs passed, and neither named test is touched by this b
 **Prevent by.** A testing bead for each of the two names: make the wait in each depend on the
 state it waits for rather than on elapsed time, once the cause is found.
 **Seen before.** as-i10j (a closed bug: a different timing failure among the image patch tests).
+
+## CI failed on a stop-with-the-studio test the bead does not touch
+
+**What happened.** The `Test` job on #710 (run 45955294148) failed on one test,
+`a local generator stops with the studio > stops an image take, and what it started, on SIGHUP`:
+the child was still alive about a second after the studio exited. Locally,
+`bun test src/services/stopWithStudio.test.ts --rerun-each=60` failed 6 of 240.
+**Why.** The test gives the child 20 looks, 50 ms apart, to be gone after the studio exits. Whether
+that limit or the stop itself is at fault was not established.
+**Cost.** One CI run and a local repeat of the suite, a few minutes.
+**Prevent by.** A bead on `src/services/stopWithStudio.test.ts` and the generators' stop path: find
+whether the child outlives the studio or only dies late, then wait for its exit instead of a fixed
+count of looks.
+**Seen before.** none found.
