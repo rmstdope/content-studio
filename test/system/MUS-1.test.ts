@@ -7,29 +7,14 @@ import { join } from 'node:path'
 import type { MusicTakesView } from '../../src/core/musicTake'
 import type { ProjectSummary } from '../../src/core/summary'
 import { STINGER_GENERATED_SECONDS } from '../../src/core/musicModels'
-import { readWav, writeWav } from '../../src/core/wav'
+import { readWav } from '../../src/core/wav'
 import { ffmpegEncoder } from '../../src/services/audio'
 import type { MusicPieceRequest } from '../../src/services/elevenlabs'
 import { createElevenMusic } from '../../src/services/elevenMusic'
 import { createMusicRouter, type MusicGenerator, type MusicRequest } from '../../src/services/music'
 import { fakeEleven, projectJson } from '../helpers'
+import { decoded, RATE, tone } from './sound'
 import { startStudio } from './studio'
-
-const RATE = 8000
-
-/**
- * A take as a model makes it: `seconds` long, sounding a tone of `pitch` Hz for the first
- * `sounding` of them. Each take has a pitch of its own, which levelling and encoding keep, so it
- * tells which take is heard.
- */
-function tone(pitch: number, seconds: number, sounding = seconds) {
-  const samples = new Int16Array(seconds * RATE)
-  for (let i = 0; i < sounding * RATE; i++) {
-    samples[i] = Math.round(8000 * Math.sin((2 * Math.PI * pitch * i) / RATE + 0.1))
-  }
-  const format = { channels: 1, sampleRate: RATE, bitsPerSample: 16 }
-  return writeWav({ format, data: new Uint8Array(samples.buffer) })
-}
 
 /**
  * The pitch of a second of mono samples, by how often they cross zero. It is the second from the
@@ -40,29 +25,6 @@ function pitchOf(samples: Int16Array): number {
   let crossings = 0
   for (let i = 1; i < second.length; i++) if (second[i - 1]! < 0 !== second[i]! < 0) crossings++
   return crossings / 2 / (second.length / RATE)
-}
-
-/** The samples of the MP3 at `path`, decoded to one channel, as a player of the game gets them. */
-function decoded(path: string): Int16Array {
-  const run = Bun.spawnSync(
-    [
-      'ffmpeg',
-      '-loglevel',
-      'error',
-      '-i',
-      path,
-      '-ac',
-      '1',
-      '-ar',
-      String(RATE),
-      '-f',
-      's16le',
-      '-',
-    ],
-    { stdout: 'pipe', stderr: 'pipe' },
-  )
-  if (run.exitCode !== 0) throw new Error(run.stderr.toString())
-  return new Int16Array(new Uint8Array(run.stdout).buffer)
 }
 
 describe.skipIf(Bun.which('ffmpeg') === null)('MUS-1: a track is made and chosen', () => {
@@ -78,7 +40,10 @@ describe.skipIf(Bun.which('ffmpeg') === null)('MUS-1: a track is made and chosen
   const eleven: MusicPieceRequest[] = []
   /** The pitch of the take just asked for: 100 Hz, then 100 Hz more for each by either model. */
   const nextPitch = () => 100 * (local.length + eleven.length)
-  /** A stinger's sound ends after two seconds, a loop's lasts as long as asked. */
+  /**
+   * A stinger's sound ends after two seconds, a loop's lasts as long as asked. Each take has a
+   * pitch of its own, which levelling and encoding keep, so it tells which take is heard.
+   */
   const soundOf = (seconds: number) => (seconds === STINGER_GENERATED_SECONDS ? 2 : seconds)
 
   const onThisComputer: MusicGenerator = {
