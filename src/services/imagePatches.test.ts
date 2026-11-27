@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { projectJson, tempRepo } from '../../test/helpers'
+import { projectJson, takeFailed, tempRepo } from '../../test/helpers'
 import type { EditModelId } from '../core/imageModels'
 import {
   keptBox,
@@ -185,8 +185,8 @@ describe.skipIf(process.getuid?.() === 0)(
       const { root, file, patches, work, onMade } = spoiled()
       onMade(() => writeFileSync(join(root, BOARD), '{ nope'))
       await patches.make(file, 'inn', 'door', { count: 1, area })
-      // The view cannot be read while the board is broken: give the fake model time to be saved.
-      await new Promise((r) => setTimeout(r, 150))
+      // The view cannot be read while the board is broken: wait for the take to fail on it.
+      await takeFailed('contentStudioPatchTakes', file)
       writeFileSync(join(root, BOARD), JSON.stringify({ next: 2 }))
       const view = await work()
       expect(view.failed[0]!.message).toBe(`${BOARD} cannot be used.`)

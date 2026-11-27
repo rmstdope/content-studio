@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { join } from 'node:path'
-import { projectJson, tempRepo } from '../../test/helpers'
+import { projectJson, takeFailed, tempRepo } from '../../test/helpers'
 import type { EditModelId } from '../core/imageModels'
 import type { FineTunesView } from '../core/imageFineTunes'
 import { createImageFineTunes } from './imageFineTunes'
@@ -174,8 +174,8 @@ describe('a fine-tune the model made but the studio cannot save', () => {
     const board = join(root, FOLDER, 'board.json')
     onMade(() => writeFileSync(board, '{ nope'))
     await tunes.make(file, 'inn', { count: 1, words: 'Add a cat', area })
-    // The view cannot be read while the board is broken: give the fake model time to be saved.
-    await new Promise((r) => setTimeout(r, 150))
+    // The view cannot be read while the board is broken: wait for the take to fail on it.
+    await takeFailed('contentStudioFineTunes', file)
     writeFileSync(board, JSON.stringify({ next: 2 }))
     const view = await settled()
     expect(view.failed[0]!.message).toBe(`${FOLDER}/board.json cannot be used.`)

@@ -47,6 +47,24 @@ export function tempRepo(files: Record<string, unknown>): string {
 }
 
 /**
+ * Waits until a take of the project at `projectFile` shows failed among the entries the take engine
+ * keeps in `slot`: for a test that has broken the board, so that no view can be read meanwhile.
+ */
+export async function takeFailed(slot: string, projectFile: string): Promise<void> {
+  type Slots = Record<string, Map<string, Map<number, { state: string }>> | undefined>
+  const failed = () =>
+    [...((globalThis as unknown as Slots)[slot] ?? [])].some(
+      ([key, entries]) =>
+        key.startsWith(`${projectFile}\0`) &&
+        [...entries.values()].some((entry) => entry.state === 'failed'),
+    )
+  for (const giveUp = Date.now() + 10_000; !failed();) {
+    if (Date.now() > giveUp) throw new Error('the take never failed')
+    await new Promise((resolve) => setTimeout(resolve, 5))
+  }
+}
+
+/**
  * An ElevenLabs client that knows `voices` (by ElevenLabs' own id), speaks with `speak` and has
  * `account`, when given; anything else it is asked rejects. `asked` lists the voices looked up,
  * `spoken` the speech asked for.
