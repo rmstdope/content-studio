@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ImagesSummary } from '../../../core/images'
 import { useBringAll, useLookRun } from '../../api'
@@ -14,10 +14,16 @@ export function LookNotice({ notice }: { notice: ImagesSummary['lookNotice'] }) 
   const run = useLookRun().data ?? null
   const bring = useBringAll()
   const client = useQueryClient()
-  // Images already brought lose their tag as they finish.
+  // Images already brought lose their tag as they finish, on the lists, the takes and the patches
+  // alike. A run that brought every image is forgotten, so its end reads as no run at all.
+  const followed = useRef(false)
   useEffect(() => {
-    if (run) void client.invalidateQueries({ queryKey: ['project'] })
-  }, [run?.done, run?.running, client])
+    if (!run && !followed.current) return
+    followed.current = run !== null
+    void client.invalidateQueries({ queryKey: ['project'] })
+    void client.invalidateQueries({ queryKey: ['image-takes'] })
+    void client.invalidateQueries({ queryKey: ['image-patches'] })
+  }, [run === null, run?.done, run?.running, client])
 
   if (run?.running) {
     return (
