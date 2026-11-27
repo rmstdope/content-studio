@@ -120,7 +120,7 @@ IMG-6  Make all makes takes for every image of an act that has none, and can be 
        Proven by: nothing yet
 IMG-7  When the act's look changes, the chosen pictures and their patches can be brought to the
        new look, and the studio says which could not be.
-       Proven by: nothing yet
+       Proven by: test/system/IMG-7.test.ts
 
 ## Sound effects (SFX)
 
