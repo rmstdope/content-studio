@@ -115,7 +115,7 @@ IMG-4  Named areas: the person places a box (and a point, where it has one) for 
 IMG-5  Movement: the person puts effects and a slow zoom on a picture, with their settings and
        where each plays, and sees them move as the game shows them; each change is saved for the
        game at once.
-       Proven by: nothing yet
+       Proven by: test/system/IMG-5.test.ts
 IMG-6  Make all makes takes for every image of an act that has none, and can be stopped.
        Proven by: test/system/IMG-6.test.ts
 IMG-7  When the act's look changes, the chosen pictures and their patches can be brought to the
